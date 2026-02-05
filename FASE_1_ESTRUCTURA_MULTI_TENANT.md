@@ -52,7 +52,121 @@ users (modificado)                search_logs (modificado)
 
 ---
 
-## 🔄 Estrategia de Migración de Datos
+## � JERARQUÍA DE USUARIOS Y PERMISOS
+
+### **📊 Estructura Jerárquica del Sistema:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SUPER_ADMIN (Atinet)                     │
+├─────────────────────────────────────────────────────────────┤
+│  • notaria_id = NULL                                        │
+│  • Ve TODAS las notarías                                    │
+│  • Gestiona planes, facturación, soporte global             │
+│  • Puede actuar como cualquier usuario (para soporte)       │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                 ADMIN_NOTARIA (Por Notaría)                 │
+├─────────────────────────────────────────────────────────────┤
+│  • notaria_id = [ID específico]                             │
+│  • Ve SOLO su notaría                                       │
+│  • Gestiona usuarios, herramientas, reportes de SU notaría  │
+│  • Puede crear/editar/eliminar usuarios de su notaría       │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│               USUARIO_NOTARIA (Usuario Regular)             │
+├─────────────────────────────────────────────────────────────┤
+│  • notaria_id = [ID específico]                             │
+│  • Ve SOLO su notaría                                       │
+│  • Usa herramientas, ve reportes asignados                  │
+│  • NO puede gestionar otros usuarios                        │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  INVITADO (Acceso Limitado)                 │
+├─────────────────────────────────────────────────────────────┤
+│  • notaria_id = [ID específico]                             │
+│  • Ve SOLO su notaría (más limitado)                        │
+│  • Acceso de solo lectura o funciones muy específicas       │
+│  • No puede crear/modificar datos                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **🔐 Global Scope Multi-Tenant:**
+
+```php
+// app/Models/Scopes/NotariaScope.php
+public function apply(Builder $builder, Model $model): void
+{
+    if (Auth::check()) {
+        $user = Auth::user();
+        
+        switch ($user->tipo_cuenta) {
+            case 'super_admin':
+                // NO aplica filtro - ve TODO
+                break;
+                
+            case 'admin_notaria':
+            case 'usuario_notaria':  
+            case 'invitado':
+                // Filtra por su notaría
+                if ($user->notaria_id) {
+                    $builder->where('notaria_id', $user->notaria_id);
+                }
+                break;
+        }
+    }
+}
+```
+
+### **📋 Matriz de Permisos:**
+
+| Acción | super_admin | admin_notaria | usuario_notaria | invitado |
+|--------|-------------|---------------|-----------------|----------|
+| Ver todas las notarías | ✅ | ❌ | ❌ | ❌ |
+| Gestionar usuarios | ✅ Global | ✅ Su notaría | ❌ | ❌ |
+| Hacer búsquedas | ✅ | ✅ | ✅ | ❌ |
+| Ver reportes | ✅ Todos | ✅ Su notaría | ✅ Limitados | ✅ Públicos |
+| Facturación | ✅ | ❌ | ❌ | ❌ |
+| Soporte técnico | ✅ | ✅ Crear tickets | ✅ Crear tickets | ❌ |
+| Gestionar planes | ✅ | ❌ | ❌ | ❌ |
+| Activar herramientas | ✅ | ✅ Su notaría | ❌ | ❌ |
+
+### **🎯 Casos de Uso por Tipo de Usuario:**
+
+#### **SUPER_ADMIN (Empleado de Atinet)**
+```php
+// Dashboard global - ve todas las notarías
+$notarias = Notaria::all(); // 21 notarías
+$busquedasHoy = Busqueda::whereDate('created_at', today())->count();
+$ticketsAbiertos = Ticket::where('status', 'abierto')->get();
+
+// Gestión de planes y facturación
+$facturasPendientes = Factura::where('status', 'pendiente')->get();
+$suscripcionesVencen = Subscription::where('fecha_vencimiento', '<', now()->addDays(7))->get();
+```
+
+#### **ADMIN_NOTARIA (Notario o Administrador)**
+```php
+// Dashboard de su notaría - datos automáticamente filtrados
+$miNotaria = Auth::user()->notaria;
+$usuariosActivos = User::where('notaria_id', $miNotaria->id)->count();
+$busquedasMes = Busqueda::whereMonth('created_at', now()->month)->count();
+$limitesUso = $miNotaria->plan; // Verificar límites
+```
+
+#### **USUARIO_NOTARIA (Usuario Regular)**
+```php
+// Solo sus propias búsquedas y datos de su notaría
+$misBusquedas = Busqueda::where('user_id', Auth::id())->get();
+$reportesCompartidos = Reporte::where('es_compartido', true)->get(); // Solo de su notaría
+```
+
+---
+
+## �🔄 Estrategia de Migración de Datos
 
 ### **Fase 1A: Crear Estructura (NO AFECTA DATOS)**
 

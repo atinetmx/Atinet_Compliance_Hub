@@ -19,11 +19,11 @@ class NotariaFactory extends Factory
     {
         return [
             'nombre' => $this->faker->company() . ' Notaría',
-            'codigo' => $this->faker->unique()->regexify('[A-Z]{3}[0-9]{3}'),
+            'numero_notaria' => $this->faker->unique()->regexify('[0-9]{3}'),
             'activa' => true,
         ];
     }
-    
+
 
     /**
      * Indica que la notaría está inactiva

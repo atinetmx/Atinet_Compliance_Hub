@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\NotariaScope;
+use App\Models\Concerns\BelongsToNotaria;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Busqueda extends Model
 {
     /** @use HasFactory<\Database\Factories\BusquedaFactory> */
-    use HasFactory;
+    use HasFactory, BelongsToNotaria;
 
     protected $fillable = [
         'notaria_id',
@@ -24,15 +24,7 @@ class Busqueda extends Model
         'resultados' => 'array',
     ];
 
-    protected static function booted(): void
-    {
-        static::addGlobalScope(new NotariaScope);
-    }
-
-    public function notaria(): BelongsTo
-    {
-        return $this->belongsTo(Notaria::class);
-    }
+    // La relación notaria() viene del trait BelongsToNotaria
 
     public function user(): BelongsTo
     {

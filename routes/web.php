@@ -15,3 +15,8 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__.'/settings.php';
+
+// 🧪 EJEMPLOS DE ROLES Y GLOBAL SCOPES (Solo desarrollo/testing)
+if (app()->environment(['local', 'testing'])) {
+    require __DIR__.'/examples.php';
+}

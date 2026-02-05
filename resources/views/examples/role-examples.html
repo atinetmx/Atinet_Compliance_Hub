@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplos de Roles de Usuario - Atinet Compliance Hub</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 15px 0; }
+        .super-admin { border-left: 5px solid #e53e3e; }
+        .admin-notaria { border-left: 5px solid #3182ce; }
+        .usuario-notaria { border-left: 5px solid #38a169; }
+        .invitado { border-left: 5px solid #d69e2e; }
+        .global-scope { border-left: 5px solid #805ad5; }
+        button { background: #4a5568; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #2d3748; }
+        pre { background: #f7fafc; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .user-info { background: #f0fff4; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .warning { background: #fed7d7; color: #c53030; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .credentials { background: #ebf8ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .credential-item { margin: 5px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Ejemplos de Sistema de Roles y Global Scopes</h1>
+    
+    <div class="warning">
+        <strong>⚠️ IMPORTANTE:</strong> Esta página es solo para DESARROLLO y TESTING. 
+        NO incluir en producción.
+    </div>
+
+    <div class="user-info">
+        <h3>👤 Usuario Actual:</h3>
+        <div id="currentUser">Cargando información del usuario...</div>
+        <button onclick="getCurrentUser()">🔄 Actualizar Info Usuario</button>
+    </div>
+
+    <div class="credentials">
+        <h3>🔐 Credenciales de Prueba:</h3>
+        <div class="credential-item">🔥 Super Admin: admin@atinet.mx / password123</div>
+        <div class="credential-item">🏢 Admin Notaría 1: notario@notaria001.mx / password123</div>
+        <div class="credential-item">🏢 Admin Notaría 2: notario@notaria025.mx / password123</div>
+        <div class="credential-item">👤 Usuario Notaría 1: usuario@notaria001.mx / password123</div>
+        <div class="credential-item">👤 Usuario Notaría 2: usuario@notaria025.mx / password123</div>
+        <div class="credential-item">👤 Usuario Notaría 3: usuario@notaria042.mx / password123</div>
+        <div class="credential-item">👥 Invitado Notaría 1: invitado@notaria001.mx / password123</div>
+    </div>
+
+    <!-- Cambiar tipo de usuario (solo desarrollo) -->
+    <div class="card">
+        <h3>🧪 Cambiar Tipo de Usuario (Solo Testing)</h3>
+        <p>Cambia el tipo de cuenta del usuario actual para probar diferentes comportamientos:</p>
+        <button onclick="changeUserType('super_admin')">🔥 Cambiar a Super Admin</button>
+        <button onclick="changeUserType('admin_notaria')">🏢 Cambiar a Admin Notaría</button>
+        <button onclick="changeUserType('usuario_notaria')">👤 Cambiar a Usuario Notaría</button>
+        <button onclick="changeUserType('invitado')">👥 Cambiar a Invitado</button>
+    </div>
+
+    <!-- Ejemplos por tipo de usuario -->
+    <div class="card super-admin">
+        <h3>🔥 Ejemplo: SUPER_ADMIN (Empleado Atinet)</h3>
+        <p>Un super_admin puede ver TODOS los datos del sistema - 21 notarías, todas las búsquedas, métricas globales.</p>
+        <button onclick="testExample('super-admin')">🔍 Probar Super Admin</button>
+        <pre id="super-admin-result"></pre>
+    </div>
+
+    <div class="card admin-notaria">
+        <h3>🏢 Ejemplo: ADMIN_NOTARIA (Notario/Administrador)</h3>
+        <p>Un admin_notaria solo ve datos de SU notaría específica. Global Scope aplica automáticamente.</p>
+        <button onclick="testExample('admin-notaria')">🔍 Probar Admin Notaría</button>
+        <pre id="admin-notaria-result"></pre>
+    </div>
+
+    <div class="card usuario-notaria">
+        <h3>👤 Ejemplo: USUARIO_NOTARIA (Usuario Regular)</h3>
+        <p>Un usuario regular ve principalmente sus propios datos + algunos datos compartidos de su notaría.</p>
+        <button onclick="testExample('usuario-notaria')">🔍 Probar Usuario Notaría</button>
+        <pre id="usuario-notaria-result"></pre>
+    </div>
+
+    <div class="card invitado">
+        <h3>👥 Ejemplo: INVITADO (Acceso Limitado)</h3>
+        <p>Un invitado tiene acceso muy restringido, principalmente solo lectura de datos básicos.</p>
+        <button onclick="testExample('invitado')">🔍 Probar Invitado</button>
+        <pre id="invitado-result"></pre>
+    </div>
+
+    <div class="card global-scope">
+        <h3>🔍 Demostración Global Scope</h3>
+        <p>Muestra cómo el mismo código PHP se comporta diferente según el tipo de usuario autenticado.</p>
+        <button onclick="testExample('global-scope-demo')">🎯 Probar Global Scope</button>
+        <pre id="global-scope-demo-result"></pre>
+    </div>
+
+    <script>
+        // Obtener información del usuario actual
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/examples/current-user-info');
+                const data = await response.json();
+                document.getElementById('currentUser').innerHTML = `
+                    <strong>Nombre:</strong> ${data.usuario_actual.name}<br>
+                    <strong>Email:</strong> ${data.usuario_actual.email}<br>
+                    <strong>Tipo de Cuenta:</strong> ${data.usuario_actual.tipo_cuenta}<br>
+                    <strong>Notaría ID:</strong> ${data.usuario_actual.notaria_id || 'N/A'}<br>
+                    <strong>Notaría:</strong> ${data.notaria?.nombre || 'N/A'}
+                `;
+            } catch (error) {
+                document.getElementById('currentUser').innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        // Cambiar tipo de usuario (solo desarrollo)
+        async function changeUserType(tipo) {
+            try {
+                const response = await fetch(`/examples/change-user-type/${tipo}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    getCurrentUser(); // Actualizar info del usuario
+                } else {
+                    alert(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Probar ejemplo de rol
+        async function testExample(endpoint) {
+            const resultElement = document.getElementById(endpoint + '-result');
+            resultElement.textContent = 'Cargando...';
+            
+            try {
+                const response = await fetch(`/examples/${endpoint}`);
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Cargar info del usuario al inicio
+        getCurrentUser();
+    </script>
+</body>
+</html>
