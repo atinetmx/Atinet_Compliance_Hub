@@ -1,0 +1,196 @@
+Objetivo del sistema:
+
+Migrar el sistema ATINET (VB 6.0 / VB.NET + MySQL 5.0) a una plataforma web moderna, manteniendo compatibilidad con:
+
+operación local en notarías
+
+operación centralizada para ATINET
+
+escalabilidad futura
+
+monitoreo en tiempo real
+
+Stack base propuesto:
+
+Backend: Laravel
+
+Frontend: Blade + React (Inertia)
+
+DB: MySQL 8+
+
+Sync: APIs REST + Jobs + Queues
+
+Auth: Laravel Sanctum
+
+Infraestructura: On-Premise + Central (Híbrido)
+
+1️⃣ ARQUITECTURA DEL SISTEMA (BASE DEL DISEÑO)
+📐 Arquitectura Híbrida (OFICIAL)
+Componentes
+🖥️ En cada Notaría (On-Premise)
+
+Laravel (modo local)
+
+MySQL local
+
+Usuarios internos
+
+Funcionalidad completa sin internet
+
+🌐 En ATINET (Central)
+
+Laravel central
+
+MySQL central
+
+Panel administrativo
+
+Monitoreo, tickets, listas negras, estadísticas
+
+🔄 Comunicación
+
+API REST segura
+
+Token único por notaría
+
+Sincronización incremental
+
+[ Usuarios Notaría ]
+          ↓
+[ Laravel Local (Notaría) ]
+          ↓ Sync API
+[ Laravel Central (ATINET) ]
+
+2️⃣ MODELO DE DATOS (LO PRIMERO QUE DEBES HACER)
+📌 Fase 1: Auditoría de la BD actual
+Objetivos
+
+Entender estructura real
+
+Detectar malas prácticas
+
+Mapear VB → Web
+
+Acciones
+
+Conectarte a MySQL actual
+
+Extraer:
+
+tablas
+
+relaciones implícitas
+
+campos ambiguos
+
+Crear:
+
+Diagrama ER
+
+Diccionario de datos
+
+📄 Documento:
+
+/docs/01-analisis-bd-legacy.md
+
+📌 Fase 2: Rediseño de modelo
+Decisiones clave
+
+Normalización
+
+Convenciones de nombres
+
+Multi-notaría (tenant_id)
+
+📄 Documento:
+
+/docs/02-modelo-datos-nuevo.md
+
+3️⃣ FASES DE DESARROLLO (ESTO ES ORO PARA COPILOT)
+🔹 FASE 0 – Preparación
+
+Repo Git
+
+Convenciones
+
+Estructura base Laravel
+
+📄 /docs/00-convenciones.md
+
+🔹 FASE 1 – Core del sistema
+
+🎯 Objetivo: Que el sistema funcione localmente
+
+Incluye:
+
+Autenticación
+
+Roles
+
+CRUD principales
+
+Operación sin internet
+
+📄 /docs/03-core-sistema.md
+
+🔹 FASE 2 – Sincronización
+
+🎯 Objetivo: Conectar notarías con ATINET
+
+Incluye:
+
+API REST
+
+Tokens
+
+Jobs
+
+Reintentos
+
+Logs
+
+📄 /docs/04-sincronizacion.md
+
+🔹 FASE 3 – Panel ATINET
+
+🎯 Objetivo: Monitoreo y soporte
+
+Incluye:
+
+Dashboard
+
+Tickets
+
+Alertas
+
+Estado de notarías
+
+📄 /docs/05-panel-atinet.md
+
+🔹 FASE 4 – Migración de datos
+
+🎯 Objetivo: No perder información histórica
+
+Incluye:
+
+Scripts
+
+Validaciones
+
+Pruebas
+
+📄 /docs/06-migracion-datos.md
+
+🔹 FASE 5 – Despliegue
+
+🎯 Objetivo: Instalación simple
+
+Incluye:
+
+Manual instalación local
+
+Manual central
+
+Checklist
+
+📄 /docs/07-despliegue.md
