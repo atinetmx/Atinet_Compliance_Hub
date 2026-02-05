@@ -23,9 +23,9 @@
 </head>
 <body>
     <h1>🔍 Ejemplos de Sistema de Roles y Global Scopes</h1>
-    
+
     <div class="warning">
-        <strong>⚠️ IMPORTANTE:</strong> Esta página es solo para DESARROLLO y TESTING. 
+        <strong>⚠️ IMPORTANTE:</strong> Esta página es solo para DESARROLLO y TESTING.
         NO incluir en producción.
     </div>
 
@@ -136,7 +136,7 @@
         async function testExample(endpoint) {
             const resultElement = document.getElementById(endpoint + '-result');
             resultElement.textContent = 'Cargando...';
-            
+
             try {
                 const response = await fetch(`/examples/${endpoint}`);
                 const data = await response.json();

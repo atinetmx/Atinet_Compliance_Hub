@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Testing - Atinet Compliance Hub</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background-color: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .credential-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin: 10px 0; }
+        .credential-box h4 { margin: 0 0 10px 0; color: #495057; }
+        .credential-item { font-family: monospace; font-size: 14px; margin: 5px 0; color: #6c757d; }
+        .btn { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin: 5px; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #0056b3; }
+        .btn-super { background: #dc3545; } .btn-super:hover { background: #c82333; }
+        .btn-admin { background: #007bff; } .btn-admin:hover { background: #0056b3; }
+        .btn-user { background: #28a745; } .btn-user:hover { background: #1e7e34; }
+        .btn-guest { background: #ffc107; color: black; } .btn-guest:hover { background: #e0a800; }
+        .warning { background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin: 15px 0; }
+        .success { background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Testing Dashboards - Atinet Compliance Hub</h1>
+
+        <div class="warning">
+            <strong>⚠️ SOLO PARA DESARROLLO</strong><br>
+            Esta página es solo para testing de los diferentes tipos de dashboard.
+            En producción, los usuarios accederán a través del login normal.
+        </div>
+
+        <div class="success">
+            <strong>✅ Estado del Sistema:</strong><br>
+            • Usuarios creados con el seeder<br>
+            • Dashboards compilados exitosamente<br>
+            • Global Scopes funcionando<br>
+            • Middlewares de roles implementados
+        </div>
+
+        <h2>🔐 Credenciales de Testing</h2>
+
+        <div class="credential-box">
+            <h4>🔥 Super Admin (Ve TODO el sistema)</h4>
+            <div class="credential-item">Email: admin@atinet.mx</div>
+            <div class="credential-item">Password: password123</div>
+            <a href="/login" class="btn btn-super">🔥 Login como Super Admin</a>
+        </div>
+
+        <div class="credential-box">
+            <h4>🏢 Admin Notaría 1 (Gestiona su notaría)</h4>
+            <div class="credential-item">Email: notario@notaria001.mx</div>
+            <div class="credential-item">Password: password123</div>
+            <a href="/login" class="btn btn-admin">🏢 Login como Admin Notaría</a>
+        </div>
+
+        <div class="credential-box">
+            <h4>🏢 Admin Notaría 2 (Gestiona su notaría)</h4>
+            <div class="credential-item">Email: notario@notaria025.mx</div>
+            <div class="credential-item">Password: password123</div>
+            <a href="/login" class="btn btn-admin">🏢 Login como Admin Notaría</a>
+        </div>
+
+        <div class="credential-box">
+            <h4>👤 Usuario Notaría 1 (Acceso limitado)</h4>
+            <div class="credential-item">Email: usuario@notaria001.mx</div>
+            <div class="credential-item">Password: password123</div>
+            <a href="/login" class="btn btn-user">👤 Login como Usuario</a>
+        </div>
+
+        <div class="credential-box">
+            <h4>👤 Usuario Notaría 2 (Acceso limitado)</h4>
+            <div class="credential-item">Email: usuario@notaria025.mx</div>
+            <div class="credential-item">Password: password123</div>
+            <a href="/login" class="btn btn-user">👤 Login como Usuario</a>
+        </div>
+
+        <div class="credential-box">
+            <h4>👥 Invitado Notaría 1 (Solo lectura)</h4>
+            <div class="credential-item">Email: invitado@notaria001.mx</div>
+            <div class="credential-item">Password: password123</div>
+            <a href="/login" class="btn btn-guest">👥 Login como Invitado</a>
+        </div>
+
+        <h2>🧪 Qué probar después del login:</h2>
+        <ul>
+            <li><strong>Super Admin:</strong> Dashboard con métricas globales, botones para gestionar notarías, link a ejemplos</li>
+            <li><strong>Admin Notaría:</strong> Dashboard específico de su notaría, con opción de administración</li>
+            <li><strong>Usuario Notaría:</strong> Dashboard básico de su notaría, sin opciones de administración</li>
+            <li><strong>Invitado:</strong> Vista muy limitada con mensaje de acceso restringido</li>
+        </ul>
+
+        <h2>🔗 Enlaces Útiles:</h2>
+        <p>
+            <a href="/dashboard" class="btn">📊 Ir al Dashboard</a>
+            <a href="/examples" class="btn">🧪 Probar Ejemplos de Roles</a>
+            <a href="/login" class="btn">🔐 Página de Login</a>
+        </p>
+    </div>
+</body>
+</html>

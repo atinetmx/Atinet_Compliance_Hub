@@ -6,6 +6,7 @@
         "build": "vite build",
         "build:ssr": "vite build && vite build --ssr",
         "dev": "vite",
+        "dev:all": "concurrently \"php artisan serve\" \"npm run dev\" --names=\"Laravel,Vite\" --prefix-colors=\"blue,green\"",
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",
         "lint": "eslint . --fix",
