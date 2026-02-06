@@ -31,14 +31,14 @@ class TestUserCommand extends Command
         $admin = User::where('email', 'admin@atinet.mx')->first();
         if ($admin) {
             $this->info("Usuario admin@atinet.mx existe: {$admin->tipo_cuenta}");
-            $this->info("Password hash length: " . strlen($admin->password));
+            $this->info('Password hash length: '.strlen($admin->password));
         } else {
-            $this->error("Usuario admin@atinet.mx NO EXISTE");
+            $this->error('Usuario admin@atinet.mx NO EXISTE');
         }
 
         // Crear usuario de prueba simple
         $testUser = User::firstOrCreate([
-            'email' => 'test@atinet.mx'
+            'email' => 'test@atinet.mx',
         ], [
             'name' => 'Test User',
             'password' => Hash::make('123456'),
@@ -46,9 +46,9 @@ class TestUserCommand extends Command
             'email_verified_at' => now(),
         ]);
 
-        $this->info("Usuario test@atinet.mx creado/actualizado");
-        $this->info("Total usuarios: " . User::count());
-        
+        $this->info('Usuario test@atinet.mx creado/actualizado');
+        $this->info('Total usuarios: '.User::count());
+
         return 0;
     }
 }
