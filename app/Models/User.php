@@ -26,6 +26,7 @@ class User extends Authenticatable
         'password',
         'notaria_id',
         'tipo_cuenta',
+        'recoverable_password',
     ];
 
     /**
@@ -35,6 +36,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'recoverable_password',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',

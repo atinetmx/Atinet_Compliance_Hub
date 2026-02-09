@@ -60,6 +60,10 @@ Route::get('dashboard', function () {
 // Rutas de administración para super_admin
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('notarias', \App\Http\Controllers\Admin\NotariaController::class);
+
+    // Rutas para gestión de contraseñas
+    Route::post('users/{user}/reveal-password', [\App\Http\Controllers\Admin\PasswordController::class, 'revealPassword'])->name('users.reveal-password');
+    Route::post('users/{user}/reset-password', [\App\Http\Controllers\Admin\PasswordController::class, 'resetPassword'])->name('users.reset-password');
 });
 
 require __DIR__.'/settings.php';

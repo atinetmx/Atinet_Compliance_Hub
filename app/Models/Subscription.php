@@ -124,7 +124,7 @@ class Subscription extends Model
     /**
      * Cancelar suscripción
      */
-    public function cancelar(string $razon = null): bool
+    public function cancelar(?string $razon = null): bool
     {
         return $this->update([
             'status' => self::STATUS_CANCELADA,
