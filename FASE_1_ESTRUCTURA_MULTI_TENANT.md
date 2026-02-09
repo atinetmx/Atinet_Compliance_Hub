@@ -426,3 +426,188 @@ MAIL_FROM_NAME="Soporte Atinet"
 4. **Reiniciar** configuración: `php artisan config:clear`
 
 **💡 Nota**: El sistema de emails está 100% funcional, solo falta la configuración SMTP para entrega real.
+
+---
+
+## 🛠️ SETUP COMPLETO DEL ENTORNO DE DESARROLLO
+
+### **📋 Requisitos de Software:**
+
+| Software | Versión Verificada | Instalación |
+|----------|-------------------|-------------|
+| **PHP** | 8.2.12 | XAMPP o instalación individual |
+| **Node.js** | 22.19.0 | https://nodejs.org |
+| **NPM** | 10.9.3 | Incluido con Node.js |
+| **Composer** | Latest | https://getcomposer.org |
+| **MySQL** | 8.0+ | XAMPP o instalación individual |
+
+### **🔧 Dependencias PHP (Composer):**
+
+```bash
+# Dependencias principales
+Laravel Framework: ^12.0
+Laravel Fortify: ^1.30 (Autenticación + 2FA)
+Laravel Wayfinder: ^0.1.9 (Rutas TypeScript)
+Inertia.js Laravel: ^2.0 (SPA con React)
+
+# Dependencias de desarrollo
+Laravel Boost: ^2.1 (MCP server para desarrollo)
+Pest: ^3.8 (Testing framework)
+Laravel Pint: ^1.24 (Code formatting)
+```
+
+### **⚛️ Dependencias Frontend (NPM):**
+
+```bash
+# Framework
+React: ^19.2.0
+TypeScript: Latest
+TailwindCSS: ^4.1.11
+
+# UI Components
+@radix-ui/* (Dialog, Avatar, Select, etc.)  
+@headlessui/react: ^2.2.0
+Lucide React: ^0.475.0 (Icons)
+
+# Herramientas
+Vite: Latest (Build tool)
+ESLint: ^9.17.0
+Prettier: ^3.4.2
+```
+
+### **🚀 Pasos de Instalación:**
+
+#### **1. Clonar/Copiar proyecto:**
+```bash
+# En la máquina de trabajo:
+git clone [repositorio] Atinet_Compliance_Hub
+cd Atinet_Compliance_Hub
+```
+
+#### **2. Instalar dependencias PHP:**
+```bash
+composer install
+```
+
+#### **3. Configurar environment:**
+```bash
+# Copiar archivo de configuración
+copy .env.example .env
+
+# Generar application key
+php artisan key:generate
+```
+
+#### **4. Configurar Base de Datos:**
+
+**En .env configurar:**
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=Atinet_Compliance_Hub
+DB_USERNAME=root
+DB_PASSWORD=123456789
+```
+
+**Crear base de datos:**
+```sql
+CREATE DATABASE Atinet_Compliance_Hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+**Ejecutar migraciones:**
+```bash
+php artisan migrate
+```
+
+#### **5. Instalar dependencias Frontend:**
+```bash
+npm install
+```
+
+#### **6. Configurar Compilación Recursos:**
+```bash
+# Para desarrollo (watch mode):
+npm run dev
+
+# Para producción:
+npm run build
+```
+
+### **🌐 Configuración Email (Desarrollo):**
+
+**En .env:**
+```env
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS="${APP_NAME}@atinet.com.mx"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+### **🔐 Configuración Fortify:**
+
+**Funciones habilitadas:**
+- ✅ Login/Logout
+- ✅ Registro de usuarios  
+- ✅ Password Reset (Email)
+- ✅ Two-Factor Authentication (2FA)
+- ✅ Profile Management
+
+### **📁 Archivos/Directorios Importantes Creados:**
+
+```
+app/
+├── Http/Controllers/Admin/
+│   ├── NotariaController.php ✅ CRUD notarías
+│   └── PasswordController.php ✅ Gestión passwords admin
+├── Models/
+│   ├── Notaria.php ✅ Multi-tenant
+│   ├── Plan.php ✅ Planes de suscripción
+│   └── Subscription.php ✅ Suscripciones
+└── Actions/Fortify/ ✅ Autenticación customizada
+
+resources/js/
+├── Pages/Admin/ ✅ Páginas administrativas
+├── components/
+│   ├── PasswordManager.tsx ✅ Gestión passwords
+│   └── ui/ ✅ Componentes shadcn/ui
+└── types/ ✅ TypeScript definitions
+
+database/migrations/ ✅ Estructura multi-tenant completa
+```
+
+### **🚨 Comandos Post-Instalación:**
+
+```bash
+# Limpiar cachés
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+
+# Comprobar configuración
+php artisan about
+
+# Iniciar servidor desarrollo
+php artisan serve
+# Terminal separada:
+npm run dev
+```
+
+### **✅ Verificación de Instalación:**
+
+1. **Servidor funcionando**: http://127.0.0.1:8000
+2. **Login funcional**: Usar usuarios existentes de DB
+3. **Assets compilados**: Ver estilos Atinet (azul/dorado)
+4. **Admin panel**: Acceso con super_admin
+5. **Password reset**: Emails en `storage/logs/laravel.log`
+
+### **🔍 Troubleshooting Común:**
+
+| Problema | Solución |
+|----------|----------|
+| Error "Vite manifest not found" | Ejecutar `npm run dev` o `npm run build` |
+| Error conexión DB | Verificar XAMPP/MySQL activo |
+| Error composer | Verificar PHP >= 8.2 |
+| Error npm | Verificar Node.js >= 18 |
+| Emails no funcionan | Verificar `MAIL_MAILER=log` |
+
+**💡 Con este setup tendrás el sistema 100% funcional en cualquier máquina!**
