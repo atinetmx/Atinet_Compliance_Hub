@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Users, Building2, Search, CreditCard, Plus, Settings, FileText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -83,12 +83,16 @@ export default function SuperAdminDashboard({ stats }: SuperAdminDashboardProps)
                             <h3 className="text-lg font-semibold">Gestión de Notarías</h3>
                         </div>
                         <div className="space-y-3">
-                            <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                                Crear Nueva Notaría
-                            </button>
-                            <button className="w-full rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
-                                Ver Todas las Notarías
-                            </button>
+                            <Link href="/admin/notarias/create">
+                                <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                                    Crear Nueva Notaría
+                                </button>
+                            </Link>
+                            <Link href="/admin/notarias">
+                                <button className="w-full rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
+                                    Ver Todas las Notarías
+                                </button>
+                            </Link>
                         </div>
                     </div>
 

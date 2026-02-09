@@ -82,14 +82,14 @@
     --border: oklch(0.90 0.01 240);                /* Bordes azul grisáceo */
     --input: oklch(0.90 0.01 240);                 /* Input borders */
     --ring: oklch(0.45 0.12 240);                  /* Focus ring azul Atinet */
-    
+
     /* Charts con paleta Atinet */
     --chart-1: oklch(0.45 0.12 240);              /* Azul Atinet */
     --chart-2: oklch(0.80 0.15 85);               /* Dorado Atinet */
     --chart-3: oklch(0.35 0.10 240);              /* Azul oscuro */
     --chart-4: oklch(0.70 0.12 200);              /* Cyan */
     --chart-5: oklch(0.65 0.10 270);              /* Violeta */
-    
+
     /* Sidebar Atinet */
     --sidebar: oklch(0.48 0.12 240);              /* Azul corporativo */
     --sidebar-foreground: oklch(0.985 0 0);       /* Blanco */
@@ -99,7 +99,7 @@
     --sidebar-accent-foreground: oklch(0.25 0.015 240); /* Azul oscuro */
     --sidebar-border: oklch(0.55 0.12 240);       /* Borde azul claro */
     --sidebar-ring: oklch(0.80 0.15 85);          /* Ring dorado */
-    
+
     --radius: 0.625rem;
 }
 
@@ -124,14 +124,14 @@
     --border: oklch(0.35 0.015 240);               /* Bordes azul oscuro */
     --input: oklch(0.35 0.015 240);                /* Input borders */
     --ring: oklch(0.60 0.15 240);                  /* Focus ring azul brillante */
-    
+
     /* Charts Dark Mode */
     --chart-1: oklch(0.60 0.15 240);              /* Azul brillante */
     --chart-2: oklch(0.85 0.18 85);               /* Dorado brillante */
     --chart-3: oklch(0.70 0.15 200);              /* Cyan brillante */
     --chart-4: oklch(0.65 0.15 270);              /* Violeta */
     --chart-5: oklch(0.75 0.12 150);              /* Verde azulado */
-    
+
     /* Sidebar Dark Mode */
     --sidebar: oklch(0.25 0.020 240);             /* Azul oscuro profundo */
     --sidebar-foreground: oklch(0.95 0.005 240);  /* Blanco azulado */

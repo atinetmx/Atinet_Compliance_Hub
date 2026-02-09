@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
@@ -11,7 +12,7 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', function () {
-    $user = auth()->user();
+    $user = Auth::user();
 
     // Debug: verificar que el usuario exista y tenga tipo_cuenta
     if (! $user) {
@@ -55,6 +56,11 @@ Route::get('dashboard', function () {
             return Inertia::render('dashboard');
     }
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+// Rutas de administración para super_admin
+Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('notarias', \App\Http\Controllers\Admin\NotariaController::class);
+});
 
 require __DIR__.'/settings.php';
 
