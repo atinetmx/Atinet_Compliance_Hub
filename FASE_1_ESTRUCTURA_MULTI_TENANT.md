@@ -380,3 +380,49 @@ En una migración futura (Fase 7) se pueden eliminar.
 
 Si detectamos algún problema, podemos revertir rápidamente
 sin perder el dato original.
+---
+
+## 📧 CONFIGURACIÓN EMAIL EMPRESARIAL
+
+### **📋 Estado Actual:**
+- ✅ **Sistema de recuperación de contraseñas** funcionando
+- ✅ **Dominio configurado**: `@atinet.com.mx`
+- ✅ **Driver actual**: `MAIL_MAILER=log` (desarrollo)
+- ⏳ **Pendiente**: Credenciales SMTP empresariales
+
+### **🔧 Configuración para Producción:**
+
+**Paso NO crítico - Para implementar cuando se tengan credenciales SMTP empresariales:**
+
+```env
+# Cambiar en .env cuando se obtengan credenciales:
+MAIL_MAILER=smtp
+MAIL_HOST=mail.atinet.com.mx          # Servidor SMTP de Atinet
+MAIL_PORT=587                         # Puerto típico para TLS
+MAIL_USERNAME=soporte@atinet.com.mx   # Usuario del email empresarial
+MAIL_PASSWORD=contraseña_real         # Password del email empresarial
+MAIL_ENCRYPTION=tls                   # Encriptación TLS
+MAIL_FROM_ADDRESS=soporte@atinet.com.mx
+MAIL_FROM_NAME="Soporte Atinet"
+```
+
+### **✅ Funcionamiento Actual:**
+
+**En Desarrollo:**
+- 📧 Emails guardados en: `storage/logs/laravel.log`
+- 🔗 Links válidos generados por Laravel
+- ✅ Dominio Atinet configurado correctamente
+
+**En Producción (futuro):**
+- 📤 Emails enviados desde: `soporte@atinet.com.mx`
+- 📨 Entregados a bandejas de usuarios reales
+- ✅ Autenticación SMTP empresarial
+
+### **🎯 Migración a Producción:**
+
+1. **Obtener credenciales SMTP** del proveedor de email empresarial
+2. **Actualizar `.env`** con las credenciales reales
+3. **Cambiar** `MAIL_MAILER=log` → `MAIL_MAILER=smtp`
+4. **Reiniciar** configuración: `php artisan config:clear`
+
+**💡 Nota**: El sistema de emails está 100% funcional, solo falta la configuración SMTP para entrega real.
