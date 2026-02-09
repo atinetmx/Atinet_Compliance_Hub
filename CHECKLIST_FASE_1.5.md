@@ -249,36 +249,43 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
 
 ## 🎨 SPRINT 3: PANEL SUPER ADMIN (5-6 días)
 
-### Día 1-2: CRUD Servicios
+### Día 1-2: CRUD Servicios ✅ **COMPLETADO**
 
-- [ ] Crear ServiceController
+- [x] Crear ServiceController
   ```bash
   php artisan make:controller Admin/ServiceController --resource
   ```
-  - [ ] Implementar index (lista con filtros)
-  - [ ] Implementar create y store
-  - [ ] Implementar edit y update
-  - [ ] Implementar destroy
-  - [ ] Implementar show (con estadísticas)
+  - [x] Implementar index (lista con filtros)
+  - [x] Implementar create y store
+  - [x] Implementar edit y update
+  - [x] Implementar destroy
+  - [x] Implementar show (con estadísticas)
+  - [x] Implementar toggleActive (activar/desactivar)
 
-- [ ] Crear Form Requests
+- [x] Crear Form Requests
   ```bash
   php artisan make:request Admin/StoreServiceRequest
   php artisan make:request Admin/UpdateServiceRequest
   ```
+  - [x] Validaciones completas con mensajes en español
+  - [x] prepareForValidation() para normalizar código
 
-- [ ] Crear páginas React
-  - [ ] `Admin/Services/Index.tsx` (tabla con filtros)
-  - [ ] `Admin/Services/Create.tsx` (formulario)
-  - [ ] `Admin/Services/Edit.tsx` (formulario)
-  - [ ] `Admin/Services/Show.tsx` (detalle + stats)
+- [x] Crear páginas React
+  - [x] `Admin/Services/Index.tsx` (tabla con filtros y paginación)
+  - [x] `Admin/Services/Create.tsx` (formulario completo)
+  - [x] `Admin/Services/Edit.tsx` (formulario con datos precargados)
+  - [x] `Admin/Services/Show.tsx` (detalle + estadísticas + planes)
 
-- [ ] Agregar rutas en routes/web.php
+- [x] Agregar rutas en routes/web.php
   ```php
-  Route::middleware(['auth', 'super_admin'])->prefix('admin')->group(function () {
-      Route::resource('services', ServiceController::class);
-  });
+  Route::resource('services', ServiceController::class);
+  Route::post('services/{service}/toggle-active', [ServiceController::class, 'toggleActive']);
   ```
+
+- [x] Código formateado con Pint
+- [x] Verificado sin errores TypeScript/ESLint
+- [x] Agregado enlace en sidebar (visible solo para Super Admin)
+- [x] Corregido error de Radix UI Select (value="" → value="all")
 
 ### Día 2-3: Gestión Plan-Servicio
 
