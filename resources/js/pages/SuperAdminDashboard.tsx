@@ -102,12 +102,16 @@ export default function SuperAdminDashboard({ stats }: SuperAdminDashboardProps)
                             <h3 className="text-lg font-semibold">Usuarios del Sistema</h3>
                         </div>
                         <div className="space-y-3">
-                            <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                                Gestionar Usuarios
-                            </button>
-                            <button className="w-full rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
-                                Reportes de Usuarios
-                            </button>
+                            <Link href="/admin/users">
+                                <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                                    Gestionar Usuarios
+                                </button>
+                            </Link>
+                            <Link href="/admin/users/reports">
+                                <button className="w-full rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
+                                    Reportes de Usuarios
+                                </button>
+                            </Link>
                         </div>
                     </div>
 
@@ -117,12 +121,16 @@ export default function SuperAdminDashboard({ stats }: SuperAdminDashboardProps)
                             <h3 className="text-lg font-semibold">Configuración</h3>
                         </div>
                         <div className="space-y-3">
-                            <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                                Configuración Global
-                            </button>
-                            <button className="w-full rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
-                                Logs del Sistema
-                            </button>
+                            <Link href="/admin/settings">
+                                <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                                    Configuración Global
+                                </button>
+                            </Link>
+                            <Link href="/admin/settings/logs">
+                                <button className="w-full rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
+                                    Logs del Sistema
+                                </button>
+                            </Link>
                         </div>
                     </div>
                 </div>

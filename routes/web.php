@@ -59,7 +59,18 @@ Route::get('dashboard', function () {
 
 // Rutas de administración para super_admin
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    // Gestión de notarías
     Route::resource('notarias', \App\Http\Controllers\Admin\NotariaController::class);
+
+    // Gestión de usuarios del sistema
+    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+    Route::get('users/reports', [\App\Http\Controllers\Admin\UserController::class, 'reports'])->name('users.reports');
+
+    // Configuración del sistema
+    Route::resource('settings', \App\Http\Controllers\Admin\SettingsController::class);
+    Route::get('settings/logs', [\App\Http\Controllers\Admin\SettingsController::class, 'logs'])->name('settings.logs');
+    Route::post('settings/cache/clear', [\App\Http\Controllers\Admin\SettingsController::class, 'clearCache'])->name('settings.cache.clear');
+    Route::post('settings/optimize', [\App\Http\Controllers\Admin\SettingsController::class, 'optimize'])->name('settings.optimize');
 
     // Rutas para gestión de contraseñas
     Route::post('users/{user}/reveal-password', [\App\Http\Controllers\Admin\PasswordController::class, 'revealPassword'])->name('users.reveal-password');
