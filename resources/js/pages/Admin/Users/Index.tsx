@@ -1,5 +1,14 @@
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { Search, Plus, Filter, Eye, Edit, Trash2, Users, Building2 } from 'lucide-react';
+import {
+    Search,
+    Plus,
+    Filter,
+    Eye,
+    Edit,
+    Trash2,
+    Users,
+    Building2,
+} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +34,7 @@ interface User {
 interface Props {
     users: {
         data: User[];
-        links: Array<{url: string | null; label: string; active: boolean}>;
+        links: Array<{ url: string | null; label: string; active: boolean }>;
         meta: {
             current_page: number;
             last_page: number;
@@ -54,7 +63,12 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Usuarios', href: '/admin/users' },
 ];
 
-export default function Index({ users, notarias, filters, tiposCuenta }: Props) {
+export default function Index({
+    users,
+    notarias,
+    filters,
+    tiposCuenta,
+}: Props) {
     const [showFilters, setShowFilters] = useState(false);
     const { data, setData } = useForm({
         search: filters.search || '',
@@ -121,17 +135,17 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Users className="h-6 w-6 text-primary" />
-                        <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
+                        <h1 className="text-2xl font-bold">
+                            Gestión de Usuarios
+                        </h1>
                     </div>
                     <div className="flex items-center gap-2">
                         <Link href="/admin/users/reports">
-                            <Button variant="outline">
-                                Ver Reportes
-                            </Button>
+                            <Button variant="outline">Ver Reportes</Button>
                         </Link>
                         <Link href="/admin/users/create">
                             <Button>
-                                <Plus className="h-4 w-4 mr-2" />
+                                <Plus className="mr-2 h-4 w-4" />
                                 Nuevo Usuario
                             </Button>
                         </Link>
@@ -141,12 +155,14 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                 {/* Filters */}
                 <div className="space-y-4">
                     <div className="flex items-center gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <div className="relative flex-1">
+                            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Buscar usuarios..."
                                 value={data.search}
-                                onChange={(e) => setData('search', e.target.value)}
+                                onChange={(e) =>
+                                    setData('search', e.target.value)
+                                }
                                 className="pl-10"
                             />
                         </div>
@@ -155,10 +171,12 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                             variant="outline"
                             onClick={() => setShowFilters(!showFilters)}
                         >
-                            <Filter className="h-4 w-4 mr-2" />
+                            <Filter className="mr-2 h-4 w-4" />
                             Filtros
                         </Button>
-                        {(filters.search || filters.tipo_cuenta || filters.notaria_id) && (
+                        {(filters.search ||
+                            filters.tipo_cuenta ||
+                            filters.notaria_id) && (
                             <Button
                                 type="button"
                                 variant="ghost"
@@ -170,31 +188,47 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                     </div>
 
                     {showFilters && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
+                        <div className="grid grid-cols-1 gap-4 rounded-lg border bg-muted/50 p-4 md:grid-cols-2">
                             <div>
-                                <label className="block text-sm font-medium mb-2">Tipo de Cuenta</label>
+                                <label className="mb-2 block text-sm font-medium">
+                                    Tipo de Cuenta
+                                </label>
                                 <select
                                     value={data.tipo_cuenta}
-                                    onChange={(e) => setData('tipo_cuenta', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('tipo_cuenta', e.target.value)
+                                    }
                                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                                 >
                                     <option value="">Todos los tipos</option>
-                                    {Object.entries(tiposCuenta).map(([key, value]) => (
-                                        <option key={key} value={key}>{value}</option>
-                                    ))}
+                                    {Object.entries(tiposCuenta).map(
+                                        ([key, value]) => (
+                                            <option key={key} value={key}>
+                                                {value}
+                                            </option>
+                                        ),
+                                    )}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-2">Notaría</label>
+                                <label className="mb-2 block text-sm font-medium">
+                                    Notaría
+                                </label>
                                 <select
                                     value={data.notaria_id}
-                                    onChange={(e) => setData('notaria_id', e.target.value)}
+                                    onChange={(e) =>
+                                        setData('notaria_id', e.target.value)
+                                    }
                                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                                 >
                                     <option value="">Todas las notarías</option>
                                     {notarias.map((notaria) => (
-                                        <option key={notaria.id} value={notaria.id}>
-                                            {notaria.numero_notaria} - {notaria.nombre}
+                                        <option
+                                            key={notaria.id}
+                                            value={notaria.id}
+                                        >
+                                            {notaria.numero_notaria} -{' '}
+                                            {notaria.nombre}
                                         </option>
                                     ))}
                                 </select>
@@ -208,28 +242,51 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                     <table className="w-full">
                         <thead className="border-b bg-muted/50">
                             <tr>
-                                <th className="px-4 py-3 text-left font-medium">Usuario</th>
-                                <th className="px-4 py-3 text-left font-medium">Email</th>
-                                <th className="px-4 py-3 text-left font-medium">Tipo de Cuenta</th>
-                                <th className="px-4 py-3 text-left font-medium">Notaría</th>
-                                <th className="px-4 py-3 text-left font-medium">Estado</th>
-                                <th className="px-4 py-3 text-center font-medium">Acciones</th>
+                                <th className="px-4 py-3 text-left font-medium">
+                                    Usuario
+                                </th>
+                                <th className="px-4 py-3 text-left font-medium">
+                                    Email
+                                </th>
+                                <th className="px-4 py-3 text-left font-medium">
+                                    Tipo de Cuenta
+                                </th>
+                                <th className="px-4 py-3 text-left font-medium">
+                                    Notaría
+                                </th>
+                                <th className="px-4 py-3 text-left font-medium">
+                                    Estado
+                                </th>
+                                <th className="px-4 py-3 text-center font-medium">
+                                    Acciones
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             {users.data.map((user) => (
-                                <tr key={user.id} className="border-b hover:bg-muted/30">
+                                <tr
+                                    key={user.id}
+                                    className="border-b hover:bg-muted/30"
+                                >
                                     <td className="px-4 py-3">
                                         <div>
-                                            <div className="font-medium">{user.name}</div>
+                                            <div className="font-medium">
+                                                {user.name}
+                                            </div>
                                             <div className="text-sm text-muted-foreground">
                                                 ID: {user.id}
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3 text-sm">{user.email}</td>
+                                    <td className="px-4 py-3 text-sm">
+                                        {user.email}
+                                    </td>
                                     <td className="px-4 py-3">
-                                        <Badge className={getTipoCuentaBadgeColor(user.tipo_cuenta)}>
+                                        <Badge
+                                            className={getTipoCuentaBadgeColor(
+                                                user.tipo_cuenta,
+                                            )}
+                                        >
                                             {tiposCuenta[user.tipo_cuenta]}
                                         </Badge>
                                     </td>
@@ -239,7 +296,10 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                                                 <Building2 className="h-4 w-4 text-muted-foreground" />
                                                 <div>
                                                     <div className="text-sm font-medium">
-                                                        {user.notaria.numero_notaria}
+                                                        {
+                                                            user.notaria
+                                                                .numero_notaria
+                                                        }
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
                                                         {user.notaria.nombre}
@@ -247,28 +307,53 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                                                 </div>
                                             </div>
                                         ) : (
-                                            <span className="text-muted-foreground">Sin asignar</span>
+                                            <span className="text-muted-foreground">
+                                                Sin asignar
+                                            </span>
                                         )}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge variant={user.email_verified_at ? "default" : "secondary"}>
-                                            {user.email_verified_at ? 'Verificado' : 'Pendiente'}
+                                        <Badge
+                                            variant={
+                                                user.email_verified_at
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {user.email_verified_at
+                                                ? 'Verificado'
+                                                : 'Pendiente'}
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                            <Link href={`/admin/users/${user.id}`}>
-                                                <Button variant="outline" size="sm">
+                                            <Link
+                                                href={`/admin/users/${user.id}`}
+                                            >
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
                                             </Link>
-                                            <Link href={`/admin/users/${user.id}/edit`}>
-                                                <Button size="sm" variant="ghost">
+                                            <Link
+                                                href={`/admin/users/${user.id}/edit`}
+                                            >
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                             </Link>
-                                            {user.tipo_cuenta !== 'super_admin' && (
-                                                <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700">
+                                            {user.tipo_cuenta !==
+                                                'super_admin' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-red-600 hover:text-red-700"
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             )}
@@ -284,22 +369,27 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                 {users.links && users.links.length > 3 && (
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            Mostrando {users.meta.from} a {users.meta.to} de {users.meta.total} usuarios
+                            Mostrando {users.meta.from} a {users.meta.to} de{' '}
+                            {users.meta.total} usuarios
                         </div>
                         <div className="flex items-center gap-2">
                             {users.links.map((link, index) => (
                                 <button
                                     key={index}
-                                    onClick={() => handlePaginationClick(link.url)}
+                                    onClick={() =>
+                                        handlePaginationClick(link.url)
+                                    }
                                     disabled={!link.url}
-                                    className={`px-3 py-2 text-sm rounded-md ${
+                                    className={`rounded-md px-3 py-2 text-sm ${
                                         link.active
                                             ? 'bg-primary text-primary-foreground'
                                             : link.url
-                                            ? 'bg-background border hover:bg-muted cursor-pointer'
-                                            : 'text-muted-foreground cursor-not-allowed opacity-50'
+                                              ? 'cursor-pointer border bg-background hover:bg-muted'
+                                              : 'cursor-not-allowed text-muted-foreground opacity-50'
                                     }`}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    dangerouslySetInnerHTML={{
+                                        __html: link.label,
+                                    }}
                                 />
                             ))}
                         </div>

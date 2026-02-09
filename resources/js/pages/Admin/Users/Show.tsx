@@ -1,5 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Mail, Briefcase, Building2, Calendar, Shield } from 'lucide-react';
+import {
+    ArrowLeft,
+    Mail,
+    Briefcase,
+    Building2,
+    Calendar,
+    Shield,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -30,10 +37,14 @@ interface Props {
 
 const getTipoCuentaBadgeColor = (tipo: string): string => {
     const colors: Record<string, string> = {
-        super_admin: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400',
-        admin_notaria: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400',
-        usuario_notaria: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400',
-        invitado: 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-400',
+        super_admin:
+            'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400',
+        admin_notaria:
+            'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400',
+        usuario_notaria:
+            'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400',
+        invitado:
+            'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-400',
     };
     return colors[tipo] || colors.invitado;
 };
@@ -76,7 +87,7 @@ export default function Show({ user, stats }: Props) {
                     <div className="flex items-center gap-4">
                         <Link href="/admin/users">
                             <Button variant="outline" size="sm">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                <ArrowLeft className="mr-2 h-4 w-4" />
                                 Volver
                             </Button>
                         </Link>
@@ -91,42 +102,62 @@ export default function Show({ user, stats }: Props) {
                 </div>
 
                 {/* Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Main Info */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="space-y-6 lg:col-span-2">
                         {/* User Details */}
-                        <div className="bg-background border rounded-lg p-6">
-                            <h3 className="text-lg font-semibold mb-4">Información del Usuario</h3>
+                        <div className="rounded-lg border bg-background p-6">
+                            <h3 className="mb-4 text-lg font-semibold">
+                                Información del Usuario
+                            </h3>
                             <div className="space-y-4">
-                                <div className="flex items-center gap-3 pb-4 border-b">
+                                <div className="flex items-center gap-3 border-b pb-4">
                                     <Mail className="h-5 w-5 text-gray-400" />
                                     <div className="flex-1">
-                                        <p className="text-sm text-gray-500">Email</p>
-                                        <p className="font-medium">{user.email}</p>
+                                        <p className="text-sm text-gray-500">
+                                            Email
+                                        </p>
+                                        <p className="font-medium">
+                                            {user.email}
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 pb-4 border-b">
+                                <div className="flex items-center gap-3 border-b pb-4">
                                     <Shield className="h-5 w-5 text-gray-400" />
                                     <div className="flex-1">
-                                        <p className="text-sm text-gray-500">Tipo de Cuenta</p>
-                                        <Badge className={getTipoCuentaBadgeColor(user.tipo_cuenta)}>
-                                            {getTipoCuentaLabel(user.tipo_cuenta)}
+                                        <p className="text-sm text-gray-500">
+                                            Tipo de Cuenta
+                                        </p>
+                                        <Badge
+                                            className={getTipoCuentaBadgeColor(
+                                                user.tipo_cuenta,
+                                            )}
+                                        >
+                                            {getTipoCuentaLabel(
+                                                user.tipo_cuenta,
+                                            )}
                                         </Badge>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 pb-4 border-b">
+                                <div className="flex items-center gap-3 border-b pb-4">
                                     <Calendar className="h-5 w-5 text-gray-400" />
                                     <div className="flex-1">
-                                        <p className="text-sm text-gray-500">Email Verificado</p>
+                                        <p className="text-sm text-gray-500">
+                                            Email Verificado
+                                        </p>
                                         <p className="font-medium">
                                             {user.email_verified_at ? (
                                                 <span className="text-green-600">
-                                                    {formatDate(user.email_verified_at)}
+                                                    {formatDate(
+                                                        user.email_verified_at,
+                                                    )}
                                                 </span>
                                             ) : (
-                                                <span className="text-yellow-600">Pendiente de verificación</span>
+                                                <span className="text-yellow-600">
+                                                    Pendiente de verificación
+                                                </span>
                                             )}
                                         </p>
                                     </div>
@@ -135,8 +166,12 @@ export default function Show({ user, stats }: Props) {
                                 <div className="flex items-center gap-3">
                                     <Calendar className="h-5 w-5 text-gray-400" />
                                     <div className="flex-1">
-                                        <p className="text-sm text-gray-500">Fecha de Creación</p>
-                                        <p className="font-medium">{formatDate(user.created_at)}</p>
+                                        <p className="text-sm text-gray-500">
+                                            Fecha de Creación
+                                        </p>
+                                        <p className="font-medium">
+                                            {formatDate(user.created_at)}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -144,19 +179,29 @@ export default function Show({ user, stats }: Props) {
 
                         {/* Notaria Info */}
                         {user.notaria && (
-                            <div className="bg-background border rounded-lg p-6">
-                                <div className="flex items-center gap-3 mb-4">
+                            <div className="rounded-lg border bg-background p-6">
+                                <div className="mb-4 flex items-center gap-3">
                                     <Building2 className="h-5 w-5 text-primary" />
-                                    <h3 className="text-lg font-semibold">Notaría Asignada</h3>
+                                    <h3 className="text-lg font-semibold">
+                                        Notaría Asignada
+                                    </h3>
                                 </div>
                                 <div className="space-y-3">
                                     <div>
-                                        <p className="text-sm text-gray-500">Nombre</p>
-                                        <p className="font-medium">{user.notaria.nombre}</p>
+                                        <p className="text-sm text-gray-500">
+                                            Nombre
+                                        </p>
+                                        <p className="font-medium">
+                                            {user.notaria.nombre}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p className="text-sm text-gray-500">Número de Notaría</p>
-                                        <p className="font-medium">{user.notaria.numero_notaria}</p>
+                                        <p className="text-sm text-gray-500">
+                                            Número de Notaría
+                                        </p>
+                                        <p className="font-medium">
+                                            {user.notaria.numero_notaria}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -166,10 +211,12 @@ export default function Show({ user, stats }: Props) {
                     {/* Stats Sidebar */}
                     <div className="space-y-4">
                         {/* Búsquedas Stats */}
-                        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-6">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-6 dark:border-blue-900 dark:bg-blue-950/30">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Total de Búsquedas</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        Total de Búsquedas
+                                    </p>
                                     <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                                         {stats.total_busquedas}
                                     </p>
@@ -179,10 +226,12 @@ export default function Show({ user, stats }: Props) {
                         </div>
 
                         {/* Búsquedas Este Mes */}
-                        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-6">
+                        <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-900 dark:bg-green-950/30">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Búsquedas Este Mes</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        Búsquedas Este Mes
+                                    </p>
                                     <p className="text-3xl font-bold text-green-600 dark:text-green-400">
                                         {stats.busquedas_mes}
                                     </p>

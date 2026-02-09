@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\EstadoMexico;
 use App\Http\Controllers\Controller;
 use App\Models\Notaria;
 use App\Models\Plan;
@@ -78,6 +79,12 @@ class NotariaController extends Controller
             'limite_usuarios_custom' => 'nullable|integer|min:0',
             'limite_busquedas_mes_custom' => 'nullable|integer|min:0',
             'herramientas_activas_custom' => 'nullable|array',
+            // Campos de ubicación normalizados
+            'estado' => 'nullable|string|in:'.implode(',', EstadoMexico::toArray()),
+            'municipio' => 'nullable|string|max:100',
+            'codigo_postal' => 'nullable|regex:/^\d{5}$/',
+            'colonia' => 'nullable|string|max:100',
+            'calle' => 'nullable|string|max:255',
         ]);
 
         // Crear la notaría
@@ -171,7 +178,7 @@ class NotariaController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
-            'numero_notaria' => 'required|string|max:10|unique:notarias,numero_notaria,' . $notaria->id,
+            'numero_notaria' => 'required|string|max:10|unique:notarias,numero_notaria,'.$notaria->id,
             'plan_id' => 'required|exists:plans,id',
             'contacto_principal' => 'required|string|max:255',
             'email_contacto' => 'required|email|max:255',
@@ -183,6 +190,12 @@ class NotariaController extends Controller
             'limite_usuarios_custom' => 'nullable|integer|min:0',
             'limite_busquedas_mes_custom' => 'nullable|integer|min:0',
             'herramientas_activas_custom' => 'nullable|array',
+            // Campos de ubicación normalizados
+            'estado' => 'nullable|string|in:'.implode(',', EstadoMexico::toArray()),
+            'municipio' => 'nullable|string|max:100',
+            'codigo_postal' => 'nullable|regex:/^\d{5}$/',
+            'colonia' => 'nullable|string|max:100',
+            'calle' => 'nullable|string|max:255',
         ]);
 
         $notaria->update($validated);
@@ -219,13 +232,13 @@ class NotariaController extends Controller
      */
     private function createNotariaDatabase(Notaria $notaria): void
     {
-        $databaseName = 'atinet_notaria_' . $notaria->numero_notaria;
+        $databaseName = 'atinet_notaria_'.$notaria->numero_notaria;
 
         try {
             // ✅ 1. CREAR BASE DE DATOS ESPECÍFICA (SIN CAMBIAR CONEXIÓN ACTUAL)
             DB::statement("CREATE DATABASE IF NOT EXISTS `{$databaseName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 
-            Log::info("Base de datos creada para notaría", [
+            Log::info('Base de datos creada para notaría', [
                 'notaria_id' => $notaria->id,
                 'numero_notaria' => $notaria->numero_notaria,
                 'database_name' => $databaseName,
@@ -237,9 +250,9 @@ class NotariaController extends Controller
             $this->seedNotariaDatabase($databaseName, $notaria);
 
         } catch (\Exception $e) {
-            Log::error("Error al crear BD de notaría", [
+            Log::error('Error al crear BD de notaría', [
                 'notaria_id' => $notaria->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             // No fallar la creación de la notaría por esto
@@ -275,15 +288,15 @@ class NotariaController extends Controller
             // ✅ 3. COPIAR DATOS ESENCIALES (CONFIGURACIÓN)
             $this->copyEssentialData($databaseName, $notaria);
 
-            Log::info("BD de notaría preparada completamente", [
+            Log::info('BD de notaría preparada completamente', [
                 'database_name' => $databaseName,
-                'notaria_id' => $notaria->id
+                'notaria_id' => $notaria->id,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Error al preparar BD de notaría", [
+            Log::error('Error al preparar BD de notaría', [
                 'database_name' => $databaseName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         } finally {
             // ✅ LIMPIAR CONEXIÓN TEMPORAL
@@ -306,14 +319,14 @@ class NotariaController extends Controller
                 '--force' => true, // No preguntar en producción
             ]);
 
-            Log::info("Migraciones ejecutadas en BD del tenant", [
-                'database_name' => $databaseName
+            Log::info('Migraciones ejecutadas en BD del tenant', [
+                'database_name' => $databaseName,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Error al ejecutar migraciones del tenant", [
+            Log::error('Error al ejecutar migraciones del tenant', [
                 'database_name' => $databaseName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             // Si falla, crear manualmente las tablas mínimas críticas
@@ -323,6 +336,7 @@ class NotariaController extends Controller
 
     /**
      * ✅ CREAR TABLAS MÍNIMAS SI FALLAN LAS MIGRACIONES
+     * Incluye tablas críticas del sistema de servicios
      */
     private function createMinimalTables(string $databaseName): void
     {
@@ -351,7 +365,7 @@ class NotariaController extends Controller
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
             // Configuración local
-            "CREATE TABLE IF NOT EXISTS `configuracion` (
+            'CREATE TABLE IF NOT EXISTS `configuracion` (
                 `id` bigint unsigned NOT NULL AUTO_INCREMENT,
                 `clave` varchar(255) NOT NULL,
                 `valor` text,
@@ -360,19 +374,99 @@ class NotariaController extends Controller
                 `updated_at` timestamp NULL DEFAULT NULL,
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `configuracion_clave_unique` (`clave`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // Servicios (nuevo - crítico para Fase 1.5)
+            'CREATE TABLE IF NOT EXISTS `services` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `code` varchar(50) NOT NULL,
+                `name` varchar(255) NOT NULL,
+                `description` text,
+                `category` varchar(50) NOT NULL,
+                `billing_model` varchar(50) NOT NULL,
+                `unit_price` decimal(10,2) DEFAULT NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT 1,
+                `metadata` json DEFAULT NULL,
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `services_code_unique` (`code`),
+                KEY `services_category_index` (`category`),
+                KEY `services_is_active_index` (`is_active`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // Plan Services (relación plan-servicio con límites)
+            'CREATE TABLE IF NOT EXISTS `plan_services` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `plan_id` bigint unsigned NOT NULL,
+                `service_id` bigint unsigned NOT NULL,
+                `is_included` tinyint(1) NOT NULL DEFAULT 1,
+                `usage_limit` int DEFAULT NULL,
+                `extra_price` decimal(10,2) DEFAULT NULL,
+                `priority` int NOT NULL DEFAULT 999,
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `plan_services_plan_id_service_id_unique` (`plan_id`,`service_id`),
+                KEY `plan_services_plan_id_index` (`plan_id`),
+                KEY `plan_services_service_id_index` (`service_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // Tenant Services (customizaciones por notaría)
+            'CREATE TABLE IF NOT EXISTS `tenant_services` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `tenant_id` bigint unsigned NOT NULL,
+                `service_id` bigint unsigned NOT NULL,
+                `is_enabled` tinyint(1) NOT NULL DEFAULT 1,
+                `custom_limit` int DEFAULT NULL,
+                `custom_price` decimal(10,2) DEFAULT NULL,
+                `activation_date` date DEFAULT NULL,
+                `expiration_date` date DEFAULT NULL,
+                `notes` text,
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `tenant_services_tenant_id_service_id_unique` (`tenant_id`,`service_id`),
+                KEY `tenant_services_tenant_id_index` (`tenant_id`),
+                KEY `tenant_services_service_id_index` (`service_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // Service Usage (tracking de consumo)
+            'CREATE TABLE IF NOT EXISTS `service_usage` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `tenant_id` bigint unsigned NOT NULL,
+                `service_id` bigint unsigned NOT NULL,
+                `user_id` bigint unsigned NOT NULL,
+                `consumed_at` timestamp NOT NULL,
+                `quantity` int NOT NULL DEFAULT 1,
+                `cost` decimal(10,2) DEFAULT NULL,
+                `billable` tinyint(1) NOT NULL DEFAULT 1,
+                `billed_at` timestamp NULL DEFAULT NULL,
+                `metadata` json DEFAULT NULL,
+                `created_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `service_usage_tenant_id_index` (`tenant_id`),
+                KEY `service_usage_consumed_at_index` (`consumed_at`),
+                KEY `service_usage_billable_index` (`billable`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
         ];
 
         foreach ($minimalTables as $sql) {
             try {
                 DB::statement($sql);
             } catch (\Exception $e) {
-                Log::error("Error creando tabla mínima", [
-                    'sql' => $sql,
-                    'error' => $e->getMessage()
+                Log::error('Error creando tabla mínima', [
+                    'database_name' => $databaseName,
+                    'sql' => substr($sql, 0, 100).'...',
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
+
+        Log::info('Tablas mínimas creadas en BD del tenant', [
+            'database_name' => $databaseName,
+            'tables_count' => count($minimalTables) - 1, // -1 por el USE
+        ]);
     }
 
     /**
@@ -389,40 +483,232 @@ class NotariaController extends Controller
             DB::statement($sql, [
                 $notaria->contacto_principal,
                 $notaria->email_contacto,
-                Hash::make('admin123')
+                Hash::make('admin123'),
             ]);
 
-            Log::info("Usuario admin local creado en BD del tenant", [
+            Log::info('Usuario admin local creado en BD del tenant', [
                 'database_name' => $databaseName,
-                'email' => $notaria->email_contacto
+                'email' => $notaria->email_contacto,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Error creando usuario admin local", [
+            Log::error('Error creando usuario admin local', [
                 'database_name' => $databaseName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
     /**
      * ✅ COPIAR DATOS ESENCIALES A BD DEL TENANT
+     * Incluye: configuración, servicios activos, y configuración del plan
      */
     private function copyEssentialData(string $databaseName, Notaria $notaria): void
     {
-        // Insertar configuración básica
+        // ✅ 1. INSERTAR CONFIGURACIÓN BÁSICA
         $configs = [
             ['notaria_nombre', $notaria->nombre, 'Nombre de la notaría'],
             ['notaria_numero', $notaria->numero_notaria, 'Número de notaría'],
             ['modo_operacion', 'local', 'Modo de operación (local/online)'],
-            ['ultima_sincronizacion', now()->toDateTimeString(), 'Última sincronización con central']
+            ['ultima_sincronizacion', now()->toDateTimeString(), 'Última sincronización con central'],
         ];
 
         foreach ($configs as [$clave, $valor, $descripcion]) {
             $sql = "INSERT INTO `{$databaseName}`.`configuracion`
                     (`clave`, `valor`, `descripcion`, `created_at`, `updated_at`)
-                    VALUES (?, ?, ?, NOW(), NOW())";
-            DB::statement($sql, [$clave, $valor, $descripcion]);
+                    VALUES (?, ?, ?, NOW(), NOW())
+                    ON DUPLICATE KEY UPDATE `valor` = VALUES(`valor`), `updated_at` = NOW()";
+            try {
+                DB::statement($sql, [$clave, $valor, $descripcion]);
+            } catch (\Exception $e) {
+                Log::warning('Error insertando configuración en tenant', [
+                    'clave' => $clave,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
+
+        // ✅ 2. COPIAR EL PLAN CONTRATADO
+        // El tenant necesita el plan para validar límites offline
+        try {
+            $plan = DB::table('plans')->find($notaria->plan_id);
+
+            if ($plan) {
+                $sql = "INSERT INTO `{$databaseName}`.`plans`
+                        (`id`, `nombre`, `slug`, `descripcion`, `precio_mensual`, `precio_anual`,
+                         `limite_usuarios`, `limite_busquedas_mes`, `herramientas_activas`,
+                         `caracteristicas`, `is_active`, `orden`, `created_at`, `updated_at`)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            `nombre` = VALUES(`nombre`),
+                            `descripcion` = VALUES(`descripcion`),
+                            `precio_mensual` = VALUES(`precio_mensual`),
+                            `updated_at` = VALUES(`updated_at`)";
+
+                DB::statement($sql, [
+                    $plan->id,
+                    $plan->nombre,
+                    $plan->slug,
+                    $plan->descripcion,
+                    $plan->precio_mensual,
+                    $plan->precio_anual,
+                    $plan->limite_usuarios,
+                    $plan->limite_busquedas_mes,
+                    $plan->herramientas_activas,
+                    $plan->caracteristicas,
+                    $plan->is_active,
+                    $plan->orden,
+                    $plan->created_at,
+                    $plan->updated_at,
+                ]);
+
+                Log::info('Plan copiado a BD del tenant', [
+                    'database_name' => $databaseName,
+                    'plan_id' => $plan->id,
+                    'plan_nombre' => $plan->nombre,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error copiando plan al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ✅ 3. COPIAR CATÁLOGO DE SERVICIOS ACTIVOS
+        // Solo servicios activos para que el tenant tenga la información disponible
+        try {
+            $services = DB::table('services')
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($services as $service) {
+                $sql = "INSERT INTO `{$databaseName}`.`services`
+                        (`id`, `code`, `name`, `description`, `category`, `billing_model`, `unit_price`, `is_active`, `metadata`, `created_at`, `updated_at`)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            `name` = VALUES(`name`),
+                            `description` = VALUES(`description`),
+                            `unit_price` = VALUES(`unit_price`),
+                            `updated_at` = VALUES(`updated_at`)";
+
+                DB::statement($sql, [
+                    $service->id,
+                    $service->code,
+                    $service->name,
+                    $service->description,
+                    $service->category,
+                    $service->billing_model,
+                    $service->unit_price,
+                    $service->is_active,
+                    $service->metadata,
+                    $service->created_at,
+                    $service->updated_at,
+                ]);
+            }
+
+            Log::info('Servicios copiados a BD del tenant', [
+                'database_name' => $databaseName,
+                'services_count' => $services->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error copiando servicios al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ✅ 4. COPIAR CONFIGURACIÓN DEL PLAN (plan_services)
+        // Solo los servicios del plan que contrató esta notaría
+        try {
+            $planServices = DB::table('plan_services')
+                ->where('plan_id', $notaria->plan_id)
+                ->get();
+
+            foreach ($planServices as $planService) {
+                $sql = "INSERT INTO `{$databaseName}`.`plan_services`
+                        (`id`, `plan_id`, `service_id`, `is_included`, `usage_limit`, `extra_price`, `priority`, `created_at`, `updated_at`)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            `is_included` = VALUES(`is_included`),
+                            `usage_limit` = VALUES(`usage_limit`),
+                            `extra_price` = VALUES(`extra_price`),
+                            `priority` = VALUES(`priority`),
+                            `updated_at` = VALUES(`updated_at`)";
+
+                DB::statement($sql, [
+                    $planService->id,
+                    $planService->plan_id,
+                    $planService->service_id,
+                    $planService->is_included,
+                    $planService->usage_limit,
+                    $planService->extra_price,
+                    $planService->priority,
+                    $planService->created_at,
+                    $planService->updated_at,
+                ]);
+            }
+
+            Log::info('Configuración del plan copiada a BD del tenant', [
+                'database_name' => $databaseName,
+                'plan_id' => $notaria->plan_id,
+                'plan_services_count' => $planServices->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error copiando plan_services al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ✅ 5. COPIAR CUSTOMIZACIONES SI EXISTEN (tenant_services)
+        // Si hay customizaciones en la BD central para esta notaría, copiarlas
+        try {
+            $tenantServices = DB::table('tenant_services')
+                ->where('tenant_id', $notaria->id)
+                ->get();
+
+            if ($tenantServices->count() > 0) {
+                foreach ($tenantServices as $tenantService) {
+                    $sql = "INSERT INTO `{$databaseName}`.`tenant_services`
+                            (`id`, `tenant_id`, `service_id`, `is_enabled`, `custom_limit`, `custom_price`, `activation_date`, `expiration_date`, `notes`, `created_at`, `updated_at`)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ON DUPLICATE KEY UPDATE
+                                `is_enabled` = VALUES(`is_enabled`),
+                                `custom_limit` = VALUES(`custom_limit`),
+                                `custom_price` = VALUES(`custom_price`),
+                                `updated_at` = VALUES(`updated_at`)";
+
+                    DB::statement($sql, [
+                        $tenantService->id,
+                        $tenantService->tenant_id,
+                        $tenantService->service_id,
+                        $tenantService->is_enabled,
+                        $tenantService->custom_limit,
+                        $tenantService->custom_price,
+                        $tenantService->activation_date,
+                        $tenantService->expiration_date,
+                        $tenantService->notes,
+                        $tenantService->created_at,
+                        $tenantService->updated_at,
+                    ]);
+                }
+
+                Log::info('Customizaciones copiadas a BD del tenant', [
+                    'database_name' => $databaseName,
+                    'customizations_count' => $tenantServices->count(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error copiando tenant_services al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        Log::info('Datos esenciales copiados completamente a BD del tenant', [
+            'database_name' => $databaseName,
+            'notaria_id' => $notaria->id,
+        ]);
     }
 }

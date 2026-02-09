@@ -27,10 +27,10 @@ class PasswordController extends Controller
         ]);
 
         // Verificar contraseña del super admin actual
-        if (!Hash::check($request->admin_password, Auth::user()->password)) {
+        if (! Hash::check($request->admin_password, Auth::user()->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contraseña del administrador incorrecta'
+                'message' => 'Contraseña del administrador incorrecta',
             ], 400);
         }
 
@@ -48,7 +48,7 @@ class PasswordController extends Controller
             'success' => true,
             'password' => $plainPassword,
             'user_name' => $user->name,
-            'user_email' => $user->email
+            'user_email' => $user->email,
         ]);
     }
 
@@ -68,10 +68,10 @@ class PasswordController extends Controller
         ]);
 
         // Verificar contraseña del super admin actual
-        if (!Hash::check($request->admin_password, Auth::user()->password)) {
+        if (! Hash::check($request->admin_password, Auth::user()->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contraseña del administrador incorrecta'
+                'message' => 'Contraseña del administrador incorrecta',
             ], 400);
         }
 
@@ -89,7 +89,7 @@ class PasswordController extends Controller
             'message' => 'Contraseña restablecida exitosamente',
             'new_password' => $newPassword,
             'user_name' => $user->name,
-            'user_email' => $user->email
+            'user_email' => $user->email,
         ]);
     }
 
@@ -99,9 +99,9 @@ class PasswordController extends Controller
     private function generateSecurePassword(): string
     {
         // Generar contraseña segura de 12 caracteres
-        $password = Str::upper(Str::random(3)) . // 3 mayúsculas
-                   Str::lower(Str::random(3)) . // 3 minúsculas
-                   rand(100, 999) . // 3 números
+        $password = Str::upper(Str::random(3)). // 3 mayúsculas
+                   Str::lower(Str::random(3)). // 3 minúsculas
+                   rand(100, 999). // 3 números
                    Str::random(3); // 3 caracteres aleatorios
 
         return str_shuffle($password); // Mezclar caracteres

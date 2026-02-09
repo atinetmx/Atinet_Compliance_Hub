@@ -2,9 +2,21 @@
 
 ## Sistema de Servicios y Planes - Guía Paso a Paso
 
-**Estado:** 📋 Lista para iniciar  
-**Fecha inicio:** [Por definir]  
+**Estado:** 📋 Lista para iniciar
+**Fecha inicio:** [Por definir]
 **Responsable:** Equipo de Desarrollo
+
+---
+
+## ⚠️ NOTA IMPORTANTE: INTEGRACIÓN CON SUBSCRIPTIONS
+
+**Esta arquitectura NO reemplaza la tabla `subscriptions` existente.**
+
+- **subscriptions** → Gestiona pagos, renovaciones, vencimientos (ciclo comercial)
+- **services + plan_services + tenant_services** → Gestiona acceso a herramientas y límites
+- **Ambas trabajan juntas**: La verificación de acceso debe primero validar subscription activa, luego verificar servicios del plan
+
+Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_PLANES.md para detalles.
 
 ---
 
@@ -23,54 +35,54 @@
 
 ### Día 1: Migraciones Principales
 
-- [ ] Crear migración `create_services_table`
+- [x] Crear migración `create_services_table`
   ```bash
   php artisan make:migration create_services_table
   ```
-  - [ ] Agregar columnas: id, code, name, description, category, billing_model, unit_price, is_active, metadata, timestamps
-  - [ ] Crear índices: code (unique), category, is_active
-  - [ ] Ejecutar migración: `php artisan migrate`
+  - [x] Agregar columnas: id, code, name, description, category, billing_model, unit_price, is_active, metadata, timestamps
+  - [x] Crear índices: code (unique), category, is_active
+  - [x] Ejecutar migración: `php artisan migrate`
 
-- [ ] Crear migración `create_plan_services_table`
+- [x] Crear migración `create_plan_services_table`
   ```bash
   php artisan make:migration create_plan_services_table
   ```
-  - [ ] Agregar columnas: id, plan_id, service_id, is_included, usage_limit, extra_price, priority, timestamps
-  - [ ] FK a plans y services (cascade)
-  - [ ] Índice único compuesto (plan_id, service_id)
-  - [ ] Ejecutar migración
+  - [x] Agregar columnas: id, plan_id, service_id, is_included, usage_limit, extra_price, priority, timestamps
+  - [x] FK a plans y services (cascade)
+  - [x] Índice único compuesto (plan_id, service_id)
+  - [x] Ejecutar migración
 
 ### Día 2: Migraciones Complementarias
 
-- [ ] Crear migración `create_tenant_services_table`
+- [x] Crear migración `create_tenant_services_table`
   ```bash
   php artisan make:migration create_tenant_services_table
   ```
-  - [ ] Agregar columnas: id, tenant_id, service_id, is_enabled, custom_limit, custom_price, activation_date, expiration_date, notes, timestamps
-  - [ ] FK a notarias y services (cascade)
-  - [ ] Índice único compuesto (tenant_id, service_id)
-  - [ ] Ejecutar migración
+  - [x] Agregar columnas: id, tenant_id, service_id, is_enabled, custom_limit, custom_price, activation_date, expiration_date, notes, timestamps
+  - [x] FK a notarias y services (cascade)
+  - [x] Índice único compuesto (tenant_id, service_id)
+  - [x] Ejecutar migración
 
-- [ ] Crear migración `create_service_usage_table`
+- [x] Crear migración `create_service_usage_table`
   ```bash
   php artisan make:migration create_service_usage_table
   ```
-  - [ ] Agregar columnas: id, tenant_id, service_id, user_id, consumed_at, quantity, cost, billable, billed_at, metadata, created_at
-  - [ ] FK a notarias, services, users
-  - [ ] Índices: tenant_id, consumed_at, billable
-  - [ ] Ejecutar migración
+  - [x] Agregar columnas: id, tenant_id, service_id, user_id, consumed_at, quantity, cost, billable, billed_at, metadata, created_at
+  - [x] FK a notarias, services, users
+  - [x] Índices: tenant_id, consumed_at, billable
+  - [x] Ejecutar migración
 
 ### Día 2-3: Enums y Modelos
 
-- [ ] Crear Enums
+- [x] Crear Enums
   ```bash
   php artisan make:enum ServiceCategory
   php artisan make:enum BillingModel
   ```
-  - [ ] ServiceCategory: consulta, api, sistema, analisis, storage, integration
-  - [ ] BillingModel: included, limited, per_use, unlimited
+  - [x] ServiceCategory: consulta, api, sistema, analisis, storage, integration
+  - [x] BillingModel: included, limited, per_use, unlimited
 
-- [ ] Crear Modelos
+- [x] Crear Modelos
   ```bash
   php artisan make:model Service
   php artisan make:model PlanService
@@ -78,45 +90,45 @@
   php artisan make:model ServiceUsage
   ```
 
-- [ ] Definir relaciones en Service.php
-  - [ ] belongsToMany(Plan::class)
-  - [ ] hasMany(ServiceUsage::class)
-  - [ ] belongsToMany(Notaria::class)
+- [x] Definir relaciones en Service.php
+  - [x] belongsToMany(Plan::class)
+  - [x] hasMany(ServiceUsage::class)
+  - [x] belongsToMany(Notaria::class)
 
-- [ ] Definir relaciones en Plan.php
-  - [ ] belongsToMany(Service::class)
+- [x] Definir relaciones en Plan.php
+  - [x] belongsToMany(Service::class)
 
-- [ ] Definir relaciones en Notaria.php
-  - [ ] belongsToMany(Service::class)
-  - [ ] hasMany(ServiceUsage::class)
+- [x] Definir relaciones en Notaria.php
+  - [x] belongsToMany(Service::class)
+  - [x] hasMany(ServiceUsage::class)
 
-- [ ] Agregar BelongsToNotaria trait a TenantService y ServiceUsage
+- [x] Agregar BelongsToNotaria trait a TenantService y ServiceUsage
 
 ### Día 3-4: Seeders y Datos Iniciales
 
-- [ ] Crear ServiceFactory
+- [x] Crear ServiceFactory
   ```bash
   php artisan make:factory ServiceFactory
   ```
 
-- [ ] Crear ServicesSeeder
+- [x] Crear ServicesSeeder
   ```bash
   php artisan make:seeder ServicesSeeder
   ```
-  - [ ] Agregar servicios de consultas (BLACKLIST_SAT, BLACKLIST_OFAC, LIST_PEP, etc.)
-  - [ ] Agregar servicios de APIs (API_CAPTURA_DOCS, API_OCR, etc.)
-  - [ ] Agregar servicios de sistema (SISTEMA_NOTARIAL, EXPEDIENTES_QR, etc.)
-  - [ ] Agregar servicios de almacenamiento (STORAGE_BASE, STORAGE_EXTRA_GB)
+  - [x] Agregar servicios de consultas (BLACKLIST_SAT, BLACKLIST_OFAC, LIST_PEP, etc.)
+  - [x] Agregar servicios de APIs (API_CAPTURA_DOCS, API_OCR, etc.)
+  - [x] Agregar servicios de sistema (SISTEMA_NOTARIAL, EXPEDIENTES_QR, etc.)
+  - [x] Agregar servicios de almacenamiento (STORAGE_BASICO, STORAGE_EXTRA)
 
-- [ ] Crear PlanServicesSeeder
+- [x] Crear PlanServicesSeeder
   ```bash
   php artisan make:seeder PlanServicesSeeder
   ```
-  - [ ] Configurar Plan Básico con servicios y límites
-  - [ ] Configurar Plan Profesional con servicios y límites
-  - [ ] Configurar Plan Premium con servicios ilimitados
+  - [x] Configurar Plan Básico con servicios y límites
+  - [x] Configurar Plan Profesional con servicios y límites
+  - [x] Configurar Plan Premium con servicios ilimitados
 
-- [ ] Ejecutar seeders
+- [x] Ejecutar seeders
   ```bash
   php artisan db:seed --class=ServicesSeeder
   php artisan db:seed --class=PlanServicesSeeder
@@ -124,15 +136,19 @@
 
 ### Tests Sprint 1
 
-- [ ] Test: Crear servicio y validar campos
-- [ ] Test: Relación Service -> Plans funciona
-- [ ] Test: Relación Plan -> Services funciona
-- [ ] Test: Índices únicos previenen duplicados
-- [ ] Test: Cascade delete funciona correctamente
-- [ ] Test: BelongsToNotaria filtra correctamente
-- [ ] Ejecutar: `php artisan test --filter=Service`
+- [x] Test: Crear servicio y validar campos
+- [x] Test: Relación Service -> Plans funciona
+- [x] Test: Relación Plan -> Services funciona
+- [x] Test: Índices únicos previenen duplicados
+- [x] Test: Cascade delete funciona correctamente
+- [x] Test: BelongsToNotaria filtra correctamente
+- [x] Test: Enums se castean correctamente
+- [x] Test: Factory states funcionan (consulta, api, sistema, included, unlimited, limited, perUse)
+- [x] Test: Metadata en formato JSON
+- [x] Test: Servicios activos/inactivos
+- [x] Ejecutar: `php artisan test --filter=Service` → ✅ 14/14 tests pasando
 
-**✅ Entregable Sprint 1:** Base de datos completa con servicios iniciales
+**✅ Entregable Sprint 1:** Base de datos completa con servicios iniciales (16 servicios en catálogo)
 
 ---
 
@@ -145,16 +161,24 @@
   php artisan make:class Services/ServiceAccessManager
   ```
   - [ ] Método: `canAccess(Notaria $notaria, string $serviceCode): bool`
+    - [ ] IMPORTANTE: Verificar subscription activa primero (integración con tabla subscriptions)
+    - [ ] Verificar que el plan incluye el servicio
+    - [ ] Verificar customizaciones en tenant_services
+    - [ ] Verificar límites de consumo
   - [ ] Método: `hasReachedLimit(Notaria $notaria, string $serviceCode): bool`
   - [ ] Método: `getRemainingUsage(Notaria $notaria, string $serviceCode): ?int`
   - [ ] Método: `getUsageStats(Notaria $notaria, string $serviceCode): array`
+  - [ ] Método: `getActiveSubscription(Notaria $notaria): ?Subscription`
 
 - [ ] Tests de ServiceAccessManager
+  - [ ] Test: Usuario SIN suscripción activa es bloqueado
+  - [ ] Test: Usuario con suscripción vencida es bloqueado
   - [ ] Test: Usuario con plan básico accede a servicio incluido
   - [ ] Test: Usuario sin servicio es bloqueado
   - [ ] Test: Límites se calculan correctamente
   - [ ] Test: Servicios ilimitados retornan null en límite
   - [ ] Test: Precios custom tienen prioridad
+  - [ ] Test: Integración subscription → plan → services funciona
 
 ### Día 2-3: Usage Recorder
 
@@ -488,6 +512,206 @@
 
 ---
 
+## 💳 SPRINT 6: GESTIÓN DE SUSCRIPCIONES (4-5 días)
+
+### Día 1: Servicio de Gestión
+
+- [ ] Crear SubscriptionService
+  ```bash
+  php artisan make:class Services/SubscriptionService
+  ```
+  - [ ] Método: `createTrialSubscription(Notaria $notaria, Plan $plan): Subscription`
+  - [ ] Método: `renewSubscription(Subscription $subscription, string $ciclo, float $precio, string $metodoPago): Subscription`
+  - [ ] Método: `suspendSubscription(Subscription $subscription, string $razon, bool $notificar = true): Subscription`
+  - [ ] Método: `reactivateSubscription(Subscription $subscription, Carbon $fechaVencimiento, float $precio): Subscription`
+  - [ ] Método: `cancelSubscription(Subscription $subscription, string $razon): Subscription`
+  - [ ] Método: `changePlan(Subscription $subscription, Plan $newPlan, bool $aplicarProrrateo = false): Subscription`
+  - [ ] Método: `calculateProrateo(Subscription $subscription, Plan $newPlan): float`
+
+- [ ] Tests de SubscriptionService
+  - [ ] Test: Trial se crea correctamente (30 días, $0)
+  - [ ] Test: Renovación mensual/anual calcula fechas correctas
+  - [ ] Test: Suspensión bloquea acceso y notifica
+  - [ ] Test: Reactivación restaura acceso
+  - [ ] Test: Cancelación es irreversible
+  - [ ] Test: Cambio de plan actualiza servicios en tenant
+  - [ ] Test: Prorrateo se calcula correctamente
+
+### Día 2: Controller y Rutas
+
+- [ ] Crear SubscriptionController (Admin)
+  ```bash
+  php artisan make:controller Admin/SubscriptionController
+  ```
+  - [ ] Método: `index()` - Listar todas las suscripciones con filtros
+  - [ ] Método: `show(Subscription $subscription)` - Ver detalle + historial
+  - [ ] Método: `renew()` - Renovar suscripción
+  - [ ] Método: `suspend()` - Suspender suscripción
+  - [ ] Método: `reactivate()` - Reactivar suscripción
+  - [ ] Método: `cancel()` - Cancelar definitivamente
+  - [ ] Método: `changePlan()` - Cambiar plan
+
+- [ ] Crear Form Requests
+  ```bash
+  php artisan make:request Admin/RenewSubscriptionRequest
+  php artisan make:request Admin/SuspendSubscriptionRequest
+  php artisan make:request Admin/ChangePlanRequest
+  ```
+  - [ ] RenewSubscriptionRequest: ciclo, precio_pagado, metodo_pago
+  - [ ] SuspendSubscriptionRequest: razon_suspension (required)
+  - [ ] ChangePlanRequest: nuevo_plan_id, aplicar_prorrateo
+
+- [ ] Agregar rutas en routes/web.php
+  ```php
+  Route::prefix('admin')->middleware(['auth', 'super_admin'])->name('admin.')->group(function () {
+      Route::get('/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
+      Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show'])->name('subscriptions.show');
+      Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew'])->name('subscriptions.renew');
+      Route::post('/subscriptions/{subscription}/suspend', [SubscriptionController::class, 'suspend'])->name('subscriptions.suspend');
+      Route::post('/subscriptions/{subscription}/reactivate', [SubscriptionController::class, 'reactivate'])->name('subscriptions.reactivate');
+      Route::post('/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+      Route::post('/subscriptions/{subscription}/change-plan', [SubscriptionController::class, 'changePlan'])->name('subscriptions.change-plan');
+  });
+  ```
+
+### Día 3: Command de Automatización
+
+- [ ] Crear CheckExpiredSubscriptions Command
+  ```bash
+  php artisan make:command CheckExpiredSubscriptions
+  ```
+  - [ ] Buscar suscripciones activas vencidas → cambiar a 'vencida'
+  - [ ] Buscar suscripciones vencidas hace > 7 días → cambiar a 'suspendida'
+  - [ ] Enviar notificaciones a notarías afectadas
+  - [ ] Enviar reporte diario a SuperAdmin
+  - [ ] Log de todas las acciones realizadas
+
+- [ ] Registrar en Kernel para ejecución diaria
+  ```php
+  // bootstrap/app.php o routes/console.php
+  Schedule::command('subscriptions:check-expired')->daily();
+  ```
+
+- [ ] Tests del Command
+  - [ ] Test: Suscripciones vencidas se marcan correctamente
+  - [ ] Test: Suspensión automática después de 7 días
+  - [ ] Test: Notificaciones se envían correctamente
+  - [ ] Test: Log completo de acciones
+
+### Día 3-4: Middleware de Validación
+
+- [ ] Crear CheckActiveSubscription Middleware
+  ```bash
+  php artisan make:middleware CheckActiveSubscription
+  ```
+  - [ ] Verificar que la notaría tiene suscripción activa o trial
+  - [ ] Si está vencida: permitir solo lectura (7 días gracia)
+  - [ ] Si está suspendida/cancelada: bloquear acceso completo
+  - [ ] Retornar JSON con mensaje descriptivo
+
+- [ ] Registrar middleware en bootstrap/app.php
+  ```php
+  ->withMiddleware(function (Middleware $middleware) {
+      $middleware->alias([
+          'active.subscription' => CheckActiveSubscription::class,
+      ]);
+  })
+  ```
+
+- [ ] Integrar con ServiceAccessManager
+  - [ ] Actualizar método `canAccess()` para verificar estado de suscripción primero
+  - [ ] Implementar lógica de período de gracia
+  - [ ] Agregar método `getSubscriptionStatus(Notaria $notaria): string`
+
+- [ ] Tests de integración
+  - [ ] Test: Usuario con suscripción activa accede normalmente
+  - [ ] Test: Usuario con suscripción vencida (< 7 días) tiene acceso limitado
+  - [ ] Test: Usuario con suscripción suspendida es bloqueado
+  - [ ] Test: Usuario con suscripción cancelada es bloqueado
+  - [ ] Test: Middleware retorna mensajes apropiados
+
+### Día 4-5: Frontend (Vistas Inertia)
+
+- [ ] Crear componente SubscriptionStatusBadge.vue
+  - [ ] Badge visual para cada estado (trial, activa, vencida, suspendida, cancelada)
+  - [ ] Colores: verde, azul, amarillo, naranja, rojo
+  - [ ] Tooltip con información adicional
+
+- [ ] Crear vista Admin/Subscriptions/Index.vue
+  - [ ] Tabla con todas las suscripciones
+  - [ ] Filtros: por estado, por plan, vencen pronto
+  - [ ] Estadísticas: activas, trial, MRR, ARR
+  - [ ] Alertas: vencen pronto, requieren acción
+  - [ ] Búsqueda por notaría
+
+- [ ] Crear vista Admin/Subscriptions/Show.vue
+  - [ ] Información completa de la suscripción
+  - [ ] Historial de cambios de estado
+  - [ ] Historial de pagos
+  - [ ] Botones de acción: Renovar, Suspender, Cambiar Plan, Cancelar
+
+- [ ] Crear modales de acciones
+  - [ ] RenewSubscriptionModal.vue
+    - [ ] Seleccionar ciclo (mensual/anual)
+    - [ ] Mostrar precio del plan
+    - [ ] Seleccionar método de pago
+    - [ ] Calcular nueva fecha de vencimiento
+  - [ ] ChangePlanModal.vue
+    - [ ] Seleccionar nuevo plan
+    - [ ] Checkbox para aplicar prorrateo
+    - [ ] Mostrar comparación planes (actual vs nuevo)
+    - [ ] Calcular precio con prorrateo
+  - [ ] SuspendSubscriptionModal.vue
+    - [ ] Textarea para razón (required)
+    - [ ] Checkbox para notificar cliente
+    - [ ] Advertencia de bloqueo de acceso
+  - [ ] CancelSubscriptionModal.vue
+    - [ ] Confirmación doble (input "CANCELAR")
+    - [ ] Textarea para razón (required)
+    - [ ] Advertencia irreversible
+    - [ ] Checkbox "Entiendo que esta acción no se puede deshacer"
+
+- [ ] Actualizar Admin/Notarias/Show.vue
+  - [ ] Agregar widget de suscripción actual
+  - [ ] Mostrar estado, plan, fechas
+  - [ ] Botones inline: Renovar, Suspender, Cambiar Plan
+  - [ ] Historial rápido de últimos 5 movimientos
+
+- [ ] Wayfinder routes
+  ```bash
+  npm run wayfinder
+  ```
+  - [ ] Generar funciones TypeScript para todas las rutas de suscripciones
+  - [ ] Verificar importaciones en componentes Vue
+
+### Día 5: Notificaciones
+
+- [ ] Crear Notifications
+  ```bash
+  php artisan make:notification SubscriptionExpiringSoon
+  php artisan make:notification SubscriptionExpired
+  php artisan make:notification SubscriptionSuspended
+  php artisan make:notification SubscriptionReactivated
+  ```
+  - [ ] Configurar canales: mail, database
+  - [ ] Templates de email personalizados
+  - [ ] Variables dinámicas (nombre notaría, fecha vencimiento, etc.)
+
+- [ ] Integrar notificaciones en SubscriptionService
+  - [ ] Al vencer: notificar 7 días antes, 3 días antes, día de vencimiento
+  - [ ] Al suspender: notificar inmediatamente
+  - [ ] Al reactivar: confirmar reactivación
+  - [ ] Al cambiar plan: informar cambios
+
+- [ ] Tests de notificaciones
+  - [ ] Test: Notificaciones se envían en momento correcto
+  - [ ] Test: Contenido de emails es correcto
+  - [ ] Test: Notificaciones se guardan en BD
+
+**✅ Entregable Sprint 6:** Sistema completo de gestión de suscripciones integrado con servicios
+
+---
+
 ## 🎉 POST-IMPLEMENTACIÓN
 
 ### Semana 1 Post-Launch
@@ -593,5 +817,30 @@
 
 ---
 
-**Última actualización:** 9 de Febrero, 2026  
+**Última actualización:** 9 de Febrero, 2026
 **Mantenido por:** Equipo de Desarrollo ATINET
+
+
+🎯 Próximo paso sugerido:
+Crear un Job asíncrono para sincronización periódica:
+
+Actualizar servicios cuando cambien en la BD central
+Actualizar límites cuando cambie el plan
+Sincronizar usage con la BD central para facturación
+
+
+
+// Crear suscripciones activas
+        Subscription::firstOrCreate([
+            'notaria_id' => $notaria1->id,
+        ], [
+            'plan_id' => $planBasico->id,
+            'fecha_inicio' => now()->subMonth(),
+            'fecha_vencimiento' => now()->addMonth(),
+            'status' => Subscription::STATUS_ACTIVA,
+            'ciclo_facturacion' => Subscription::CICLO_MENSUAL,
+            'precio_pagado' => $planBasico->precio_mensual,
+            'metodo_pago' => 'tarjeta_credito',
+            'moneda' => 'MXN',
+            'auto_renovacion' => true,
+        ]);

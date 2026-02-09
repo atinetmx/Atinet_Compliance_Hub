@@ -2,7 +2,14 @@ import { Eye, EyeOff, RotateCcw, Lock } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -19,12 +26,18 @@ interface PasswordManagerProps {
     onPasswordReset?: (newPassword: string) => void;
 }
 
-export default function PasswordManager({ user, onPasswordRevealed, onPasswordReset }: PasswordManagerProps) {
+export default function PasswordManager({
+    user,
+    onPasswordRevealed,
+    onPasswordReset,
+}: PasswordManagerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [adminPassword, setAdminPassword] = useState('');
     const [showAdminPassword, setShowAdminPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
+    const [revealedPassword, setRevealedPassword] = useState<string | null>(
+        null,
+    );
     const [showRevealedPassword, setShowRevealedPassword] = useState(false);
     const [newPassword, setNewPassword] = useState('');
     const [action, setAction] = useState<'reveal' | 'reset'>('reveal');
@@ -37,16 +50,22 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
 
         setLoading(true);
         try {
-            const response = await fetch(`/admin/users/${user.id}/reveal-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            const response = await fetch(
+                `/admin/users/${user.id}/reveal-password`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN':
+                            document
+                                .querySelector('meta[name="csrf-token"]')
+                                ?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        admin_password: adminPassword,
+                    }),
                 },
-                body: JSON.stringify({
-                    admin_password: adminPassword,
-                }),
-            });
+            );
 
             const data = await response.json();
 
@@ -72,17 +91,23 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
 
         setLoading(true);
         try {
-            const response = await fetch(`/admin/users/${user.id}/reset-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            const response = await fetch(
+                `/admin/users/${user.id}/reset-password`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN':
+                            document
+                                .querySelector('meta[name="csrf-token"]')
+                                ?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        admin_password: adminPassword,
+                        new_password: newPassword.trim() || undefined,
+                    }),
                 },
-                body: JSON.stringify({
-                    admin_password: adminPassword,
-                    new_password: newPassword.trim() || undefined,
-                }),
-            });
+            );
 
             const data = await response.json();
 
@@ -116,7 +141,7 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
-                    <Lock className="h-4 w-4 mr-1" />
+                    <Lock className="mr-1 h-4 w-4" />
                     Gestionar
                 </Button>
             </DialogTrigger>
@@ -142,7 +167,9 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                                 id="adminPassword"
                                 type={showAdminPassword ? 'text' : 'password'}
                                 value={adminPassword}
-                                onChange={(e) => setAdminPassword(e.target.value)}
+                                onChange={(e) =>
+                                    setAdminPassword(e.target.value)
+                                }
                                 placeholder="Ingresa tu contraseña"
                                 className="pr-10"
                             />
@@ -150,8 +177,10 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowAdminPassword(!showAdminPassword)}
+                                className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() =>
+                                    setShowAdminPassword(!showAdminPassword)
+                                }
                             >
                                 {showAdminPassword ? (
                                     <EyeOff className="h-4 w-4" />
@@ -165,12 +194,14 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                     {/* Selección de Acción */}
                     <div className="flex gap-2">
                         <Button
-                            variant={action === 'reveal' ? 'default' : 'outline'}
+                            variant={
+                                action === 'reveal' ? 'default' : 'outline'
+                            }
                             size="sm"
                             onClick={() => setAction('reveal')}
                             className="flex-1"
                         >
-                            <Eye className="h-4 w-4 mr-1" />
+                            <Eye className="mr-1 h-4 w-4" />
                             Ver Contraseña
                         </Button>
                         <Button
@@ -179,7 +210,7 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                             onClick={() => setAction('reset')}
                             className="flex-1"
                         >
-                            <RotateCcw className="h-4 w-4 mr-1" />
+                            <RotateCcw className="mr-1 h-4 w-4" />
                             Restablecer
                         </Button>
                     </div>
@@ -198,20 +229,27 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                                 placeholder="Dejar vacío para generar automáticamente"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Si no especificas una contraseña, se generará una automáticamente.
+                                Si no especificas una contraseña, se generará
+                                una automáticamente.
                             </p>
                         </div>
                     )}
 
                     {/* Resultado */}
                     {revealedPassword && (
-                        <div className="space-y-2 p-4 bg-muted rounded-lg">
+                        <div className="space-y-2 rounded-lg bg-muted p-4">
                             <Label>
-                                {action === 'reveal' ? 'Contraseña actual:' : 'Nueva contraseña:'}
+                                {action === 'reveal'
+                                    ? 'Contraseña actual:'
+                                    : 'Nueva contraseña:'}
                             </Label>
                             <div className="relative">
                                 <Input
-                                    type={showRevealedPassword ? 'text' : 'password'}
+                                    type={
+                                        showRevealedPassword
+                                            ? 'text'
+                                            : 'password'
+                                    }
                                     value={revealedPassword}
                                     readOnly
                                     className="pr-10 font-mono"
@@ -220,8 +258,12 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                    onClick={() => setShowRevealedPassword(!showRevealedPassword)}
+                                    className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                                    onClick={() =>
+                                        setShowRevealedPassword(
+                                            !showRevealedPassword,
+                                        )
+                                    }
                                 >
                                     {showRevealedPassword ? (
                                         <EyeOff className="h-4 w-4" />
@@ -234,7 +276,9 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                    navigator.clipboard.writeText(revealedPassword);
+                                    navigator.clipboard.writeText(
+                                        revealedPassword,
+                                    );
                                     alert('Contraseña copiada al portapapeles');
                                 }}
                                 className="w-full"
@@ -250,12 +294,18 @@ export default function PasswordManager({ user, onPasswordRevealed, onPasswordRe
                             Cancelar
                         </Button>
                         <Button
-                            onClick={action === 'reveal' ? handleRevealPassword : handleResetPassword}
+                            onClick={
+                                action === 'reveal'
+                                    ? handleRevealPassword
+                                    : handleResetPassword
+                            }
                             disabled={loading || !adminPassword.trim()}
                         >
-                            {loading ? 'Procesando...' : (
-                                action === 'reveal' ? 'Revelar Contraseña' : 'Restablecer'
-                            )}
+                            {loading
+                                ? 'Procesando...'
+                                : action === 'reveal'
+                                  ? 'Revelar Contraseña'
+                                  : 'Restablecer'}
                         </Button>
                     </div>
                 </div>

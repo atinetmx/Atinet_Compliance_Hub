@@ -98,6 +98,43 @@ Campaña: "100 búsquedas SAT gratis"
 │  (catálogo)  │     │   (marcos)   │
 └──────────────┘     └──────────────┘
        ↓                     ↓
+       └─────────┬───────────┘
+                 ↓
+         ┌──────────────┐
+         │  NOTARÍA     │ ← personalización por cliente
+         │ + CONSUMO    │ ← facturación precisa
+         └──────────────┘
+```
+
+**Ventaja:** Agregar servicio = insertar fila + asignar a planes
+
+### Integración con sistema existente
+
+**IMPORTANTE:** Esta fase **complementa** (no reemplaza) la estructura actual:
+
+```
+📋 TABLA SUBSCRIPTIONS (ya existe)
+   ↓
+   Gestiona: Pagos, renovaciones, vencimientos
+   Mantiene: Toda su funcionalidad actual
+   
+   +
+   
+📋 NUEVAS TABLAS SERVICES
+   ↓
+   Gestiona: Acceso a herramientas, límites, consumo
+   Añade: Control granular y facturación por uso
+```
+
+**Flujo integrado:**
+1. ¿Usuario tiene subscription activa? → `subscriptions` ✓
+2. ¿Qué plan tiene? → `subscriptions.plan_id` ✓
+3. ¿Ese plan incluye el servicio? → `plan_services` ✓
+4. ¿Hay límites? → `plan_services.usage_limit` ✓
+5. ¿Personalizaciones? → `tenant_services` ✓
+6. Registrar uso → `service_usage` ✓
+
+**Resultado:** Sistema más robusto sin perder funcionalidad existente.
 ┌──────────────────────────────────┐
 │          NOTARÍA                  │
 │  (servicios activos + consumo)   │
@@ -114,38 +151,57 @@ Campaña: "100 búsquedas SAT gratis"
 ✅ CRUD de servicios  
 ✅ Asignación de servicios a planes  
 ✅ Configuración de límites y precios  
-✅ Dashboard de consumo y estadísticas
+✅ Dashboard de consumo y estadísticas  
+✅ **Gestión completa de suscripciones**  
+✅ **Control de estados (trial, activa, vencida, suspendida, cancelada)**  
+✅ **Renovación, suspensión y cambio de planes**
 
 ### Panel Notaría
 ✅ Vista de servicios activos  
 ✅ Indicadores de uso vs límites  
 ✅ Marketplace de servicios adicionales  
-✅ Historial de consumo exportable
+✅ Historial de consumo exportable  
+✅ **Estado de suscripción en tiempo real**
 
 ### Backend
 ✅ 4 tablas nuevas (services, plan_services, tenant_services, service_usage)  
 ✅ 3 servicios de lógica de negocio  
 ✅ Middleware de control de acceso  
-✅ Sistema de facturación automática
+✅ Sistema de facturación automática  
+✅ **SubscriptionService para gestión del ciclo de vida**  
+✅ **Command automático para verificar vencimientos**  
+✅ **Sistema de notificaciones integrado**
 
 ---
 
 ## ⏱️ CRONOGRAMA
 
 ```
-┌─────────────────────────────────────────────────┐
-│  SPRINT 1: Base de Datos       [████] 3-4 días  │
-│  SPRINT 2: Lógica Negocio      [████] 4-5 días  │
-│  SPRINT 3: Panel Admin         [█████] 5-6 días │
-│  SPRINT 4: Vista Notaría       [███] 3-4 días   │
-│  SPRINT 5: Testing & Docs      [██] 2-3 días    │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  SPRINT 1: Base de Datos         [████] 3-4 días    │
+│  SPRINT 2: Lógica Negocio        [████] 4-5 días    │
+│  SPRINT 3: Panel Admin           [█████] 5-6 días   │
+│  SPRINT 4: Vista Notaría         [███] 3-4 días     │
+│  SPRINT 5: Testing & Docs        [██] 2-3 días      │
+│  SPRINT 6: Gestión Suscripciones [████] 4-5 días    │
+└─────────────────────────────────────────────────────┘
 
-TOTAL: 17-22 días (~3-4 semanas)
+TOTAL: 21-27 días (~4-5 semanas)
 ```
 
 **Inicio recomendado:** Lunes 10 de Febrero  
-**Fin estimado:** Viernes 6 de Marzo
+**Fin estimado:** Viernes 13 de Marzo
+
+### Sprint 6: Gestión de Suscripciones (Nuevo)
+
+**Justificación:** Sistema crítico para control comercial
+
+- Renovación automática y manual de suscripciones
+- Suspensión por falta de pago con período de gracia
+- Cambio de planes con cálculo de prorrateo
+- Command diario para verificar vencimientos
+- Panel completo para SuperAdmin
+- Integración con validación de acceso a servicios
 
 ---
 

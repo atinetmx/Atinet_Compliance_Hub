@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
@@ -31,8 +31,15 @@ Route::get('dashboard', function () {
                     'total_notarias' => \App\Models\Notaria::count(),
                     'total_usuarios' => \App\Models\User::count(),
                     'total_busquedas' => \App\Models\Busqueda::withoutGlobalScopes()->count(),
-                    'suscripciones_activas' => \App\Models\Subscription::where('status', 'activa')->count(),
+                    'suscripciones_activas' => \App\Models\Subscription::whereIn('status', ['activa', 'trial'])->count(),
+                    'suscripciones_trial' => \App\Models\Subscription::where('status', 'trial')->count(),
+                    'suscripciones_vencidas' => \App\Models\Subscription::where('status', 'vencida')->count(),
+                    'suscripciones_suspendidas' => \App\Models\Subscription::where('status', 'suspendida')->count(),
                 ],
+                'recent_subscriptions' => \App\Models\Subscription::with(['notaria', 'plan'])
+                    ->latest()
+                    ->take(5)
+                    ->get(),
             ]);
 
         case 'admin_notaria':
@@ -61,6 +68,10 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
     // Gestión de notarías
     Route::resource('notarias', \App\Http\Controllers\Admin\NotariaController::class);
+
+    // Gestión de suscripciones
+    Route::get('subscriptions', [\App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions.index');
+    Route::get('subscriptions/{subscription}', [\App\Http\Controllers\Admin\SubscriptionController::class, 'show'])->name('subscriptions.show');
 
     // Gestión de usuarios del sistema
     Route::resource('users', \App\Http\Controllers\Admin\UserController::class);

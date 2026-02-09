@@ -1,5 +1,14 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Settings, Database, HardDrive, Zap, Trash2, RotateCcw, FileText, Info } from 'lucide-react';
+import {
+    Settings,
+    Database,
+    HardDrive,
+    Zap,
+    Trash2,
+    RotateCcw,
+    FileText,
+    Info,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,7 +48,7 @@ export default function Index({ systemInfo, stats }: Props) {
     const [isOptimizing, setIsOptimizing] = useState(false);
 
     const { setData, post } = useForm({
-        type: ''
+        type: '',
     });
 
     const clearCache = (type: string) => {
@@ -47,7 +56,7 @@ export default function Index({ systemInfo, stats }: Props) {
         setData('type', type);
         post('/admin/settings/cache/clear', {
             onFinish: () => setIsClearing(null),
-            onError: () => setIsClearing(null)
+            onError: () => setIsClearing(null),
         });
     };
 
@@ -55,7 +64,7 @@ export default function Index({ systemInfo, stats }: Props) {
         setIsOptimizing(true);
         post('/admin/settings/optimize', {
             onFinish: () => setIsOptimizing(false),
-            onError: () => setIsOptimizing(false)
+            onError: () => setIsOptimizing(false),
         });
     };
 
@@ -81,12 +90,14 @@ export default function Index({ systemInfo, stats }: Props) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Settings className="h-6 w-6 text-primary" />
-                        <h1 className="text-2xl font-bold">Configuración del Sistema</h1>
+                        <h1 className="text-2xl font-bold">
+                            Configuración del Sistema
+                        </h1>
                     </div>
                     <div className="flex items-center gap-2">
                         <Link href="/admin/settings/logs">
                             <Button variant="outline">
-                                <FileText className="h-4 w-4 mr-2" />
+                                <FileText className="mr-2 h-4 w-4" />
                                 Ver Logs
                             </Button>
                         </Link>
@@ -94,52 +105,68 @@ export default function Index({ systemInfo, stats }: Props) {
                 </div>
 
                 {/* System Information */}
-                <div className="bg-background border rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <div className="rounded-lg border bg-background p-6">
+                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                         <Info className="h-5 w-5 text-primary" />
                         Información del Sistema
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Aplicación</label>
-                            <div className="font-mono text-sm bg-muted/50 p-2 rounded">
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Aplicación
+                            </label>
+                            <div className="rounded bg-muted/50 p-2 font-mono text-sm">
                                 {systemInfo.app_name}
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Entorno</label>
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Entorno
+                            </label>
                             <div>
-                                <Badge className={getEnvironmentBadgeColor(systemInfo.app_env)}>
+                                <Badge
+                                    className={getEnvironmentBadgeColor(
+                                        systemInfo.app_env,
+                                    )}
+                                >
                                     {systemInfo.app_env.toUpperCase()}
                                 </Badge>
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Laravel</label>
-                            <div className="font-mono text-sm bg-muted/50 p-2 rounded">
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Laravel
+                            </label>
+                            <div className="rounded bg-muted/50 p-2 font-mono text-sm">
                                 v{systemInfo.laravel_version}
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">PHP</label>
-                            <div className="font-mono text-sm bg-muted/50 p-2 rounded">
+                            <label className="text-sm font-medium text-muted-foreground">
+                                PHP
+                            </label>
+                            <div className="rounded bg-muted/50 p-2 font-mono text-sm">
                                 v{systemInfo.php_version}
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Base de Datos</label>
-                            <div className="font-mono text-sm bg-muted/50 p-2 rounded">
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Base de Datos
+                            </label>
+                            <div className="rounded bg-muted/50 p-2 font-mono text-sm">
                                 {systemInfo.database_connection}
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Cache</label>
-                            <div className="font-mono text-sm bg-muted/50 p-2 rounded">
+                            <label className="text-sm font-medium text-muted-foreground">
+                                Cache
+                            </label>
+                            <div className="rounded bg-muted/50 p-2 font-mono text-sm">
                                 {systemInfo.cache_driver}
                             </div>
                         </div>
@@ -147,42 +174,56 @@ export default function Index({ systemInfo, stats }: Props) {
                 </div>
 
                 {/* Storage Information */}
-                <div className="bg-background border rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <div className="rounded-lg border bg-background p-6">
+                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                         <HardDrive className="h-5 w-5 text-primary" />
                         Información de Almacenamiento
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="text-center p-4 bg-muted/30 rounded-lg">
-                            <div className="text-2xl font-bold text-primary">{stats.total_storage}</div>
-                            <div className="text-sm text-muted-foreground">Almacenamiento Total</div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div className="rounded-lg bg-muted/30 p-4 text-center">
+                            <div className="text-2xl font-bold text-primary">
+                                {stats.total_storage}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Almacenamiento Total
+                            </div>
                         </div>
-                        <div className="text-center p-4 bg-muted/30 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">{stats.free_storage}</div>
-                            <div className="text-sm text-muted-foreground">Espacio Libre</div>
+                        <div className="rounded-lg bg-muted/30 p-4 text-center">
+                            <div className="text-2xl font-bold text-green-600">
+                                {stats.free_storage}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Espacio Libre
+                            </div>
                         </div>
-                        <div className="text-center p-4 bg-muted/30 rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600">{stats.database_size}</div>
-                            <div className="text-sm text-muted-foreground">Tamaño BD</div>
+                        <div className="rounded-lg bg-muted/30 p-4 text-center">
+                            <div className="text-2xl font-bold text-blue-600">
+                                {stats.database_size}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Tamaño BD
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Cache Management */}
-                <div className="bg-background border rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <div className="rounded-lg border bg-background p-6">
+                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                         <Database className="h-5 w-5 text-primary" />
                         Gestión de Cache
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <Button
                             variant="outline"
                             onClick={() => clearCache('config')}
                             disabled={isClearing === 'config'}
                             className="justify-start"
                         >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            {isClearing === 'config' ? 'Limpiando...' : 'Cache Config'}
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {isClearing === 'config'
+                                ? 'Limpiando...'
+                                : 'Cache Config'}
                         </Button>
 
                         <Button
@@ -191,8 +232,10 @@ export default function Index({ systemInfo, stats }: Props) {
                             disabled={isClearing === 'route'}
                             className="justify-start"
                         >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            {isClearing === 'route' ? 'Limpiando...' : 'Cache Rutas'}
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {isClearing === 'route'
+                                ? 'Limpiando...'
+                                : 'Cache Rutas'}
                         </Button>
 
                         <Button
@@ -201,8 +244,10 @@ export default function Index({ systemInfo, stats }: Props) {
                             disabled={isClearing === 'view'}
                             className="justify-start"
                         >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            {isClearing === 'view' ? 'Limpiando...' : 'Cache Vistas'}
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {isClearing === 'view'
+                                ? 'Limpiando...'
+                                : 'Cache Vistas'}
                         </Button>
 
                         <Button
@@ -211,37 +256,44 @@ export default function Index({ systemInfo, stats }: Props) {
                             disabled={isClearing === 'all'}
                             className="justify-start"
                         >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            {isClearing === 'all' ? 'Limpiando...' : 'Limpiar Todo'}
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {isClearing === 'all'
+                                ? 'Limpiando...'
+                                : 'Limpiar Todo'}
                         </Button>
                     </div>
                 </div>
 
                 {/* Application Optimization */}
-                <div className="bg-background border rounded-lg p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <div className="rounded-lg border bg-background p-6">
+                    <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
                         <Zap className="h-5 w-5 text-primary" />
                         Optimización
                     </h3>
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">
-                            Optimiza la aplicación para mejorar el rendimiento. Esto incluye cache de configuración, rutas y vistas.
+                            Optimiza la aplicación para mejorar el rendimiento.
+                            Esto incluye cache de configuración, rutas y vistas.
                         </p>
                         <Button
                             onClick={optimizeApp}
                             disabled={isOptimizing}
                             className="w-full md:w-auto"
                         >
-                            <RotateCcw className={`h-4 w-4 mr-2 ${isOptimizing ? 'animate-spin' : ''}`} />
-                            {isOptimizing ? 'Optimizando...' : 'Optimizar Aplicación'}
+                            <RotateCcw
+                                className={`mr-2 h-4 w-4 ${isOptimizing ? 'animate-spin' : ''}`}
+                            />
+                            {isOptimizing
+                                ? 'Optimizando...'
+                                : 'Optimizar Aplicación'}
                         </Button>
                     </div>
                 </div>
 
                 {/* Log Files */}
-                <div className="bg-background border rounded-lg p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                <div className="rounded-lg border bg-background p-6">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h3 className="flex items-center gap-2 text-lg font-semibold">
                             <FileText className="h-5 w-5 text-primary" />
                             Archivos de Log
                         </h3>
@@ -255,32 +307,40 @@ export default function Index({ systemInfo, stats }: Props) {
                     {stats.log_files.length > 0 ? (
                         <div className="space-y-2">
                             {stats.log_files.slice(0, 5).map((file) => (
-                                <div key={file.name} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                                <div
+                                    key={file.name}
+                                    className="flex items-center justify-between rounded-lg bg-muted/30 p-3"
+                                >
                                     <div className="flex items-center gap-3">
                                         <FileText className="h-4 w-4 text-muted-foreground" />
                                         <div>
-                                            <div className="font-medium">{file.name}</div>
+                                            <div className="font-medium">
+                                                {file.name}
+                                            </div>
                                             <div className="text-sm text-muted-foreground">
                                                 Modificado: {file.modified}
                                             </div>
                                         </div>
                                     </div>
-                                    <Badge variant="secondary">{file.size}</Badge>
+                                    <Badge variant="secondary">
+                                        {file.size}
+                                    </Badge>
                                 </div>
                             ))}
 
                             {stats.log_files.length > 5 && (
-                                <div className="text-center pt-2">
+                                <div className="pt-2 text-center">
                                     <Link href="/admin/settings/logs">
                                         <Button variant="ghost" size="sm">
-                                            Ver {stats.log_files.length - 5} archivos más
+                                            Ver {stats.log_files.length - 5}{' '}
+                                            archivos más
                                         </Button>
                                     </Link>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="py-8 text-center text-muted-foreground">
                             No hay archivos de log disponibles
                         </div>
                     )}

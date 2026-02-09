@@ -50,6 +50,477 @@ service_usage (consumo real)
 
 ---
 
+## 🔗 INTEGRACIÓN CON ARQUITECTURA EXISTENTE
+
+### Relación con tabla `subscriptions`
+
+**IMPORTANTE:** La tabla `subscriptions` (ya existente) **NO queda obsoleta**. Ambas arquitecturas son **complementarias** y trabajan juntas:
+
+#### **`subscriptions`** → Gestión de la suscripción
+```sql
+subscriptions
+├─ notaria_id          (¿Qué notaría?)
+├─ plan_id             (¿Qué plan contrató?)
+├─ fecha_inicio
+├─ fecha_vencimiento
+├─ status              (activa/vencida/cancelada)
+├─ precio_pagado
+├─ ciclo_facturacion   (mensual/anual)
+└─ auto_renovacion
+
+Propósito: Gestionar PAGOS, RENOVACIONES y STATUS de la suscripción
+```
+
+#### **Nueva arquitectura de servicios** → Gestión de herramientas
+```sql
+services              → Catálogo de herramientas disponibles
+plan_services         → Qué servicios incluye cada plan + límites
+tenant_services       → Customizaciones por notaría
+service_usage         → Tracking de consumo para facturación
+
+Propósito: Gestionar ACCESO, LÍMITES y CONSUMO de herramientas
+```
+
+### Flujo de integración
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Usuario de Notaría intenta usar servicio BLACKLIST_SAT      │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. Sistema verifica: ¿Tiene suscripción activa?                │
+│    → notaria.subscription WHERE status = 'activa'              │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+                         ✅ SÍ
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. Obtener el plan de la suscripción                           │
+│    → subscription.plan                                          │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. ¿El plan incluye el servicio?                               │
+│    → plan.services WHERE code = 'BLACKLIST_SAT'                │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+                         ✅ SÍ
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 5. ¿Hay customización para esta notaría?                       │
+│    → notaria.services WHERE code = 'BLACKLIST_SAT'             │
+│    Si existe: usar custom_limit y custom_price                 │
+│    Si no: usar usage_limit del plan                            │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 6. Verificar consumo actual del mes                            │
+│    → service_usage WHERE tenant_id AND service_id               │
+│       AND MONTH(consumed_at) = current_month                    │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 7. ¿Ha alcanzado el límite?                                    │
+│    → count(usage) < limit                                       │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+                    ✅ NO (tiene cuota)
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ 8. Permitir acceso + registrar uso                             │
+│    → INSERT INTO service_usage                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Ejemplo en código
+
+```php
+// Middleware: CheckServiceAccess
+public function handle(Request $request, Closure $next, string $serviceCode)
+{
+    $notaria = auth()->user()->notaria;
+    
+    // 1. Verificar suscripción activa
+    $subscription = $notaria->subscription()
+        ->where('status', 'activa')
+        ->whereDate('fecha_vencimiento', '>=', now())
+        ->first();
+    
+    if (!$subscription) {
+        return response()->json(['error' => 'No hay suscripción activa'], 403);
+    }
+    
+    // 2. Obtener el plan
+    $plan = $subscription->plan;
+    
+    // 3. Verificar si el plan incluye el servicio
+    $planService = $plan->services()
+        ->where('code', $serviceCode)
+        ->first();
+    
+    if (!$planService) {
+        return response()->json(['error' => 'Servicio no incluido en el plan'], 403);
+    }
+    
+    // 4. Buscar customización
+    $customService = $notaria->services()
+        ->where('code', $serviceCode)
+        ->first();
+    
+    // 5. Determinar límite efectivo
+    $limit = $customService?->custom_limit ?? $planService->pivot->usage_limit;
+    
+    // 6. Verificar consumo actual
+    if ($limit !== null) {
+        $currentUsage = $notaria->serviceUsage()
+            ->where('service_id', $planService->pivot->service_id)
+            ->whereMonth('consumed_at', now()->month)
+            ->count();
+        
+        if ($currentUsage >= $limit) {
+            return response()->json(['error' => 'Límite alcanzado'], 429);
+        }
+    }
+    
+    // 7. Permitir acceso
+    return $next($request);
+}
+```
+
+### Conclusión
+
+- **`subscriptions`** gestiona el ciclo de vida comercial (pago, renovación, vencimiento)
+- **`services + plan_services + tenant_services`** gestiona permisos y límites de herramientas
+- **`service_usage`** registra consumo real para facturación de excedentes
+- **Trabajan juntas** para un sistema completo de suscripciones + servicios
+
+---
+
+## 💳 GESTIÓN DEL CICLO DE VIDA DE SUSCRIPCIONES
+
+### Estados y Transiciones
+
+El sistema de suscripciones maneja 5 estados que representan el ciclo de vida completo:
+
+```
+trial (período de prueba)
+  ↓ al pagar primer mes
+activa (pagada y vigente)
+  ↓ al vencer sin renovación
+vencida (período de gracia - acceso limitado)
+  ↓ después de 7 días
+suspendida (sin acceso por falta de pago)
+  ↓ si se cancela definitivamente
+cancelada (final, no reversible)
+```
+
+#### Estados Detallados
+
+| Estado | Descripción | Acceso a Servicios | Duración | Siguiente Estado |
+|--------|-------------|-------------------|----------|------------------|
+| **trial** | Período de prueba gratuito | ✅ Completo según plan | 30 días | → `activa` (al pagar) <br> → `vencida` (sin renovar) |
+| **activa** | Suscripción pagada y vigente | ✅ Completo según plan | Hasta fecha_vencimiento | → `vencida` (automático al vencer) |
+| **vencida** | Venció, esperando renovación | ⚠️ Solo lectura/consultas | 7 días (gracia) | → `activa` (al renovar) <br> → `suspendida` (auto después de 7 días) |
+| **suspendida** | Suspendida por falta de pago o penalización | ❌ Sin acceso | Indefinido | → `activa` (al reactivar) <br> → `cancelada` (manual) |
+| **cancelada** | Cancelación definitiva | ❌ Sin acceso | Permanente | Estado final |
+
+### Funcionalidades del SuperAdmin
+
+El SuperAdmin tiene control completo sobre el ciclo de vida de las suscripciones a través de estas acciones:
+
+#### 1. 🔄 Renovar Suscripción
+
+**Cuándo:**
+- Suscripción en estado `vencida` o `activa` próxima a vencer
+- Cliente pagó y se debe extender el período
+
+**Proceso:**
+```php
+// Input
+- ciclo_facturacion: 'mensual' | 'anual'
+- metodo_pago: 'transferencia' | 'stripe' | 'paypal'
+- precio_pagado: decimal
+
+// Cálculo automático
+- fecha_inicio: now()
+- fecha_vencimiento: 
+    * mensual → now()->addMonth()
+    * anual → now()->addYear()
+
+// Actualización
+- status → 'activa'
+- auto_renovacion mantiene valor actual
+```
+
+**Validaciones:**
+- ✅ El precio debe coincidir con plan.precio_mensual o plan.precio_anual
+- ✅ No se puede renovar una suscripción `cancelada`
+- ✅ Registrar en historial de pagos
+
+#### 2. ⚠️ Suspender Suscripción
+
+**Cuándo:**
+- Falta de pago confirmada
+- Violación de términos de servicio
+- Solicitud del cliente
+
+**Proceso:**
+```php
+// Input requerido
+- razon_suspension: string (obligatorio)
+- notificar_cliente: boolean
+
+// Actualización
+- status → 'suspendida'
+- fecha_suspension: now()
+
+// Efecto inmediato
+- Bloquear acceso a todos los servicios
+- Dashboard muestra alerta de suspensión
+- Enviar notificación al admin de la notaría
+```
+
+**Validaciones:**
+- ✅ Razón obligatoria (auditoría)
+- ✅ No se puede suspender una suscripción `cancelada`
+- ✅ Permitir reactivación posterior
+
+#### 3. 🔓 Reactivar Suscripción
+
+**Cuándo:**
+- Cliente pagó deuda pendiente
+- Se resolvió el problema que causó la suspensión
+
+**Proceso:**
+```php
+// Input requerido
+- fecha_vencimiento: date (nueva fecha)
+- precio_pagado: decimal (puede incluir deuda)
+- metodo_pago: string
+
+// Actualización
+- status → 'activa'
+- fecha_reactivacion: now()
+- fecha_vencimiento: input fecha
+
+// Efecto
+- Restaurar acceso completo a servicios
+- Notificar al cliente
+```
+
+**Validaciones:**
+- ✅ Solo se puede reactivar desde estado `suspendida`
+- ✅ Verificar deuda pendiente
+- ✅ Fecha de vencimiento debe ser futura
+
+#### 4. 🔀 Cambiar Plan
+
+**Cuándo:**
+- Cliente solicita upgrade (más servicios)
+- Cliente solicita downgrade (menos servicios)
+- Se ajusta el plan por necesidades
+
+**Proceso:**
+```php
+// Input
+- nuevo_plan_id: integer
+- aplicar_prorrateo: boolean (opcional)
+- fecha_efectiva: date (default: now())
+
+// Cálculo de prorrateo (si aplica)
+$diasRestantes = now()->diffInDays($subscription->fecha_vencimiento);
+$diasTotales = $subscription->fecha_inicio->diffInDays($subscription->fecha_vencimiento);
+$porcentajeRestante = $diasRestantes / $diasTotales;
+
+$creditoPlanAnterior = $subscription->precio_pagado * $porcentajeRestante;
+$costoNuevoPlan = $nuevoPlan->precio_mensual;
+$precioFinal = $costoNuevoPlan - $creditoPlanAnterior;
+
+// Actualización
+- notaria.plan_id → nuevo_plan_id
+- subscription.plan_id → nuevo_plan_id
+- subscription.precio_pagado → precio_final (si hay prorrateo)
+
+// Sincronización con tenant
+- Copiar nuevos plan_services al tenant
+- Mantener customizaciones existentes (tenant_services)
+- Notificar cambios al admin de la notaría
+```
+
+**Validaciones:**
+- ✅ El nuevo plan debe existir y estar activo
+- ✅ Si es downgrade, verificar que no pierda servicios en uso
+- ✅ Registrar cambio en historial
+
+#### 5. ❌ Cancelar Suscripción
+
+**Cuándo:**
+- Cliente solicita cancelación definitiva
+- Notaría cierra operaciones
+- Decisión administrativa final
+
+**Proceso:**
+```php
+// Input requerido
+- razon_cancelacion: string (obligatorio)
+- fecha_cancelacion: date (default: now())
+- eliminar_datos: boolean (default: false)
+
+// Actualización IRREVERSIBLE
+- status → 'cancelada'
+- fecha_cancelacion: input fecha
+- razon_cancelacion: input razón
+- auto_renovacion → false
+
+// Efecto
+- Acceso bloqueado permanentemente
+- No se puede reactivar
+- Mantener datos históricos para auditoría
+- Opcionalmente: desactivar notaría completa
+```
+
+**Validaciones:**
+- ✅ Requiere confirmación doble (irreversible)
+- ✅ Razón obligatoria
+- ✅ No eliminar datos automáticamente (GDPR/auditoría)
+- ✅ Registrar quién realizó la cancelación
+
+### Automatización con Commands
+
+#### Command: CheckExpiredSubscriptions
+
+```bash
+php artisan subscriptions:check-expired
+```
+
+**Ejecución:** Diaria (cron job a las 00:00)
+
+**Proceso:**
+```php
+1. Buscar suscripciones con:
+   - status = 'activa'
+   - fecha_vencimiento < now()
+   
+2. Cambiar status → 'vencida'
+   - Registrar fecha de cambio
+   - Enviar notificación al admin de la notaría
+   - Enviar alerta al SuperAdmin
+
+3. Buscar suscripciones con:
+   - status = 'vencida'
+   - fecha_vencimiento < now()->subDays(7)
+   
+4. Cambiar status → 'suspendida'
+   - Razón: "Suspensión automática por falta de pago"
+   - Bloquear acceso a servicios
+   - Enviar notificación urgente
+   - Crear tarea para SuperAdmin
+```
+
+**Notificaciones:**
+- A los 7 días antes de vencer: "Tu suscripción vence pronto"
+- El día que vence: "Tu suscripción ha vencido - período de gracia de 7 días"
+- A los 7 días después: "Tu cuenta ha sido suspendida"
+
+### Control de Acceso por Estado
+
+El sistema valida el estado de la suscripción antes de permitir acceso a servicios:
+
+```php
+// ServiceAccessManager::canAccess()
+
+switch ($subscription->status) {
+    case 'cancelada':
+    case 'suspendida':
+        // Sin acceso a nada
+        return false;
+        
+    case 'vencida':
+        // Período de gracia: solo lectura
+        // Permitir consultas pero no escritura
+        return in_array($service->category, ['CONSULTA', 'SISTEMA']);
+        
+    case 'trial':
+    case 'activa':
+        // Acceso completo según plan y límites
+        return $this->checkServiceLimits($service);
+        
+    default:
+        return false;
+}
+```
+
+### Dashboard de Suscripciones (SuperAdmin)
+
+**Nueva sección:** `/admin/subscriptions`
+
+**Estadísticas principales:**
+```
+┌─────────────────────────────────────────────┐
+│ 📊 Resumen de Suscripciones                 │
+├─────────────────────────────────────────────┤
+│ • Activas:     45 (🟢 90%)                  │
+│ • Trial:       12 (🔵 24%)                  │
+│ • Vencidas:     3 (🟡 6%)                   │
+│ • Suspendidas:  2 (🔴 4%)                   │
+│ • Canceladas:   1 (⚫ 2%)                   │
+├─────────────────────────────────────────────┤
+│ 💰 MRR (Ingreso Mensual):  $45,450 MXN     │
+│ 📈 ARR (Ingreso Anual):   $545,400 MXN     │
+└─────────────────────────────────────────────┘
+```
+
+**Alertas:**
+- 🔴 **3 suscripciones** vencen en las próximas 48 horas
+- 🟡 **2 suscripciones** en período de gracia (día 5 de 7)
+- ⚠️ **1 suscripción** requiere acción (suspendida hace 30 días)
+
+**Widget en Detalle de Notaría:**
+```
+┌─────────────────────────────────────────┐
+│ 💳 Suscripción Actual                   │
+├─────────────────────────────────────────┤
+│ Estado: [🟢 Activa]                     │
+│ Plan: Plan Profesional                  │
+│ Inicio: 09 Feb 2026                     │
+│ Vence: 09 Mar 2026 (28 días restantes)  │
+│ Precio: $999.00 MXN / mes               │
+│ Auto-renovación: ✅ Activada            │
+│                                          │
+│ Historial de pagos: 3 pagos (ver todos) │
+│                                          │
+│ [Renovar] [Suspender] [Cambiar Plan]    │
+└─────────────────────────────────────────┘
+```
+
+### Consideraciones Adicionales
+
+**Período de Gracia:**
+- Configurable (actualmente 7 días)
+- Durante este período el cliente puede renovar sin perder datos
+- Acceso limitado a funciones de solo lectura
+
+**Auto-renovación:**
+- Si está activada, el sistema puede:
+  - Intentar cargo automático (si hay pasarela integrada)
+  - Enviar recordatorio de pago automáticamente
+  - Generar factura pre-fechada
+
+**Historial de Cambios:**
+- Cada cambio de estado se registra con:
+  - Fecha y hora del cambio
+  - Usuario que realizó el cambio (SuperAdmin)
+  - Razón del cambio
+  - Estado anterior y nuevo estado
+
+**Integración con Pasarelas de Pago (Futuro):**
+- Stripe/PayPal para pagos automáticos
+- Webhooks para actualizar estado al recibir pago
+- Facturación automática
+
+---
+
 ## 🎯 OBJETIVOS DE LA FASE 1.5
 
 ### Objetivo Principal

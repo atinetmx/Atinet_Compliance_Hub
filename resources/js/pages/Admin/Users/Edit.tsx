@@ -61,7 +61,7 @@ export default function Edit({ user, notarias, tiposCuenta }: Props) {
                     <div className="flex items-center gap-4">
                         <Link href={`/admin/users/${user.id}`}>
                             <Button variant="outline" size="sm">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                <ArrowLeft className="mr-2 h-4 w-4" />
                                 Volver
                             </Button>
                         </Link>
@@ -70,109 +70,156 @@ export default function Edit({ user, notarias, tiposCuenta }: Props) {
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="bg-background border rounded-lg p-6 max-w-2xl">
+                <form
+                    onSubmit={handleSubmit}
+                    className="max-w-2xl rounded-lg border bg-background p-6"
+                >
                     <div className="space-y-6">
                         {/* Nombre */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Nombre</label>
+                            <label className="mb-2 block text-sm font-medium">
+                                Nombre
+                            </label>
                             <input
                                 type="text"
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                onChange={(e) =>
+                                    setData('name', e.target.value)
+                                }
+                                className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                                 placeholder="Nombre del usuario"
                             />
-                            {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+                            {errors.name && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.name}
+                                </p>
+                            )}
                         </div>
 
                         {/* Email */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Email</label>
+                            <label className="mb-2 block text-sm font-medium">
+                                Email
+                            </label>
                             <input
                                 type="email"
                                 value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                onChange={(e) =>
+                                    setData('email', e.target.value)
+                                }
+                                className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                                 placeholder="email@example.com"
                             />
-                            {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email}</p>}
+                            {errors.email && (
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.email}
+                                </p>
+                            )}
                         </div>
 
                         {/* Tipo de Cuenta */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Tipo de Cuenta</label>
+                            <label className="mb-2 block text-sm font-medium">
+                                Tipo de Cuenta
+                            </label>
                             <select
                                 value={data.tipo_cuenta}
-                                onChange={(e) => setData('tipo_cuenta', e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                onChange={(e) =>
+                                    setData('tipo_cuenta', e.target.value)
+                                }
+                                className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                             >
-                                {Object.entries(tiposCuenta).map(([key, label]) => (
-                                    <option key={key} value={key}>
-                                        {label}
-                                    </option>
-                                ))}
+                                {Object.entries(tiposCuenta).map(
+                                    ([key, label]) => (
+                                        <option key={key} value={key}>
+                                            {label}
+                                        </option>
+                                    ),
+                                )}
                             </select>
                             {errors.tipo_cuenta && (
-                                <p className="text-red-600 text-sm mt-1">{errors.tipo_cuenta}</p>
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.tipo_cuenta}
+                                </p>
                             )}
                         </div>
 
                         {/* Notaría */}
                         <div>
-                            <label className="block text-sm font-medium mb-2">Notaría Asignada</label>
+                            <label className="mb-2 block text-sm font-medium">
+                                Notaría Asignada
+                            </label>
                             <select
                                 value={data.notaria_id}
-                                onChange={(e) => setData('notaria_id', e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                onChange={(e) =>
+                                    setData('notaria_id', e.target.value)
+                                }
+                                className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                             >
                                 <option value="">Sin asignar</option>
                                 {notarias.map((notaria) => (
                                     <option key={notaria.id} value={notaria.id}>
-                                        {notaria.numero_notaria} - {notaria.nombre}
+                                        {notaria.numero_notaria} -{' '}
+                                        {notaria.nombre}
                                     </option>
                                 ))}
                             </select>
                             {errors.notaria_id && (
-                                <p className="text-red-600 text-sm mt-1">{errors.notaria_id}</p>
+                                <p className="mt-1 text-sm text-red-600">
+                                    {errors.notaria_id}
+                                </p>
                             )}
                         </div>
 
                         {/* Cambiar Contraseña */}
                         <div className="border-t pt-6">
-                            <h3 className="text-lg font-semibold mb-4">Cambiar Contraseña</h3>
+                            <h3 className="mb-4 text-lg font-semibold">
+                                Cambiar Contraseña
+                            </h3>
 
                             {/* Nueva Contraseña */}
                             <div className="mb-4">
-                                <label className="block text-sm font-medium mb-2">Nueva Contraseña (opcional)</label>
+                                <label className="mb-2 block text-sm font-medium">
+                                    Nueva Contraseña (opcional)
+                                </label>
                                 <input
                                     type="password"
                                     value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                    onChange={(e) =>
+                                        setData('password', e.target.value)
+                                    }
+                                    className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                                     placeholder="Dejar vacío para no cambiar"
                                 />
                                 {errors.password && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.password}</p>
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.password}
+                                    </p>
                                 )}
                             </div>
 
                             {/* Confirmar Contraseña */}
                             <div>
-                                <label className="block text-sm font-medium mb-2">
+                                <label className="mb-2 block text-sm font-medium">
                                     Confirmar Contraseña
                                 </label>
                                 <input
                                     type="password"
                                     value={data.password_confirmation}
-                                    onChange={(e) => setData('password_confirmation', e.target.value)}
-                                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                    onChange={(e) =>
+                                        setData(
+                                            'password_confirmation',
+                                            e.target.value,
+                                        )
+                                    }
+                                    className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                                     placeholder="Confirmar contraseña"
                                 />
                             </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-4 pt-6 border-t">
+                        <div className="flex items-center gap-4 border-t pt-6">
                             <Button
                                 type="submit"
                                 disabled={processing}

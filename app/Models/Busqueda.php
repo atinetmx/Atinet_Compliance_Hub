@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Busqueda extends Model
 {
     /** @use HasFactory<\Database\Factories\BusquedaFactory> */
-    use HasFactory, BelongsToNotaria;
+    use BelongsToNotaria, HasFactory;
 
     protected $fillable = [
         'notaria_id',

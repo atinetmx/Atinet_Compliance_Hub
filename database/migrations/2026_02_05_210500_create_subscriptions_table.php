@@ -18,7 +18,7 @@ return new class extends Migration
             $table->date('fecha_inicio');
             $table->date('fecha_vencimiento');
             $table->enum('status', ['activa', 'vencida', 'cancelada', 'suspendida', 'trial'])
-                  ->default('activa');
+                ->default('activa');
             $table->string('metodo_pago')->nullable(); // stripe, paypal, transferencia
             $table->decimal('precio_pagado', 10, 2);
             $table->string('moneda', 3)->default('MXN');

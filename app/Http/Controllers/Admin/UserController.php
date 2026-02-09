@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Notaria;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Inertia;
 
 class UserController extends Controller
 {
@@ -26,7 +26,7 @@ class UserController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -52,8 +52,8 @@ class UserController extends Controller
                 'super_admin' => 'Super Administrador',
                 'admin_notaria' => 'Admin Notaría',
                 'usuario_notaria' => 'Usuario Notaría',
-                'invitado' => 'Invitado'
-            ]
+                'invitado' => 'Invitado',
+            ],
         ]);
     }
 
@@ -72,8 +72,8 @@ class UserController extends Controller
                 'super_admin' => 'Super Administrador',
                 'admin_notaria' => 'Admin Notaría',
                 'usuario_notaria' => 'Usuario Notaría',
-                'invitado' => 'Invitado'
-            ]
+                'invitado' => 'Invitado',
+            ],
         ]);
     }
 
@@ -120,7 +120,7 @@ class UserController extends Controller
                 'busquedas_mes' => $user->busquedas()
                     ->whereMonth('created_at', now()->month)
                     ->count(),
-            ]
+            ],
         ]);
     }
 
@@ -140,8 +140,8 @@ class UserController extends Controller
                 'super_admin' => 'Super Administrador',
                 'admin_notaria' => 'Admin Notaría',
                 'usuario_notaria' => 'Usuario Notaría',
-                'invitado' => 'Invitado'
-            ]
+                'invitado' => 'Invitado',
+            ],
         ]);
     }
 
@@ -152,7 +152,7 @@ class UserController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'tipo_cuenta' => 'required|in:super_admin,admin_notaria,usuario_notaria,invitado',
             'notaria_id' => 'nullable|exists:notarias,id',
             'password' => 'nullable|string|min:8|confirmed',
@@ -165,7 +165,7 @@ class UserController extends Controller
             'notaria_id' => $validated['notaria_id'],
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
             $updateData['plain_password'] = $validated['password'];
         }
@@ -220,7 +220,7 @@ class UserController extends Controller
         ];
 
         return Inertia::render('Admin/Users/Reports', [
-            'stats' => $stats
+            'stats' => $stats,
         ]);
     }
 }

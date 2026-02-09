@@ -31,7 +31,7 @@ describe('aislamiento multi-tenant', function () {
             'termino_busqueda' => 'Test 1',
             'resultados' => [],
         ]);
-        
+
         $busqueda2 = Busqueda::withoutGlobalScopes()->create([
             'notaria_id' => $notaria2->id,
             'user_id' => $user2->id,
@@ -63,7 +63,7 @@ describe('aislamiento multi-tenant', function () {
             'termino_busqueda' => 'Test 1',
             'resultados' => [],
         ]);
-        
+
         Busqueda::withoutGlobalScopes()->create([
             'notaria_id' => $notaria2->id,
             'user_id' => $user2->id,
@@ -84,7 +84,7 @@ describe('aislamiento multi-tenant', function () {
 
         $user1 = User::factory()->for($notaria1)->create();
         $user2 = User::factory()->for($notaria2)->create();
-        
+
         $busqueda2 = Busqueda::withoutGlobalScopes()->create([
             'notaria_id' => $notaria2->id,
             'user_id' => $user2->id,

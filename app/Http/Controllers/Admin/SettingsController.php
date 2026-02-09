@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class SettingsController extends Controller
 {
@@ -150,7 +149,7 @@ class SettingsController extends Controller
 
             return back()->with('success', $message);
         } catch (\Exception $e) {
-            return back()->with('error', 'Error al limpiar cache: ' . $e->getMessage());
+            return back()->with('error', 'Error al limpiar cache: '.$e->getMessage());
         }
     }
 
@@ -167,7 +166,7 @@ class SettingsController extends Controller
 
             return back()->with('success', 'Aplicación optimizada exitosamente.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Error al optimizar: ' . $e->getMessage());
+            return back()->with('error', 'Error al optimizar: '.$e->getMessage());
         }
     }
 
@@ -178,14 +177,14 @@ class SettingsController extends Controller
     {
         try {
             $database = config('database.connections.mysql.database');
-            $result = DB::selectOne("
+            $result = DB::selectOne('
                 SELECT
                     ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb
                 FROM information_schema.tables
                 WHERE table_schema = ?
-            ", [$database]);
+            ', [$database]);
 
-            return $result ? $result->size_mb . ' MB' : 'No disponible';
+            return $result ? $result->size_mb.' MB' : 'No disponible';
         } catch (\Exception $e) {
             return 'No disponible';
         }
@@ -200,7 +199,7 @@ class SettingsController extends Controller
         $files = [];
 
         if (is_dir($logPath)) {
-            $logFiles = glob($logPath . '/*.log');
+            $logFiles = glob($logPath.'/*.log');
             foreach ($logFiles as $file) {
                 $fileName = basename($file);
                 $files[] = [
@@ -219,11 +218,13 @@ class SettingsController extends Controller
      */
     private function formatBytes($size, $precision = 2)
     {
-        if ($size === 0) return '0 B';
+        if ($size === 0) {
+            return '0 B';
+        }
 
         $base = log($size, 1024);
         $suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
 
-        return round(pow(1024, $base - floor($base)), $precision) . ' ' . $suffixes[floor($base)];
+        return round(pow(1024, $base - floor($base)), $precision).' '.$suffixes[floor($base)];
     }
 }

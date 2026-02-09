@@ -21,10 +21,10 @@ class EnsureSuperAdmin
     public function handle(Request $request, Closure $next): Response
     {
         // Verificar que el usuario esté autenticado
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return response()->json([
                 'error' => 'No autenticado',
-                'message' => 'Debe estar autenticado para acceder a este recurso'
+                'message' => 'Debe estar autenticado para acceder a este recurso',
             ], 401);
         }
 
@@ -33,7 +33,7 @@ class EnsureSuperAdmin
             return response()->json([
                 'error' => 'Acceso denegado',
                 'message' => 'Solo usuarios super_admin pueden acceder a este recurso',
-                'tipo_cuenta_actual' => auth()->user()->tipo_cuenta
+                'tipo_cuenta_actual' => auth()->user()->tipo_cuenta,
             ], 403);
         }
 
