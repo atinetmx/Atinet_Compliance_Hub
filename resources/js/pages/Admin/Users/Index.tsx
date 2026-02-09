@@ -1,6 +1,6 @@
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { Search, Plus, Filter, Eye, Edit, Trash2, Users, Building2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,21 +56,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Index({ users, notarias, filters, tiposCuenta }: Props) {
     const [showFilters, setShowFilters] = useState(false);
-    const { data, setData, processing } = useForm({
+    const { data, setData } = useForm({
         search: filters.search || '',
         tipo_cuenta: filters.tipo_cuenta || '',
         notaria_id: filters.notaria_id || '',
     });
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        const params = {
-            search: data.search || undefined,
-            tipo_cuenta: data.tipo_cuenta || undefined,
-            notaria_id: data.notaria_id || undefined,
-        };
-        router.get('/admin/users', params);
-    };
 
     const handlePaginationClick = (url: string | null) => {
         if (!url) return;
@@ -89,6 +79,23 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
         setData({ search: '', tipo_cuenta: '', notaria_id: '' });
         router.get('/admin/users');
     };
+
+    // Búsqueda dinámica con debounce
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            const params = {
+                search: data.search || undefined,
+                tipo_cuenta: data.tipo_cuenta || undefined,
+                notaria_id: data.notaria_id || undefined,
+            };
+            router.get('/admin/users', params, {
+                preserveState: true,
+                preserveScroll: true,
+            });
+        }, 500); // 500ms de delay
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [data.search, data.tipo_cuenta, data.notaria_id]);
 
     const getTipoCuentaBadgeColor = (tipo: string) => {
         switch (tipo) {
@@ -133,7 +140,7 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
 
                 {/* Filters */}
                 <div className="space-y-4">
-                    <form onSubmit={handleSearch} className="flex items-center gap-4">
+                    <div className="flex items-center gap-4">
                         <div className="flex-1 relative">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -143,9 +150,6 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                                 className="pl-10"
                             />
                         </div>
-                        <Button type="submit" disabled={processing}>
-                            Buscar
-                        </Button>
                         <Button
                             type="button"
                             variant="outline"
@@ -163,7 +167,7 @@ export default function Index({ users, notarias, filters, tiposCuenta }: Props) 
                                 Limpiar
                             </Button>
                         )}
-                    </form>
+                    </div>
 
                     {showFilters && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
