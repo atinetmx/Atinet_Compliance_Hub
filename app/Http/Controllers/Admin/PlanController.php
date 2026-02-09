@@ -55,8 +55,12 @@ class PlanController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'category', 'billing_model']);
 
+        // Obtener el siguiente orden disponible
+        $nextOrden = Plan::max('orden') + 1;
+
         return Inertia::render('Admin/Plans/Create', [
             'availableServices' => $services,
+            'suggestedOrden' => $nextOrden,
         ]);
     }
 
@@ -84,15 +88,15 @@ class PlanController extends Controller
         // Obtener estadísticas del plan
         $stats = [
             'total_notarias' => $plan->notarias()->count(),
-            'active_subscriptions' => $plan->subscriptions()->where('status', 'active')->count(),
+            'active_subscriptions' => $plan->subscriptions()->where('status', 'activa')->count(),
             'total_services' => $plan->services()->count(),
             'monthly_revenue' => $plan->subscriptions()
-                ->where('status', 'active')
-                ->where('billing_cycle', 'monthly')
+                ->where('status', 'activa')
+                ->where('ciclo_facturacion', 'mensual')
                 ->count() * $plan->precio_mensual,
             'annual_revenue' => $plan->subscriptions()
-                ->where('status', 'active')
-                ->where('billing_cycle', 'annual')
+                ->where('status', 'activa')
+                ->where('ciclo_facturacion', 'anual')
                 ->count() * $plan->precio_anual,
         ];
 

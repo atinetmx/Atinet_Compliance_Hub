@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 
 import type { BreadcrumbItem } from '@/types';
@@ -52,7 +53,7 @@ interface PlansEditProps {
 export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
     const [selectedServices, setSelectedServices] = useState<Service[]>(() => {
         // Convertir herramientas_activas (nombres) a objetos Service
-        return availableServices.filter(service => 
+        return availableServices.filter(service =>
             plan.herramientas_activas?.includes(service.name)
         );
     });
@@ -88,8 +89,8 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
         precio_anual: plan.precio_anual.toString(),
         limite_usuarios: plan.limite_usuarios?.toString() ?? '',
         limite_busquedas_mes: plan.limite_busquedas_mes?.toString() ?? '',
-        herramientas_activas: JSON.stringify(plan.herramientas_activas),
-        caracteristicas: JSON.stringify(plan.caracteristicas),
+        herramientas_activas: plan.herramientas_activas || [] as string[],
+        caracteristicas: plan.caracteristicas || [] as string[],
         is_active: plan.is_active,
         orden: plan.orden.toString(),
     });
@@ -97,12 +98,12 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
     // Sync arrays with form data
     useEffect(() => {
         const serviceNames = selectedServices.map(s => s.name);
-        setData('herramientas_activas', JSON.stringify(serviceNames));
+        setData('herramientas_activas', serviceNames);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedServices]);
 
     useEffect(() => {
-        setData('caracteristicas', JSON.stringify(caracteristicas));
+        setData('caracteristicas', caracteristicas);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [caracteristicas]);
 
@@ -373,46 +374,30 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
                                             (Opcional - Los servicios se gestionan desde "Gestionar Servicios")
                                         </span>
                                     </Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={newHerramienta}
-                                            onChange={(e) =>
-                                                setNewHerramienta(e.target.value)
-                                            }
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    addHerramienta();
-                                                }
-                                            }}
-                                            placeholder="Ej: Consulta de listas negras"
-                                            className={
-                                                errors.herramientas_activas
-                                                    ? 'border-red-500'
-                                                    : ''
-                                            }
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={addHerramienta}
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                    {herramientas.length > 0 && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setShowServiceModal(true)}
+                                        className="w-full"
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Agregar Servicio
+                                    </Button>
+                                    {selectedServices.length > 0 && (
                                         <div className="mt-2 flex flex-wrap gap-2">
-                                            {herramientas.map((item, index) => (
+                                            {selectedServices.map((service) => (
                                                 <div
-                                                    key={index}
+                                                    key={service.id}
                                                     className="flex items-center gap-1 rounded-md bg-secondary px-3 py-1 text-sm"
                                                 >
-                                                    <span>{item}</span>
+                                                    <span>{service.name}</span>
+                                                    <Badge variant="outline" className="ml-1 text-xs">
+                                                        {service.category}
+                                                    </Badge>
                                                     <button
                                                         type="button"
                                                         onClick={() =>
-                                                            removeHerramienta(index)
+                                                            removeService(service.id)
                                                         }
                                                         className="ml-1 text-muted-foreground hover:text-destructive"
                                                     >
@@ -436,34 +421,15 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
                                             (Se muestran en las tarjetas de planes)
                                         </span>
                                     </Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={newCaracteristica}
-                                            onChange={(e) =>
-                                                setNewCaracteristica(e.target.value)
-                                            }
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    addCaracteristica();
-                                                }
-                                            }}
-                                            placeholder="Ej: Soporte 24/7"
-                                            className={
-                                                errors.caracteristicas
-                                                    ? 'border-red-500'
-                                                    : ''
-                                            }
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={addCaracteristica}
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setShowCaracteristicaModal(true)}
+                                        className="w-full"
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Agregar Característica
+                                    </Button>
                                     {caracteristicas.length > 0 && (
                                         <div className="mt-2 flex flex-wrap gap-2">
                                             {caracteristicas.map((item, index) => (
@@ -523,6 +489,9 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
                                                     : ''
                                             }
                                         />
+                                        <p className="text-xs text-muted-foreground">
+                                            Números menores aparecen primero en la lista
+                                        </p>
                                         {errors.orden && (
                                             <p className="text-sm text-red-500">
                                                 {errors.orden}
@@ -553,6 +522,124 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
                     </form>
                 </div>
             </div>
+
+            {/* Modal para agregar servicios */}
+            <Dialog open={showServiceModal} onOpenChange={setShowServiceModal}>
+                <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Seleccionar Servicios</DialogTitle>
+                        <DialogDescription>
+                            Elige los servicios que incluirá este plan
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2 py-4">
+                        {availableServices.map((service) => {
+                            const isSelected = selectedServices.find(
+                                (s) => s.id === service.id,
+                            );
+                            return (
+                                <Button
+                                    key={service.id}
+                                    type="button"
+                                    variant={isSelected ? 'default' : 'outline'}
+                                    className="justify-start text-left h-auto py-3"
+                                    onClick={() => {
+                                        if (isSelected) {
+                                            removeService(service.id);
+                                        } else {
+                                            addService(service);
+                                        }
+                                    }}
+                                >
+                                    <div className="flex flex-1 items-center justify-between">
+                                        <div>
+                                            <p className="font-medium">
+                                                {service.name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {service.code}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Badge variant="secondary">
+                                                {service.category}
+                                            </Badge>
+                                            <Badge variant="outline">
+                                                {service.billing_model}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                </Button>
+                            );
+                        })}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowServiceModal(false)}
+                        >
+                            Cerrar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal para agregar características */}
+            <Dialog
+                open={showCaracteristicaModal}
+                onOpenChange={setShowCaracteristicaModal}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Agregar Característica</DialogTitle>
+                        <DialogDescription>
+                            Escribe una característica del plan (ej: Soporte
+                            24/7)
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="caracteristica">
+                                Característica
+                            </Label>
+                            <Input
+                                id="caracteristica"
+                                value={newCaracteristica}
+                                onChange={(e) =>
+                                    setNewCaracteristica(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        addCaracteristica();
+                                    }
+                                }}
+                                placeholder="Ej: Soporte técnico 24/7"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setShowCaracteristicaModal(false);
+                                setNewCaracteristica('');
+                            }}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={addCaracteristica}
+                            disabled={!newCaracteristica.trim()}
+                        >
+                            Agregar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

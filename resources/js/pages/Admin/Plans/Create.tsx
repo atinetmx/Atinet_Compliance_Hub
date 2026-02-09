@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 
 import type { BreadcrumbItem } from '@/types';
@@ -29,6 +30,7 @@ interface Service {
 
 interface PlansCreateProps {
     availableServices: Service[];
+    suggestedOrden: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -46,7 +48,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function PlansCreate({ availableServices }: PlansCreateProps) {
+export default function PlansCreate({ availableServices, suggestedOrden }: PlansCreateProps) {
     const [selectedServices, setSelectedServices] = useState<Service[]>([]);
     const [caracteristicas, setCaracteristicas] = useState<string[]>([]);
     const [showServiceModal, setShowServiceModal] = useState(false);
@@ -61,10 +63,10 @@ export default function PlansCreate({ availableServices }: PlansCreateProps) {
         precio_anual: '',
         limite_usuarios: '',
         limite_busquedas_mes: '',
-        herramientas_activas: '[]',
-        caracteristicas: '[]',
+        herramientas_activas: [] as string[],
+        caracteristicas: [] as string[],
         is_active: true,
-        orden: '0',
+        orden: suggestedOrden.toString(),
     });
 
     // Auto-generate slug from nombre
@@ -82,12 +84,12 @@ export default function PlansCreate({ availableServices }: PlansCreateProps) {
     // Sync arrays with form data
     useEffect(() => {
         const serviceNames = selectedServices.map(s => s.name);
-        setData('herramientas_activas', JSON.stringify(serviceNames));
+        setData('herramientas_activas', serviceNames);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedServices]);
 
     useEffect(() => {
-        setData('caracteristicas', JSON.stringify(caracteristicas));
+        setData('caracteristicas', caracteristicas);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [caracteristicas]);
 
@@ -469,12 +471,16 @@ export default function PlansCreate({ availableServices }: PlansCreateProps) {
                                             onChange={(e) =>
                                                 setData('orden', e.target.value)
                                             }
+                                            placeholder={suggestedOrden.toString()}
                                             className={
                                                 errors.orden
                                                     ? 'border-red-500'
                                                     : ''
                                             }
                                         />
+                                        <p className="text-xs text-muted-foreground">
+                                            Números menores aparecen primero. Sugerido: {suggestedOrden}
+                                        </p>
                                         {errors.orden && (
                                             <p className="text-sm text-red-500">
                                                 {errors.orden}
