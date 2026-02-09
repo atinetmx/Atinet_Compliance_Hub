@@ -77,6 +77,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::resource('services', \App\Http\Controllers\Admin\ServiceController::class);
     Route::post('services/{service}/toggle-active', [\App\Http\Controllers\Admin\ServiceController::class, 'toggleActive'])->name('services.toggle-active');
 
+    // Gestión de servicios por plan
+    Route::get('plans/{plan}/services', [\App\Http\Controllers\Admin\PlanServiceController::class, 'index'])->name('plans.services.index');
+    Route::post('plans/{plan}/services', [\App\Http\Controllers\Admin\PlanServiceController::class, 'store'])->name('plans.services.store');
+    Route::put('plans/{plan}/services/{service}', [\App\Http\Controllers\Admin\PlanServiceController::class, 'update'])->name('plans.services.update');
+    Route::delete('plans/{plan}/services/{service}', [\App\Http\Controllers\Admin\PlanServiceController::class, 'destroy'])->name('plans.services.destroy');
+    Route::post('plans/{plan}/services/reorder', [\App\Http\Controllers\Admin\PlanServiceController::class, 'reorder'])->name('plans.services.reorder');
+    Route::post('plans/{plan}/services/bulk-assign', [\App\Http\Controllers\Admin\PlanServiceController::class, 'bulkAssign'])->name('plans.services.bulk-assign');
+
     // Gestión de usuarios del sistema
     Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
     Route::get('users/reports', [\App\Http\Controllers\Admin\UserController::class, 'reports'])->name('users.reports');

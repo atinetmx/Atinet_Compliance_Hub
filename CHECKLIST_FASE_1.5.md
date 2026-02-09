@@ -287,22 +287,42 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
 - [x] Agregado enlace en sidebar (visible solo para Super Admin)
 - [x] Corregido error de Radix UI Select (value="" → value="all")
 
-### Día 2-3: Gestión Plan-Servicio
+### Día 2-3: Gestión Plan-Servicio ✅ **COMPLETADO**
 
-- [ ] Crear PlanServiceController
+- [x] Crear PlanServiceController
   ```bash
   php artisan make:controller Admin/PlanServiceController
   ```
-  - [ ] Método: index (servicios del plan)
-  - [ ] Método: store (asignar servicio)
-  - [ ] Método: update (configurar límites/precios)
-  - [ ] Método: destroy (quitar servicio)
+  - [x] Método: index (servicios del plan + disponibles)
+  - [x] Método: store (asignar servicio)
+  - [x] Método: update (configurar límites/precios)
+  - [x] Método: destroy (quitar servicio con validación subscriptions activas)
+  - [x] Método: reorder (cambiar prioridad/orden)
+  - [x] Método: bulkAssign (asignar múltiples servicios)
 
-- [ ] Crear página React
-  - [ ] `Admin/Plans/Services.tsx` (gestión servicios del plan)
-  - [ ] Implementar drag-and-drop para reordenar
-  - [ ] Modal para configurar límites
-  - [ ] Toggle para incluir/excluir
+- [x] Crear página React
+  - [x] `Admin/Plans/Services.tsx` (gestión servicios del plan)
+  - [x] Modal para configurar límites (is_included, usage_limit, extra_price, priority)
+  - [x] Modal para agregar servicios disponibles
+  - [x] Toggle para incluir/excluir
+  - [x] Grid de servicios disponibles con botón "Agregar"
+  - [x] Tabla de servicios asignados con acciones editar/quitar
+  - [x] Badges de categoría con colores
+
+- [x] Agregar rutas en routes/web.php
+  ```php
+  Route::get('plans/{plan}/services', [PlanServiceController::class, 'index']);
+  Route::post('plans/{plan}/services', [PlanServiceController::class, 'store']);
+  Route::put('plans/{plan}/services/{service}', [PlanServiceController::class, 'update']);
+  Route::delete('plans/{plan}/services/{service}', [PlanServiceController::class, 'destroy']);
+  Route::post('plans/{plan}/services/reorder', [PlanServiceController::class, 'reorder']);
+  Route::post('plans/{plan}/services/bulk-assign', [PlanServiceController::class, 'bulkAssign']);
+  ```
+
+- [x] Código formateado con Pint
+- [x] Verificado sin errores TypeScript/ESLint
+
+**⚠️ NOTA:** Para acceder a la vista, se necesita implementar CRUD de Planes o agregar enlace temporal en sidebar
 
 ### Día 3-4: Servicios por Notaría
 
