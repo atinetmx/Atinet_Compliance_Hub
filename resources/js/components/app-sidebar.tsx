@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers } from 'lucide-react';
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -34,6 +34,11 @@ export function AppSidebar() {
                       title: 'Suscripciones',
                       href: SubscriptionController.index().url,
                       icon: CreditCard,
+                  },
+                  {
+                      title: 'Planes',
+                      href: '/admin/plans',
+                      icon: Layers,
                   },
                   {
                       title: 'Servicios',

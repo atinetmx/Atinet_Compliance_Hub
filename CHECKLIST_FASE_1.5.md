@@ -152,7 +152,7 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
 
 ---
 
-## 🧠 SPRINT 2: LÓGICA DE NEGOCIO (4-5 días)
+## 🧠 SPRINT 2: LÓGICA DE NEGOCIO (4-5 días) ⚠️ PENDIENTE
 
 ### Día 1-2: Service Manager
 
@@ -323,6 +323,47 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
 - [x] Verificado sin errores TypeScript/ESLint
 
 **⚠️ NOTA:** Para acceder a la vista, se necesita implementar CRUD de Planes o agregar enlace temporal en sidebar
+
+**✅ ACTUALIZACIÓN:** CRUD de Planes implementado exitosamente.
+
+### EXTRA: CRUD de Planes ✅ **COMPLETADO**
+
+- [x] Crear PlanController
+  ```bash
+  php artisan make:controller Admin/PlanController --resource
+  ```
+  - [x] Implementar index (lista con filtros y estadísticas)
+  - [x] Implementar create y store
+  - [x] Implementar edit y update
+  - [x] Implementar destroy (con validación de suscripciones activas y notarías)
+  - [x] Implementar show (con estadísticas e ingresos)
+  - [x] Implementar toggleActive (activar/desactivar)
+
+- [x] Crear Form Requests
+  ```bash
+  php artisan make:request Admin/StorePlanRequest
+  php artisan make:request Admin/UpdatePlanRequest
+  ```
+  - [x] Validaciones completas con mensajes en español
+  - [x] Auto-generación de slug desde nombre
+  - [x] Validación JSON para herramientas_activas y caracteristicas
+
+- [x] Crear páginas React
+  - [x] `Admin/Plans/Index.tsx` (tabla con filtros, paginación, badges)
+  - [x] `Admin/Plans/Create.tsx` (formulario con auto-slug, validación JSON)
+  - [x] `Admin/Plans/Edit.tsx` (formulario con datos precargados, JSON formateado)
+  - [x] `Admin/Plans/Show.tsx` (detalle + estadísticas + botón "Gestionar Servicios")
+
+- [x] Agregar rutas en routes/web.php
+  ```php
+  Route::resource('plans', PlanController::class);
+  Route::post('plans/{plan}/toggle-active', [PlanController::class, 'toggleActive']);
+  ```
+
+- [x] Agregar métodos hasRole() e isSuperAdmin() en User model
+- [x] Código formateado con Pint
+- [x] Verificado sin errores TypeScript/ESLint
+- [x] Agregado enlace "Planes" en sidebar (visible solo para Super Admin)
 
 ### Día 3-4: Servicios por Notaría
 
