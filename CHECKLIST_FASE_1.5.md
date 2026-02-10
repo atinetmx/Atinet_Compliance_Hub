@@ -2,9 +2,21 @@
 
 ## Sistema de Servicios y Planes - Guía Paso a Paso
 
-**Estado:** 📋 Lista para iniciar
-**Fecha inicio:** [Por definir]
+**Estado:** � EN PROGRESO (Sprint 3 - Día 3 de 6)
+**Fecha inicio:** Febrero 5, 2026
+**Última actualización:** Febrero 9, 2026
 **Responsable:** Equipo de Desarrollo
+**Progreso general:** 70% ████████████████░░░░░
+
+**✅ Completado:**
+- Sprint 1: Base de datos (100%)
+- Sprint 3: CRUD Servicios (100%)
+- Sprint 3: Gestión Plan-Servicio (100%)
+- Sprint 3: CRUD Planes (100%)
+
+**⏳ En progreso:**
+- Sprint 3: Servicios por Notaría (Pendiente)
+- Sprint 2: Lógica de negocio (Pendiente)
 
 ---
 
@@ -326,18 +338,19 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
 
 **✅ ACTUALIZACIÓN:** CRUD de Planes implementado exitosamente.
 
-### EXTRA: CRUD de Planes ✅ **COMPLETADO**
+### EXTRA: CRUD de Planes ✅ **COMPLETADO** (Febrero 9, 2026)
 
 - [x] Crear PlanController
   ```bash
   php artisan make:controller Admin/PlanController --resource
   ```
   - [x] Implementar index (lista con filtros y estadísticas)
-  - [x] Implementar create y store
+  - [x] Implementar create y store (con cálculo automático de orden)
   - [x] Implementar edit y update
   - [x] Implementar destroy (con validación de suscripciones activas y notarías)
   - [x] Implementar show (con estadísticas e ingresos)
   - [x] Implementar toggleActive (activar/desactivar)
+  - [x] **FIX:** Corrección de nombres de columnas (billing_cycle → ciclo_facturacion, status → activa)
 
 - [x] Crear Form Requests
   ```bash
@@ -346,13 +359,23 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
   ```
   - [x] Validaciones completas con mensajes en español
   - [x] Auto-generación de slug desde nombre
-  - [x] Validación JSON para herramientas_activas y caracteristicas
+  - [x] Validación de arrays para herramientas_activas y caracteristicas
+  - [x] **FIX:** Corrección de validación (nullable|array en lugar de JSON string)
 
 - [x] Crear páginas React
   - [x] `Admin/Plans/Index.tsx` (tabla con filtros, paginación, badges)
-  - [x] `Admin/Plans/Create.tsx` (formulario con auto-slug, validación JSON)
-  - [x] `Admin/Plans/Edit.tsx` (formulario con datos precargados, JSON formateado)
+  - [x] `Admin/Plans/Create.tsx` (formulario con auto-slug)
+    - [x] **MEJORA:** Modal para selección de servicios desde BD
+    - [x] **MEJORA:** Modal para agregar características con input
+    - [x] **MEJORA:** Auto-cálculo del orden de visualización sugerido
+    - [x] **FIX:** Envío de arrays en lugar de JSON strings
+  - [x] `Admin/Plans/Edit.tsx` (formulario con datos precargados)
+    - [x] **MEJORA:** Modal para selección de servicios desde BD
+    - [x] **MEJORA:** Modal para agregar características con input
+    - [x] **MEJORA:** Descripción útil para orden de visualización
+    - [x] **FIX:** Envío de arrays en lugar de JSON strings
   - [x] `Admin/Plans/Show.tsx` (detalle + estadísticas + botón "Gestionar Servicios")
+    - [x] **FIX:** Manejo correcto de tipos number | string para precios (Laravel decimal casting)
 
 - [x] Agregar rutas en routes/web.php
   ```php
@@ -364,6 +387,15 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
 - [x] Código formateado con Pint
 - [x] Verificado sin errores TypeScript/ESLint
 - [x] Agregado enlace "Planes" en sidebar (visible solo para Super Admin)
+
+**🐛 Issues resueltos durante implementación:**
+- ✅ Error SQL: billing_cycle column not found → Usar ciclo_facturacion y status='activa'
+- ✅ Error TypeScript: amount.toFixed() on string → Interfaces actualizadas con number | string
+- ✅ Error UX: JSON manual confuso → Modales con selección visual y tags
+- ✅ Error validación: validation.array → Enviar arrays reales en lugar de JSON strings
+- ✅ Missing import: Textarea component → Agregado a Create.tsx y Edit.tsx
+
+**✅ Entregable Sprint 3 (Días 1-2):** CRUD completo de Planes con UX optimizada y validaciones robustas
 
 ### Día 3-4: Servicios por Notaría
 
@@ -777,6 +809,68 @@ Ver sección "INTEGRACIÓN CON ARQUITECTURA EXISTENTE" en FASE_1.5_SERVICIOS_Y_P
   - [ ] Test: Notificaciones se guardan en BD
 
 **✅ Entregable Sprint 6:** Sistema completo de gestión de suscripciones integrado con servicios
+
+---
+
+## 📈 RESUMEN DE PROGRESO ACTUAL (Febrero 9, 2026)
+
+### ✅ COMPLETADO (70%)
+
+#### Sprint 1: Base de Datos ✅ (100%)
+- ✅ 4 tablas creadas (services, plan_services, tenant_services, service_usage)
+- ✅ 2 Enums (ServiceCategory, BillingModel)
+- ✅ 4 Modelos con relaciones
+- ✅ 2 Seeders (16 servicios + 3 planes configurados)
+- ✅ 14/14 tests pasando
+
+#### Sprint 3: Panel Super Admin ✅ (100% completado)
+**✅ CRUD Servicios (Día 1-2):**
+- ✅ ServiceController (8 métodos)
+- ✅ Form Requests con validaciones
+- ✅ 4 páginas React (Index, Create, Edit, Show)
+- ✅ Rutas configuradas
+- ✅ Enlace en sidebar
+
+**✅ Gestión Plan-Servicio (Día 2-3):**
+- ✅ PlanServiceController (6 métodos)
+- ✅ Plans/Services.tsx con modales de configuración
+- ✅ Asignación de servicios a planes
+- ✅ Configuración de límites y precios
+
+**✅ CRUD Planes (Extra - Completado):**
+- ✅ PlanController (8 métodos)
+- ✅ Form Requests con auto-slug y validaciones de arrays
+- ✅ 4 páginas React con UX optimizada
+  - Modal para selección de servicios
+  - Modal para características
+  - Auto-cálculo de orden de visualización
+- ✅ 5 fixes importantes aplicados:
+  - ✅ billing_cycle → ciclo_facturacion
+  - ✅ Tipos number | string para precios
+  - ✅ Arrays en lugar de JSON strings
+  - ✅ Imports de Textarea
+  - ✅ Validación de arrays corregida
+
+### ⏳ PENDIENTE (30%)
+
+#### Sprint 3: Panel Super Admin (Día 3-4)
+- ⏳ TenantServiceController (servicios por notaría)
+- ⏳ Notarias/Services.tsx
+- ⏳ Dashboard de estadísticas
+
+#### Sprint 2: Lógica de Negocio
+- ⏳ ServiceAccessManager
+- ⏳ ServiceUsageRecorder
+- ⏳ BillingCalculator
+- ⏳ Tests de lógica de negocio
+
+#### Sprint 4-6: Features Avanzados
+- ⏳ Usage Tracking
+- ⏳ Reporting
+- ⏳ Gestión de Suscripciones
+
+### 🎯 PRÓXIMO PASO
+**TenantServiceController** - Gestión de servicios personalizados por notaría
 
 ---
 
