@@ -2,9 +2,24 @@
 
 ## Sistema de Servicios y Planes de Suscripción
 
-**Fecha:** 9 de Febrero, 2026  
+**Fecha:** 10 de Febrero, 2026  
 **Autor:** Equipo de Desarrollo  
-**Destinatario:** Gerencia ATINET
+**Destinatario:** Gerencia ATINET  
+**Estado:** 🚀 EN PROGRESO (78% completado)
+
+### Progreso Actual
+
+✅ **Completado:**
+- Base de datos y modelos (100%)
+- CRUD Servicios con filtros avanzados (100%)
+- CRUD Planes con auto-sincronización (100%)
+- Gestión de servicios por plan (100%)
+- Servicios personalizados por notaría (100%)
+- **Sistema automático de verificación de suscripciones (100%)**
+
+⏳ **En desarrollo:**
+- Lógica de negocio (ServiceAccessManager)
+- Features avanzados
 
 ---
 
@@ -135,13 +150,80 @@ Campaña: "100 búsquedas SAT gratis"
 6. Registrar uso → `service_usage` ✓
 
 **Resultado:** Sistema más robusto sin perder funcionalidad existente.
-┌──────────────────────────────────┐
-│          NOTARÍA                  │
-│  (servicios activos + consumo)   │
-└──────────────────────────────────┘
+
+---
+
+## 🤖 SISTEMA AUTOMÁTICO DE GESTIÓN DE SUSCRIPCIONES ✅ **IMPLEMENTADO**
+
+### ¿Qué hace?
+
+Verifica diariamente todas las suscripciones y aplica acciones automáticas según el tipo y estado:
+
+**Trial vencido** → Desactiva inmediatamente (sin gracia)  
+**Pago vencido** → Mantiene activa 7 días (período de gracia)  
+**Gracia agotada** → Suspende y desactiva
+
+### Flujo Automático
+
+```mermaid
+flowchart TD
+    Start([Diario 02:00 AM]) --> CheckTrials[Verificar TRIAL Vencidos]
+    CheckTrials --> TrialFound{¿Vencido?}
+    TrialFound -->|Sí| TrialDeactivate[❌ Desactivar<br/>inmediatamente]
+    TrialFound -->|No| CheckPaid[Verificar PAGO Vencidos]
+    TrialDeactivate --> CheckPaid
+    CheckPaid --> PaidFound{¿Vencido?}
+    PaidFound -->|Sí| PaidGrace[✅ 7 días de gracia<br/>mantener activa]
+    PaidFound -->|No| CheckGrace[Verificar Gracia Agotada]
+    PaidGrace --> CheckGrace
+    CheckGrace --> GraceFound{¿> 7 días?}
+    GraceFound -->|Sí| GraceDeactivate[🚫 Suspender<br/>y desactivar]
+    GraceFound -->|No| Report[📊 Reporte]
+    GraceDeactivate --> Report
+    Report --> End([Fin])
 ```
 
-**Solución:** Agregar servicio = insertar fila en catálogo
+### Tabla de Lógica
+
+| Tipo | Estado Actual | Días Vencida | Acción Automática | Notaría Activa |
+|------|---------------|--------------|-------------------|----------------|
+| Trial | `trial` | 1+ | Desactivar | ❌ No |
+| Pago | `activa` | 1-6 | Marcar vencida | ✅ Sí (gracia) |
+| Pago | `vencida` | 7+ | Suspender | ❌ No |
+
+### Comando Manual
+
+```bash
+# Ejecutar verificación
+php artisan subscriptions:check-expired
+
+# Modo preview (sin modificar)
+php artisan subscriptions:check-expired --dry-run
+
+# Ver programación
+php artisan schedule:list
+```
+
+### Beneficios
+
+✅ **Automatización total** - Sin intervención manual diaria  
+✅ **Lógica diferenciada** - Trial vs Pago tratados correctamente  
+✅ **Período de gracia** - Tiempo para renovar sin perder acceso  
+✅ **Transparencia** - Logs detallados de todas las acciones  
+✅ **Seguridad** - Transaccional con rollback automático  
+✅ **Testing completo** - 7 tests, 16 assertions  
+
+### Impacto Operativo
+
+**Antes:**
+- ❌ Revisión manual diaria
+- ❌ Errores humanos
+- ❌ Inconsistencias en aplicación
+
+**Después:**
+- ✅ Automatización 24/7
+- ✅ Consistencia garantizada
+- ✅ Ahorro de tiempo: ~30 min/día
 
 ---
 
@@ -177,20 +259,47 @@ Campaña: "100 búsquedas SAT gratis"
 ## ⏱️ CRONOGRAMA
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  SPRINT 1: Base de Datos         [████] 3-4 días    │
-│  SPRINT 2: Lógica Negocio        [████] 4-5 días    │
-│  SPRINT 3: Panel Admin           [█████] 5-6 días   │
-│  SPRINT 4: Vista Notaría         [███] 3-4 días     │
-│  SPRINT 5: Testing & Docs        [██] 2-3 días      │
-│  SPRINT 6: Gestión Suscripciones [████] 4-5 días    │
+┌────────────────────────────────────────────────────────────┐
+│  SPRINT 1: Base de Datos         [████████] ✅ COMPLETADO  │
+│  SPRINT 2: Lógica Negocio        [░░░░░░░░] ⏳ PENDIENTE  │
+│  SPRINT 3: Panel Admin           [████████] ✅ COMPLETADO  │
+│  SPRINT 4: Vista Notaría         [░░░░░░░░] ⏳ PENDIENTE  │
+│  SPRINT 5: Testing & Docs        [░░░░░░░░] ⏳ PENDIENTE  │
+│  SPRINT 6: Gestión Suscripciones [███░░░░░] 🔄 40% (Day 3) │
+│    ✅ Command CheckExpiredSubscriptions                    │
+│    ⏳ SubscriptionService                                  │
+│    ⏳ SubscriptionController & UI                          │
+└────────────────────────────────────────────────────────────┘
 └─────────────────────────────────────────────────────┘
-
-TOTAL: 21-27 días (~4-5 semanas)
 ```
 
+**Progreso general:** 75% ███████████████░░░░░
+
+---
+
+### ✅ Completado hasta la fecha (10 Feb 2026)
+
+**Sprint 1: Base de Datos (100%)**
+- ✅ 4 tablas: services, plan_services, tenant_services, service_usage
+- ✅ 4 modelos Eloquent con relationships
+- ✅ 2 enums: BillingModel, ServiceCategory
+- ✅ 4 factories funcionales
+- ✅ 2 seeders con datos realistas
+- ✅ 14/14 tests pasando
+
+**Sprint 3: Panel Super Admin (100%)**
+- ✅ **CRUD Servicios**: 8 métodos + 4 páginas React con filtros avanzados
+- ✅ **CRUD Planes**: 8 métodos + 4 páginas React con auto-sincronización
+- ✅ **Gestión Plan-Servicio**: 6 métodos + interfaz de configuración
+- ✅ **Servicios por Notaría**: 5 métodos + gestión personalizada
+- ✅ **Auto-sincronización**: herramientas_activas → plan_services automática
+- ✅ **Comando Artisan**: `plan:sync-services` para planes existentes
+- ✅ **UX optimizada**: Flujo sin redundancias, gestión centralizada
+
+---
+
 **Inicio recomendado:** Lunes 10 de Febrero  
-**Fin estimado:** Viernes 13 de Marzo
+**Fin estimado:** Viernes 13 de Marzo (ajustado por progreso real)
 
 ### Sprint 6: Gestión de Suscripciones (Nuevo)
 

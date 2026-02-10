@@ -18,13 +18,15 @@ trial → activa → vencida
 
 ### Estados Disponibles:
 
-| Estado | Descripción | Acceso a Servicios | Acción Siguiente |
-|--------|-------------|-------------------|------------------|
-| **trial** | Período de prueba (1 mes gratis) | ✅ Completo | → `activa` (al pagar) o `vencida` |
-| **activa** | Suscripción pagada y vigente | ✅ Completo | → `vencida` (automático) |
-| **vencida** | Venció el período, esperando pago | ⚠️ Limitado (solo lectura) | → `activa` (al renovar) o `suspendida` |
-| **suspendida** | Suspendida por falta de pago o penalización | ❌ Sin acceso | → `activa` (al reactivar) |
-| **cancelada** | Cancelada definitivamente | ❌ Sin acceso | Final (no reversible) |
+| Estado | Descripción | Acceso a Servicios | Notaría Activa | Período de Gracia | Acción Automática |
+|--------|-------------|-------------------|----------------|-------------------|-------------------|
+| **trial** | Período de prueba (1 mes gratis) | ✅ Completo | ✅ Sí | ❌ Sin gracia | Al vencer → desactivar inmediatamente |
+| **activa** | Suscripción pagada y vigente | ✅ Completo | ✅ Sí | N/A | Al vencer → marcar como vencida |
+| **vencida** | Venció el período, esperando pago | ✅ Completo | ✅ Sí (7 días) | ✅ 7 días | Después de 7 días → suspender |
+| **suspendida** | Suspendida por falta de pago | ❌ Sin acceso | ❌ No | ❌ Gracia agotada | Manual: reactivar con pago |
+| **cancelada** | Cancelada definitivamente | ❌ Sin acceso | ❌ No | N/A | Final (no reversible) |
+
+**Nota Importante:** Solo las suscripciones **trial** se desactivan inmediatamente al vencer. Las suscripciones de **pago** tienen un período de gracia de 7 días para permitir la renovación antes de suspender.
 
 ---
 
@@ -94,6 +96,130 @@ SuperAdmin → "Cancelar Suscripción"
 
 ---
 
+## 🤖 Sistema Automático de Verificación ✅ **IMPLEMENTADO**
+
+### Flujo de Verificación de Suscripciones Vencidas
+
+```mermaid
+flowchart TD
+    Start([Comando Diario 02:00 AM]) --> CheckTrials[Buscar Suscripciones TRIAL Vencidas]
+    
+    CheckTrials --> TrialFound{¿Trial<br/>vencido?}
+    TrialFound -->|Sí| TrialExpire[❌ Cambiar status → 'vencida']
+    TrialExpire --> TrialDeactivate[❌ Desactivar notaría<br/>inmediatamente]
+    TrialDeactivate --> TrialLog[📝 Log: Trial vencido]
+    TrialFound -->|No| CheckPaid
+    TrialLog --> CheckPaid
+    
+    CheckPaid[Buscar Suscripciones ACTIVAS Vencidas] --> PaidFound{¿Pago<br/>vencido?}
+    PaidFound -->|Sí| PaidExpire[⚠️ Cambiar status → 'vencida']
+    PaidExpire --> PaidGrace[✅ Mantener notaría activa<br/>Período de gracia: 7 días]
+    PaidGrace --> PaidLog[📝 Log: Gracia iniciada]
+    PaidFound -->|No| CheckGrace
+    PaidLog --> CheckGrace
+    
+    CheckGrace[Buscar Suscripciones VENCIDAS > 7 días] --> GraceFound{¿Gracia<br/>agotada?}
+    GraceFound -->|Sí| GraceSuspend[🚫 Cambiar status → 'suspendida']
+    GraceSuspend --> GraceDeactivate[❌ Desactivar notaría]
+    GraceDeactivate --> GraceLog[📝 Log: Suspendida]
+    GraceFound -->|No| Report
+    GraceLog --> Report
+    
+    Report[📊 Generar Reporte] --> End([Fin])
+    
+    style TrialDeactivate fill:#ff6b6b
+    style PaidGrace fill:#51cf66
+    style GraceDeactivate fill:#ff6b6b
+    style Start fill:#4dabf7
+    style End fill:#4dabf7
+```
+
+### Lógica de Negocio por Tipo de Suscripción
+
+| Tipo Suscripción | Estado Inicial | Al Vencer | Período Gracia | Notaría Activa | Resultado Final |
+|------------------|----------------|-----------|----------------|----------------|-----------------|
+| **Trial** | `trial` | → `vencida` | ❌ Sin gracia | ❌ Desactivada | Bloqueo inmediato |
+| **Pago (< 7 días)** | `activa` | → `vencida` | ✅ 7 días | ✅ Activa | Acceso completo |
+| **Pago (≥ 7 días)** | `vencida` | → `suspendida` | ❌ Gracia agotada | ❌ Desactivada | Bloqueo total |
+
+### Comando: `subscriptions:check-expired`
+
+**Ubicación:** `app/Console/Commands/CheckExpiredSubscriptions.php`
+
+**Programación:**
+```php
+// routes/console.php
+Schedule::command('subscriptions:check-expired')
+    ->daily()
+    ->at('02:00')
+    ->timezone('America/Mexico_City')
+    ->description('Verifica suscripciones vencidas y desactiva notarías según el tipo');
+```
+
+**Opciones:**
+```bash
+# Ejecutar verificación (modifica base de datos)
+php artisan subscriptions:check-expired
+
+# Modo dry-run (solo muestra qué haría)
+php artisan subscriptions:check-expired --dry-run
+```
+
+**Salida del Comando:**
+```
+🔄 Iniciando verificación de suscripciones vencidas...
+
+📋 Buscando suscripciones TRIAL vencidas...
+   ⚠️  Trial vencido: Notaría Ejemplo (ID: 123)
+      Fecha vencimiento: 2026-01-15
+      ✓ Suscripción marcada como vencida
+      ✓ Notaría desactivada
+
+💳 Buscando suscripciones de PAGO vencidas...
+   ⚠️  Suscripción vencida: Notaría ABC (ID: 456)
+      Fecha vencimiento: 2026-02-05
+      📅 Iniciando período de gracia de 7 días
+      ✓ Suscripción marcada como vencida
+      ⏳ Notaría permanece activa (gracia)
+
+🚫 Buscando suscripciones con período de gracia agotado (>7 días)...
+   ❌ Período de gracia agotado: Notaría XYZ (ID: 789)
+      Vencida hace: 10 días
+      ✓ Suscripción suspendida
+      ✓ Notaría desactivada
+
+✅ Verificación completada
+
++--------------------------------------------+----------+
+| Categoría                                  | Cantidad |
++--------------------------------------------+----------+
+| Trials vencidos detectados                 | 1        |
+| Suscripciones de pago vencidas             | 1        |
+| Suscripciones suspendidas (gracia agotada) | 1        |
++--------------------------------------------+----------+
+```
+
+**Tests:**
+- ✅ 7 tests implementados (16 assertions)
+- ✅ Cobertura completa de casos de uso
+- ✅ Test de transacciones (rollback en errores)
+- ✅ Test de modo dry-run
+
+**Logs Generados:**
+```
+[2026-02-10 02:00:15] INFO: CheckExpiredSubscriptions ejecutado {
+    "trials_vencidos": 1,
+    "pagos_vencidos": 1,
+    "pagos_suspendidos": 1
+}
+
+[2026-02-10 02:00:15] WARNING: Trial vencido - Notaría desactivada: Notaría Ejemplo (ID: 123)
+[2026-02-10 02:00:15] INFO: Suscripción de pago vencida - Período de gracia iniciado: Notaría ABC (ID: 456)
+[2026-02-10 02:00:15] WARNING: Período de gracia agotado - Notaría suspendida: Notaría XYZ (ID: 789)
+```
+
+---
+
 ## 🛠️ Componentes a Implementar
 
 ### Backend
@@ -117,14 +243,28 @@ SuperAdmin → "Cancelar Suscripción"
 - `checkExpiredSubscriptions()` - Job para revisar vencidas
 - `calculateProrateo()` - Calcular prorrateo al cambiar plan
 
-#### 3. **Command: CheckExpiredSubscriptions**
+#### 3. **Command: CheckExpiredSubscriptions** ✅ **IMPLEMENTADO**
 ```bash
+# Ejecutar verificación manual
 php artisan subscriptions:check-expired
+
+# Modo preview (no modifica datos)
+php artisan subscriptions:check-expired --dry-run
+
+# Ver tareas programadas
+php artisan schedule:list
 ```
-- Ejecutar diariamente (cron)
-- Buscar subscripciones vencidas hace > 7 días
-- Cambiar a 'suspendida'
-- Notificar a SuperAdmin y notaría
+
+**Características:**
+- ✅ Ejecuta diariamente a las 2:00 AM (automático vía scheduler)
+- ✅ Lógica diferenciada por tipo de suscripción:
+  - **Trial vencido**: Desactiva notaría inmediatamente (sin gracia)
+  - **Pago vencido**: Mantiene activa 7 días (período de gracia)
+  - **Gracia agotada**: Suspende y desactiva después de 7 días
+- ✅ Modo `--dry-run` para previsualizar cambios
+- ✅ Logs completos en `storage/logs/laravel.log`
+- ✅ Reporte tabular con estadísticas
+- ✅ Transaccional (rollback automático si hay errores)
 
 #### 4. **Policies & Middleware**
 - `CheckActiveSubscription` - Middleware para validar suscripción activa

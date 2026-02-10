@@ -7,6 +7,8 @@ import {
     DollarSign,
     ArrowLeft,
     Edit,
+    Settings,
+    CreditCard,
 } from 'lucide-react';
 
 import PasswordManager from '@/components/PasswordManager';
@@ -148,6 +150,18 @@ export default function NotariaShow({ notaria }: NotariaShowProps) {
 
                     <div className="flex items-center gap-2">
                         {getStatusBadge(notaria.activa ? 'activa' : 'inactiva')}
+                       <Button variant="outline" size="sm" asChild>
+                            <a href={`/admin/subscriptions/create?notaria_id=${notaria.id}`}>
+                                <CreditCard className="mr-2 h-4 w-4" />
+                                Gestionar Suscripción
+                            </a>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <a href={`/admin/notarias/${notaria.id}/services`}>
+                                <Settings className="mr-2 h-4 w-4" />
+                                Gestionar Servicios
+                            </a>
+                        </Button>
                         <Button variant="outline" size="sm" asChild>
                             <a href={`/admin/notarias/${notaria.id}/edit`}>
                                 <Edit className="mr-2 h-4 w-4" />

@@ -1,7 +1,22 @@
 import { Head, Link } from '@inertiajs/react';
-import { AlertCircle, Clock, CreditCard, XCircle } from 'lucide-react';
-import * as NotariaController from '@/actions/App/Http/Controllers/Admin/NotariaController';
-import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
+import { AlertCircle, Clock, CreditCard, Plus, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import {
+    Bar,
+    BarChart,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    RadialBar,
+    RadialBarChart,
+    ResponsiveContainer,
+    Tooltip,
+    Treemap,
+    XAxis,
+    YAxis,
+} from 'recharts';
+
 import { SubscriptionStatusBadge } from '@/components/subscription-status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +27,13 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Table,
     TableBody,
     TableCell,
@@ -21,6 +43,8 @@ import {
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+
+import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 
 interface Subscription {
     id: number;
@@ -101,6 +125,201 @@ export default function Index({
         }).format(new Date(date));
     };
 
+    // Datos para el gráfico de distribución por estado
+    const chartData = [
+        { name: 'Trial', value: stats.trial, color: '#3b82f6' },
+        { name: 'Activas', value: stats.activas, color: '#10b981' },
+        { name: 'Vencidas', value: stats.vencidas, color: '#f59e0b' },
+        { name: 'Suspendidas', value: stats.suspendidas, color: '#ef4444' },
+        { name: 'Canceladas', value: stats.canceladas, color: '#6b7280' },
+    ].filter((item) => item.value > 0);
+
+    const COLORS = chartData.map((item) => item.color);
+
+    // Estado para el tipo de gráfico
+    const [chartType, setChartType] = useState<string>(
+        () => localStorage.getItem('subscriptions-chart-type') || 'pie',
+    );
+
+    // Guardar preferencia en localStorage
+    const handleChartTypeChange = (value: string) => {
+        setChartType(value);
+        localStorage.setItem('subscriptions-chart-type', value);
+    };
+
+    // Componente para TreeMap
+    const CustomTreeMapContent = (props: {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        name?: string;
+        value?: number;
+        color?: string;
+    }) => {
+        const { x = 0, y = 0, width = 0, height = 0, name = '', value = 0, color = '#000' } = props;
+        return (
+            <g>
+                <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    style={{
+                        fill: color,
+                        stroke: '#fff',
+                        strokeWidth: 2,
+                    }}
+                />
+                {width > 60 && height > 30 && (
+                    <>
+                        <text
+                            x={x + width / 2}
+                            y={y + height / 2 - 10}
+                            textAnchor="middle"
+                            fill="#fff"
+                            fontSize="14"
+                            fontWeight="bold"
+                        >
+                            {name}
+                        </text>
+                        <text
+                            x={x + width / 2}
+                            y={y + height / 2 + 10}
+                            textAnchor="middle"
+                            fill="#fff"
+                            fontSize="16"
+                        >
+                            {value}
+                        </text>
+                    </>
+                )}
+            </g>
+        );
+    };
+
+    // Renderizar gráfico según tipo seleccionado
+    const renderChart = () => {
+        if (chartData.length === 0) {
+            return (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <CreditCard className="mb-4 h-12 w-12 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">
+                        No hay datos disponibles
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        Aún no hay suscripciones para mostrar en el gráfico
+                    </p>
+                </div>
+            );
+        }
+
+        switch (chartType) {
+            case 'pie':
+                return (
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) =>
+                                    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                                }
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                            >
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                formatter={(value) => [
+                                    value ?? 0,
+                                    'Suscripciones',
+                                ]}
+                            />
+                            <Legend verticalAlign="bottom" height={36} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                );
+
+            case 'bar':
+                return (
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={chartData}>
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <Tooltip
+                                formatter={(value) => [
+                                    value ?? 0,
+                                    'Suscripciones',
+                                ]}
+                            />
+                            <Legend />
+                            <Bar dataKey="value" name="Suscripciones">
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                );
+
+            case 'radial':
+                return (
+                    <ResponsiveContainer width="100%" height={300}>
+                        <RadialBarChart
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="10%"
+                            outerRadius="90%"
+                            data={chartData.map((item, index) => ({
+                                ...item,
+                                fill: COLORS[index],
+                            }))}
+                        >
+                            <RadialBar
+                                label={{ position: 'insideStart', fill: '#fff' }}
+                                background
+                                dataKey="value"
+                            />
+                            <Legend
+                                iconSize={10}
+                                layout="vertical"
+                                verticalAlign="middle"
+                                align="right"
+                            />
+                            <Tooltip
+                                formatter={(value) => [
+                                    value ?? 0,
+                                    'Suscripciones',
+                                ]}
+                            />
+                        </RadialBarChart>
+                    </ResponsiveContainer>
+                );
+
+            case 'treemap':
+                return (
+                    <ResponsiveContainer width="100%" height={300}>
+                        <Treemap
+                            data={chartData}
+                            dataKey="value"
+                            aspectRatio={4 / 3}
+                            stroke="#fff"
+                            content={<CustomTreeMapContent />}
+                        />
+                    </ResponsiveContainer>
+                );
+
+            default:
+                return null;
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Suscripciones" />
@@ -114,6 +333,12 @@ export default function Index({
                             Gestiona todas las suscripciones del sistema
                         </p>
                     </div>
+                    <Link href="/admin/subscriptions/create">
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Crear Suscripción
+                        </Button>
+                    </Link>
                 </div>
 
                 {/* Estadísticas */}
@@ -174,7 +399,7 @@ export default function Index({
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">
-                                {stats.vencidas + stats.suspendidas}
+                                {alerts.needs_attention}
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 Requieren acción
@@ -182,6 +407,82 @@ export default function Index({
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Gráfico de Distribución por Estado */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>Distribución por Estado</CardTitle>
+                                <CardDescription>
+                                    Visualización de suscripciones por estado actual
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                    Tipo de gráfico:
+                                </span>
+                                <Select
+                                    value={chartType}
+                                    onValueChange={handleChartTypeChange}
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Selecciona tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pie">
+                                            🥧 Circular (Pie)
+                                        </SelectItem>
+                                        <SelectItem value="bar">
+                                            📊 Barras (Bar)
+                                        </SelectItem>
+                                        <SelectItem value="radial">
+                                            🎯 Radial
+                                        </SelectItem>
+                                        <SelectItem value="treemap">
+                                            🗺️ Mapa de Árbol
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col items-center gap-6 lg:flex-row lg:justify-center">
+                            <div className="w-full max-w-2xl">
+                                {renderChart()}
+                            </div>
+                            {chartData.length > 0 && (
+                                <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
+                                    {chartData.map((item, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-3"
+                                        >
+                                            <div
+                                                className="h-4 w-4 rounded-sm"
+                                                style={{
+                                                    backgroundColor: item.color,
+                                                }}
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium">
+                                                    {item.name}
+                                                </span>
+                                                <span className="text-2xl font-bold">
+                                                    {item.value}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {((item.value / stats.total) * 100).toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Alertas */}
                 {(alerts.expiring_soon > 0 ||
@@ -193,8 +494,8 @@ export default function Index({
                                 <Clock className="h-4 w-4 text-yellow-600" />
                                 <span>
                                     <strong>{alerts.expiring_soon}</strong>{' '}
-                                    suscripciones vencen en las próximas 48
-                                    horas
+                                    suscripciones vencen en los próximos 7
+                                    días
                                 </span>
                             </div>
                         )}
@@ -214,8 +515,8 @@ export default function Index({
                                 <XCircle className="h-4 w-4 text-red-600" />
                                 <span>
                                     <strong>{alerts.needs_attention}</strong>{' '}
-                                    suscripciones suspendidas hace más de 30
-                                    días
+                                    suscripciones requieren atención inmediata
+                                    (vencidas o suspendidas)
                                 </span>
                             </div>
                         )}
@@ -250,13 +551,7 @@ export default function Index({
                                     <TableRow key={subscription.id}>
                                         <TableCell>
                                             <Link
-                                                href={
-                                                    NotariaController.show({
-                                                        notaria:
-                                                            subscription.notaria
-                                                                .id,
-                                                    }).url
-                                                }
+                                                href={`/admin/notarias/${subscription.notaria.id}`}
                                                 className="font-medium hover:underline"
                                             >
                                                 {subscription.notaria.nombre}

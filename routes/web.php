@@ -69,9 +69,22 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de notarías
     Route::resource('notarias', \App\Http\Controllers\Admin\NotariaController::class);
 
+    // Gestión de servicios por notaría (tenant services)
+    Route::get('notarias/{notaria}/services', [\App\Http\Controllers\Admin\TenantServiceController::class, 'index'])->name('notarias.services.index');
+    Route::post('notarias/{notaria}/services', [\App\Http\Controllers\Admin\TenantServiceController::class, 'store'])->name('notarias.services.store');
+    Route::put('notarias/{notaria}/services/{tenantService}', [\App\Http\Controllers\Admin\TenantServiceController::class, 'update'])->name('notarias.services.update');
+    Route::delete('notarias/{notaria}/services/{tenantService}', [\App\Http\Controllers\Admin\TenantServiceController::class, 'destroy'])->name('notarias.services.destroy');
+    Route::post('notarias/{notaria}/services/{tenantService}/toggle', [\App\Http\Controllers\Admin\TenantServiceController::class, 'toggleEnabled'])->name('notarias.services.toggle');
+
     // Gestión de suscripciones
     Route::get('subscriptions', [\App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions.index');
+    Route::get('subscriptions/create', [\App\Http\Controllers\Admin\SubscriptionController::class, 'create'])->name('subscriptions.create');
+    Route::post('subscriptions', [\App\Http\Controllers\Admin\SubscriptionController::class, 'store'])->name('subscriptions.store');
     Route::get('subscriptions/{subscription}', [\App\Http\Controllers\Admin\SubscriptionController::class, 'show'])->name('subscriptions.show');
+    Route::get('subscriptions/{subscription}/edit', [\App\Http\Controllers\Admin\SubscriptionController::class, 'edit'])->name('subscriptions.edit');
+    Route::put('subscriptions/{subscription}', [\App\Http\Controllers\Admin\SubscriptionController::class, 'update'])->name('subscriptions.update');
+    Route::post('subscriptions/{subscription}/change-status', [\App\Http\Controllers\Admin\SubscriptionController::class, 'changeStatus'])->name('subscriptions.change-status');
+    Route::post('subscriptions/{subscription}/renew', [\App\Http\Controllers\Admin\SubscriptionController::class, 'renew'])->name('subscriptions.renew');
 
     // Gestión de planes
     Route::resource('plans', \App\Http\Controllers\Admin\PlanController::class);

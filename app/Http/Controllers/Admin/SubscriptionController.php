@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreSubscriptionRequest;
+use App\Http\Requests\Admin\UpdateSubscriptionRequest;
+use App\Models\Notaria;
+use App\Models\Plan;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -64,13 +68,12 @@ class SubscriptionController extends Controller
         // Alertas
         $alerts = [
             'expiring_soon' => Subscription::where('status', 'activa')
-                ->whereBetween('fecha_vencimiento', [now(), now()->addDays(2)])
+                ->whereBetween('fecha_vencimiento', [now(), now()->addDays(7)])
                 ->count(),
             'grace_period' => Subscription::where('status', 'vencida')
                 ->whereBetween('fecha_vencimiento', [now()->subDays(7), now()])
                 ->count(),
-            'needs_attention' => Subscription::where('status', 'suspendida')
-                ->where('created_at', '<', now()->subDays(30))
+            'needs_attention' => Subscription::whereIn('status', ['vencida', 'suspendida'])
                 ->count(),
         ];
 
@@ -111,5 +114,180 @@ class SubscriptionController extends Controller
         return Inertia::render('Admin/Subscriptions/Show', [
             'subscription' => $subscription,
         ]);
+    }
+
+    /**
+     * Show the form for creating a new subscription.
+     */
+    public function create(Request $request): Response
+    {
+        if (Auth::user()->tipo_cuenta !== 'super_admin') {
+            abort(403, 'Acceso denegado');
+        }
+
+        // Notarías sin suscripción activa
+        $notarias = Notaria::whereDoesntHave('subscriptions', function ($query) {
+            $query->whereIn('status', ['activa', 'trial']);
+        })
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'numero_notaria']);
+
+        // Si se especifica notaria_id, incluirla aunque tenga suscripción
+        if ($request->filled('notaria_id')) {
+            $notariaSpecific = Notaria::find($request->notaria_id);
+            if ($notariaSpecific && ! $notarias->contains('id', $notariaSpecific->id)) {
+                $notarias->prepend($notariaSpecific);
+            }
+        }
+
+        $plans = Plan::where('is_active', true)
+            ->orderBy('orden')
+            ->get(['id', 'nombre', 'precio_mensual', 'precio_anual']);
+
+        return Inertia::render('Admin/Subscriptions/Create', [
+            'notarias' => $notarias,
+            'plans' => $plans,
+            'defaultNotariaId' => $request->notaria_id,
+        ]);
+    }
+
+    /**
+     * Store a newly created subscription in storage.
+     */
+    public function store(StoreSubscriptionRequest $request)
+    {
+        // Verificar que la notaría no tenga suscripción activa
+        $existingActive = Subscription::where('notaria_id', $request->notaria_id)
+            ->whereIn('status', ['activa', 'trial'])
+            ->exists();
+
+        if ($existingActive) {
+            return back()->with('error', 'La notaría ya tiene una suscripción activa.');
+        }
+
+        $subscription = Subscription::create($request->validated());
+
+        // Activar/desactivar notaría según el estado de la suscripción
+        $notaria = Notaria::find($subscription->notaria_id);
+        if ($notaria) {
+            $notaria->update([
+                'activa' => in_array($subscription->status, ['activa', 'trial']),
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.subscriptions.show', $subscription)
+            ->with('success', 'Suscripción creada exitosamente.');
+    }
+
+    /**
+     * Show the form for editing the specified subscription.
+     */
+    public function edit(Subscription $subscription): Response
+    {
+        if (Auth::user()->tipo_cuenta !== 'super_admin') {
+            abort(403, 'Acceso denegado');
+        }
+
+        $subscription->load(['notaria', 'plan']);
+
+        $plans = Plan::where('is_active', true)
+            ->orderBy('orden')
+            ->get(['id', 'nombre', 'precio_mensual', 'precio_anual']);
+
+        return Inertia::render('Admin/Subscriptions/Edit', [
+            'subscription' => $subscription,
+            'plans' => $plans,
+        ]);
+    }
+
+    /**
+     * Update the specified subscription in storage.
+     */
+    public function update(UpdateSubscriptionRequest $request, Subscription $subscription)
+    {
+        $oldStatus = $subscription->status;
+        $subscription->update($request->validated());
+
+        // Si cambió el estado, actualizar estado de la notaría
+        if ($oldStatus !== $subscription->status) {
+            $notaria = $subscription->notaria;
+            if ($notaria) {
+                $notaria->update([
+                    'activa' => in_array($subscription->status, ['activa', 'trial']),
+                ]);
+            }
+        }
+
+        return redirect()
+            ->route('admin.subscriptions.show', $subscription)
+            ->with('success', 'Suscripción actualizada exitosamente.');
+    }
+
+    /**
+     * Change subscription status (activate, suspend, cancel).
+     */
+    public function changeStatus(Request $request, Subscription $subscription)
+    {
+        if (Auth::user()->tipo_cuenta !== 'super_admin') {
+            abort(403, 'Acceso denegado');
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:trial,activa,vencida,suspendida,cancelada',
+            'razon_cancelacion' => 'nullable|string|max:500',
+        ]);
+
+        $oldStatus = $subscription->status;
+
+        $subscription->status = $validated['status'];
+
+        if ($validated['status'] === 'cancelada') {
+            $subscription->fecha_cancelacion = now();
+            $subscription->razon_cancelacion = $validated['razon_cancelacion'] ?? null;
+        }
+
+        $subscription->save();
+
+        // Actualizar estado de la notaría según el nuevo estado
+        $notaria = $subscription->notaria;
+        if ($notaria) {
+            $notaria->update([
+                'activa' => in_array($validated['status'], ['activa', 'trial']),
+            ]);
+        }
+
+        return back()->with('success', "Suscripción cambiada de {$oldStatus} a {$validated['status']}.");
+    }
+
+    /**
+     * Renew subscription.
+     */
+    public function renew(Request $request, Subscription $subscription)
+    {
+        if (Auth::user()->tipo_cuenta !== 'super_admin') {
+            abort(403, 'Acceso denegado');
+        }
+
+        $validated = $request->validate([
+            'duracion_meses' => 'required|integer|min:1|max:24',
+            'precio_pagado' => 'nullable|numeric|min:0',
+        ]);
+
+        $nuevaFechaVencimiento = now()->addMonths($validated['duracion_meses']);
+
+        $subscription->update([
+            'fecha_vencimiento' => $nuevaFechaVencimiento,
+            'status' => 'activa',
+            'precio_pagado' => $validated['precio_pagado'] ?? $subscription->precio_pagado,
+        ]);
+
+        // Reactivar notaría al renovar
+        $notaria = $subscription->notaria;
+        if ($notaria) {
+            $notaria->update(['activa' => true]);
+        }
+
+        return back()->with('success', "Suscripción renovada hasta {$nuevaFechaVencimiento->format('d/m/Y')}.");
     }
 }

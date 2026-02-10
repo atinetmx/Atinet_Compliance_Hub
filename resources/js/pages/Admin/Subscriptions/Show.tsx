@@ -1,7 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Building2, Calendar, Package } from 'lucide-react';
-import * as NotariaController from '@/actions/App/Http/Controllers/Admin/NotariaController';
-import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
+import { ArrowLeft, Building2, Calendar, Edit, Package } from 'lucide-react';
+
 import { SubscriptionStatusBadge } from '@/components/subscription-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,8 @@ import {
 } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+
+import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 
 interface Subscription {
     id: number;
@@ -125,7 +126,15 @@ export default function Show({ subscription }: SubscriptionShowProps) {
                             </p>
                         </div>
                     </div>
-                    <SubscriptionStatusBadge status={subscription.status} />
+                    <div className="flex items-center gap-2">
+                        <SubscriptionStatusBadge status={subscription.status} />
+                        <Link href={`/admin/subscriptions/${subscription.id}/edit`}>
+                            <Button variant="outline" size="sm">
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Alertas */}
@@ -276,11 +285,7 @@ export default function Show({ subscription }: SubscriptionShowProps) {
                                     Nombre
                                 </p>
                                 <Link
-                                    href={
-                                        NotariaController.show({
-                                            notaria: subscription.notaria.id,
-                                        }).url
-                                    }
+                                    href={`/admin/notarias/${subscription.notaria.id}`}
                                     className="text-base font-medium hover:underline"
                                 >
                                     {subscription.notaria.nombre}

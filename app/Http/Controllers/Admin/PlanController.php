@@ -71,6 +71,22 @@ class PlanController extends Controller
     {
         $plan = Plan::create($request->validated());
 
+        // Auto-sync herramientas_activas to plan_services pivot table
+        if ($request->has('herramientas_activas') && is_array($request->herramientas_activas)) {
+            $services = \App\Models\Service::whereIn('name', $request->herramientas_activas)
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($services as $service) {
+                $plan->services()->attach($service->id, [
+                    'is_included' => true,
+                    'usage_limit' => null,
+                    'extra_price' => null,
+                    'priority' => 0,
+                ]);
+            }
+        }
+
         return redirect()
             ->route('admin.plans.show', $plan)
             ->with('success', 'Plan creado exitosamente.');
@@ -111,14 +127,8 @@ class PlanController extends Controller
      */
     public function edit(Plan $plan): Response
     {
-        $services = \App\Models\Service::where('is_active', true)
-            ->orderBy('category')
-            ->orderBy('name')
-            ->get(['id', 'code', 'name', 'category', 'billing_model']);
-
         return Inertia::render('Admin/Plans/Edit', [
             'plan' => $plan,
-            'availableServices' => $services,
         ]);
     }
 
@@ -128,6 +138,28 @@ class PlanController extends Controller
     public function update(UpdatePlanRequest $request, Plan $plan)
     {
         $plan->update($request->validated());
+
+        // Auto-sync herramientas_activas to plan_services pivot table
+        if ($request->has('herramientas_activas') && is_array($request->herramientas_activas)) {
+            $services = \App\Models\Service::whereIn('name', $request->herramientas_activas)
+                ->where('is_active', true)
+                ->get();
+
+            // Get current service IDs
+            $newServiceIds = $services->pluck('id')->toArray();
+
+            // Sync: attach new services, keep existing ones, remove missing ones
+            $plan->services()->sync(
+                collect($newServiceIds)->mapWithKeys(fn ($serviceId) => [
+                    $serviceId => [
+                        'is_included' => true,
+                        'usage_limit' => null,
+                        'extra_price' => null,
+                        'priority' => 0,
+                    ],
+                ])->toArray()
+            );
+        }
 
         return redirect()
             ->route('admin.plans.show', $plan)

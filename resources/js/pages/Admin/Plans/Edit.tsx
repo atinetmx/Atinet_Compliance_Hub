@@ -2,7 +2,6 @@ import { Head, useForm } from '@inertiajs/react';
 import { Package, Save, ArrowLeft, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -19,14 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 
 import type { BreadcrumbItem } from '@/types';
-
-interface Service {
-    id: number;
-    code: string;
-    name: string;
-    category: string;
-    billing_model: string;
-}
 
 interface Plan {
     id: number;
@@ -47,18 +38,10 @@ interface Plan {
 
 interface PlansEditProps {
     plan: Plan;
-    availableServices: Service[];
 }
 
-export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
-    const [selectedServices, setSelectedServices] = useState<Service[]>(() => {
-        // Convertir herramientas_activas (nombres) a objetos Service
-        return availableServices.filter(service =>
-            plan.herramientas_activas?.includes(service.name)
-        );
-    });
+export default function PlansEdit({ plan }: PlansEditProps) {
     const [caracteristicas, setCaracteristicas] = useState<string[]>(plan.caracteristicas || []);
-    const [showServiceModal, setShowServiceModal] = useState(false);
     const [showCaracteristicaModal, setShowCaracteristicaModal] = useState(false);
     const [newCaracteristica, setNewCaracteristica] = useState('');
 
@@ -95,27 +78,11 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
         orden: plan.orden.toString(),
     });
 
-    // Sync arrays with form data
-    useEffect(() => {
-        const serviceNames = selectedServices.map(s => s.name);
-        setData('herramientas_activas', serviceNames);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedServices]);
-
+    // Sync caracteristicas with form data
     useEffect(() => {
         setData('caracteristicas', caracteristicas);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [caracteristicas]);
-
-    const addService = (service: Service) => {
-        if (!selectedServices.find(s => s.id === service.id)) {
-            setSelectedServices([...selectedServices, service]);
-        }
-    };
-
-    const removeService = (serviceId: number) => {
-        setSelectedServices(selectedServices.filter(s => s.id !== serviceId));
-    };
 
     const addCaracteristica = () => {
         if (newCaracteristica.trim()) {
@@ -369,53 +336,6 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label>
-                                        Herramientas/Servicios Incluidos
-                                        <span className="ml-2 text-xs text-muted-foreground">
-                                            (Opcional - Los servicios se gestionan desde "Gestionar Servicios")
-                                        </span>
-                                    </Label>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setShowServiceModal(true)}
-                                        className="w-full"
-                                    >
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Agregar Servicio
-                                    </Button>
-                                    {selectedServices.length > 0 && (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {selectedServices.map((service) => (
-                                                <div
-                                                    key={service.id}
-                                                    className="flex items-center gap-1 rounded-md bg-secondary px-3 py-1 text-sm"
-                                                >
-                                                    <span>{service.name}</span>
-                                                    <Badge variant="outline" className="ml-1 text-xs">
-                                                        {service.category}
-                                                    </Badge>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            removeService(service.id)
-                                                        }
-                                                        className="ml-1 text-muted-foreground hover:text-destructive"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {errors.herramientas_activas && (
-                                        <p className="text-sm text-red-500">
-                                            {errors.herramientas_activas}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>
                                         Características del Plan
                                         <span className="ml-2 text-xs text-muted-foreground">
                                             (Se muestran en las tarjetas de planes)
@@ -522,68 +442,6 @@ export default function PlansEdit({ plan, availableServices }: PlansEditProps) {
                     </form>
                 </div>
             </div>
-
-            {/* Modal para agregar servicios */}
-            <Dialog open={showServiceModal} onOpenChange={setShowServiceModal}>
-                <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Seleccionar Servicios</DialogTitle>
-                        <DialogDescription>
-                            Elige los servicios que incluirá este plan
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-2 py-4">
-                        {availableServices.map((service) => {
-                            const isSelected = selectedServices.find(
-                                (s) => s.id === service.id,
-                            );
-                            return (
-                                <Button
-                                    key={service.id}
-                                    type="button"
-                                    variant={isSelected ? 'default' : 'outline'}
-                                    className="justify-start text-left h-auto py-3"
-                                    onClick={() => {
-                                        if (isSelected) {
-                                            removeService(service.id);
-                                        } else {
-                                            addService(service);
-                                        }
-                                    }}
-                                >
-                                    <div className="flex flex-1 items-center justify-between">
-                                        <div>
-                                            <p className="font-medium">
-                                                {service.name}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {service.code}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Badge variant="secondary">
-                                                {service.category}
-                                            </Badge>
-                                            <Badge variant="outline">
-                                                {service.billing_model}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </Button>
-                            );
-                        })}
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setShowServiceModal(false)}
-                        >
-                            Cerrar
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* Modal para agregar características */}
             <Dialog

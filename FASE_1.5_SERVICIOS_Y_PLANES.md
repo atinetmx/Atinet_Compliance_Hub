@@ -1,9 +1,21 @@
 # 🎯 FASE 1.5: SISTEMA DE SERVICIOS Y PLANES DE SUSCRIPCIÓN
 
-**Versión:** 1.0  
-**Fecha:** 9 de Febrero, 2026  
-**Estado:** 📋 PLANIFICACIÓN  
+**Versión:** 1.1  
+**Fecha:** 10 de Febrero, 2026  
+**Estado:** 🚀 EN PROGRESO (75% completado)  
 **Prioridad:** 🔥 CRÍTICA (prerequisito para Fase 2)
+
+**✅ Completado:**
+- Sprint 1: Base de datos (100%)
+- Sprint 3: Panel Super Admin (100%)
+  - CRUD Servicios
+  - CRUD Planes con auto-sincronización
+  - Gestión Plan-Servicio
+  - Servicios por Notaría
+
+**⏳ Pendiente:**
+- Sprint 2: Lógica de negocio (ServiceAccessManager)
+- Sprint 4-6: Features avanzados
 
 ---
 
@@ -1011,6 +1023,47 @@ Todo Ilimitado:
 - ✅ Tests de integración
 - ✅ Validación de formularios
 
+#### 🔄 Auto-Sincronización herramientas_activas → plan_services
+
+**Problema resuelto:**
+Durante el desarrollo se identificó redundancia entre el campo JSON `herramientas_activas` en la tabla `plans` y la tabla pivot `plan_services`. Esto causaba que servicios seleccionados al crear un plan no aparecieran en la interfaz de gestión.
+
+**Solución implementada:**
+
+1. **Auto-sincronización en PlanController:**
+   ```php
+   // En store() y update()
+   if ($request->has('herramientas_activas')) {
+       $services = Service::whereIn('name', $request->herramientas_activas)
+           ->where('is_active', true)->get();
+       
+       foreach ($services as $service) {
+           $plan->services()->attach($service->id, [
+               'is_included' => true,
+               'usage_limit' => null,
+               'extra_price' => null,
+               'priority' => 0,
+           ]);
+       }
+   }
+   ```
+
+2. **Comando Artisan para planes existentes:**
+   ```bash
+   php artisan plan:sync-services        # Sincroniza todos los planes
+   php artisan plan:sync-services --plan=5  # Sincroniza plan específico
+   ```
+
+3. **Gestión centralizada:**
+   - ✅ **Create**: Modal de selección (asignación inicial automática)
+   - ❌ **Edit**: Eliminada sección de servicios (evita duplicación)
+   - ✅ **Services**: Única fuente de verdad para gestionar servicios
+
+**Beneficios:**
+- Elimina confusión entre herramientas_activas (JSON) y plan_services (pivot)
+- Los servicios seleccionados al crear aparecen inmediatamente en "Gestionar Servicios"
+- Flujo de trabajo más intuitivo y sin redundancias
+
 ---
 
 ### **SPRINT 4: Vista Notaría** (3-4 días)
@@ -1224,11 +1277,11 @@ TenantService::create([
 ## 📅 TIMELINE ESTIMADO
 
 ```
-SPRINT 1: Base de Datos     [████░░░░░░] 3-4 días
-SPRINT 2: Lógica Negocio    [████░░░░░░] 4-5 días
-SPRINT 3: Panel Admin       [█████░░░░░] 5-6 días
-SPRINT 4: Vista Notaría     [███░░░░░░░] 3-4 días
-SPRINT 5: Testing & Docs    [██░░░░░░░░] 2-3 días
+SPRINT 1: Base de Datos     [██████████] ✅ COMPLETADO (3-4 días)
+SPRINT 2: Lógica Negocio    [░░░░░░░░░░] ⏳ PENDIENTE (4-5 días)
+SPRINT 3: Panel Admin       [██████████] ✅ COMPLETADO (5-6 días)
+SPRINT 4: Vista Notaría     [░░░░░░░░░░] ⏳ PENDIENTE (3-4 días)
+SPRINT 5: Testing & Docs    [░░░░░░░░░░] ⏳ PENDIENTE (2-3 días)
 ─────────────────────────────────────────────────
 TOTAL ESTIMADO:              17-22 días (~3-4 semanas)
 ```
