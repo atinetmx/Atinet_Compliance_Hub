@@ -405,6 +405,7 @@ public function canAccess(Service $service): bool
 3. ✅ Crear modales de acciones
 4. ✅ Agregar rutas y navegación
 5. ✅ Integrar con Wayfinder
+6. ✅ Implementar visualización de datos con gráficos interactivos
 
 ### Sprint 2C: Integración con ServiceAccessManager (1 día)
 1. ✅ Implementar validación de suscripción en ServiceAccessManager
@@ -419,4 +420,170 @@ public function canAccess(Service $service): bool
 1. **¿Aprobas este diseño?**
 2. **¿Alguna modificación o caso de uso adicional?**
 3. **¿Procedemos con la implementación?**
+
+---
+
+## 📊 Sistema de Visualización de Datos
+
+### Implementación de Gráficos Interactivos
+
+El dashboard de suscripciones cuenta con un sistema avanzado de visualización que permite al administrador analizar la distribución de estados de suscripción mediante diferentes tipos de gráficos.
+
+### Características del Sistema de Gráficos
+
+#### 🎨 4 Tipos de Gráficos Disponibles
+
+| Tipo | Ícono | Descripción | Uso Recomendado |
+|------|-------|-------------|-----------------|
+| **Circular (Pie)** | 🥧 | Gráfico circular con porcentajes | Ver proporciones y distribución general |
+| **Barras (Bar)** | 📊 | Gráfico de barras vertical | Comparación directa entre estados |
+| **Radial** | 🎯 | Gráfico circular radial | Visualización de progreso circular |
+| **Mapa de Árbol (Treemap)** | 🗺️ | Visualización jerárquica | Ver jerarquías y proporciones de espacio |
+
+#### 🎨 Paleta de Colores por Estado
+
+Todos los gráficos utilizan una paleta de colores consistente:
+
+```typescript
+const COLORS = [
+    'hsl(205, 100%, 50%)',  // 🔵 Trial - Azul brillante
+    'hsl(125, 60%, 42%)',   // ✅ Activa - Verde éxito
+    'hsl(25, 90%, 54%)',    // 🟠 Vencida - Naranja advertencia
+    'hsl(0, 72%, 51%)',     // 🔴 Suspendida - Rojo peligro
+    'hsl(0, 0%, 60%)',      // ⚫ Cancelada - Gris neutral
+];
+```
+
+#### 💾 Persistencia de Preferencias
+
+El sistema guarda automáticamente la preferencia del administrador usando `localStorage`:
+
+```typescript
+// Clave: 'subscriptions-chart-type'
+// Valores: 'pie' | 'bar' | 'radial' | 'treemap'
+```
+
+Al recargar la página, el gráfico seleccionado previamente se restaura automáticamente.
+
+#### 🔄 Selector de Tipo de Gráfico
+
+```tsx
+<Select value={chartType} onValueChange={handleChartTypeChange}>
+    <SelectTrigger className="w-[200px]">
+        <SelectValue placeholder="Tipo de gráfico" />
+    </SelectTrigger>
+    <SelectContent>
+        <SelectItem value="pie">🥧 Circular</SelectItem>
+        <SelectItem value="bar">📊 Barras</SelectItem>
+        <SelectItem value="radial">🎯 Radial</SelectItem>
+        <SelectItem value="treemap">🗺️ Mapa de Árbol</SelectItem>
+    </SelectContent>
+</Select>
+```
+
+### Estructura de Datos
+
+Los gráficos consumen datos en el siguiente formato:
+
+```typescript
+type ChartDataItem = {
+    name: string;      // Nombre del estado (ej: "Activas")
+    value: number;     // Cantidad de suscripciones
+    color: string;     // Color HSL asignado
+};
+
+const chartData = [
+    { name: 'Trial', value: 2, color: 'hsl(205, 100%, 50%)' },
+    { name: 'Activas', value: 5, color: 'hsl(125, 60%, 42%)' },
+    { name: 'Vencidas', value: 2, color: 'hsl(25, 90%, 54%)' },
+    { name: 'Suspendidas', value: 1, color: 'hsl(0, 72%, 51%)' },
+    { name: 'Canceladas', value: 1, color: 'hsl(0, 0%, 60%)' },
+];
+```
+
+### Integración con Recharts
+
+El sistema utiliza **Recharts v2.x** para el renderizado de gráficos:
+
+```typescript
+import {
+    PieChart, Pie, Cell,
+    BarChart, Bar, XAxis, YAxis,
+    RadialBarChart, RadialBar,
+    Treemap, ResponsiveContainer, Tooltip, Legend
+} from 'recharts';
+```
+
+### Componente TreeMap Personalizado
+
+Para el gráfico TreeMap se implementó un componente personalizado con tipado seguro:
+
+```typescript
+const CustomTreeMapContent = (props: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    name?: string;
+    value?: number;
+    color?: string;
+}) => {
+    const { x = 0, y = 0, width = 0, height = 0, 
+            name = '', value = 0, color = '#000' } = props;
+    
+    return (
+        <g>
+            <rect x={x} y={y} width={width} height={height}
+                  style={{ fill: color, stroke: '#fff', strokeWidth: 2 }} />
+            {width > 60 && height > 30 && (
+                <>
+                    <text x={x + width/2} y={y + height/2 - 10}
+                          textAnchor="middle" fill="#fff" fontSize={14} fontWeight="bold">
+                        {name}
+                    </text>
+                    <text x={x + width/2} y={y + height/2 + 10}
+                          textAnchor="middle" fill="#fff" fontSize={12}>
+                        {value}
+                    </text>
+                </>
+            )}
+        </g>
+    );
+};
+```
+
+### Beneficios del Sistema de Visualización
+
+1. **✅ Flexibilidad**: 4 tipos de gráficos para diferentes análisis
+2. **✅ Persistencia**: Las preferencias se guardan automáticamente
+3. **✅ Consistencia**: Paleta de colores uniforme en todos los gráficos
+4. **✅ UX Mejorada**: Cambio instantáneo entre tipos sin recargar
+5. **✅ TypeScript**: Código completamente tipado y seguro
+6. **✅ Responsive**: Todos los gráficos se adaptan al contenedor
+
+### Ubicación del Código
+
+- **Frontend**: `resources/js/Pages/Admin/Subscriptions/Index.tsx`
+- **Líneas**: 120-320 (renderChart function y componentes)
+- **Dependencias**: recharts@^2.x, shadcn/ui Select component
+
+### Script de Datos de Prueba
+
+Para facilitar las pruebas, se creó un script que genera suscripciones de ejemplo:
+
+**Archivo**: `add_sample_subscriptions.php`
+
+```bash
+php add_sample_subscriptions.php
+```
+
+Este script crea:
+- 2 suscripciones Trial
+- 5 suscripciones Activas
+- 2 suscripciones Vencidas
+- 1 suscripción Suspendida
+- 1 suscripción Cancelada
+
+**Nota**: Las suscripciones históricas (vencidas, suspendidas, canceladas) pueden crearse sin restricción, mientras que solo puede haber una suscripción activa/trial por notaría.
+
 
