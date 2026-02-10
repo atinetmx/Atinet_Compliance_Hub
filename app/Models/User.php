@@ -65,4 +65,20 @@ class User extends Authenticatable
     {
         return $this->hasMany(Busqueda::class);
     }
+
+    /**
+     * Check if user has a specific role.
+     */
+    public function hasRole(string $role): bool
+    {
+        return $this->tipo_cuenta === $role;
+    }
+
+    /**
+     * Check if user is super admin.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->tipo_cuenta === 'super_admin';
+    }
 }

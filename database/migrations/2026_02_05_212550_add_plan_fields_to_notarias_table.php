@@ -56,7 +56,7 @@ return new class extends Migration
                 'email_contacto',
                 'telefono',
                 'direccion',
-                'notas_internas'
+                'notas_internas',
             ]);
         });
     }

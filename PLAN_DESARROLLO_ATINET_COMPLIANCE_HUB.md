@@ -1,9 +1,12 @@
 # 📋 PLAN DE DESARROLLO - ATINET_COMPLIANCE_HUB
 
-**Versión:** 1.2  
-**Fecha:** 8 de Febrero, 2026  
-**Estado:** ✅ FASE 1 COMPLETADA AL 100%  
-**Última actualización:** 8 Feb 2026
+**Versión:** 1.3  
+**Fecha:** 9 de Febrero, 2026  
+**Estado:** ✅ FASE 1 COMPLETADA | 📋 FASE 1.5 EN PLANIFICACIÓN  
+**Última actualización:** 9 Feb 2026
+
+> **🚨 ACTUALIZACIÓN IMPORTANTE:** Se agregó **Fase 1.5 (Sistema de Servicios y Planes)** 
+> como prerequisito crítico antes de la Fase 2. Ver [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
 
 ---
 
@@ -273,8 +276,69 @@ PasswordManager.tsx        // Gestor de contraseñas ✅ COMPLETADO
 
 ---
 
+### FASE 1.5: SISTEMA DE SERVICIOS Y PLANES 📋 **PLANIFICACIÓN COMPLETA**
+**Objetivo:** Implementar arquitectura modular de servicios desacoplada de planes de suscripción
+
+> **📄 DOCUMENTO COMPLETO:** Ver [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
+
+#### ¿Por qué esta fase es CRÍTICA?
+
+Antes de implementar herramientas específicas (Fase 2), necesitamos una arquitectura que permita:
+- ✅ Agregar servicios sin migraciones constantes
+- ✅ Facturación flexible por uso y límites
+- ✅ Ventas personalizadas (add-ons, bundles, promociones)
+- ✅ Control granular de acceso por servicio
+- ✅ Escalabilidad sin límites arquitectónicos
+
+#### Resumen Técnico
+
+**Nuevas Tablas:**
+- `services` - Catálogo global de herramientas
+- `plan_services` - Relación plan-servicio con límites
+- `tenant_services` - Personalizaciones por notaría
+- `service_usage` - Registro de consumo para facturación
+
+**Servicios de Lógica:**
+- `ServiceAccessManager` - Control de acceso
+- `ServiceUsageRecorder` - Registro de consumo
+- `ServiceBillingCalculator` - Cálculo de facturación
+
+**Panel Admin:**
+- CRUD servicios + asignación a planes
+- Gestión de límites y precios
+- Estadísticas de consumo
+
+**Vista Notaría:**
+- Dashboard de servicios activos
+- Indicadores de uso vs límites
+- Marketplace de servicios
+
+#### Timeline Estimado
+
+```
+SPRINT 1: Base de Datos      → 3-4 días
+SPRINT 2: Lógica Negocio     → 4-5 días
+SPRINT 3: Panel Admin        → 5-6 días
+SPRINT 4: Vista Notaría      → 3-4 días
+SPRINT 5: Testing & Docs     → 2-3 días
+───────────────────────────────────────
+TOTAL:                        17-22 días (3-4 semanas)
+```
+
+#### Beneficios Clave
+
+- ✅ **No tocar BD** al agregar servicios
+- ✅ **Add-ons y bundles** para ventas especiales
+- ✅ **Pricing custom** por notaría
+- ✅ **Auditoría completa** de consumo
+- ✅ **Facturación automática** precisa
+
+**📊 Progreso:** 0% - **EN PLANIFICACIÓN**
+
+---
+
 ### FASE 2: MODELO DE DATOS COMPLETO ⏳ **PENDIENTE**
-**Objetivo:** Implementar todas las tablas necesarias
+**Objetivo:** Implementar todas las tablas necesarias (se ejecutará DESPUÉS de Fase 1.5)
 
 #### Tareas
 - [ ] Crear models: `Ticket`, `TicketMessage`, `Busqueda`, `Reporte`, `Factura`
@@ -652,9 +716,13 @@ GET    /api/notificaciones          → Notificaciones
 
 | Fase | Estado | Prioridad | Estimación |
 |------|--------|-----------|------------|
+| **Fase 1.5** | 📋 Planificación | 🔥 Crítica | 3-4 semanas |
 | **Fase 2** | ⏳ Pendiente | Alta | 2 semanas |
 | **Fase 4** | ⏳ Pendiente | Alta | 2-3 semanas |
 | **Fase 5-14** | ⏳ Pendiente | Media | 8-12 semanas |
+
+> **⚠️ IMPORTANTE:** La Fase 1.5 (Sistema de Servicios y Planes) es **prerequisito obligatorio** 
+> antes de iniciar la Fase 2. Ver documento completo: [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
 
 ### 🎯 **FUNCIONALIDADES OPERATIVAS AL 100%**
 
@@ -684,13 +752,48 @@ GET    /api/notificaciones          → Notificaciones
 
 ### 🚀 **SIGUIENTES PASOS INMEDIATOS**
 
-#### **Próxima Sesión - Fase 2:**
-1. **Completar modelo de datos**: Tickets, Reportes, Facturas
-2. **Implementar herramientas de búsqueda**: OFAC, SAT
+#### **🔥 CRÍTICO - Iniciar Fase 1.5 (Prerequisito):**
+
+**📄 Ver documento completo:** [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
+
+**¿Por qué AHORA?**
+- Arquitectura de servicios es base para TODAS las herramientas futuras
+- Evita migraciones constantes al agregar funcionalidades
+- Permite facturación flexible y ventas personalizadas
+- Control granular de acceso y consumo
+
+**Sprint 1 (3-4 días):**
+1. Crear migraciones: `services`, `plan_services`, `tenant_services`, `service_usage`
+2. Crear modelos y relaciones
+3. Seeders con servicios iniciales (SAT, OFAC, PEP, APIs, etc.)
+
+**Sprint 2 (4-5 días):**
+4. Implementar lógica de negocio (ServiceAccessManager, UsageRecorder, etc.)
+5. Middleware de control de acceso por servicio
+6. Helper functions globales
+
+**Sprint 3 (5-6 días):**
+7. Panel Super Admin: CRUD servicios + gestión plan-servicio
+8. Asignación de servicios a planes con límites
+
+**Sprint 4 (3-4 días):**
+9. Vista Notaría: Dashboard de servicios activos
+10. Indicadores de uso y límites
+
+**Sprint 5 (2-3 días):**
+11. Testing exhaustivo (40+ tests)
+12. Documentación completa
+
+**Total:** 17-22 días (~3-4 semanas)
+
+#### **Después de Fase 1.5 - Iniciar Fase 2:**
+1. **Completar modelo de datos**: Tickets, Reportes (con servicios ya definidos)
+2. **Implementar herramientas de búsqueda**: OFAC, SAT (usando sistema de servicios)
 3. **Dashboard para admin_notaria**: Panel específico por notaría
 4. **Sistema básico de reportes**: Exportación y visualización
 
-#### **Objetivos Corto Plazo (2-3 semanas):**
+#### **Objetivos Corto Plazo (5-7 semanas):**
+- ✅ Sistema de servicios y planes operativo (Fase 1.5)
 - Sistema de tickets de soporte funcional
 - Herramientas de búsqueda básicas operativas
 - Panel de notaría completamente usable
@@ -698,10 +801,17 @@ GET    /api/notificaciones          → Notificaciones
 
 ### 💡 **RECOMENDACIONES TÉCNICAS**
 
-1. **Continuar con Fase 2**: El modelo de datos está parcialmente hecho
-2. **Implementar herramientas core**: OFAC y SAT son prioritarias
-3. **Testing exhaustivo**: Cada nueva funcionalidad debe probarse
-4. **Documentación continua**: Mantener docs actualizadas
+1. **🔥 PRIORIDAD MÁXIMA: Fase 1.5** - Arquitectura de servicios es foundation crítico
+2. **Después Fase 2**: Modelo de datos aprovechando servicios
+3. **Implementar herramientas core**: OFAC y SAT con control de servicios
+4. **Testing exhaustivo**: Cada nueva funcionalidad debe probarse
+5. **Documentación continua**: Mantener docs actualizadas
+
+### 🎯 **FRASE PARA LA JEFA:**
+
+> "Antes de implementar las herramientas específicas, diseñamos el sistema de servicios 
+> desacoplado del plan de suscripción para permitir crecimiento modular, control de 
+> costos y escalabilidad sin impacto estructural en la base de datos."
 
 ### 🎉 **LOGROS DESTACADOS**
 
@@ -717,24 +827,28 @@ GET    /api/notificaciones          → Notificaciones
 ## 📊 TIMELINE ESTIMADO
 
 ```
-FASE 0  (Prep)              → 2 semanas
-FASE 1  (Multi-tenant)      → 3 semanas
-FASE 2  (Modelo de datos)   → 2 semanas
-FASE 3  (Auth)              → 2 semanas
-FASE 4  (Admin Notaría)     → 3 semanas
-FASE 5  (Tickets)           → 3 semanas
-FASE 6  (Admin Atinet)      → 3 semanas
-FASE 7  (Búsquedas)         → 3 semanas
-FASE 8  (Reportes)          → 2 semanas
-FASE 9  (API)               → 3 semanas
-FASE 10 (Notificaciones)    → 2 semanas
-FASE 11 (Facturación)       → 2 semanas
-FASE 12 (Testing)           → 2 semanas
-FASE 13 (Documentación)     → 1 semana
-FASE 14 (Despliegue)        → 1-2 semanas
+FASE 0  (Prep)                      → 2 semanas   ✅ COMPLETADO
+FASE 1  (Multi-tenant)              → 3 semanas   ✅ COMPLETADO
+FASE 1.5 (Servicios y Planes)       → 3-4 semanas 📋 PLANIFICACIÓN
+FASE 2  (Modelo de datos)           → 2 semanas   ⏳ PENDIENTE
+FASE 3  (Auth)                      → 2 semanas   ⏳ PENDIENTE
+FASE 4  (Admin Notaría)             → 3 semanas   ⏳ PENDIENTE
+FASE 5  (Tickets)                   → 3 semanas   ⏳ PENDIENTE
+FASE 6  (Admin Atinet)              → 3 semanas   ⏳ PENDIENTE
+FASE 7  (Búsquedas)                 → 3 semanas   ⏳ PENDIENTE
+FASE 8  (Reportes)                  → 2 semanas   ⏳ PENDIENTE
+FASE 9  (API)                       → 3 semanas   ⏳ PENDIENTE
+FASE 10 (Notificaciones)            → 2 semanas   ⏳ PENDIENTE
+FASE 11 (Facturación)               → 2 semanas   ⏳ PENDIENTE
+FASE 12 (Testing)                   → 2 semanas   ⏳ PENDIENTE
+FASE 13 (Documentación)             → 1 semana    ⏳ PENDIENTE
+FASE 14 (Despliegue)                → 1-2 semanas ⏳ PENDIENTE
 
-─────────────────────────────────────────
-TOTAL: ~36-38 semanas (8-9 meses)
+─────────────────────────────────────────────────────────────
+TOTAL: ~39-42 semanas (9-10 meses)
+
+🎯 NOTA: Fase 1.5 es CRÍTICA y prerequisito para Fase 2+
+         Ver documento completo: FASE_1.5_SERVICIOS_Y_PLANES.md
 ```
 
 ---

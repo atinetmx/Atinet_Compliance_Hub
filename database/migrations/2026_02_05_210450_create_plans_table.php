@@ -25,7 +25,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->integer('orden')->default(0); // Para ordenar planes en UI
             $table->timestamps();
-            
+
             $table->index('is_active');
             $table->index('orden');
         });

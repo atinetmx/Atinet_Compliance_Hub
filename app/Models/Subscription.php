@@ -39,15 +39,20 @@ class Subscription extends Model
      * Estados de suscripción
      */
     public const STATUS_ACTIVA = 'activa';
+
     public const STATUS_VENCIDA = 'vencida';
+
     public const STATUS_CANCELADA = 'cancelada';
+
     public const STATUS_SUSPENDIDA = 'suspendida';
+
     public const STATUS_TRIAL = 'trial';
 
     /**
      * Ciclos de facturación
      */
     public const CICLO_MENSUAL = 'mensual';
+
     public const CICLO_ANUAL = 'anual';
 
     /**
@@ -72,7 +77,7 @@ class Subscription extends Model
     public function scopeActivas($query)
     {
         return $query->where('status', self::STATUS_ACTIVA)
-                    ->where('fecha_vencimiento', '>', now());
+            ->where('fecha_vencimiento', '>', now());
     }
 
     /**
@@ -81,7 +86,7 @@ class Subscription extends Model
     public function scopeVencenPronto($query, int $dias = 7)
     {
         return $query->where('status', self::STATUS_ACTIVA)
-                    ->whereBetween('fecha_vencimiento', [now(), now()->addDays($dias)]);
+            ->whereBetween('fecha_vencimiento', [now(), now()->addDays($dias)]);
     }
 
     /**
@@ -107,7 +112,7 @@ class Subscription extends Model
      */
     public function renovar(): bool
     {
-        if (!$this->estaActiva()) {
+        if (! $this->estaActiva()) {
             return false;
         }
 

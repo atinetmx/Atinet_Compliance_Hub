@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -29,6 +30,12 @@ class Notaria extends Model
         'telefono',
         'direccion',
         'notas_internas',
+        // Campos de ubicación normalizados
+        'estado',
+        'municipio',
+        'codigo_postal',
+        'colonia',
+        'calle',
     ];
 
     protected $casts = [
@@ -40,6 +47,48 @@ class Notaria extends Model
         'limite_usuarios_custom' => 'integer',
         'limite_busquedas_mes_custom' => 'integer',
     ];
+
+    protected $appends = [
+        'direccion_completa',
+    ];
+
+    /**
+     * Accessor: Genera dirección completa formateada
+     */
+    public function getDireccionCompletaAttribute(): string
+    {
+        // Si hay campos normalizados, usarlos
+        if ($this->calle || $this->estado) {
+            $partes = array_filter([
+                $this->calle,
+                $this->colonia,
+                $this->municipio,
+                $this->estado,
+                $this->codigo_postal ? "C.P. {$this->codigo_postal}" : null,
+            ]);
+
+            return implode(', ', $partes);
+        }
+
+        // Fallback al campo direccion antiguo si existe
+        return $this->direccion ?? 'No especificada';
+    }
+
+    /**
+     * Scope: Buscar notarías por estado
+     */
+    public function scopePorEstado($query, string $estado)
+    {
+        return $query->where('estado', $estado);
+    }
+
+    /**
+     * Scope: Buscar notarías en una región (múltiples estados)
+     */
+    public function scopePorRegion($query, array $estados)
+    {
+        return $query->whereIn('estado', $estados);
+    }
 
     /**
      * Plan de suscripción de la notaría
@@ -82,6 +131,31 @@ class Notaria extends Model
     }
 
     /**
+     * Servicios asignados a esta notaría
+     */
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'tenant_services', 'tenant_id')
+            ->withPivot([
+                'is_enabled',
+                'custom_limit',
+                'custom_price',
+                'activation_date',
+                'expiration_date',
+                'notes',
+            ])
+            ->withTimestamps();
+    }
+
+    /**
+     * Registro de uso de servicios
+     */
+    public function serviceUsage(): HasMany
+    {
+        return $this->hasMany(ServiceUsage::class, 'tenant_id');
+    }
+
+    /**
      * Scope para notarías activas
      */
     public function scopeActivas($query)
@@ -119,8 +193,10 @@ class Notaria extends Model
     public function puedeAgregarUsuarios(int $cantidad = 1): bool
     {
         $limite = $this->limite_usuarios;
-        if ($limite === -1) return true; // Ilimitado
-        
+        if ($limite === -1) {
+            return true;
+        } // Ilimitado
+
         return ($this->total_usuarios + $cantidad) <= $limite;
     }
 
@@ -130,8 +206,10 @@ class Notaria extends Model
     public function puedeHacerBusquedas(int $cantidad = 1): bool
     {
         $limite = $this->limite_busquedas_mes;
-        if ($limite === -1) return true; // Ilimitado
-        
+        if ($limite === -1) {
+            return true;
+        } // Ilimitado
+
         return ($this->busquedas_mes_actual + $cantidad) <= $limite;
     }
 

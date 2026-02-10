@@ -21,7 +21,7 @@ class UpdateRecoverablePasswordsSeeder extends Seeder
 
         foreach ($users as $user) {
             $user->update([
-                'recoverable_password' => Crypt::encryptString('admin123')
+                'recoverable_password' => Crypt::encryptString('admin123'),
             ]);
 
             $this->command->info("Usuario actualizado: {$user->email}");

@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Route;
  * IMPORTANTE: Estas rutas son solo para DEMOSTRACIÓN y DESARROLLO
  * NO incluir en producción o comentar/eliminar antes del deploy
  */
-
 Route::middleware(['auth'])->prefix('examples')->name('examples.')->group(function () {
 
     // � PÁGINA DE DEMOSTRACIÓN (interfaz web para probar los ejemplos)
@@ -19,27 +18,27 @@ Route::middleware(['auth'])->prefix('examples')->name('examples.')->group(functi
 
     // �🔥 SUPER_ADMIN: Dashboard global con todas las notarías
     Route::get('/super-admin', [UserRoleExamplesController::class, 'superAdminExample'])
-         ->name('super-admin')
-         ->middleware(['ensure.super.admin']); // Solo super_admin
+        ->name('super-admin')
+        ->middleware(['ensure.super.admin']); // Solo super_admin
 
     // 🏢 ADMIN_NOTARIA: Dashboard de su notaría específica
     Route::get('/admin-notaria', [UserRoleExamplesController::class, 'adminNotariaExample'])
-         ->name('admin-notaria')
-         ->middleware(['ensure.admin.notaria']); // Solo admin_notaria
+        ->name('admin-notaria')
+        ->middleware(['ensure.admin.notaria']); // Solo admin_notaria
 
     // 👤 USUARIO_NOTARIA: Vista de usuario regular
     Route::get('/usuario-notaria', [UserRoleExamplesController::class, 'usuarioNotariaExample'])
-         ->name('usuario-notaria')
-         ->middleware(['ensure.usuario.notaria']); // Solo usuario_notaria
+        ->name('usuario-notaria')
+        ->middleware(['ensure.usuario.notaria']); // Solo usuario_notaria
 
     // 👥 INVITADO: Vista limitada de solo lectura
     Route::get('/invitado', [UserRoleExamplesController::class, 'invitadoExample'])
-         ->name('invitado')
-         ->middleware(['ensure.invitado']); // Solo invitado
+        ->name('invitado')
+        ->middleware(['ensure.invitado']); // Solo invitado
 
     // 🔍 DEMO GLOBAL SCOPE: Funciona para cualquier usuario autenticado
     Route::get('/global-scope-demo', [UserRoleExamplesController::class, 'globalScopeDemo'])
-         ->name('global-scope-demo'); // Cualquier usuario autenticado
+        ->name('global-scope-demo'); // Cualquier usuario autenticado
 });
 
 /**
@@ -53,7 +52,7 @@ if (app()->environment(['local', 'testing'])) {
         Route::post('/change-user-type/{tipo}', function (string $tipo) {
             $validTypes = ['super_admin', 'admin_notaria', 'usuario_notaria', 'invitado'];
 
-            if (!in_array($tipo, $validTypes)) {
+            if (! in_array($tipo, $validTypes)) {
                 return response()->json(['error' => 'Tipo de usuario inválido'], 400);
             }
 
@@ -61,7 +60,7 @@ if (app()->environment(['local', 'testing'])) {
 
             return response()->json([
                 'message' => "Tipo de cuenta cambiado a: {$tipo}",
-                'usuario' => auth()->user()->only(['id', 'name', 'email', 'tipo_cuenta', 'notaria_id'])
+                'usuario' => auth()->user()->only(['id', 'name', 'email', 'tipo_cuenta', 'notaria_id']),
             ]);
         })->name('examples.change-user-type');
 

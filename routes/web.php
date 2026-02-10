@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
@@ -31,8 +31,15 @@ Route::get('dashboard', function () {
                     'total_notarias' => \App\Models\Notaria::count(),
                     'total_usuarios' => \App\Models\User::count(),
                     'total_busquedas' => \App\Models\Busqueda::withoutGlobalScopes()->count(),
-                    'suscripciones_activas' => \App\Models\Subscription::where('status', 'activa')->count(),
+                    'suscripciones_activas' => \App\Models\Subscription::whereIn('status', ['activa', 'trial'])->count(),
+                    'suscripciones_trial' => \App\Models\Subscription::where('status', 'trial')->count(),
+                    'suscripciones_vencidas' => \App\Models\Subscription::where('status', 'vencida')->count(),
+                    'suscripciones_suspendidas' => \App\Models\Subscription::where('status', 'suspendida')->count(),
                 ],
+                'recent_subscriptions' => \App\Models\Subscription::with(['notaria', 'plan'])
+                    ->latest()
+                    ->take(5)
+                    ->get(),
             ]);
 
         case 'admin_notaria':
@@ -59,7 +66,38 @@ Route::get('dashboard', function () {
 
 // Rutas de administración para super_admin
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    // Gestión de notarías
     Route::resource('notarias', \App\Http\Controllers\Admin\NotariaController::class);
+
+    // Gestión de suscripciones
+    Route::get('subscriptions', [\App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions.index');
+    Route::get('subscriptions/{subscription}', [\App\Http\Controllers\Admin\SubscriptionController::class, 'show'])->name('subscriptions.show');
+
+    // Gestión de planes
+    Route::resource('plans', \App\Http\Controllers\Admin\PlanController::class);
+    Route::post('plans/{plan}/toggle-active', [\App\Http\Controllers\Admin\PlanController::class, 'toggleActive'])->name('plans.toggle-active');
+
+    // Gestión de servicios
+    Route::resource('services', \App\Http\Controllers\Admin\ServiceController::class);
+    Route::post('services/{service}/toggle-active', [\App\Http\Controllers\Admin\ServiceController::class, 'toggleActive'])->name('services.toggle-active');
+
+    // Gestión de servicios por plan
+    Route::get('plans/{plan}/services', [\App\Http\Controllers\Admin\PlanServiceController::class, 'index'])->name('plans.services.index');
+    Route::post('plans/{plan}/services', [\App\Http\Controllers\Admin\PlanServiceController::class, 'store'])->name('plans.services.store');
+    Route::put('plans/{plan}/services/{service}', [\App\Http\Controllers\Admin\PlanServiceController::class, 'update'])->name('plans.services.update');
+    Route::delete('plans/{plan}/services/{service}', [\App\Http\Controllers\Admin\PlanServiceController::class, 'destroy'])->name('plans.services.destroy');
+    Route::post('plans/{plan}/services/reorder', [\App\Http\Controllers\Admin\PlanServiceController::class, 'reorder'])->name('plans.services.reorder');
+    Route::post('plans/{plan}/services/bulk-assign', [\App\Http\Controllers\Admin\PlanServiceController::class, 'bulkAssign'])->name('plans.services.bulk-assign');
+
+    // Gestión de usuarios del sistema
+    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+    Route::get('users/reports', [\App\Http\Controllers\Admin\UserController::class, 'reports'])->name('users.reports');
+
+    // Configuración del sistema
+    Route::resource('settings', \App\Http\Controllers\Admin\SettingsController::class);
+    Route::get('settings/logs', [\App\Http\Controllers\Admin\SettingsController::class, 'logs'])->name('settings.logs');
+    Route::post('settings/cache/clear', [\App\Http\Controllers\Admin\SettingsController::class, 'clearCache'])->name('settings.cache.clear');
+    Route::post('settings/optimize', [\App\Http\Controllers\Admin\SettingsController::class, 'optimize'])->name('settings.optimize');
 
     // Rutas para gestión de contraseñas
     Route::post('users/{user}/reveal-password', [\App\Http\Controllers\Admin\PasswordController::class, 'revealPassword'])->name('users.reveal-password');

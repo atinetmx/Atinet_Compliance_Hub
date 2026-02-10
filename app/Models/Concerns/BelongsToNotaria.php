@@ -2,8 +2,8 @@
 
 namespace App\Models\Concerns;
 
-use App\Models\Scopes\NotariaScope;
 use App\Models\Notaria;
+use App\Models\Scopes\NotariaScope;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -21,7 +21,7 @@ trait BelongsToNotaria
 
         // Asignar automáticamente la notaría del usuario autenticado al crear
         static::creating(function ($model) {
-            if (!$model->notaria_id && auth()->check() && auth()->user()->notaria_id) {
+            if (! $model->notaria_id && auth()->check() && auth()->user()->notaria_id) {
                 $model->notaria_id = auth()->user()->notaria_id;
             }
         });
@@ -56,7 +56,7 @@ trait BelongsToNotaria
      */
     public function belongsToCurrentUserNotaria(): bool
     {
-        if (!auth()->check() || !auth()->user()->notaria_id) {
+        if (! auth()->check() || ! auth()->user()->notaria_id) {
             return false;
         }
 

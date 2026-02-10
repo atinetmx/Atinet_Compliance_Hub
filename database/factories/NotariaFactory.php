@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
  * Factory para crear instancias de Notaria en tests
@@ -18,12 +17,11 @@ class NotariaFactory extends Factory
     public function definition(): array
     {
         return [
-            'nombre' => $this->faker->company() . ' Notaría',
+            'nombre' => $this->faker->company().' Notaría',
             'numero_notaria' => $this->faker->unique()->regexify('[0-9]{3}'),
             'activa' => true,
         ];
     }
-
 
     /**
      * Indica que la notaría está inactiva

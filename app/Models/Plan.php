@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Plan extends Model
@@ -50,6 +51,22 @@ class Plan extends Model
     }
 
     /**
+     * Servicios asignados a este plan
+     */
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'plan_services')
+            ->withPivot([
+                'is_included',
+                'usage_limit',
+                'extra_price',
+                'priority',
+            ])
+            ->withTimestamps()
+            ->orderBy('priority');
+    }
+
+    /**
      * Scope para planes activos
      */
     public function scopeActive($query)
@@ -73,6 +90,7 @@ class Plan extends Model
         if ($this->precio_anual && $this->precio_mensual) {
             return $this->precio_anual;
         }
+
         return $this->precio_mensual * 12;
     }
 }
