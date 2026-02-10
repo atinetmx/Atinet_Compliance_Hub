@@ -1006,3 +1006,38 @@ Sincronizar usage con la BD central para facturación
             'moneda' => 'MXN',
             'auto_renovacion' => true,
         ]);
+
+
+¡Perfecto! Ya completamos el CRUD completo de Planes y Servicios.
+
+📊 Estado Actual - FASE 1.5:
+✅ Completado:
+Sprint 1: Base de datos completa (migraciones, modelos, seeders)
+Sprint 3 - Día 1-2:
+✅ ServiceController (CRUD completo)
+✅ PlanController (CRUD completo)
+✅ PlanServiceController (gestión plan-servicio)
+✅ Vistas React para Servicios y Planes
+🎯 Siguiente Paso - 3 Opciones:
+Opción 1: TenantServiceController (Recomendada - continúa Sprint 3) 🎯
+Gestión de servicios personalizados por notaría:
+
+Ver servicios disponibles del plan de cada notaría
+Habilitar/deshabilitar servicios específicos
+Configurar límites personalizados (overrides)
+Configurar precios custom por notaría
+Vista: Admin/Notarias/Services.tsx
+Flujo: Super Admin → Notarías → [Notaría X] → "Gestionar Servicios" → Personalizar servicios
+
+Opción 2: Lógica de Negocio (Sprint 2)
+Implementar los managers del sistema:
+
+ServiceAccessManager (verificar acceso a servicios)
+ServiceUsageRecorder (registrar consumo)
+BillingCalculator (calcular costos)
+Opción 3: Dashboard de Estadísticas
+Panel de métricas y consumo:
+
+Gráficas de uso por servicio
+Top 10 notarías consumidoras
+Proyección de facturación
