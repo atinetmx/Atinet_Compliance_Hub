@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToNotaria;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ServiceUsage extends Model
 {
-    use BelongsToNotaria;
+    use BelongsToNotaria, HasFactory;
 
     // Deshabilitar updated_at ya que usamos solo created_at
     const UPDATED_AT = null;
