@@ -32,11 +32,7 @@ export function AppSidebar() {
         },
         ...(isSuperAdmin
             ? [
-                  {
-                      title: 'Listas Negras',
-                      href: '/admin/listas-negras',
-                      icon: Shield,
-                  },
+
                   {
                       title: 'Suscripciones',
                       href: SubscriptionController.index().url,
@@ -51,6 +47,11 @@ export function AppSidebar() {
                       title: 'Servicios',
                       href: '/admin/services',
                       icon: Package,
+                  },
+                  {
+                      title: 'Listas Negras',
+                      href: '/admin/listas-negras',
+                      icon: Shield,
                   },
               ]
             : []),

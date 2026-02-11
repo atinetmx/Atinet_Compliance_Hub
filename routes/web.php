@@ -132,6 +132,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('rfc', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfc'])->name('rfc');
         Route::post('combined', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchCombined'])->name('combined');
     });
+
+    // Generación de PDFs para resultados de búsqueda
+    Route::prefix('pdf')->name('pdf.')->group(function () {
+        Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
+        Route::get('ofac-negative', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacNegativePdf'])->name('ofac-negative');
+        Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
+        Route::get('sat-negative', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatNegativePdf'])->name('sat-negative');
+        Route::get('combined', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateCombinedPdf'])->name('combined');
+    });
 });
 
 require __DIR__.'/settings.php';
