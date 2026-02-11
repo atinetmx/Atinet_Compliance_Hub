@@ -1370,9 +1370,8 @@ if (typeof window !== 'undefined') {
 - [shadcn/ui Components](https://ui.shadcn.com/)
 
 ### Archivos Relacionados
-- [GESTION_SUSCRIPCIONES.md](GESTION_SUSCRIPCIONES.md) - Sistema completo de suscripciones
 - [RESUMEN_EJECUTIVO_FASE_1.5.md](RESUMEN_EJECUTIVO_FASE_1.5.md) - Resumen ejecutivo
-- [add_sample_subscriptions.php](add_sample_subscriptions.php) - Script de datos de prueba
+- [add_sample_subscriptions.php](../../../add_sample_subscriptions.php) - Script de datos de prueba
 
 ---
 
