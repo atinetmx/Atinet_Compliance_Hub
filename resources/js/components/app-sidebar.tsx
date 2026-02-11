@@ -70,11 +70,11 @@ export function AppSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" className="backdrop-blur-md bg-background/1 border-sidebar-border/50">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton size="lg" asChild className="bg-background/10 hover:bg-amber-500/80 hover:text-amber-50 backdrop-blur-sm transition-all duration-200">
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
@@ -83,11 +83,11 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="bg-background/10">
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="bg-background/10 backdrop-blur-sm">
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
