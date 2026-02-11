@@ -1,21 +1,30 @@
 # 🎯 FASE 1.5: SISTEMA DE SERVICIOS Y PLANES DE SUSCRIPCIÓN
 
-**Versión:** 1.1  
+**Versión:** 2.0  
 **Fecha:** 10 de Febrero, 2026  
-**Estado:** 🚀 EN PROGRESO (75% completado)  
+**Estado:** ✅ COMPLETADA (100%)  
 **Prioridad:** 🔥 CRÍTICA (prerequisito para Fase 2)
 
 **✅ Completado:**
-- Sprint 1: Base de datos (100%)
-- Sprint 3: Panel Super Admin (100%)
+- ✅ Sprint 1: Base de datos (100%)
+- ✅ Sprint 2: Lógica de negocio (100%)
+  - ServiceAccessManager (6 métodos, 14 tests)
+  - CheckServiceAccess Middleware (11 tests)
+  - ServiceUsageRecorder (8 métodos, 23 tests)
+  - Global Helpers (5 funciones)
+- ✅ Sprint 3: Panel Super Admin (100%)
   - CRUD Servicios
   - CRUD Planes con auto-sincronización
   - Gestión Plan-Servicio
   - Servicios por Notaría
+- ✅ Estandarización notaria_id (100%)
+- ✅ Tests: 126 passing (343 assertions)
+- ✅ Documentación completa
 
-**⏳ Pendiente:**
-- Sprint 2: Lógica de negocio (ServiceAccessManager)
-- Sprint 4-6: Features avanzados
+**⚠️ Nota para próxima sesión:**
+- Los helpers globales están implementados pero el autoload de Composer no los está cargando
+- Ubicación: `bootstrap/helpers.php`
+- Ver sección "PROBLEMA PENDIENTE: AUTOLOAD DE HELPERS" al final del documento
 
 ---
 
@@ -148,55 +157,54 @@ Propósito: Gestionar ACCESO, LÍMITES y CONSUMO de herramientas
 ### Ejemplo en código
 
 ```php
-// Middleware: CheckServiceAccess
+// Middleware: CheckServiceAccess (IMPLEMENTADO)
+// Ver: app/Http/Middleware/CheckServiceAccess.php
+// Tests: tests/Feature/Http/Middleware/CheckServiceAccessTest.php (11 tests)
+
 public function handle(Request $request, Closure $next, string $serviceCode)
 {
     $notaria = auth()->user()->notaria;
+    $accessManager = app(ServiceAccessManager::class);
     
-    // 1. Verificar suscripción activa
-    $subscription = $notaria->subscription()
-        ->where('status', 'activa')
-        ->whereDate('fecha_vencimiento', '>=', now())
-        ->first();
-    
-    if (!$subscription) {
-        return response()->json(['error' => 'No hay suscripción activa'], 403);
+    // Verificar acceso completo (suscripción activa + servicio incluido)
+    if (!$accessManager->canAccess($notaria, $serviceCode)) {
+        return response()->json(['error' => 'No tienes acceso a este servicio'], 403);
     }
     
-    // 2. Obtener el plan
-    $plan = $subscription->plan;
-    
-    // 3. Verificar si el plan incluye el servicio
-    $planService = $plan->services()
-        ->where('code', $serviceCode)
-        ->first();
-    
-    if (!$planService) {
-        return response()->json(['error' => 'Servicio no incluido en el plan'], 403);
+    // Verificar límites de uso mensual
+    if ($accessManager->hasReachedLimit($notaria, $serviceCode)) {
+        return response()->json(['error' => 'Has alcanzado el límite mensual'], 429);
     }
     
-    // 4. Buscar customización
-    $customService = $notaria->services()
-        ->where('code', $serviceCode)
-        ->first();
-    
-    // 5. Determinar límite efectivo
-    $limit = $customService?->custom_limit ?? $planService->pivot->usage_limit;
-    
-    // 6. Verificar consumo actual
-    if ($limit !== null) {
-        $currentUsage = $notaria->serviceUsage()
-            ->where('service_id', $planService->pivot->service_id)
-            ->whereMonth('consumed_at', now()->month)
-            ->count();
-        
-        if ($currentUsage >= $limit) {
-            return response()->json(['error' => 'Límite alcanzado'], 429);
-        }
-    }
-    
-    // 7. Permitir acceso
     return $next($request);
+}
+
+// ServiceAccessManager (IMPLEMENTADO)
+// Ver: app/Services/ServiceAccessManager.php
+// Tests: tests/Feature/Services/ServiceAccessManagerTest.php (14 tests)
+
+class ServiceAccessManager
+{
+    public function canAccess(Notaria $notaria, string $serviceCode): bool
+    public function hasReachedLimit(Notaria $notaria, string $serviceCode): bool
+    public function getRemainingUsage(Notaria $notaria, string $serviceCode): ?int
+    public function getUsageStats(Notaria $notaria, string $serviceCode): array
+    // + 2 métodos privados de helpers
+}
+
+// ServiceUsageRecorder (IMPLEMENTADO)
+// Ver: app/Services/ServiceUsageRecorder.php
+// Tests: tests/Feature/Services/ServiceUsageRecorderTest.php (23 tests)
+
+class ServiceUsageRecorder
+{
+    public function record(...): ?ServiceUsage
+    public function recordBatch(...): int
+    public function getCurrentMonthUsage(...): int
+    public function getCurrentMonthCost(...): float
+    public function markAsBilled(...): int
+    public function getPendingBilling(...): Collection
+    // + 2 métodos privados de helpers
 }
 ```
 
@@ -1351,12 +1359,181 @@ Route::middleware(['auth', 'notaria.access', 'service:BLACKLIST_SAT'])
 
 ---
 
+## ⚠️ PROBLEMA PENDIENTE: AUTOLOAD DE HELPERS
+
+### Estado Actual
+
+✅ **Implementado:**
+- `bootstrap/helpers.php`: 5 funciones helper globales (163 líneas)
+- Funciones: `can_use_service()`, `has_service_limit()`, `record_service_usage()`, `get_service_stats()`, `get_remaining_service_usage()`
+- Documentación completa en `HELPERS_SERVICIOS.md`
+- composer.json configurado con `"files": ["bootstrap/helpers.php"]`
+
+❌ **Problema:**
+- El autoload de Composer no está cargando el archivo `bootstrap/helpers.php`
+- Las funciones no están disponibles globalmente en la aplicación
+- Ejecutar `php -r "require 'vendor/autoload.php'; var_dump(function_exists('can_use_service'));"` retorna `bool(false)`
+
+### Tests Realizados
+
+1. ✅ `php -l bootstrap/helpers.php` → Sin errores de sintaxis
+2. ✅ Archivo existe en `bootstrap/helpers.php`
+3. ✅ `composer.json` tiene la configuración correcta:
+   ```json
+   "autoload": {
+       "files": ["bootstrap/helpers.php"]
+   }
+   ```
+4. ✅ Ejecutado `composer dump-autoload -o` múltiples veces
+5. ✅ Ejecutado `php artisan clear-compiled` y `php artisan optimize:clear`
+6. ❌ Las funciones siguen sin cargarse automáticamente
+
+### Solución Temporal (ACTUAL)
+
+Los desarrolladores deben usar directamente las clases de servicio:
+
+```php
+// En lugar de helpers (que no funcionan)
+use App\Services\ServiceAccessManager;
+use App\Services\ServiceUsageRecorder;
+
+// Inyección en constructor
+public function __construct(
+    private ServiceAccessManager $accessManager,
+    private ServiceUsageRecorder $usageRecorder
+) {}
+
+// Uso en métodos
+if ($this->accessManager->canAccess($notaria, 'sat-consulta')) {
+    // ...
+}
+
+$this->usageRecorder->record($notaria, 'sat-consulta');
+```
+
+### Posibles Soluciones para Próxima Sesión
+
+#### Opción 1: Service Provider personalizado
+
+Crear un `HelpersServiceProvider` que cargue el archivo manualmente:
+
+```php
+// app/Providers/HelpersServiceProvider.php
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+class HelpersServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        require_once base_path('bootstrap/helpers.php');
+    }
+}
+```
+
+Registrar en `bootstrap/providers.php`:
+```php
+return [
+    App\Providers\AppServiceProvider::class,
+    App\Providers\HelpersServiceProvider::class, // ← Agregar
+];
+```
+
+#### Opción 2: Cargar en bootstrap/app.php
+
+Agregar directamente en `bootstrap/app.php`:
+
+```php
+// Después de crear la aplicación
+$app = Application::configure(basePath: dirname(__DIR__))
+    // ... resto de configuración
+    ->create();
+
+// Cargar helpers globales
+require_once $app->basePath('bootstrap/helpers.php');
+
+return $app;
+```
+
+#### Opción 3: Cargar en tests/Pest.php
+
+Para que funcione al menos en tests, agregar en `tests/Pest.php`:
+
+```php
+<?php
+
+uses(
+    Tests\TestCase::class,
+    Illuminate\Foundation\Testing\RefreshDatabase::class,
+)->in('Feature');
+
+// Cargar helpers para tests
+require_once __DIR__.'/../bootstrap/helpers.php';
+```
+
+#### Opción 4: Verificar composer.lock
+
+A veces el problema está en que `composer.lock` tiene cached el autoload anterior:
+
+```bash
+rm composer.lock
+composer install
+php artisan optimize:clear
+```
+
+### Archivos a Revisar en Próxima Sesión
+
+1. **bootstrap/helpers.php** - Verificar que no tenga errores silenciosos
+2. **composer.json** - Verificar sintaxis del autoload
+3. **vendor/composer/autoload_files.php** - Ver si está listado el helpers.php
+4. **tests/Pest.php** - Agregar require manual para tests
+5. **bootstrap/app.php** - Agregar carga manual del archivo
+
+### Comandos de Debugging
+
+```bash
+# Ver qué archivos está cargando Composer
+cat vendor/composer/autoload_files.php
+
+# Regenerar autoload completamente
+rm -rf vendor/composer
+composer dump-autoload -o
+
+# Verificar sintaxis PHP del helpers
+php -l bootstrap/helpers.php
+
+# Probar carga manual
+php -r "require 'bootstrap/helpers.php'; var_dump(function_exists('can_use_service'));"
+
+# Ver contenido del autoload_static
+cat vendor/composer/autoload_static.php | grep helpers
+```
+
+### Impacto
+
+⚠️ **Prioridad: MEDIA** - No bloquea funcionalidad, solo ergonomía del código
+
+- ✅ La funcionalidad está 100% disponible via clases de servicio
+- ✅ Todos los tests pasan (126/126)
+- ✅ Documentación alternativa en `HELPERS_SERVICIOS.md`
+- ❌ Los helpers serían más convenientes para desarrollo rápido
+- ❌ Código más verboso al requerir inyección de dependencias
+
+---
+
 ## 📚 REFERENCIAS Y RECURSOS
 
 ### Documentación Laravel
 - [Eloquent Relationships](https://laravel.com/docs/12.x/eloquent-relationships)
 - [Query Scopes](https://laravel.com/docs/12.x/eloquent#query-scopes)
 - [Middleware](https://laravel.com/docs/12.x/middleware)
+- [Service Providers](https://laravel.com/docs/12.x/providers)
+- [Helpers](https://laravel.com/docs/12.x/helpers#custom-helpers)
+
+### Composer
+- [Autoloading Files](https://getcomposer.org/doc/04-schema.md#files)
+- [Autoload Optimization](https://getcomposer.org/doc/articles/autoloader-optimization.md)
 
 ### Patrones de Diseño
 - **Service Layer Pattern**: Para lógica de negocio
