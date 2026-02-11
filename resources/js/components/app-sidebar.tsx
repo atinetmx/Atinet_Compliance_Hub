@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield } from 'lucide-react';
 
+import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -18,8 +19,6 @@ import type { NavItem } from '@/types';
 
 import AppLogo from './app-logo';
 
-import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
-
 export function AppSidebar() {
     const { auth } = usePage<{ auth: { user: { tipo_cuenta: string } } }>()
         .props;
@@ -33,6 +32,11 @@ export function AppSidebar() {
         },
         ...(isSuperAdmin
             ? [
+                  {
+                      title: 'Listas Negras',
+                      href: '/admin/listas-negras',
+                      icon: Shield,
+                  },
                   {
                       title: 'Suscripciones',
                       href: SubscriptionController.index().url,

@@ -115,6 +115,23 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Rutas para gestión de contraseñas
     Route::post('users/{user}/reveal-password', [\App\Http\Controllers\Admin\PasswordController::class, 'revealPassword'])->name('users.reveal-password');
     Route::post('users/{user}/reset-password', [\App\Http\Controllers\Admin\PasswordController::class, 'resetPassword'])->name('users.reset-password');
+
+    // === BÚSQUEDAS EN LISTAS NEGRAS (OFAC + SAT) - SUPERADMIN ===
+    // Estas rutas permiten a los superadministradores realizar búsquedas
+    // sin restricciones de servicios en las listas negras OFAC y SAT
+
+    // Página de búsqueda
+    Route::get('listas-negras', function () {
+        return Inertia::render('Admin/ListasNegras/Search');
+    })->name('listas-negras');
+
+    // API endpoints para búsquedas
+    Route::prefix('search')->name('search.')->group(function () {
+        Route::post('persona-fisica', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaFisica'])->name('persona-fisica');
+        Route::post('persona-moral', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaMoral'])->name('persona-moral');
+        Route::post('rfc', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfc'])->name('rfc');
+        Route::post('combined', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchCombined'])->name('combined');
+    });
 });
 
 require __DIR__.'/settings.php';

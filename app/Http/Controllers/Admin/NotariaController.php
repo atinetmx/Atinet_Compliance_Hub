@@ -229,10 +229,21 @@ class NotariaController extends Controller
      * ✅ MÉTODO PARA CREAR BASE DE DATOS ESPECÍFICA DE NOTARÍA
      * Según la arquitectura híbrida: cada notaría necesita su propia BD local
      * SIN AFECTAR LA SESIÓN ACTUAL DEL SUPER ADMIN
+     *
+     * Formato del nombre: atinet_{estado}_notaria_{numero}
+     * Ejemplos:
+     *   - atinet_bcs_notaria_21      (Baja California Sur, Notaría 21)
+     *   - atinet_edomex_notaria_1    (Estado de México, Notaría 1)
+     *   - atinet_jal_notaria_15      (Jalisco, Notaría 15)
+     *   - atinet_default_notaria_99  (Sin estado definido)
      */
     private function createNotariaDatabase(Notaria $notaria): void
     {
-        $databaseName = 'atinet_notaria_'.$notaria->numero_notaria;
+        // Obtener código del estado (ej: "Baja California Sur" => "bcs")
+        $estadoCodigo = EstadoMexico::getCodeFromName($notaria->estado);
+
+        // Generar nombre de BD: atinet_{estado}_notaria_{numero}
+        $databaseName = "atinet_{$estadoCodigo}_notaria_{$notaria->numero_notaria}";
 
         try {
             // ✅ 1. CREAR BASE DE DATOS ESPECÍFICA (SIN CAMBIAR CONEXIÓN ACTUAL)
@@ -241,6 +252,8 @@ class NotariaController extends Controller
             Log::info('Base de datos creada para notaría', [
                 'notaria_id' => $notaria->id,
                 'numero_notaria' => $notaria->numero_notaria,
+                'estado' => $notaria->estado,
+                'estado_codigo' => $estadoCodigo,
                 'database_name' => $databaseName,
                 'contacto' => $notaria->email_contacto,
             ]);

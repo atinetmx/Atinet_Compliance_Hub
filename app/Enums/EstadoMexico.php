@@ -57,4 +57,69 @@ enum EstadoMexico: string
 
         return $options;
     }
+
+    /**
+     * Obtiene el código corto del estado (para nombres de BD, etc.)
+     * Ejemplo: "Baja California Sur" => "bcs"
+     */
+    public function getCode(): string
+    {
+        return match ($this) {
+            self::AGUASCALIENTES => 'ags',
+            self::BAJA_CALIFORNIA => 'bc',
+            self::BAJA_CALIFORNIA_SUR => 'bcs',
+            self::CAMPECHE => 'camp',
+            self::CHIAPAS => 'chis',
+            self::CHIHUAHUA => 'chih',
+            self::CDMX => 'cdmx',
+            self::COAHUILA => 'coah',
+            self::COLIMA => 'col',
+            self::DURANGO => 'dgo',
+            self::GUANAJUATO => 'gto',
+            self::GUERRERO => 'gro',
+            self::HIDALGO => 'hgo',
+            self::JALISCO => 'jal',
+            self::MEXICO => 'edomex',
+            self::MICHOACAN => 'mich',
+            self::MORELOS => 'mor',
+            self::NAYARIT => 'nay',
+            self::NUEVO_LEON => 'nl',
+            self::OAXACA => 'oax',
+            self::PUEBLA => 'pue',
+            self::QUERETARO => 'qro',
+            self::QUINTANA_ROO => 'qroo',
+            self::SAN_LUIS_POTOSI => 'slp',
+            self::SINALOA => 'sin',
+            self::SONORA => 'son',
+            self::TABASCO => 'tab',
+            self::TAMAULIPAS => 'tamps',
+            self::TLAXCALA => 'tlax',
+            self::VERACRUZ => 'ver',
+            self::YUCATAN => 'yuc',
+            self::ZACATECAS => 'zac',
+        };
+    }
+
+    /**
+     * Obtiene el código corto del estado a partir del nombre (string)
+     * Ejemplo: "Baja California Sur" => "bcs"
+     *
+     * @param  string|null  $estadoNombre  Nombre del estado
+     * @return string Código del estado o 'default' si no se encuentra
+     */
+    public static function getCodeFromName(?string $estadoNombre): string
+    {
+        if (! $estadoNombre) {
+            return 'default';
+        }
+
+        foreach (self::cases() as $estado) {
+            if ($estado->value === $estadoNombre) {
+                return $estado->getCode();
+            }
+        }
+
+        // Si no se encuentra, retornar 'default'
+        return 'default';
+    }
 }

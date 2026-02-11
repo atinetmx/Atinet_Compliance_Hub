@@ -39,6 +39,7 @@
     35 => 'Pest\\Laravel\\PestServiceProvider',
     36 => 'App\\Providers\\AppServiceProvider',
     37 => 'App\\Providers\\FortifyServiceProvider',
+    38 => 'App\\Providers\\HelpersServiceProvider',
   ),
   'eager' => 
   array (
@@ -65,6 +66,7 @@
     20 => 'Pest\\Laravel\\PestServiceProvider',
     21 => 'App\\Providers\\AppServiceProvider',
     22 => 'App\\Providers\\FortifyServiceProvider',
+    23 => 'App\\Providers\\HelpersServiceProvider',
   ),
   'deferred' => 
   array (

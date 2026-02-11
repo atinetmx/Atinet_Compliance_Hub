@@ -276,22 +276,38 @@ Los helpers y servicios están completamente testeados:
 - **ServiceAccessManager**: 14 tests → [`tests/Feature/Services/ServiceAccessManagerTest.php`](tests/Feature/Services/ServiceAccessManagerTest.php)
 - **CheckServiceAccess Middleware**: 11 tests → [`tests/Feature/Http/Middleware/CheckServiceAccessTest.php`](tests/Feature/Http/Middleware/CheckServiceAccessTest.php)
 - **ServiceUsageRecorder**: 23 tests → [`tests/Feature/Services/ServiceUsageRecorderTest.php`](tests/Feature/Services/ServiceUsageRecorderTest.php)
+- **Helpers**: 6 tests → [`tests/Feature/Feature/HelpersLoadTest.php`](tests/Feature/Feature/HelpersLoadTest.php)
 
-Total: **126 tests passing** ✅
+Total: **132 tests passing** ✅
 
-## Nota sobre Autoload
+## ✅ Autoload Resuelto
 
-ℹ️ **Importante**: Las funciones helper aún no están disponibles globalmente via autoload de Composer. Para usar estas funciones, utiliza directamente las clases `Service AccessManager` y `ServiceUsageRecorder` como se muestra en los ejemplos anteriores.
+Las funciones helper están disponibles globalmente gracias a `HelpersServiceProvider`.
 
-Si necesitas las funciones helper, puedes incluir manualmente el archivo:
-```php
-require_once base_path('bootstrap/helpers.php');
+**Implementación:**
+- ✅ `app/Providers/HelpersServiceProvider.php` creado
+- ✅ Registrado en `bootstrap/providers.php`
+- ✅ Funciona en web, console y tests
+- ✅ 6 tests validando la carga correcta
+
+**Verificación:**
+```bash
+php artisan tinker --execute="var_dump(function_exists('can_use_service'));"
+# Output: bool(true) ✅
 ```
 
-O inyectar los servicios en tu controlador/servicio:
+**Uso:**
 ```php
+// Opción 1: Usar helpers directamente (más conciso)
+if (can_use_service('sat-consulta')) {
+    record_service_usage('sat-consulta', metadata: ['rfc' => $rfc]);
+}
+
+// Opción 2: Usar servicios con inyección (más control)
 public function __construct(
     private ServiceAccessManager $accessManager,
     private ServiceUsageRecorder $usageRecorder
 ) {}
 ```
+
+Ambas opciones funcionan perfectamente. Los helpers son convenientes para código simple, mientras que la inyección de dependencias ofrece más control y es mejor para testing.
