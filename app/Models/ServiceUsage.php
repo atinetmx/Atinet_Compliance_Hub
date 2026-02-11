@@ -17,7 +17,7 @@ class ServiceUsage extends Model
     protected $table = 'service_usage';
 
     protected $fillable = [
-        'tenant_id',
+        'notaria_id',
         'service_id',
         'user_id',
         'consumed_at',
@@ -33,17 +33,14 @@ class ServiceUsage extends Model
         return [
             'consumed_at' => 'datetime',
             'quantity' => 'integer',
-            'cost' => 'decimal:2',
+            'cost' => 'float',
             'billable' => 'boolean',
             'billed_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
 
-    public function notaria(): BelongsTo
-    {
-        return $this->belongsTo(Notaria::class, 'tenant_id');
-    }
+    // La relación notaria() viene del trait BelongsToNotaria
 
     public function service(): BelongsTo
     {

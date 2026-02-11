@@ -75,7 +75,7 @@ test('servicio tiene relación con registros de uso', function () {
     $user = \App\Models\User::factory()->create(['notaria_id' => $notaria->id]);
 
     $usage = ServiceUsage::create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'user_id' => $user->id,
         'consumed_at' => now(),

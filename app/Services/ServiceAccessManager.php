@@ -180,13 +180,13 @@ class ServiceAccessManager
         $percentage = $limit ? min(100, ($currentUsage / $limit) * 100) : 0;
 
         // Obtener último uso
-        $lastUsage = ServiceUsage::where('tenant_id', $notaria->id)
+        $lastUsage = ServiceUsage::where('notaria_id', $notaria->id)
             ->where('service_id', $service->id)
             ->latest('consumed_at')
             ->first();
 
         // Calcular costo total del mes
-        $monthlyCost = ServiceUsage::where('tenant_id', $notaria->id)
+        $monthlyCost = ServiceUsage::where('notaria_id', $notaria->id)
             ->where('service_id', $service->id)
             ->whereYear('consumed_at', now()->year)
             ->whereMonth('consumed_at', now()->month)
@@ -313,7 +313,7 @@ class ServiceAccessManager
      */
     protected function getCurrentMonthUsage(Notaria $notaria, Service $service): int
     {
-        return ServiceUsage::where('tenant_id', $notaria->id)
+        return ServiceUsage::where('notaria_id', $notaria->id)
             ->where('service_id', $service->id)
             ->whereYear('consumed_at', now()->year)
             ->whereMonth('consumed_at', now()->month)

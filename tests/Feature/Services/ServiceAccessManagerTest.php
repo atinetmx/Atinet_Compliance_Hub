@@ -146,7 +146,7 @@ test('hasReachedLimit detecta cuando se alcanza el límite', function () {
 
     // Crear 10 usos en el mes actual
     ServiceUsage::factory()->count(10)->create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'quantity' => 1,
         'consumed_at' => now(),
@@ -177,7 +177,7 @@ test('getRemainingUsage calcula correctamente el uso restante', function () {
 
     // Crear 30 usos
     ServiceUsage::factory()->count(30)->create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'quantity' => 1,
         'consumed_at' => now(),
@@ -234,7 +234,7 @@ test('getUsageStats retorna estadísticas completas', function () {
 
     // Crear 20 usos
     ServiceUsage::factory()->count(20)->create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'quantity' => 1,
         'cost' => 5.00,
@@ -335,7 +335,7 @@ test('límite personalizado tiene prioridad sobre límite del plan', function ()
 
     // Crear 150 usos (excede plan pero no personalizado)
     ServiceUsage::factory()->count(150)->create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'quantity' => 1,
         'consumed_at' => now(),
@@ -368,7 +368,7 @@ test('uso de meses anteriores no cuenta para el límite actual', function () {
 
     // Crear 40 usos del mes pasado
     ServiceUsage::factory()->count(40)->create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'quantity' => 1,
         'consumed_at' => now()->subMonth(),
@@ -376,7 +376,7 @@ test('uso de meses anteriores no cuenta para el límite actual', function () {
 
     // Crear 10 usos del mes actual
     ServiceUsage::factory()->count(10)->create([
-        'tenant_id' => $notaria->id,
+        'notaria_id' => $notaria->id,
         'service_id' => $service->id,
         'quantity' => 1,
         'consumed_at' => now(),

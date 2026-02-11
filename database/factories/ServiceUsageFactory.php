@@ -20,7 +20,7 @@ class ServiceUsageFactory extends Factory
     public function definition(): array
     {
         return [
-            'tenant_id' => Notaria::factory(),
+            'notaria_id' => Notaria::factory(),
             'service_id' => Service::factory(),
             'user_id' => User::factory(),
             'consumed_at' => now(),

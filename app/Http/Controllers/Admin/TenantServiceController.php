@@ -44,7 +44,7 @@ class TenantServiceController extends Controller
 
         // Obtener servicios personalizados de la notaría
         $tenantServices = TenantService::with('service')
-            ->where('tenant_id', $notaria->id)
+            ->where('notaria_id', $notaria->id)
             ->get()
             ->map(function ($ts) {
                 return [
@@ -100,7 +100,7 @@ class TenantServiceController extends Controller
         // Crear o actualizar configuración del servicio
         $tenantService = TenantService::updateOrCreate(
             [
-                'tenant_id' => $notaria->id,
+                'notaria_id' => $notaria->id,
                 'service_id' => $validated['service_id'],
             ],
             array_merge($validated, [
@@ -118,7 +118,7 @@ class TenantServiceController extends Controller
     public function update(Request $request, Notaria $notaria, TenantService $tenantService)
     {
         // Verificar que el tenant service pertenece a la notaría
-        if ($tenantService->tenant_id !== $notaria->id) {
+        if ($tenantService->notaria_id !== $notaria->id) {
             abort(403, 'Este servicio no pertenece a la notaría especificada.');
         }
 
@@ -143,7 +143,7 @@ class TenantServiceController extends Controller
     public function destroy(Notaria $notaria, TenantService $tenantService)
     {
         // Verificar que el tenant service pertenece a la notaría
-        if ($tenantService->tenant_id !== $notaria->id) {
+        if ($tenantService->notaria_id !== $notaria->id) {
             abort(403, 'Este servicio no pertenece a la notaría especificada.');
         }
 
@@ -158,7 +158,7 @@ class TenantServiceController extends Controller
     public function toggleEnabled(Notaria $notaria, TenantService $tenantService)
     {
         // Verificar que el tenant service pertenece a la notaría
-        if ($tenantService->tenant_id !== $notaria->id) {
+        if ($tenantService->notaria_id !== $notaria->id) {
             abort(403, 'Este servicio no pertenece a la notaría especificada.');
         }
 
