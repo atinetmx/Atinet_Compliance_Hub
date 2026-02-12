@@ -125,16 +125,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return Inertia::render('Admin/ListasNegras/Search');
     })->name('listas-negras');
 
-    // API endpoints para búsquedas
-    Route::prefix('search')->name('search.')->group(function () {
+    // API endpoints para búsquedas (protegidas por validación de suscripción)
+    Route::prefix('search')->name('search.')->middleware(['subscription'])->group(function () {
         Route::post('persona-fisica', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaFisica'])->name('persona-fisica');
         Route::post('persona-moral', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaMoral'])->name('persona-moral');
         Route::post('rfc', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfc'])->name('rfc');
         Route::post('combined', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchCombined'])->name('combined');
     });
 
-    // Generación de PDFs para resultados de búsqueda
-    Route::prefix('pdf')->name('pdf.')->group(function () {
+    // Generación de PDFs para resultados de búsqueda (también protegidas)
+    Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('ofac-negative', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacNegativePdf'])->name('ofac-negative');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
