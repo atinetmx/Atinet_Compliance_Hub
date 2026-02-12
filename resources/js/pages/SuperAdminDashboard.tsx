@@ -441,7 +441,7 @@ export default function SuperAdminDashboard({
                 {/* Main Dashboard Area */}
                 <div
                     ref={mainCardRef}
-                    className="dashboard-card relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 transition-shadow hover:shadow-lg md:min-h-min dark:border-sidebar-border"
+                    className="dashboard-card relative min-h-screen flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 transition-shadow hover:shadow-lg md:min-h-min dark:border-sidebar-border"
                 >
                     <div className="mb-6 flex items-center gap-4">
                         <FileText className="h-6 w-6 text-primary" />
