@@ -17,6 +17,8 @@ import {
     YAxis,
 } from 'recharts';
 
+import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
+
 import { SubscriptionStatusBadge } from '@/components/subscription-status-badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,7 +46,7 @@ import {
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
-import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
+
 
 interface Subscription {
     id: number;
@@ -426,7 +428,7 @@ export default function Index({
                                     value={chartType}
                                     onValueChange={handleChartTypeChange}
                                 >
-                                    <SelectTrigger className="w-[180px]">
+                                    <SelectTrigger className="w-45">
                                         <SelectValue placeholder="Selecciona tipo" />
                                     </SelectTrigger>
                                     <SelectContent>

@@ -60,9 +60,9 @@ class CheckSubscriptionStatusTest extends TestCase
     {
         // Sin suscripción, el acceso se debe denegar
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertFalse($canAccess, 'No debería permitir acceso sin suscripción');
     }
 
@@ -81,19 +81,19 @@ class CheckSubscriptionStatusTest extends TestCase
         ]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertTrue($canAccess, 'Debería permitir acceso con suscripción activa');
     }
 
     /**
      * Test: Acceso denegado en período de gracia (fecha_vencimiento < now)
-     * 
+     *
      * El ServiceAccessManager requiere que fecha_vencimiento >= now()
-     * Así que durante el período de gracia (cuando está vencida), 
+     * Así que durante el período de gracia (cuando está vencida),
      * el acceso se deniega automáticamente por el manager.
-     * 
+     *
      * El middleware CheckSubscriptionStatus es el que permite acceso limitado
      * durante el período de gracia (solo lectura).
      */
@@ -108,9 +108,9 @@ class CheckSubscriptionStatusTest extends TestCase
         ]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         // ServiceAccessManager rechaza porque fecha_vencimiento < now()
         $this->assertFalse($canAccess, 'ServiceAccessManager rechaza suscripciones vencidas');
     }
@@ -129,9 +129,9 @@ class CheckSubscriptionStatusTest extends TestCase
         ]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertFalse($canAccess, 'No debería permitir acceso fuera del período de gracia');
     }
 
@@ -149,9 +149,9 @@ class CheckSubscriptionStatusTest extends TestCase
         ]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertFalse($canAccess, 'No debería permitir acceso con suscripción suspendida');
     }
 
@@ -169,9 +169,9 @@ class CheckSubscriptionStatusTest extends TestCase
         ]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertFalse($canAccess, 'No debería permitir acceso con suscripción cancelada');
     }
 
@@ -189,9 +189,9 @@ class CheckSubscriptionStatusTest extends TestCase
         ]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertTrue($canAccess, 'Debería permitir acceso con suscripción trial');
     }
 
@@ -212,9 +212,9 @@ class CheckSubscriptionStatusTest extends TestCase
         $this->notaria->update(['activa' => false]);
 
         $accessManager = app(\App\Services\ServiceAccessManager::class);
-        
+
         $canAccess = $accessManager->canAccess($this->notaria, 'OFAC');
-        
+
         $this->assertFalse($canAccess, 'No debería permitir acceso si la notaría está inactiva');
     }
 

@@ -276,11 +276,11 @@ class ReportsController extends Controller
 
         return [
             'total_requests' => (clone $query)->count(),
-            'total_quantity' => (clone $query)->sum('quantity'),
-            'total_cost' => (clone $query)->sum('cost'),
+            'total_quantity' => (clone $query)->sum('quantity') ?? 0,
+            'total_cost' => (clone $query)->sum('cost') ?? 0,
             'unique_notarias' => (clone $query)->distinct('notaria_id')->count('notaria_id'),
             'unique_services' => (clone $query)->distinct('service_id')->count('service_id'),
-            'avg_cost_per_request' => (clone $query)->avg('cost'),
+            'avg_cost_per_request' => (clone $query)->avg('cost') ?? 0,
         ];
     }
 
