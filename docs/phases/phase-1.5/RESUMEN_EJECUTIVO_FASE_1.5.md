@@ -627,8 +627,8 @@ Disponible para: Dudas, demos, reuniones
 
 **Documentación Técnica Completa:**  
 📄 [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)  
-📄 [HELPERS_SERVICIOS.md](HELPERS_SERVICIOS.md)  
-📄 [NOTAS_PROXIMA_SESION.md](NOTAS_PROXIMA_SESION.md)
+📄 [HELPERS_SERVICIOS.md](../../development/HELPERS_SERVICIOS.md)  
+📄 [NOTAS_PROXIMA_SESION.md](completed/NOTAS_PROXIMA_SESION.md)
 
 ---
 
