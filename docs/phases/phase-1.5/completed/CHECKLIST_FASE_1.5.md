@@ -1028,9 +1028,9 @@ php artisan schedule:list
 ## 🎓 RECURSOS
 
 ### Documentación
-- [Fase 1.5 Completa](FASE_1.5_SERVICIOS_Y_PLANES.md)
-- [Resumen Ejecutivo](RESUMEN_EJECUTIVO_FASE_1.5.md)
-- [Plan General](PLAN_DESARROLLO_ATINET_COMPLIANCE_HUB.md)
+- [Fase 1.5 Completa](../FASE_1.5_SERVICIOS_Y_PLANES.md)
+- [Resumen Ejecutivo](../RESUMEN_EJECUTIVO_FASE_1.5.md)
+- [Plan General](../../architecture/PLAN_DESARROLLO_ATINET_COMPLIANCE_HUB.md)
 
 ### Ejemplos de Código
 - Laravel Multi-tenancy: https://laravel.com/docs/12.x/eloquent#global-scopes

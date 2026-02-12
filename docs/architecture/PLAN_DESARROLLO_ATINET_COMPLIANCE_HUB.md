@@ -6,7 +6,7 @@
 **Última actualización:** 9 Feb 2026
 
 > **🚨 ACTUALIZACIÓN IMPORTANTE:** Se agregó **Fase 1.5 (Sistema de Servicios y Planes)** 
-> como prerequisito crítico antes de la Fase 2. Ver [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
+> como prerequisito crítico antes de la Fase 2. Ver [FASE_1.5_SERVICIOS_Y_PLANES.md](../phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md)
 
 ---
 
@@ -279,7 +279,7 @@ PasswordManager.tsx        // Gestor de contraseñas ✅ COMPLETADO
 ### FASE 1.5: SISTEMA DE SERVICIOS Y PLANES 📋 **PLANIFICACIÓN COMPLETA**
 **Objetivo:** Implementar arquitectura modular de servicios desacoplada de planes de suscripción
 
-> **📄 DOCUMENTO COMPLETO:** Ver [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
+> **📄 DOCUMENTO COMPLETO:** Ver [FASE_1.5_SERVICIOS_Y_PLANES.md](../phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md)
 
 #### ¿Por qué esta fase es CRÍTICA?
 
@@ -722,7 +722,7 @@ GET    /api/notificaciones          → Notificaciones
 | **Fase 5-14** | ⏳ Pendiente | Media | 8-12 semanas |
 
 > **⚠️ IMPORTANTE:** La Fase 1.5 (Sistema de Servicios y Planes) es **prerequisito obligatorio** 
-> antes de iniciar la Fase 2. Ver documento completo: [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
+> antes de iniciar la Fase 2. Ver documento completo: [FASE_1.5_SERVICIOS_Y_PLANES.md](../phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md)
 
 ### 🎯 **FUNCIONALIDADES OPERATIVAS AL 100%**
 
@@ -754,7 +754,7 @@ GET    /api/notificaciones          → Notificaciones
 
 #### **🔥 CRÍTICO - Iniciar Fase 1.5 (Prerequisito):**
 
-**📄 Ver documento completo:** [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md)
+**📄 Ver documento completo:** [FASE_1.5_SERVICIOS_Y_PLANES.md](../phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md)
 
 **¿Por qué AHORA?**
 - Arquitectura de servicios es base para TODAS las herramientas futuras

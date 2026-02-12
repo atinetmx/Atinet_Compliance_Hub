@@ -6,46 +6,45 @@ Este documento sirve como índice central de toda la documentación del proyecto
 
 ---
 
-## 📖 Documentación Principal
+## 📖 Documentación
 
-### 🎯 Planificación y Arquitectura
+### 🗂️ Por Categoría
 
-| Documento | Descripción | Estado |
-|-----------|-------------|--------|
-| [PLAN_DESARROLLO_ATINET_COMPLIANCE_HUB.md](PLAN_DESARROLLO_ATINET_COMPLIANCE_HUB.md) | Plan general de desarrollo del proyecto | 📘 Actualizado |
-| [PROPUESTA_TECNICA_SISTEMA_ATINET.md](PROPUESTA_TECNICA_SISTEMA_ATINET.md) | Propuesta técnica completa del sistema | 📘 Actualizado |
-| [ARQUITECTURA_MULTI_TENANT.md](ARQUITECTURA_MULTI_TENANT.md) | Diseño de arquitectura multi-tenant | 📘 Actualizado |
-| [DOCUMENTACION_PROYECTO.md](DOCUMENTACION_PROYECTO.md) | Documentación técnica master del proyecto | 📘 Actualizado |
+| Categoría | Descripción | Ubicación |
+|-----------|-------------|-----------|
+| **Arquitectura** | Diseño técnico y arquitectura del sistema | [`docs/architecture/`](docs/architecture/) |
+| **Desarrollo** | Guías de desarrollo, convenciones y referencias técnicas | [`docs/development/`](docs/development/) |
+| **Diseño UI/UX** | Paletas de colores y guías de interfaz | [`docs/design/`](docs/design/) |
+| **Fases del Proyecto** | Documentación organizada por fases de desarrollo | [`docs/phases/`](docs/phases/) |
+| **Archivo** | Documentos históricos y obsoletos | [`docs/archive/`](docs/archive/) |
 
-### 🚀 Fases de Implementación
+### 🚀 Por Fase de Implementación
 
-#### Fase 0 - Infraestructura Base
-| Documento | Descripción | Estado |
-|-----------|-------------|--------|
-| [FASE_0_COMPLETADO.md](FASE_0_COMPLETADO.md) | Resumen de infraestructura implementada | ✅ Completado |
+#### Fase 0 - Infraestructura Base ✅ Completada
+- [`FASE_0_COMPLETADO.md`](docs/phases/phase-0/FASE_0_COMPLETADO.md)
 
-#### Fase 1 - Multi-Tenant
-| Documento | Descripción | Estado |
-|-----------|-------------|--------|
-| [FASE_1_ESTRUCTURA_MULTI_TENANT.md](FASE_1_ESTRUCTURA_MULTI_TENANT.md) | Implementación de arquitectura multi-tenant | ✅ Completado |
+#### Fase 1 - Multi-Tenant ✅ Completada
+- [`FASE_1_ESTRUCTURA_MULTI_TENANT.md`](docs/phases/phase-1/FASE_1_ESTRUCTURA_MULTI_TENANT.md)
 
-#### Fase 1.5 - Servicios y Suscripciones
-| Documento | Descripción | Estado |
-|-----------|-------------|--------|
-| [FASE_1.5_SERVICIOS_Y_PLANES.md](FASE_1.5_SERVICIOS_Y_PLANES.md) | Sistema de servicios y planes de suscripción | 🚀 En Progreso (82%) |
-| [RESUMEN_EJECUTIVO_FASE_1.5.md](RESUMEN_EJECUTIVO_FASE_1.5.md) | Resumen ejecutivo para gerencia | 📊 En Progreso |
-| [CHECKLIST_FASE_1.5.md](CHECKLIST_FASE_1.5.md) | Checklist de tareas de la fase | ✅ Completado |
-| [GESTION_SUSCRIPCIONES.md](GESTION_SUSCRIPCIONES.md) | Sistema completo de gestión de suscripciones | ✅ Completado |
-| **[SISTEMA_VISUALIZACION_SUSCRIPCIONES.md](SISTEMA_VISUALIZACION_SUSCRIPCIONES.md)** | **📊 Sistema de gráficos interactivos** | **✅ Completado** |
+#### Fase 1.5 - Servicios y Suscripciones 🚀 100% Completada
+- [`FASE_1.5_SERVICIOS_Y_PLANES.md`](docs/phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md) - **Documento maestro consolidado**
+  - ✅ Sistema de servicios y planes
+  - ✅ Gestión completa de suscripciones
+  - ✅ Sistema de visualización de datos con gráficos interactivos
+- [`RESUMEN_EJECUTIVO_FASE_1.5.md`](docs/phases/phase-1.5/RESUMEN_EJECUTIVO_FASE_1.5.md) - Resumen para gerencia
+- [`HELPERS_SERVICIOS.md`](docs/development/HELPERS_SERVICIOS.md) - Referencia técnica de funciones helper
 
----
+**Documentos completados (archivados):**
+- [`CHECKLIST_FASE_1.5.md`](docs/phases/phase-1.5/completed/CHECKLIST_FASE_1.5.md)
+- [`NOTAS_PROXIMA_SESION.md`](docs/phases/phase-1.5/completed/NOTAS_PROXIMA_SESION.md)
 
-## 🎨 Diseño y UX/UI
+### 📘 Documentos de Referencia Rápida
 
-| Documento | Descripción | Estado |
-|-----------|-------------|--------|
-| [PALETA_COLORES_ATINET.md](PALETA_COLORES_ATINET.md) | Paleta de colores corporativa OKLCH | 🎨 Referencia |
-| [CONVENCIONES.md](CONVENCIONES.md) | Convenciones de código y estilo | 📘 Actualizado |
+| Documento | Descripción | Ubicación |
+|-----------|-------------|-----------|
+| `CONVENCIONES.md` | Convenciones de código PHP/Laravel/TypeScript | [`docs/development/`](docs/development/CONVENCIONES.md) |
+| `HELPERS_SERVICIOS.md` | Funciones helper de servicios | [`docs/development/`](docs/development/HELPERS_SERVICIOS.md) |
+| `PALETA_COLORES_ATINET.md` | Paleta de colores corporativa | [`docs/design/`](docs/design/PALETA_COLORES_ATINET.md) |
 
 ---
 
@@ -95,7 +94,7 @@ El sistema incluye un potente dashboard de análisis visual con:
 - ✅ TypeScript con tipado completo
 - ✅ Powered by Recharts 2.x
 
-**Documentación completa:** [SISTEMA_VISUALIZACION_SUSCRIPCIONES.md](SISTEMA_VISUALIZACION_SUSCRIPCIONES.md)
+**Documentación completa:** [FASE_1.5_SERVICIOS_Y_PLANES.md - Sistema de Visualización](docs/phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md#-sistema-de-visualización-de-datos)
 
 ---
 
@@ -120,7 +119,7 @@ El sistema incluye un potente dashboard de análisis visual con:
 - Pago vencido → Período de gracia 7 días
 - Gracia agotada → Suspender y desactivar
 
-**Documentación completa:** [GESTION_SUSCRIPCIONES.md](GESTION_SUSCRIPCIONES.md)
+**Documentación completa:** [FASE_1.5_SERVICIOS_Y_PLANES.md - Gestión de Suscripciones](docs/phases/phase-1.5/FASE_1.5_SERVICIOS_Y_PLANES.md#-gestión-del-ciclo-de-vida-de-suscripciones)
 
 ---
 

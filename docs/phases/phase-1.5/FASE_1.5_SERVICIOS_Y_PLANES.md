@@ -217,329 +217,1190 @@ class ServiceUsageRecorder
 
 ---
 
-## 💳 GESTIÓN DEL CICLO DE VIDA DE SUSCRIPCIONES
 
-### Estados y Transiciones
-
-El sistema de suscripciones maneja 5 estados que representan el ciclo de vida completo:
+## 📊 Estados de Suscripción
 
 ```
-trial (período de prueba)
-  ↓ al pagar primer mes
-activa (pagada y vigente)
-  ↓ al vencer sin renovación
-vencida (período de gracia - acceso limitado)
-  ↓ después de 7 días
-suspendida (sin acceso por falta de pago)
-  ↓ si se cancela definitivamente
-cancelada (final, no reversible)
+trial → activa → vencida
+              ↓
+          suspendida
+              ↓
+          cancelada
 ```
 
-#### Estados Detallados
+### Estados Disponibles:
 
-| Estado | Descripción | Acceso a Servicios | Duración | Siguiente Estado |
-|--------|-------------|-------------------|----------|------------------|
-| **trial** | Período de prueba gratuito | ✅ Completo según plan | 30 días | → `activa` (al pagar) <br> → `vencida` (sin renovar) |
-| **activa** | Suscripción pagada y vigente | ✅ Completo según plan | Hasta fecha_vencimiento | → `vencida` (automático al vencer) |
-| **vencida** | Venció, esperando renovación | ⚠️ Solo lectura/consultas | 7 días (gracia) | → `activa` (al renovar) <br> → `suspendida` (auto después de 7 días) |
-| **suspendida** | Suspendida por falta de pago o penalización | ❌ Sin acceso | Indefinido | → `activa` (al reactivar) <br> → `cancelada` (manual) |
-| **cancelada** | Cancelación definitiva | ❌ Sin acceso | Permanente | Estado final |
+| Estado | Descripción | Acceso a Servicios | Notaría Activa | Período de Gracia | Acción Automática |
+|--------|-------------|-------------------|----------------|-------------------|-------------------|
+| **trial** | Período de prueba (1 mes gratis) | ✅ Completo | ✅ Sí | ❌ Sin gracia | Al vencer → desactivar inmediatamente |
+| **activa** | Suscripción pagada y vigente | ✅ Completo | ✅ Sí | N/A | Al vencer → marcar como vencida |
+| **vencida** | Venció el período, esperando pago | ✅ Completo | ✅ Sí (7 días) | ✅ 7 días | Después de 7 días → suspender |
+| **suspendida** | Suspendida por falta de pago | ❌ Sin acceso | ❌ No | ❌ Gracia agotada | Manual: reactivar con pago |
+| **cancelada** | Cancelada definitivamente | ❌ Sin acceso | ❌ No | N/A | Final (no reversible) |
 
-### Funcionalidades del SuperAdmin
+**Nota Importante:** Solo las suscripciones **trial** se desactivan inmediatamente al vencer. Las suscripciones de **pago** tienen un período de gracia de 7 días para permitir la renovación antes de suspender.
 
-El SuperAdmin tiene control completo sobre el ciclo de vida de las suscripciones a través de estas acciones:
+---
 
-#### 1. 🔄 Renovar Suscripción
+## 🔄 Flujos de Gestión
 
-**Cuándo:**
-- Suscripción en estado `vencida` o `activa` próxima a vencer
-- Cliente pagó y se debe extender el período
+### 1. Creación de Notaría (Actual)
+```
+SuperAdmin crea notaría
+  → Se crea suscripción automática en estado 'trial'
+  → Duración: 1 mes
+  → Precio: $0 (gratis)
+  → Auto-renovación: activada
+```
 
-**Proceso:**
+### 2. Renovación Manual (NUEVO)
+```
+SuperAdmin → Menú "Renovar Suscripción"
+  → Seleccionar ciclo (mensual/anual)
+  → Confirmar precio del plan
+  → Ingresar método de pago
+  → Generar nueva fecha de vencimiento
+  → Cambiar estado a 'activa'
+```
+
+### 3. Suspensión por Falta de Pago (NUEVO)
+```
+Automático:
+  - Si subscription.status = 'vencida'
+  - Y han pasado > 7 días desde fecha_vencimiento
+  - Cambiar a 'suspendida'
+  - Bloquear acceso a servicios
+
+Manual:
+  - SuperAdmin puede suspender inmediatamente
+  - Razón: seleccionar de lista o escribir
+```
+
+### 4. Cambio de Plan (NUEVO)
+```
+SuperAdmin → "Cambiar Plan"
+  → Seleccionar nuevo plan
+  → Calcular prorrateo (opcional)
+  → Actualizar notaria.plan_id
+  → Actualizar subscription.plan_id
+  → Copiar nuevos plan_services al tenant
+  → Mantener estado actual de suscripción
+```
+
+### 5. Reactivación (NUEVO)
+```
+SuperAdmin → "Reactivar Suscripción"
+  → Verificar si hay saldo pendiente
+  → Registrar pago pendiente
+  → Cambiar estado a 'activa'
+  → Calcular nueva fecha de vencimiento
+```
+
+### 6. Cancelación Definitiva (NUEVO)
+```
+SuperAdmin → "Cancelar Suscripción"
+  → Confirmar acción (irreversible)
+  → Ingresar razón de cancelación
+  → Cambiar estado a 'cancelada'
+  → Opcionalmente: desactivar notaría
+  → No eliminar datos (auditoría)
+```
+
+---
+
+## 🤖 Sistema Automático de Verificación ✅ **IMPLEMENTADO**
+
+### Flujo de Verificación de Suscripciones Vencidas
+
+```mermaid
+flowchart TD
+    Start([Comando Diario 02:00 AM]) --> CheckTrials[Buscar Suscripciones TRIAL Vencidas]
+    
+    CheckTrials --> TrialFound{¿Trial<br/>vencido?}
+    TrialFound -->|Sí| TrialExpire[❌ Cambiar status → 'vencida']
+    TrialExpire --> TrialDeactivate[❌ Desactivar notaría<br/>inmediatamente]
+    TrialDeactivate --> TrialLog[📝 Log: Trial vencido]
+    TrialFound -->|No| CheckPaid
+    TrialLog --> CheckPaid
+    
+    CheckPaid[Buscar Suscripciones ACTIVAS Vencidas] --> PaidFound{¿Pago<br/>vencido?}
+    PaidFound -->|Sí| PaidExpire[⚠️ Cambiar status → 'vencida']
+    PaidExpire --> PaidGrace[✅ Mantener notaría activa<br/>Período de gracia: 7 días]
+    PaidGrace --> PaidLog[📝 Log: Gracia iniciada]
+    PaidFound -->|No| CheckGrace
+    PaidLog --> CheckGrace
+    
+    CheckGrace[Buscar Suscripciones VENCIDAS > 7 días] --> GraceFound{¿Gracia<br/>agotada?}
+    GraceFound -->|Sí| GraceSuspend[🚫 Cambiar status → 'suspendida']
+    GraceSuspend --> GraceDeactivate[❌ Desactivar notaría]
+    GraceDeactivate --> GraceLog[📝 Log: Suspendida]
+    GraceFound -->|No| Report
+    GraceLog --> Report
+    
+    Report[📊 Generar Reporte] --> End([Fin])
+    
+    style TrialDeactivate fill:#ff6b6b
+    style PaidGrace fill:#51cf66
+    style GraceDeactivate fill:#ff6b6b
+    style Start fill:#4dabf7
+    style End fill:#4dabf7
+```
+
+### Lógica de Negocio por Tipo de Suscripción
+
+| Tipo Suscripción | Estado Inicial | Al Vencer | Período Gracia | Notaría Activa | Resultado Final |
+|------------------|----------------|-----------|----------------|----------------|-----------------|
+| **Trial** | `trial` | → `vencida` | ❌ Sin gracia | ❌ Desactivada | Bloqueo inmediato |
+| **Pago (< 7 días)** | `activa` | → `vencida` | ✅ 7 días | ✅ Activa | Acceso completo |
+| **Pago (≥ 7 días)** | `vencida` | → `suspendida` | ❌ Gracia agotada | ❌ Desactivada | Bloqueo total |
+
+### Comando: `subscriptions:check-expired`
+
+**Ubicación:** `app/Console/Commands/CheckExpiredSubscriptions.php`
+
+**Programación:**
 ```php
-// Input
-- ciclo_facturacion: 'mensual' | 'anual'
-- metodo_pago: 'transferencia' | 'stripe' | 'paypal'
-- precio_pagado: decimal
-
-// Cálculo automático
-- fecha_inicio: now()
-- fecha_vencimiento: 
-    * mensual → now()->addMonth()
-    * anual → now()->addYear()
-
-// Actualización
-- status → 'activa'
-- auto_renovacion mantiene valor actual
+// routes/console.php
+Schedule::command('subscriptions:check-expired')
+    ->daily()
+    ->at('02:00')
+    ->timezone('America/Mexico_City')
+    ->description('Verifica suscripciones vencidas y desactiva notarías según el tipo');
 ```
 
-**Validaciones:**
-- ✅ El precio debe coincidir con plan.precio_mensual o plan.precio_anual
-- ✅ No se puede renovar una suscripción `cancelada`
-- ✅ Registrar en historial de pagos
-
-#### 2. ⚠️ Suspender Suscripción
-
-**Cuándo:**
-- Falta de pago confirmada
-- Violación de términos de servicio
-- Solicitud del cliente
-
-**Proceso:**
-```php
-// Input requerido
-- razon_suspension: string (obligatorio)
-- notificar_cliente: boolean
-
-// Actualización
-- status → 'suspendida'
-- fecha_suspension: now()
-
-// Efecto inmediato
-- Bloquear acceso a todos los servicios
-- Dashboard muestra alerta de suspensión
-- Enviar notificación al admin de la notaría
-```
-
-**Validaciones:**
-- ✅ Razón obligatoria (auditoría)
-- ✅ No se puede suspender una suscripción `cancelada`
-- ✅ Permitir reactivación posterior
-
-#### 3. 🔓 Reactivar Suscripción
-
-**Cuándo:**
-- Cliente pagó deuda pendiente
-- Se resolvió el problema que causó la suspensión
-
-**Proceso:**
-```php
-// Input requerido
-- fecha_vencimiento: date (nueva fecha)
-- precio_pagado: decimal (puede incluir deuda)
-- metodo_pago: string
-
-// Actualización
-- status → 'activa'
-- fecha_reactivacion: now()
-- fecha_vencimiento: input fecha
-
-// Efecto
-- Restaurar acceso completo a servicios
-- Notificar al cliente
-```
-
-**Validaciones:**
-- ✅ Solo se puede reactivar desde estado `suspendida`
-- ✅ Verificar deuda pendiente
-- ✅ Fecha de vencimiento debe ser futura
-
-#### 4. 🔀 Cambiar Plan
-
-**Cuándo:**
-- Cliente solicita upgrade (más servicios)
-- Cliente solicita downgrade (menos servicios)
-- Se ajusta el plan por necesidades
-
-**Proceso:**
-```php
-// Input
-- nuevo_plan_id: integer
-- aplicar_prorrateo: boolean (opcional)
-- fecha_efectiva: date (default: now())
-
-// Cálculo de prorrateo (si aplica)
-$diasRestantes = now()->diffInDays($subscription->fecha_vencimiento);
-$diasTotales = $subscription->fecha_inicio->diffInDays($subscription->fecha_vencimiento);
-$porcentajeRestante = $diasRestantes / $diasTotales;
-
-$creditoPlanAnterior = $subscription->precio_pagado * $porcentajeRestante;
-$costoNuevoPlan = $nuevoPlan->precio_mensual;
-$precioFinal = $costoNuevoPlan - $creditoPlanAnterior;
-
-// Actualización
-- notaria.plan_id → nuevo_plan_id
-- subscription.plan_id → nuevo_plan_id
-- subscription.precio_pagado → precio_final (si hay prorrateo)
-
-// Sincronización con tenant
-- Copiar nuevos plan_services al tenant
-- Mantener customizaciones existentes (tenant_services)
-- Notificar cambios al admin de la notaría
-```
-
-**Validaciones:**
-- ✅ El nuevo plan debe existir y estar activo
-- ✅ Si es downgrade, verificar que no pierda servicios en uso
-- ✅ Registrar cambio en historial
-
-#### 5. ❌ Cancelar Suscripción
-
-**Cuándo:**
-- Cliente solicita cancelación definitiva
-- Notaría cierra operaciones
-- Decisión administrativa final
-
-**Proceso:**
-```php
-// Input requerido
-- razon_cancelacion: string (obligatorio)
-- fecha_cancelacion: date (default: now())
-- eliminar_datos: boolean (default: false)
-
-// Actualización IRREVERSIBLE
-- status → 'cancelada'
-- fecha_cancelacion: input fecha
-- razon_cancelacion: input razón
-- auto_renovacion → false
-
-// Efecto
-- Acceso bloqueado permanentemente
-- No se puede reactivar
-- Mantener datos históricos para auditoría
-- Opcionalmente: desactivar notaría completa
-```
-
-**Validaciones:**
-- ✅ Requiere confirmación doble (irreversible)
-- ✅ Razón obligatoria
-- ✅ No eliminar datos automáticamente (GDPR/auditoría)
-- ✅ Registrar quién realizó la cancelación
-
-### Automatización con Commands
-
-#### Command: CheckExpiredSubscriptions
-
+**Opciones:**
 ```bash
+# Ejecutar verificación (modifica base de datos)
 php artisan subscriptions:check-expired
+
+# Modo dry-run (solo muestra qué haría)
+php artisan subscriptions:check-expired --dry-run
 ```
 
-**Ejecución:** Diaria (cron job a las 00:00)
+**Salida del Comando:**
+```
+🔄 Iniciando verificación de suscripciones vencidas...
 
-**Proceso:**
-```php
-1. Buscar suscripciones con:
-   - status = 'activa'
-   - fecha_vencimiento < now()
-   
-2. Cambiar status → 'vencida'
-   - Registrar fecha de cambio
-   - Enviar notificación al admin de la notaría
-   - Enviar alerta al SuperAdmin
+📋 Buscando suscripciones TRIAL vencidas...
+   ⚠️  Trial vencido: Notaría Ejemplo (ID: 123)
+      Fecha vencimiento: 2026-01-15
+      ✓ Suscripción marcada como vencida
+      ✓ Notaría desactivada
 
-3. Buscar suscripciones con:
-   - status = 'vencida'
-   - fecha_vencimiento < now()->subDays(7)
-   
-4. Cambiar status → 'suspendida'
-   - Razón: "Suspensión automática por falta de pago"
-   - Bloquear acceso a servicios
-   - Enviar notificación urgente
-   - Crear tarea para SuperAdmin
+💳 Buscando suscripciones de PAGO vencidas...
+   ⚠️  Suscripción vencida: Notaría ABC (ID: 456)
+      Fecha vencimiento: 2026-02-05
+      📅 Iniciando período de gracia de 7 días
+      ✓ Suscripción marcada como vencida
+      ⏳ Notaría permanece activa (gracia)
+
+🚫 Buscando suscripciones con período de gracia agotado (>7 días)...
+   ❌ Período de gracia agotado: Notaría XYZ (ID: 789)
+      Vencida hace: 10 días
+      ✓ Suscripción suspendida
+      ✓ Notaría desactivada
+
+✅ Verificación completada
+
++--------------------------------------------+----------+
+| Categoría                                  | Cantidad |
++--------------------------------------------+----------+
+| Trials vencidos detectados                 | 1        |
+| Suscripciones de pago vencidas             | 1        |
+| Suscripciones suspendidas (gracia agotada) | 1        |
++--------------------------------------------+----------+
 ```
 
-**Notificaciones:**
-- A los 7 días antes de vencer: "Tu suscripción vence pronto"
-- El día que vence: "Tu suscripción ha vencido - período de gracia de 7 días"
-- A los 7 días después: "Tu cuenta ha sido suspendida"
+**Tests:**
+- ✅ 7 tests implementados (16 assertions)
+- ✅ Cobertura completa de casos de uso
+- ✅ Test de transacciones (rollback en errores)
+- ✅ Test de modo dry-run
 
-### Control de Acceso por Estado
+**Logs Generados:**
+```
+[2026-02-10 02:00:15] INFO: CheckExpiredSubscriptions ejecutado {
+    "trials_vencidos": 1,
+    "pagos_vencidos": 1,
+    "pagos_suspendidos": 1
+}
 
-El sistema valida el estado de la suscripción antes de permitir acceso a servicios:
+[2026-02-10 02:00:15] WARNING: Trial vencido - Notaría desactivada: Notaría Ejemplo (ID: 123)
+[2026-02-10 02:00:15] INFO: Suscripción de pago vencida - Período de gracia iniciado: Notaría ABC (ID: 456)
+[2026-02-10 02:00:15] WARNING: Período de gracia agotado - Notaría suspendida: Notaría XYZ (ID: 789)
+```
+
+---
+
+## 🛠️ Componentes a Implementar
+
+### Backend
+
+#### 1. **SubscriptionController** (Admin)
+- `index()` - Listar todas las suscripciones
+- `show()` - Ver detalle de suscripción
+- `renew()` - Renovar suscripción
+- `suspend()` - Suspender suscripción
+- `reactivate()` - Reactivar suscripción
+- `cancel()` - Cancelar suscripción
+- `changePlan()` - Cambiar plan de una suscripción
+
+#### 2. **SubscriptionService** (Lógica de Negocio)
+- `createTrialSubscription()` - Crear suscripción trial automática
+- `renewSubscription()` - Renovar con cálculo de fechas
+- `suspendSubscription()` - Suspender con validaciones
+- `reactivateSubscription()` - Reactivar con validaciones
+- `cancelSubscription()` - Cancelar definitivamente
+- `changePlan()` - Cambiar plan con prorrateo
+- `checkExpiredSubscriptions()` - Job para revisar vencidas
+- `calculateProrateo()` - Calcular prorrateo al cambiar plan
+
+#### 3. **Command: CheckExpiredSubscriptions** ✅ **IMPLEMENTADO**
+```bash
+# Ejecutar verificación manual
+php artisan subscriptions:check-expired
+
+# Modo preview (no modifica datos)
+php artisan subscriptions:check-expired --dry-run
+
+# Ver tareas programadas
+php artisan schedule:list
+```
+
+**Características:**
+- ✅ Ejecuta diariamente a las 2:00 AM (automático vía scheduler)
+- ✅ Lógica diferenciada por tipo de suscripción:
+  - **Trial vencido**: Desactiva notaría inmediatamente (sin gracia)
+  - **Pago vencido**: Mantiene activa 7 días (período de gracia)
+  - **Gracia agotada**: Suspende y desactiva después de 7 días
+- ✅ Modo `--dry-run` para previsualizar cambios
+- ✅ Logs completos en `storage/logs/laravel.log`
+- ✅ Reporte tabular con estadísticas
+- ✅ Transaccional (rollback automático si hay errores)
+
+#### 4. **Policies & Middleware**
+- `CheckActiveSubscription` - Middleware para validar suscripción activa
+- `SubscriptionPolicy` - Solo SuperAdmin puede gestionar
+
+### Frontend (Inertia/Vue)
+
+#### Vistas Nuevas:
+1. **Admin/Subscriptions/Index.vue** - Lista de suscripciones
+2. **Admin/Subscriptions/Show.vue** - Detalle de suscripción
+3. **Admin/Notarias/Subscriptions/Manage.vue** - Widget en notaría
+
+#### Componentes:
+- `SubscriptionStatusBadge.vue` - Badge de estado
+- `SubscriptionTimeline.vue` - Historial de cambios
+- `RenewSubscriptionModal.vue` - Modal para renovar
+- `ChangePlanModal.vue` - Modal para cambiar plan
+- `SuspendSubscriptionModal.vue` - Modal para suspender
+
+---
+
+## 🎨 UI/UX Propuesta
+
+### En el Panel de SuperAdmin
+
+#### Sección Nueva: "Suscripciones"
+```
+📊 Dashboard de Suscripciones
+├─ Estadísticas
+│  ├─ Activas: 45
+│  ├─ Trial: 12
+│  ├─ Vencidas: 3
+│  ├─ Suspendidas: 2
+│  └─ MRR (Ingreso Mensual Recurrente): $45,000 MXN
+│
+├─ Tabla de Suscripciones
+│  └─ Columnas: Notaría, Plan, Estado, F. Vencimiento, Acciones
+│
+└─ Filtros
+   ├─ Por estado
+   ├─ Por plan
+   └─ Vencen pronto (próximos 7 días)
+```
+
+#### En Detalle de Notaría
+
+Agregar widget:
+```
+┌─────────────────────────────────────┐
+│ 💳 Suscripción Actual               │
+├─────────────────────────────────────┤
+│ Estado: [🟢 Activa]                 │
+│ Plan: Plan Profesional              │
+│ Vence: 09 Mar 2026 (28 días)       │
+│ Precio: $999.00 MXN / mes           │
+│                                      │
+│ [Renovar] [Suspender] [Cambiar Plan]│
+└─────────────────────────────────────┘
+```
+
+---
+
+## 📋 Validaciones Importantes
+
+### Al Suspender:
+- ✅ Confirmar que no hay operaciones en curso
+- ✅ Notificar al admin de la notaría
+- ✅ Permitir período de gracia (configurable)
+
+### Al Renovar:
+- ✅ Calcular precio según ciclo seleccionado
+- ✅ Aplicar descuentos si corresponde
+- ✅ Generar fecha de vencimiento correcta
+- ✅ Mantener auto_renovacion configurada
+
+### Al Cambiar Plan:
+- ✅ Validar que el nuevo plan existe
+- ✅ Calcular prorrateo si aplica
+- ✅ Actualizar servicios en tenant
+- ✅ Notificar al admin de la notaría
+
+### Al Cancelar:
+- ✅ Requiere confirmación
+- ✅ Razón obligatoria
+- ✅ Irreversible (avisar claramente)
+- ✅ Mantener datos históricos
+
+---
+
+## 🔐 Control de Acceso
+
+### Restringir Servicios por Estado:
 
 ```php
-// ServiceAccessManager::canAccess()
-
-switch ($subscription->status) {
-    case 'cancelada':
-    case 'suspendida':
-        // Sin acceso a nada
-        return false;
-        
-    case 'vencida':
+// En ServiceAccessManager
+public function canAccess(Service $service): bool
+{
+    // 1. Verificar suscripción activa
+    $subscription = $this->getActiveSubscription();
+    
+    if (!$subscription) {
+        return false; // Sin suscripción
+    }
+    
+    if ($subscription->status === 'suspendida') {
+        return false; // Suspendido = sin acceso
+    }
+    
+    if ($subscription->status === 'cancelada') {
+        return false; // Cancelado = sin acceso
+    }
+    
+    if ($subscription->status === 'vencida') {
         // Período de gracia: solo lectura
-        // Permitir consultas pero no escritura
-        return in_array($service->category, ['CONSULTA', 'SISTEMA']);
-        
-    case 'trial':
-    case 'activa':
-        // Acceso completo según plan y límites
-        return $this->checkServiceLimits($service);
-        
-    default:
-        return false;
+        return $service->category === 'consulta'; // Solo búsquedas
+    }
+    
+    // 2. Verificar si el servicio está en el plan...
+    // (resto de la lógica)
 }
 ```
 
-### Dashboard de Suscripciones (SuperAdmin)
+---
 
-**Nueva sección:** `/admin/subscriptions`
+## 📅 Implementación Propuesta
 
-**Estadísticas principales:**
-```
-┌─────────────────────────────────────────────┐
-│ 📊 Resumen de Suscripciones                 │
-├─────────────────────────────────────────────┤
-│ • Activas:     45 (🟢 90%)                  │
-│ • Trial:       12 (🔵 24%)                  │
-│ • Vencidas:     3 (🟡 6%)                   │
-│ • Suspendidas:  2 (🔴 4%)                   │
-│ • Canceladas:   1 (⚫ 2%)                   │
-├─────────────────────────────────────────────┤
-│ 💰 MRR (Ingreso Mensual):  $45,450 MXN     │
-│ 📈 ARR (Ingreso Anual):   $545,400 MXN     │
-└─────────────────────────────────────────────┘
-```
+### Sprint 2A: Gestión de Suscripciones (2-3 días)
+1. ✅ Crear SubscriptionService con lógica de negocio
+2. ✅ Crear SubscriptionController (CRUD + acciones)
+3. ✅ Crear Form Requests para validación
+4. ✅ Crear CheckExpiredSubscriptions Command
+5. ✅ Actualizar NotariaController::store() para usar SubscriptionService
+6. ✅ Tests unitarios y de integración
 
-**Alertas:**
-- 🔴 **3 suscripciones** vencen en las próximas 48 horas
-- 🟡 **2 suscripciones** en período de gracia (día 5 de 7)
-- ⚠️ **1 suscripción** requiere acción (suspendida hace 30 días)
+### Sprint 2B: UI de Gestión (2 días)
+1. ✅ Crear vistas de suscripciones (Index, Show)
+2. ✅ Agregar widget en detalle de notaría
+3. ✅ Crear modales de acciones
+4. ✅ Agregar rutas y navegación
+5. ✅ Integrar con Wayfinder
+6. ✅ Implementar visualización de datos con gráficos interactivos
 
-**Widget en Detalle de Notaría:**
-```
-┌─────────────────────────────────────────┐
-│ 💳 Suscripción Actual                   │
-├─────────────────────────────────────────┤
-│ Estado: [🟢 Activa]                     │
-│ Plan: Plan Profesional                  │
-│ Inicio: 09 Feb 2026                     │
-│ Vence: 09 Mar 2026 (28 días restantes)  │
-│ Precio: $999.00 MXN / mes               │
-│ Auto-renovación: ✅ Activada            │
-│                                          │
-│ Historial de pagos: 3 pagos (ver todos) │
-│                                          │
-│ [Renovar] [Suspender] [Cambiar Plan]    │
-└─────────────────────────────────────────┘
-```
-
-### Consideraciones Adicionales
-
-**Período de Gracia:**
-- Configurable (actualmente 7 días)
-- Durante este período el cliente puede renovar sin perder datos
-- Acceso limitado a funciones de solo lectura
-
-**Auto-renovación:**
-- Si está activada, el sistema puede:
-  - Intentar cargo automático (si hay pasarela integrada)
-  - Enviar recordatorio de pago automáticamente
-  - Generar factura pre-fechada
-
-**Historial de Cambios:**
-- Cada cambio de estado se registra con:
-  - Fecha y hora del cambio
-  - Usuario que realizó el cambio (SuperAdmin)
-  - Razón del cambio
-  - Estado anterior y nuevo estado
-
-**Integración con Pasarelas de Pago (Futuro):**
-- Stripe/PayPal para pagos automáticos
-- Webhooks para actualizar estado al recibir pago
-- Facturación automática
+### Sprint 2C: Integración con ServiceAccessManager (1 día)
+1. ✅ Implementar validación de suscripción en ServiceAccessManager
+2. ✅ Crear middleware CheckActiveSubscription
+3. ✅ Aplicar middleware a rutas protegidas
+4. ✅ Tests de integración
 
 ---
+
+## 🎯 Próximos Pasos
+
+1. **¿Aprobas este diseño?**
+2. **¿Alguna modificación o caso de uso adicional?**
+3. **¿Procedemos con la implementación?**
+
+---
+
+## 📊 Sistema de Visualización de Datos
+
+### Implementación de Gráficos Interactivos
+
+El dashboard de suscripciones cuenta con un sistema avanzado de visualización que permite al administrador analizar la distribución de estados de suscripción mediante diferentes tipos de gráficos.
+
+### Características del Sistema de Gráficos
+
+#### 🎨 4 Tipos de Gráficos Disponibles
+
+| Tipo | Ícono | Descripción | Uso Recomendado |
+|------|-------|-------------|-----------------|
+| **Circular (Pie)** | 🥧 | Gráfico circular con porcentajes | Ver proporciones y distribución general |
+| **Barras (Bar)** | 📊 | Gráfico de barras vertical | Comparación directa entre estados |
+| **Radial** | 🎯 | Gráfico circular radial | Visualización de progreso circular |
+| **Mapa de Árbol (Treemap)** | 🗺️ | Visualización jerárquica | Ver jerarquías y proporciones de espacio |
+
+#### 🎨 Paleta de Colores por Estado
+
+Todos los gráficos utilizan una paleta de colores consistente:
+
+```typescript
+const COLORS = [
+    'hsl(205, 100%, 50%)',  // 🔵 Trial - Azul brillante
+    'hsl(125, 60%, 42%)',   // ✅ Activa - Verde éxito
+    'hsl(25, 90%, 54%)',    // 🟠 Vencida - Naranja advertencia
+    'hsl(0, 72%, 51%)',     // 🔴 Suspendida - Rojo peligro
+    'hsl(0, 0%, 60%)',      // ⚫ Cancelada - Gris neutral
+];
+```
+
+#### 💾 Persistencia de Preferencias
+
+El sistema guarda automáticamente la preferencia del administrador usando `localStorage`:
+
+```typescript
+// Clave: 'subscriptions-chart-type'
+// Valores: 'pie' | 'bar' | 'radial' | 'treemap'
+```
+
+Al recargar la página, el gráfico seleccionado previamente se restaura automáticamente.
+
+#### 🔄 Selector de Tipo de Gráfico
+
+```tsx
+<Select value={chartType} onValueChange={handleChartTypeChange}>
+    <SelectTrigger className="w-[200px]">
+        <SelectValue placeholder="Tipo de gráfico" />
+    </SelectTrigger>
+    <SelectContent>
+        <SelectItem value="pie">🥧 Circular</SelectItem>
+        <SelectItem value="bar">📊 Barras</SelectItem>
+        <SelectItem value="radial">🎯 Radial</SelectItem>
+        <SelectItem value="treemap">🗺️ Mapa de Árbol</SelectItem>
+    </SelectContent>
+</Select>
+```
+
+### Estructura de Datos
+
+Los gráficos consumen datos en el siguiente formato:
+
+```typescript
+type ChartDataItem = {
+    name: string;      // Nombre del estado (ej: "Activas")
+    value: number;     // Cantidad de suscripciones
+    color: string;     // Color HSL asignado
+};
+
+const chartData = [
+    { name: 'Trial', value: 2, color: 'hsl(205, 100%, 50%)' },
+    { name: 'Activas', value: 5, color: 'hsl(125, 60%, 42%)' },
+    { name: 'Vencidas', value: 2, color: 'hsl(25, 90%, 54%)' },
+    { name: 'Suspendidas', value: 1, color: 'hsl(0, 72%, 51%)' },
+    { name: 'Canceladas', value: 1, color: 'hsl(0, 0%, 60%)' },
+];
+```
+
+### Integración con Recharts
+
+El sistema utiliza **Recharts v2.x** para el renderizado de gráficos:
+
+```typescript
+import {
+    PieChart, Pie, Cell,
+    BarChart, Bar, XAxis, YAxis,
+    RadialBarChart, RadialBar,
+    Treemap, ResponsiveContainer, Tooltip, Legend
+} from 'recharts';
+```
+
+### Componente TreeMap Personalizado
+
+Para el gráfico TreeMap se implementó un componente personalizado con tipado seguro:
+
+```typescript
+const CustomTreeMapContent = (props: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    name?: string;
+    value?: number;
+    color?: string;
+}) => {
+    const { x = 0, y = 0, width = 0, height = 0, 
+            name = '', value = 0, color = '#000' } = props;
+    
+    return (
+        <g>
+            <rect x={x} y={y} width={width} height={height}
+                  style={{ fill: color, stroke: '#fff', strokeWidth: 2 }} />
+            {width > 60 && height > 30 && (
+                <>
+                    <text x={x + width/2} y={y + height/2 - 10}
+                          textAnchor="middle" fill="#fff" fontSize={14} fontWeight="bold">
+                        {name}
+                    </text>
+                    <text x={x + width/2} y={y + height/2 + 10}
+                          textAnchor="middle" fill="#fff" fontSize={12}>
+                        {value}
+                    </text>
+                </>
+            )}
+        </g>
+    );
+};
+```
+
+### Beneficios del Sistema de Visualización
+
+1. **✅ Flexibilidad**: 4 tipos de gráficos para diferentes análisis
+2. **✅ Persistencia**: Las preferencias se guardan automáticamente
+3. **✅ Consistencia**: Paleta de colores uniforme en todos los gráficos
+4. **✅ UX Mejorada**: Cambio instantáneo entre tipos sin recargar
+5. **✅ TypeScript**: Código completamente tipado y seguro
+6. **✅ Responsive**: Todos los gráficos se adaptan al contenedor
+
+### Ubicación del Código
+
+- **Frontend**: `resources/js/Pages/Admin/Subscriptions/Index.tsx`
+- **Líneas**: 120-320 (renderChart function y componentes)
+- **Dependencias**: recharts@^2.x, shadcn/ui Select component
+
+### Script de Datos de Prueba
+
+Para facilitar las pruebas, se creó un script que genera suscripciones de ejemplo:
+
+**Archivo**: `add_sample_subscriptions.php`
+
+```bash
+php add_sample_subscriptions.php
+```
+
+Este script crea:
+- 2 suscripciones Trial
+- 5 suscripciones Activas
+- 2 suscripciones Vencidas
+- 1 suscripción Suspendida
+- 1 suscripción Cancelada
+
+**Nota**: Las suscripciones históricas (vencidas, suspendidas, canceladas) pueden crearse sin restricción, mientras que solo puede haber una suscripción activa/trial por notaría.
+
+
+
+---
+
+## 📈 Características Principales
+
+### 4 Tipos de Gráficos Disponibles
+
+| Tipo | Ícono | Componente | Uso Recomendado |
+|------|-------|------------|-----------------|
+| **Circular (Pie)** | 🥧 | `PieChart` | Ver proporciones y porcentajes de distribución |
+| **Barras (Bar)** | 📊 | `BarChart` | Comparación directa de cantidades entre estados |
+| **Radial** | 🎯 | `RadialBarChart` | Visualización de progreso en formato circular |
+| **Mapa de Árbol** | 🗺️ | `Treemap` | Jerarquías y proporciones de espacio visual |
+
+### Selector Interactivo
+
+```tsx
+<Select value={chartType} onValueChange={handleChartTypeChange}>
+    <SelectTrigger className="w-[200px]">
+        <SelectValue placeholder="Tipo de gráfico" />
+    </SelectTrigger>
+    <SelectContent>
+        <SelectItem value="pie">🥧 Circular</SelectItem>
+        <SelectItem value="bar">📊 Barras</SelectItem>
+        <SelectItem value="radial">🎯 Radial</SelectItem>
+        <SelectItem value="treemap">🗺️ Mapa de Árbol</SelectItem>
+    </SelectContent>
+</Select>
+```
+
+---
+
+## 🎨 Paleta de Colores Estandarizada
+
+Todos los gráficos utilizan una paleta consistente basada en el estado de la suscripción:
+
+```typescript
+const COLORS = [
+    'hsl(205, 100%, 50%)',  // 🔵 Trial - Azul brillante
+    'hsl(125, 60%, 42%)',   // ✅ Activa - Verde éxito
+    'hsl(25, 90%, 54%)',    // 🟠 Vencida - Naranja advertencia
+    'hsl(0, 72%, 51%)',     // 🔴 Suspendida - Rojo peligro
+    'hsl(0, 0%, 60%)',      // ⚫ Cancelada - Gris neutral
+];
+```
+
+### Mapeo Estado → Color → Significado
+
+| Estado | Color | HSL | Psicología del Color |
+|--------|-------|-----|----------------------|
+| **trial** | 🔵 Azul | `hsl(205, 100%, 50%)` | Confianza, inicio, prueba |
+| **activa** | ✅ Verde | `hsl(125, 60%, 42%)` | Éxito, activo, saludable |
+| **vencida** | 🟠 Naranja | `hsl(25, 90%, 54%)` | Advertencia, requiere atención |
+| **suspendida** | 🔴 Rojo | `hsl(0, 72%, 51%)` | Peligro, bloqueado, inactivo |
+| **cancelada** | ⚫ Gris | `hsl(0, 0%, 60%)` | Neutral, finalizado, archivado |
+
+---
+
+## 💾 Persistencia de Preferencias
+
+### localStorage
+
+El sistema guarda automáticamente la preferencia del administrador:
+
+**Clave:** `subscriptions-chart-type`  
+**Valores posibles:** `'pie'` | `'bar'` | `'radial'` | `'treemap'`  
+**Valor por defecto:** `'pie'`
+
+### Implementación
+
+```typescript
+const [chartType, setChartType] = useState<'pie' | 'bar' | 'radial' | 'treemap'>(() => {
+    if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('subscriptions-chart-type');
+        return (saved as 'pie' | 'bar' | 'radial' | 'treemap') || 'pie';
+    }
+    return 'pie';
+});
+
+const handleChartTypeChange = (value: 'pie' | 'bar' | 'radial' | 'treemap') => {
+    setChartType(value);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('subscriptions-chart-type', value);
+    }
+};
+```
+
+### Comportamiento
+
+1. **Primera visita**: Muestra gráfico circular (pie) por defecto
+2. **Cambio de tipo**: Guarda automáticamente la selección
+3. **Recarga de página**: Restaura la última selección
+4. **Múltiples dispositivos**: Cada dispositivo mantiene su preferencia
+
+---
+
+## 📊 Estructura de Datos
+
+### Formato de Entrada
+
+```typescript
+type ChartDataItem = {
+    name: string;      // Nombre del estado (ej: "Activas")
+    value: number;     // Cantidad de suscripciones
+    color: string;     // Color HSL asignado
+};
+```
+
+### Ejemplo Real
+
+```typescript
+const chartData = [
+    { name: 'Trial', value: 2, color: 'hsl(205, 100%, 50%)' },
+    { name: 'Activas', value: 5, color: 'hsl(125, 60%, 42%)' },
+    { name: 'Vencidas', value: 2, color: 'hsl(25, 90%, 54%)' },
+    { name: 'Suspendidas', value: 1, color: 'hsl(0, 72%, 51%)' },
+    { name: 'Canceladas', value: 1, color: 'hsl(0, 0%, 60%)' },
+];
+```
+
+### Generación de Datos
+
+```typescript
+const chartData = [
+    { name: 'Trial', value: stats.trial, color: COLORS[0] },
+    { name: 'Activas', value: stats.activas, color: COLORS[1] },
+    { name: 'Vencidas', value: stats.vencidas, color: COLORS[2] },
+    { name: 'Suspendidas', value: stats.suspendidas, color: COLORS[3] },
+    { name: 'Canceladas', value: stats.canceladas, color: COLORS[4] },
+].filter(item => item.value > 0); // Solo mostrar estados con datos
+```
+
+---
+
+## 🔧 Implementación Técnica
+
+### Dependencias
+
+```json
+{
+    "recharts": "^2.12.7",
+    "@radix-ui/react-select": "^2.1.4",
+    "lucide-react": "^0.468.0"
+}
+```
+
+### Imports
+
+```typescript
+import {
+    PieChart, Pie, Cell,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid,
+    RadialBarChart, RadialBar,
+    Treemap, ResponsiveContainer, Tooltip, Legend
+} from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+```
+
+### Estructura del Componente
+
+```typescript
+const Index = ({ subscriptions, stats }: Props) => {
+    // 1. Estado del tipo de gráfico
+    const [chartType, setChartType] = useState<ChartType>('pie');
+    
+    // 2. Preparación de datos
+    const chartData = [...]; // Array de ChartDataItem
+    
+    // 3. Componente custom para TreeMap
+    const CustomTreeMapContent = (props) => { /* ... */ };
+    
+    // 4. Función de renderizado
+    const renderChart = () => {
+        switch (chartType) {
+            case 'pie': return <PieChart>...</PieChart>;
+            case 'bar': return <BarChart>...</BarChart>;
+            case 'radial': return <RadialBarChart>...</RadialBarChart>;
+            case 'treemap': return <Treemap>...</Treemap>;
+        }
+    };
+    
+    // 5. UI
+    return (
+        <Card>
+            <CardHeader>
+                <Select value={chartType} onValueChange={...}>
+                    {/* Selector */}
+                </Select>
+            </CardHeader>
+            <CardContent>
+                {renderChart()}
+            </CardContent>
+        </Card>
+    );
+};
+```
+
+---
+
+## 📐 Detalles de Implementación por Tipo
+
+### 1. Gráfico Circular (Pie)
+
+```typescript
+<ResponsiveContainer width="100%" height={300}>
+    <PieChart>
+        <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) =>
+                `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+            }
+            outerRadius={100}
+            fill="#8884d8"
+            dataKey="value"
+        >
+            {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index]} />
+            ))}
+        </Pie>
+        <Tooltip formatter={(value) => [value ?? 0, 'Suscripciones']} />
+        <Legend />
+    </PieChart>
+</ResponsiveContainer>
+```
+
+**Características:**
+- Muestra porcentajes directamente en el gráfico
+- Tooltip con cantidad exacta
+- Leyenda con nombres y colores
+- Radio exterior de 100px
+
+### 2. Gráfico de Barras (Bar)
+
+```typescript
+<ResponsiveContainer width="100%" height={300}>
+    <BarChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip formatter={(value) => [value ?? 0, 'Suscripciones']} />
+        <Legend />
+        <Bar dataKey="value" fill="#8884d8">
+            {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index]} />
+            ))}
+        </Bar>
+    </BarChart>
+</ResponsiveContainer>
+```
+
+**Características:**
+- Eje X con nombres de estados
+- Eje Y con escala automática
+- Grilla para facilitar lectura
+- Colores individuales por barra
+
+### 3. Gráfico Radial
+
+```typescript
+<ResponsiveContainer width="100%" height={300}>
+    <RadialBarChart
+        cx="50%"
+        cy="50%"
+        innerRadius="10%"
+        outerRadius="90%"
+        data={chartData}
+        startAngle={90}
+        endAngle={-270}
+    >
+        <RadialBar
+            background
+            dataKey="value"
+            cornerRadius={10}
+        >
+            {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index]} />
+            ))}
+        </RadialBar>
+        <Tooltip formatter={(value) => [value ?? 0, 'Suscripciones']} />
+        <Legend iconSize={10} layout="vertical" verticalAlign="middle" />
+    </RadialBarChart>
+</ResponsiveContainer>
+```
+
+**Características:**
+- Diseño circular de 360°
+- Radio interno 10%, externo 90%
+- Esquinas redondeadas (cornerRadius: 10)
+- Leyenda vertical en el medio
+
+### 4. Mapa de Árbol (Treemap)
+
+```typescript
+<ResponsiveContainer width="100%" height={300}>
+    <Treemap
+        data={chartData}
+        dataKey="value"
+        aspectRatio={4 / 3}
+        stroke="#fff"
+        content={<CustomTreeMapContent />}
+    />
+</ResponsiveContainer>
+```
+
+**Componente Custom:**
+
+```typescript
+const CustomTreeMapContent = (props: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    name?: string;
+    value?: number;
+    color?: string;
+}) => {
+    const { x = 0, y = 0, width = 0, height = 0, 
+            name = '', value = 0, color = '#000' } = props;
+    
+    return (
+        <g>
+            <rect
+                x={x}
+                y={y}
+                width={width}
+                height={height}
+                style={{
+                    fill: color,
+                    stroke: '#fff',
+                    strokeWidth: 2,
+                }}
+            />
+            {width > 60 && height > 30 && (
+                <>
+                    <text
+                        x={x + width / 2}
+                        y={y + height / 2 - 10}
+                        textAnchor="middle"
+                        fill="#fff"
+                        fontSize={14}
+                        fontWeight="bold"
+                    >
+                        {name}
+                    </text>
+                    <text
+                        x={x + width / 2}
+                        y={y + height / 2 + 10}
+                        textAnchor="middle"
+                        fill="#fff"
+                        fontSize={12}
+                    >
+                        {value}
+                    </text>
+                </>
+            )}
+        </g>
+    );
+};
+```
+
+**Características:**
+- Tamaño proporcional al valor
+- Etiquetas con nombre y cantidad
+- Oculta texto si el rectángulo es muy pequeño (< 60x30)
+- Borde blanco de 2px para separación
+
+---
+
+## 🎨 UX/UI Considerations
+
+### Responsive Design
+
+Todos los gráficos utilizan `ResponsiveContainer`:
+```typescript
+<ResponsiveContainer width="100%" height={300}>
+```
+
+- **Width**: 100% del contenedor padre
+- **Height**: 300px fijo (balance entre detalle y espacio)
+
+### Estados Sin Datos
+
+```typescript
+if (chartData.length === 0) {
+    return (
+        <div className="flex items-center justify-center h-[300px]">
+            <p className="text-sm text-muted-foreground">
+                Aún no hay suscripciones para mostrar en el gráfico
+            </p>
+        </div>
+    );
+}
+```
+
+### Accesibilidad
+
+- ✅ Tooltips en todos los gráficos
+- ✅ Leyendas con iconos y colores
+- ✅ Etiquetas descriptivas
+- ✅ Contraste de colores optimizado
+
+---
+
+## 🧪 Testing
+
+### Script de Datos de Prueba
+
+**Archivo:** `add_sample_subscriptions.php`
+
+```bash
+# Crear suscripciones de ejemplo
+php add_sample_subscriptions.php
+```
+
+**Distribución generada:**
+- 2 suscripciones Trial
+- 5 suscripciones Activas
+- 2 suscripciones Vencidas
+- 1 suscripción Suspendida
+- 1 suscripción Cancelada
+
+### Casos de Prueba
+
+| Caso | Descripción | Resultado Esperado |
+|------|-------------|-------------------|
+| **Sin datos** | No hay suscripciones | Mensaje "Aún no hay suscripciones" |
+| **1 estado** | Solo suscripciones activas | Gráfico muestra 1 segmento verde |
+| **Todos los estados** | Distribución completa | Gráfico con 5 colores diferentes |
+| **Cambio rápido** | Cambiar tipo 10 veces | Sin lag, transición suave |
+| **Persistencia** | Cambiar tipo y recargar | Mantiene última selección |
+
+---
+
+## 📂 Ubicación del Código
+
+### Archivo Principal
+**Path:** `resources/js/Pages/Admin/Subscriptions/Index.tsx`
+
+### Secciones Relevantes
+
+| Líneas | Contenido |
+|--------|-----------|
+| 1-20 | Imports y dependencias |
+| 120-150 | CustomTreeMapContent component |
+| 151-160 | Generación de chartData |
+| 161-320 | renderChart function (switch con 4 tipos) |
+| 350-380 | UI del selector y card |
+
+### Componentes Relacionados
+
+- `@/components/ui/card` - Card container
+- `@/components/ui/select` - Selector de tipo de gráfico
+- `@/components/admin/subscription-status-badge` - Badges de estado
+
+---
+
+## 🚀 Roadmap de Mejoras Futuras
+
+### Corto Plazo (Sprint actual)
+- ✅ Implementar 4 tipos de gráficos
+- ✅ Selector interactivo
+- ✅ Persistencia con localStorage
+- ✅ Paleta de colores consistente
+
+### Mediano Plazo (Próximo sprint)
+- ⏳ Exportar gráfico como imagen PNG/SVG
+- ⏳ Comparación temporal (mes actual vs anterior)
+- ⏳ Gráfico de línea para evolución histórica
+- ⏳ Filtros por fecha/plan/notaría
+
+### Largo Plazo (Q2 2026)
+- 📅 Dashboard personalizable con drag & drop
+- 📅 Reportes automáticos por email
+- 📅 Predicción de cancelaciones con ML
+- 📅 Alertas proactivas de riesgo
+
+---
+
+## 💡 Mejores Prácticas
+
+### 1. Performance
+
+```typescript
+// ✅ BIEN: Filtrar datos vacíos
+const chartData = stats.filter(item => item.value > 0);
+
+// ❌ MAL: Renderizar todos aunque estén en 0
+const chartData = stats; // Incluye estados con value: 0
+```
+
+### 2. TypeScript
+
+```typescript
+// ✅ BIEN: Props tipadas con valores por defecto
+const CustomTreeMapContent = (props: {
+    x?: number;
+    // ...
+}) => {
+    const { x = 0 } = props;
+};
+
+// ❌ MAL: Props con any
+const CustomTreeMapContent = (props: any) => { };
+```
+
+### 3. Colores
+
+```typescript
+// ✅ BIEN: Usar constante centralizada
+const COLORS = [...];
+<Cell fill={COLORS[index]} />
+
+// ❌ MAL: Colores hardcoded
+<Cell fill="#ff0000" />
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Problema: Gráfico no se muestra
+
+**Síntomas:** Card vacío, sin errores en consola  
+**Causa:** chartData está vacío  
+**Solución:** Verificar que hay suscripciones en la BD
+
+```bash
+php artisan tinker
+>>> \App\Models\Subscription::count()
+```
+
+### Problema: Colores inconsistentes
+
+**Síntomas:** Mismo estado con diferente color al recargar  
+**Causa:** Orden de estados cambia en chartData  
+**Solución:** Mantener orden fijo en la generación de datos
+
+```typescript
+// Orden fijo: trial, activa, vencida, suspendida, cancelada
+const chartData = [
+    { name: 'Trial', value: stats.trial, color: COLORS[0] },
+    { name: 'Activas', value: stats.activas, color: COLORS[1] },
+    // ...
+];
+```
+
+### Problema: localStorage no persiste
+
+**Síntomas:** Preferencia se pierde al recargar  
+**Causa:** SSR (Server-Side Rendering) de Inertia  
+**Solución:** Verificar `typeof window !== 'undefined'`
+
+```typescript
+if (typeof window !== 'undefined') {
+    localStorage.setItem('subscriptions-chart-type', value);
+}
+```
+
+---
+
+## 📚 Referencias
+
+### Documentación Externa
+- [Recharts Documentation](https://recharts.org/en-US/)
+- [Radix UI Select](https://www.radix-ui.com/primitives/docs/components/select)
+- [shadcn/ui Components](https://ui.shadcn.com/)
+
+### Archivos Relacionados
+- [RESUMEN_EJECUTIVO_FASE_1.5.md](RESUMEN_EJECUTIVO_FASE_1.5.md) - Resumen ejecutivo
+- [add_sample_subscriptions.php](../../../add_sample_subscriptions.php) - Script de datos de prueba
+
+---
+
+## ✅ Checklist de Implementación
+
+- [x] Instalar dependencias (recharts, radix-ui)
+- [x] Crear constante COLORS con paleta
+- [x] Implementar estado chartType con localStorage
+- [x] Crear componente CustomTreeMapContent
+- [x] Implementar función renderChart con switch
+- [x] Agregar selector de tipo de gráfico
+- [x] Configurar PieChart con labels de porcentaje
+- [x] Configurar BarChart con ejes y grilla
+- [x] Configurar RadialBarChart circular
+- [x] Configurar Treemap con custom content
+- [x] Agregar manejo de estado sin datos
+- [x] Tipado completo con TypeScript
+- [x] Testing con datos de ejemplo
+- [x] Compilación exitosa sin errores
+- [x] Documentación completa
+
+---
+
+**Última actualización:** 10 de Febrero, 2026  
+**Autor:** Equipo de Desarrollo ATINET  
+**Estado:** ✅ COMPLETADO
+
+---
+
 
 ## 🎯 OBJETIVOS DE LA FASE 1.5
 
