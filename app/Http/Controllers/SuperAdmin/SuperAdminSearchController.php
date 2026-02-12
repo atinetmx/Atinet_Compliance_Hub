@@ -5,6 +5,8 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\OfacNombres;
 use App\Models\Sat69B;
+use App\Models\Service;
+use App\Services\ServiceUsageRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +25,10 @@ use Illuminate\Support\Facades\Log;
  */
 class SuperAdminSearchController extends Controller
 {
+    public function __construct(
+        protected ServiceUsageRecorder $usageRecorder
+    ) {}
+
     /**
      * Búsqueda de persona física en listas OFAC + SAT
      * Implementa algoritmo exacto del sistema legacy con búsqueda extendida
@@ -83,13 +89,20 @@ class SuperAdminSearchController extends Controller
                 ],
             ];
 
-            // Registrar uso del servicio (para estadísticas SuperAdmin)
-            if (function_exists('record_service_usage')) {
-                record_service_usage('OFAC', 1, [
-                    'termino' => $nombre,
-                    'resultados' => $resultadosOfac->count(),
-                    'tipo' => 'persona_fisica',
-                ]);
+            // Registrar uso del servicio OFAC
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_OFAC',
+                    user: $user,
+                    quantity: 1,
+                    metadata: [
+                        'termino' => $nombre,
+                        'resultados' => $resultadosOfac->count(),
+                        'tipo' => 'persona_fisica',
+                    ]
+                );
             }
 
             return response()->json($response);
@@ -159,13 +172,20 @@ class SuperAdminSearchController extends Controller
                 ],
             ];
 
-            // Registrar uso del servicio
-            if (function_exists('record_service_usage')) {
-                record_service_usage('SAT', 1, [
-                    'termino' => $denominacion,
-                    'resultados' => $resultadosSat->count(),
-                    'tipo' => 'persona_moral',
-                ]);
+            // Registrar uso del servicio SAT
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_OFAC',
+                    user: $user,
+                    quantity: 1,
+                    metadata: [
+                        'termino' => $denominacion,
+                        'resultados' => $resultadosSat->count(),
+                        'tipo' => 'persona_moral',
+                    ]
+                );
             }
 
             return response()->json($response);
@@ -227,13 +247,20 @@ class SuperAdminSearchController extends Controller
                 ],
             ];
 
-            // Registrar uso del servicio
-            if (function_exists('record_service_usage')) {
-                record_service_usage('SAT', 1, [
-                    'termino' => $rfc,
-                    'resultados' => $resultados->count(),
-                    'tipo' => 'rfc',
-                ]);
+            // Registrar uso del servicio SAT
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_SAT',
+                    user: $user,
+                    quantity: 1,
+                    metadata: [
+                        'termino' => $rfc,
+                        'resultados' => $resultados->count(),
+                        'tipo' => 'rfc',
+                    ]
+                );
             }
 
             return response()->json($response);
@@ -349,14 +376,22 @@ class SuperAdminSearchController extends Controller
                 $resultadosSatRfc->count() +
                 $resultadosSatNombre->count();
 
-            // Registrar uso de ambos servicios
-            if (function_exists('record_service_usage')) {
-                record_service_usage('BUSQUEDA_CRUZADA', 1, [
-                    'termino_nombre' => $nombre,
-                    'termino_rfc' => $rfc,
-                    'tipo_persona' => $tipoPersona,
-                    'resultados' => $response['data']['total_resultados'],
-                ]);
+            // Registrar uso del servicio OFAC (servicio principal para búsqueda combinada)
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_OFAC',
+                    user: $user,
+                    quantity: 1,
+                    metadata: [
+                        'termino_nombre' => $nombre,
+                        'termino_rfc' => $rfc,
+                        'tipo_persona' => $tipoPersona,
+                        'resultados' => $response['data']['total_resultados'],
+                        'tipo' => 'busqueda_combinada',
+                    ]
+                );
             }
 
             return response()->json($response);

@@ -112,6 +112,18 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('settings/cache/clear', [\App\Http\Controllers\Admin\SettingsController::class, 'clearCache'])->name('settings.cache.clear');
     Route::post('settings/optimize', [\App\Http\Controllers\Admin\SettingsController::class, 'optimize'])->name('settings.optimize');
 
+    // Reportes y estadísticas de uso de servicios
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('index');
+        Route::get('service-usage', [\App\Http\Controllers\Admin\ReportsController::class, 'serviceUsage'])->name('service-usage');
+        Route::get('notarias/{notaria}/stats', [\App\Http\Controllers\Admin\ReportsController::class, 'notariaStats'])->name('notaria-stats');
+        Route::get('notarias-comparison', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasComparison'])->name('notarias-comparison');
+        Route::get('usage-trends', [\App\Http\Controllers\Admin\ReportsController::class, 'usageTrends'])->name('usage-trends');
+        Route::get('top-services', [\App\Http\Controllers\Admin\ReportsController::class, 'topServices'])->name('top-services');
+        Route::get('near-limit', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasNearLimit'])->name('near-limit');
+        Route::get('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
+    });
+
     // Rutas para gestión de contraseñas
     Route::post('users/{user}/reveal-password', [\App\Http\Controllers\Admin\PasswordController::class, 'revealPassword'])->name('users.reveal-password');
     Route::post('users/{user}/reset-password', [\App\Http\Controllers\Admin\PasswordController::class, 'resetPassword'])->name('users.reset-password');
@@ -125,15 +137,27 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return Inertia::render('Admin/ListasNegras/Search');
     })->name('listas-negras');
 
-    // API endpoints para búsquedas (protegidas por validación de suscripción)
+    // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)
     Route::prefix('search')->name('search.')->middleware(['subscription'])->group(function () {
-        Route::post('persona-fisica', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaFisica'])->name('persona-fisica');
-        Route::post('persona-moral', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaMoral'])->name('persona-moral');
-        Route::post('rfc', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfc'])->name('rfc');
-        Route::post('combined', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchCombined'])->name('combined');
+        // Búsquedas que usan OFAC como servicio principal (también pueden incluir SAT)
+        Route::post('persona-fisica', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaFisica'])
+            ->middleware('service:BLACKLIST_OFAC')
+            ->name('persona-fisica');
+        Route::post('persona-moral', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaMoral'])
+            ->middleware('service:BLACKLIST_OFAC')
+            ->name('persona-moral');
+        Route::post('combined', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchCombined'])
+            ->middleware('service:BLACKLIST_OFAC')
+            ->name('combined');
+
+        // Búsqueda exclusiva de SAT (solo RFC)
+        Route::post('rfc', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfc'])
+            ->middleware('service:BLACKLIST_SAT')
+            ->name('rfc');
     });
 
-    // Generación de PDFs para resultados de búsqueda (también protegidas)
+    // Generación de PDFs para resultados de búsqueda
+    // NOTA: Los PDFs NO consumen límites porque son resultado de búsquedas ya realizadas
     Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('ofac-negative', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacNegativePdf'])->name('ofac-negative');
