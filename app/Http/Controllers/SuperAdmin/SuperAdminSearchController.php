@@ -5,7 +5,6 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\OfacNombres;
 use App\Models\Sat69B;
-use App\Models\Service;
 use App\Services\ServiceUsageRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +32,6 @@ class SuperAdminSearchController extends Controller
      * Búsqueda de persona física en listas OFAC + SAT
      * Implementa algoritmo exacto del sistema legacy con búsqueda extendida
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function searchPersonaFisica(Request $request)
@@ -105,6 +103,14 @@ class SuperAdminSearchController extends Controller
                 );
             }
 
+            // Guardar en historial de búsquedas
+            $this->saveSearchHistory(
+                'Persona Física',
+                $nombre,
+                $resultadosOfac->toArray(),
+                $resultadosSat->toArray()
+            );
+
             return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Error en searchPersonaFisica', [
@@ -123,7 +129,6 @@ class SuperAdminSearchController extends Controller
      * Búsqueda de persona moral en listas OFAC + SAT
      * Implementa algoritmo exacto del sistema legacy con búsqueda extendida
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function searchPersonaMoral(Request $request)
@@ -188,6 +193,14 @@ class SuperAdminSearchController extends Controller
                 );
             }
 
+            // Guardar en historial de búsquedas
+            $this->saveSearchHistory(
+                'Persona Moral',
+                $denominacion,
+                $resultadosOfac->toArray(),
+                $resultadosSat->toArray()
+            );
+
             return response()->json($response);
         } catch (\Exception $e) {
             return response()->json([
@@ -201,7 +214,6 @@ class SuperAdminSearchController extends Controller
      * Búsqueda por RFC en lista SAT
      * Implementa algoritmo exacto del sistema legacy
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function searchRfc(Request $request)
@@ -232,7 +244,7 @@ class SuperAdminSearchController extends Controller
                     'termino_busqueda' => $rfc,
                     'total_resultados' => $resultados->count(),
                     'encontrado' => $resultados->isNotEmpty(),
-                    'sat_resultados' => $resultados->map(function ($item) use ($rfc) {
+                    'sat_resultados' => $resultados->map(function ($item) {
                         return [
                             'nombre_original' => $item->NombreOriginal,
                             'nombre_limpio' => $item->nombre_limpio,
@@ -263,6 +275,14 @@ class SuperAdminSearchController extends Controller
                 );
             }
 
+            // Guardar en historial de búsquedas
+            $this->saveSearchHistory(
+                'RFC',
+                $rfc,
+                [],
+                $resultados->toArray()
+            );
+
             return response()->json($response);
         } catch (\Exception $e) {
             return response()->json([
@@ -279,7 +299,6 @@ class SuperAdminSearchController extends Controller
      * Esta es la búsqueda más completa: busca en OFAC por nombre
      * y en SAT con tres niveles de precisión (combinado, RFC, nombre)
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function searchCombined(Request $request)
@@ -394,6 +413,18 @@ class SuperAdminSearchController extends Controller
                 );
             }
 
+            // Guardar en historial de búsquedas
+            $this->saveSearchHistory(
+                'Búsqueda Combinada',
+                "$rfc / $nombre",
+                $resultadosOfac->toArray(),
+                array_merge(
+                    $resultadosSatCombinados->toArray(),
+                    $resultadosSatRfc->toArray(),
+                    $resultadosSatNombre->toArray()
+                )
+            );
+
             return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Error en searchCombined', [
@@ -411,12 +442,65 @@ class SuperAdminSearchController extends Controller
     }
 
     /**
+     * Guardar búsqueda en el historial
+     * Se ejecuta después de cada búsqueda completada exitosamente
+     *
+     * @param  string  $tipo  Tipo de búsqueda (Persona Física, RFC, etc.)
+     * @param  string  $termino  Término que se buscó
+     * @param  array  $resultadosOfac  Resultados de OFAC
+     * @param  array  $resultadosSat  Resultados de SAT
+     */
+    protected function saveSearchHistory(
+        string $tipo,
+        string $termino,
+        array $resultadosOfac = [],
+        array $resultadosSat = []
+    ): void {
+        try {
+            $user = Auth::user();
+            $notaria = $user->notaria;
+
+            if (! $notaria) {
+                return; // Salir si no hay notaría asociada
+            }
+
+            $totalResultados = count($resultadosOfac) + count($resultadosSat);
+
+            \App\Models\Busqueda::create([
+                'notaria_id' => $notaria->id,
+                'user_id' => $user->id,
+                'tipo_busqueda' => $tipo,
+                'termino_busqueda' => $termino,
+                'resultados' => [
+                    'data' => [
+                        'ofac' => $resultadosOfac,
+                        'sat' => $resultadosSat,
+                    ],
+                    'total' => $totalResultados,
+                    'timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+
+            Log::debug('Búsqueda guardada en historial', [
+                'user_id' => $user->id,
+                'notaria_id' => $notaria->id,
+                'tipo' => $tipo,
+                'termino' => $termino,
+                'total_resultados' => $totalResultados,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error guardando búsqueda en historial', [
+                'error' => $e->getMessage(),
+                'tipo' => $tipo,
+                'termino' => $termino,
+            ]);
+            // No fallar la búsqueda si el historial falla
+        }
+    }
+
+    /**
      * Calcular porcentaje de coincidencia entre dos strings
      * Utiliza similar_text() nativo de PHP (algoritmo Levenshtein simplificado)
-     *
-     * @param string $string1
-     * @param string $string2
-     * @return float
      */
     protected function calculateMatch(string $string1, string $string2): float
     {

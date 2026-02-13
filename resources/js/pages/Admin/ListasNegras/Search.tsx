@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, File
 import { useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import SearchHistorySidebar from '@/components/SearchHistorySidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +69,7 @@ export default function ListasNegrasSearch() {
     const [totalResults, setTotalResults] = useState(0);
     const [lastSearch, setLastSearch] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [historyRefresh, setHistoryRefresh] = useState(0);
 
     // Formulario para búsqueda de persona física
     const [personaFisicaForm, setPersonaFisicaForm] = useState({
@@ -194,13 +196,7 @@ export default function ListasNegrasSearch() {
                 setResults(allResults);
                 setTotalResults(data.data.total_resultados);
                 setLastSearch(data.data.termino_busqueda);
-
-                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
-                // await saveRecentSearch(
-                //     personaFisicaForm.nombre,
-                //     'Persona Física',
-                //     data.data.total_resultados
-                // );
+                setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -241,13 +237,7 @@ export default function ListasNegrasSearch() {
                 setResults(allResults);
                 setTotalResults(data.data.total_resultados);
                 setLastSearch(data.data.termino_busqueda);
-
-                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
-                // await saveRecentSearch(
-                //     personaMoralForm.razon_social,
-                //     'Persona Moral',
-                //     data.data.total_resultados
-                // );
+                setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -294,13 +284,7 @@ export default function ListasNegrasSearch() {
                 setResults(satResults);
                 setTotalResults(data.data?.total_resultados || 0);
                 setLastSearch(data.data?.termino_busqueda || '');
-
-                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
-                // await saveRecentSearch(
-                //     rfcForm.rfc,
-                //     'RFC',
-                //     data.data?.total_resultados || 0
-                // );
+                setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -435,14 +419,9 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 ];
                 setResults(allResults);
                 setTotalResults(data.data.total_resultados);
-                setLastSearch(`${data.data.termino_busqueda} (${combinedForm.rfc})`);
-
-                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
-                // await saveRecentSearch(
-                //     `${combinedForm.nombre} (${combinedForm.rfc})`,
-                //     'Búsqueda Combinada',
-                //     data.data.total_resultados
-                // );
+                // Formato correcto: RFC / nombre
+                setLastSearch(`${combinedForm.rfc.toUpperCase()} / ${combinedForm.nombre}`);
+                setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -512,6 +491,37 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 }
                 break;
             }
+        }
+    };
+
+    const handleSearchHistorySelect = (search: any) => {
+        const tipo = search.tipo_busqueda;
+
+        switch (tipo) {
+            case 'Persona Física':
+                setActiveTab('persona-fisica');
+                setPersonaFisicaForm({ nombre: search.termino_busqueda });
+                break;
+            case 'Persona Moral':
+                setActiveTab('persona-moral');
+                setPersonaMoralForm({ razon_social: search.termino_busqueda });
+                break;
+            case 'RFC':
+                setActiveTab('rfc');
+                setRfcForm({ rfc: search.termino_busqueda });
+                break;
+            case 'Búsqueda Combinada':
+                setActiveTab('combinada');
+                // Parseamos el término que viene en formato "RFC / nombre"
+                const parts = search.termino_busqueda.split(' / ');
+                if (parts.length === 2) {
+                    setCombinedForm({
+                        ...combinedForm,
+                        rfc: parts[0].trim(),
+                        nombre: parts[1].trim(),
+                    });
+                }
+                break;
         }
     };
 
@@ -994,72 +1004,12 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                         )}
                     </div>
 
-                    {/* Sidebar con estadísticas y búsquedas recientes - Ocupa 1 columna */}
-                    <div className="space-y-6">
-                        {/* Estadísticas */}
-                        {searchStats && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-sm font-medium">Estadísticas de Búsqueda</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm">Total búsquedas</span>
-                                        <Badge variant="secondary">{searchStats.total_searches}</Badge>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm">Este mes</span>
-                                        <Badge variant="secondary">{searchStats.this_month}</Badge>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm">Esta semana</span>
-                                        <Badge variant="secondary">{searchStats.this_week}</Badge>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm">Hoy</span>
-                                        <Badge variant="secondary">{searchStats.today}</Badge>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Búsquedas recientes */}
-                        {recentSearches.length > 0 && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                                        <Clock className="h-4 w-4" />
-                                        Búsquedas Recientes
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {recentSearches.slice(0, 10).map((search, index) => (
-                                            <div key={index} className="flex items-center justify-between text-sm group hover:bg-muted/50 p-2 rounded-md transition-colors">
-                                                <div className="truncate flex-1 mr-2">
-                                                    <div className="font-medium truncate">{search.search_term}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {search.search_type} • {search.results_count} resultados
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {new Date(search.created_at).toLocaleDateString()}
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleRecentSearchClick(search)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="Repetir búsqueda"
-                                                >
-                                                    <Search className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
+                    {/* Sidebar con historial de búsquedas - Ocupa 1 columna */}
+                    <div>
+                        <SearchHistorySidebar
+                            onSelectSearch={handleSearchHistorySelect}
+                            refreshTrigger={historyRefresh}
+                        />
                     </div>
                 </div>
             </div>

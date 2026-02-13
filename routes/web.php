@@ -162,6 +162,27 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
     });
+
+    // === HISTORIAL DE BÚSQUEDAS EN LISTAS NEGRAS ===
+    // Endpoints para gestionar el historial de búsquedas realizadas
+    Route::prefix('search-history')->name('search-history.')->middleware(['subscription'])->group(function () {
+        // Lista de búsquedas con filtros y paginación
+        Route::get('/', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'index'])->name('index');
+
+        // Detalle de una búsqueda específica
+        Route::get('{busqueda}', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'show'])->name('show');
+
+        // Eliminar una búsqueda del historial
+        Route::delete('{busqueda}', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'destroy'])->name('destroy');
+
+        // Limpiar historial de búsquedas de una notaría (solo super_admin)
+        Route::post('clear-notaria', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'clearNotaria'])
+            ->middleware('can:clear-search-history')
+            ->name('clear-notaria');
+
+        // Estadísticas del historial
+        Route::get('statistics', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'statistics'])->name('statistics');
+    });
 });
 
 require __DIR__.'/settings.php';
