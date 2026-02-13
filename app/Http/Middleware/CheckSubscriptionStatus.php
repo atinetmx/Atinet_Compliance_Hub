@@ -37,6 +37,12 @@ class CheckSubscriptionStatus
             return $this->responseUnauthorized($request);
         }
 
+        // BYPASS: SuperAdmin no requiere suscripción (es administrador de Atinet, no cliente)
+        if ($request->user()->isSuperAdmin()) {
+            $request->attributes->set('subscription_status', 'superadmin_bypass');
+            return $next($request);
+        }
+
         // Verificar que el usuario tenga una notaría asociada
         $notaria = $request->user()->notaria;
         if (!$notaria) {

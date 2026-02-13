@@ -101,67 +101,68 @@ export default function ListasNegrasSearch() {
     const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
     const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
 
+    // TODO: Implementar endpoints de estadísticas y búsquedas recientes en el backend
     // Cargar estadísticas y búsquedas recientes al montar el componente
-    useEffect(() => {
-        loadSearchStats();
-        loadRecentSearches();
-    }, []);
+    // useEffect(() => {
+    //     loadSearchStats();
+    //     loadRecentSearches();
+    // }, []);
 
-    const loadSearchStats = async () => {
-        try {
-            const response = await fetch('/admin/search/stats', {
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setSearchStats(data);
-            }
-        } catch (error) {
-            console.error('Error loading search stats:', error);
-        }
-    };
+    // const loadSearchStats = async () => {
+    //     try {
+    //         const response = await fetch('/admin/search/stats', {
+    //             headers: {
+    //                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+    //             },
+    //         });
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             setSearchStats(data);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error loading search stats:', error);
+    //     }
+    // };
 
-    const loadRecentSearches = async () => {
-        try {
-            const response = await fetch('/admin/search/recent', {
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setRecentSearches(data);
-            }
-        } catch (error) {
-            console.error('Error loading recent searches:', error);
-        }
-    };
+    // const loadRecentSearches = async () => {
+    //     try {
+    //         const response = await fetch('/admin/search/recent', {
+    //             headers: {
+    //                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+    //             },
+    //         });
+    //         if (response.ok) {
+    //             const data = await response.json();
+    //             setRecentSearches(data);
+    //         }
+    //     } catch (error) {
+    //         console.error('Error loading recent searches:', error);
+    //     }
+    // };
 
-    const saveRecentSearch = async (searchTerm: string, searchType: string, resultsCount: number) => {
-        try {
-            const response = await fetch('/admin/search/save-recent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify({
-                    search_term: searchTerm,
-                    search_type: searchType,
-                    results_count: resultsCount,
-                }),
-            });
-            if (response.ok) {
-                // Recargar búsquedas recientes y estadísticas
-                loadRecentSearches();
-                loadSearchStats();
-            }
-        } catch (error) {
-            console.error('Error saving recent search:', error);
-        }
-    };
+    // const saveRecentSearch = async (searchTerm: string, searchType: string, resultsCount: number) => {
+    //     try {
+    //         const response = await fetch('/admin/search/save-recent', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+    //             },
+    //             body: JSON.stringify({
+    //                 search_term: searchTerm,
+    //                 search_type: searchType,
+    //                 results_count: resultsCount,
+    //             }),
+    //         });
+    //         if (response.ok) {
+    //             // Recargar búsquedas recientes y estadísticas
+    //             loadRecentSearches();
+    //             loadSearchStats();
+    //         }
+    //     } catch (error) {
+    //         console.error('Error saving recent search:', error);
+    //     }
+    // };
 
     const handlePersonaFisicaSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -194,12 +195,12 @@ export default function ListasNegrasSearch() {
                 setTotalResults(data.data.total_resultados);
                 setLastSearch(data.data.termino_busqueda);
 
-                // Guardar búsqueda reciente
-                await saveRecentSearch(
-                    personaFisicaForm.nombre,
-                    'Persona Física',
-                    data.data.total_resultados
-                );
+                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
+                // await saveRecentSearch(
+                //     personaFisicaForm.nombre,
+                //     'Persona Física',
+                //     data.data.total_resultados
+                // );
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -241,12 +242,12 @@ export default function ListasNegrasSearch() {
                 setTotalResults(data.data.total_resultados);
                 setLastSearch(data.data.termino_busqueda);
 
-                // Guardar búsqueda reciente
-                await saveRecentSearch(
-                    personaMoralForm.razon_social,
-                    'Persona Moral',
-                    data.data.total_resultados
-                );
+                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
+                // await saveRecentSearch(
+                //     personaMoralForm.razon_social,
+                //     'Persona Moral',
+                //     data.data.total_resultados
+                // );
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -293,12 +294,12 @@ export default function ListasNegrasSearch() {
                 setTotalResults(data.data?.total_resultados || 0);
                 setLastSearch(data.data?.termino_busqueda || '');
 
-                // Guardar búsqueda reciente
-                await saveRecentSearch(
-                    rfcForm.rfc,
-                    'RFC',
-                    data.data?.total_resultados || 0
-                );
+                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
+                // await saveRecentSearch(
+                //     rfcForm.rfc,
+                //     'RFC',
+                //     data.data?.total_resultados || 0
+                // );
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -334,11 +335,21 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
 
     const handleCombinedRfcChange = (value: string) => {
         const upperValue = value.toUpperCase();
-        setCombinedForm({ ...combinedForm, rfc: upperValue });
+        const rfcLength = upperValue.trim().length;
+        
+        // Auto-detectar tipo de persona según longitud del RFC
+        let autoTipoPersona = combinedForm.tipo_persona;
+        if (rfcLength === 12) {
+            autoTipoPersona = 'fisica';
+        } else if (rfcLength === 13) {
+            autoTipoPersona = 'moral';
+        }
+        
+        setCombinedForm({ ...combinedForm, rfc: upperValue, tipo_persona: autoTipoPersona });
 
-        // Validar en tiempo real
+        // Validar en tiempo real con el tipo detectado automáticamente
         if (upperValue.trim()) {
-            const error = validateRFC(upperValue, combinedForm.tipo_persona);
+            const error = validateRFC(upperValue, autoTipoPersona);
             setValidationErrors(prev => ({ ...prev, combinedRfc: error }));
         } else {
             setValidationErrors(prev => ({ ...prev, combinedRfc: undefined }));
@@ -380,8 +391,18 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         e.preventDefault();
         if (!combinedForm.nombre.trim() || !combinedForm.rfc.trim()) return;
 
-        // Validar RFC según tipo de persona
-        const rfcValidationError = validateRFC(combinedForm.rfc, combinedForm.tipo_persona);
+        // Auto-detectar tipo de persona según longitud del RFC (más confiable que el selector)
+        const rfcLength = combinedForm.rfc.trim().length;
+        let tipoPersonaReal = combinedForm.tipo_persona;
+        
+        if (rfcLength === 12) {
+            tipoPersonaReal = 'fisica';
+        } else if (rfcLength === 13) {
+            tipoPersonaReal = 'moral';
+        }
+
+        // Validar RFC según tipo auto-detectado
+        const rfcValidationError = validateRFC(combinedForm.rfc, tipoPersonaReal);
         if (rfcValidationError) {
             setError(rfcValidationError);
             return;
@@ -401,7 +422,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 body: JSON.stringify({
                     nombre: combinedForm.nombre,
                     rfc: combinedForm.rfc,
-                    tipo_persona: combinedForm.tipo_persona,
+                    tipo_persona: tipoPersonaReal, // Usar el tipo auto-detectado
                 }),
             });
 
@@ -416,12 +437,12 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 setTotalResults(data.data.total_resultados);
                 setLastSearch(`${data.data.termino_busqueda} (${combinedForm.rfc})`);
 
-                // Guardar búsqueda reciente
-                await saveRecentSearch(
-                    `${combinedForm.nombre} (${combinedForm.rfc})`,
-                    'Búsqueda Combinada',
-                    data.data.total_resultados
-                );
+                // TODO: Guardar búsqueda reciente cuando se implemente el endpoint
+                // await saveRecentSearch(
+                //     `${combinedForm.nombre} (${combinedForm.rfc})`,
+                //     'Búsqueda Combinada',
+                //     data.data.total_resultados
+                // );
             } else {
                 setError(data.message || 'Error en la búsqueda');
             }
@@ -501,16 +522,101 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         const ofacResults = results.filter(r => r.source === 'OFAC');
         const satResults = results.filter(r => r.source === 'SAT');
 
+        // Extraer nombre y RFC de lastSearch si es combinada
+        const searchParts = lastSearch.match(/^(.+?)\s*\(([A-Z0-9]{12,13})\)$/);
+        const searchNombre = searchParts ? searchParts[1] : lastSearch;
+        const searchRfc = searchParts ? searchParts[2] : '';
+
+        // Generar URLs de PDF para resultados
+        const generateOfacPdfUrl = () => {
+            const params = new URLSearchParams({
+                nombre: searchNombre,
+                rfc: searchRfc || '',
+                resultados: JSON.stringify(ofacResults.map(r => ({
+                    name: r.name || r.nombre_limpio,
+                    nombre_limpio: r.nombre_limpio,
+                    similarity: r.similarity || r.coincidencia,
+                    tipo_coincidencia: r.tipo_coincidencia,
+                    publicacion_ofac: r.publicacion_ofac,
+                }))),
+            });
+            return `/pdf/ofac?${params.toString()}`;
+        };
+
+        const generateSatPdfUrl = () => {
+            const params = new URLSearchParams({
+                nombre: searchNombre,
+                rfc: searchRfc || '',
+                resultados: JSON.stringify(satResults.map(r => ({
+                    name: r.name || r.nombre_limpio,
+                    nombre_limpio: r.nombre_limpio,
+                    rfc: r.rfc,
+                    similarity: r.similarity || r.coincidencia,
+                    situacion: r.situacion,
+                    tipo_coincidencia: r.tipo_coincidencia,
+                    publicacion_sat: r.publicacion_sat,
+                }))),
+            });
+            return `/pdf/sat?${params.toString()}`;
+        };
+
+        const generateCombinedPdfUrl = () => {
+            const params = new URLSearchParams({
+                nombre: searchNombre,
+                rfc: searchRfc || '',
+                resultados_ofac: JSON.stringify(ofacResults.map(r => ({
+                    name: r.name || r.nombre_limpio,
+                    nombre_limpio: r.nombre_limpio,
+                    similarity: r.similarity || r.coincidencia,
+                    tipo_coincidencia: r.tipo_coincidencia,
+                    publicacion_ofac: r.publicacion_ofac,
+                }))),
+                resultados_sat: JSON.stringify(satResults.map(r => ({
+                    name: r.name || r.nombre_limpio,
+                    nombre_limpio: r.nombre_limpio,
+                    rfc: r.rfc,
+                    similarity: r.similarity || r.coincidencia,
+                    situacion: r.situacion,
+                    tipo_coincidencia: r.tipo_coincidencia,
+                    publicacion_sat: r.publicacion_sat,
+                }))),
+            });
+            return `/pdf/combined?${params.toString()}`;
+        };
+
         return (
             <div className="space-y-6">
+                {/* Botón para PDF combinado cuando hay resultados de ambas listas */}
+                {ofacResults.length > 0 && satResults.length > 0 && (
+                    <div className="flex justify-center">
+                        <Button asChild variant="default" size="lg">
+                            <a href={generateCombinedPdfUrl()} target="_blank" rel="noopener noreferrer">
+                                <Download className="h-5 w-5 mr-2" />
+                                Generar PDF Combinado (OFAC + SAT)
+                            </a>
+                        </Button>
+                    </div>
+                )}
+
                 {/* Resultados OFAC */}
                 {ofacResults.length > 0 && (
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-red-500" />
-                                Lista OFAC (Estados Unidos)
-                            </CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                    Lista OFAC (Estados Unidos)
+                                </CardTitle>
+                                <Button asChild variant="default" size="sm">
+                                    <a href={generateOfacPdfUrl()} target="_blank" rel="noopener noreferrer">
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Generar PDF
+                                    </a>
+                                </Button>
+                            </div>
+                            <CardDescription>
+                                {ofacResults.length} coincidencia{ofacResults.length !== 1 ? 's' : ''} encontrada{ofacResults.length !== 1 ? 's' : ''}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {ofacResults.map((result, index) => (
@@ -536,14 +642,6 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                             <span className="ml-2 text-muted-foreground">{result.publicacion_ofac}</span>
                                         </div>
                                     )}
-                                    {result.url_pdf && (
-                                        <Button asChild variant="outline" className="w-full">
-                                            <a href={result.url_pdf} target="_blank" rel="noopener noreferrer">
-                                                <Download className="h-4 w-4 mr-2" />
-                                                Generar PDF OFAC
-                                            </a>
-                                        </Button>
-                                    )}
                                 </div>
                             ))}
                         </CardContent>
@@ -554,10 +652,21 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 {satResults.length > 0 && (
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-purple-500" />
-                                Lista SAT (Artículo 69-B)
-                            </CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-purple-500" />
+                                    Lista SAT (Artículo 69-B)
+                                </CardTitle>
+                                <Button asChild variant="default" size="sm">
+                                    <a href={generateSatPdfUrl()} target="_blank" rel="noopener noreferrer">
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Generar PDF
+                                    </a>
+                                </Button>
+                            </div>
+                            <CardDescription>
+                                {satResults.length} coincidencia{satResults.length !== 1 ? 's' : ''} encontrada{satResults.length !== 1 ? 's' : ''}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {satResults.map((result, index) => (
@@ -589,14 +698,6 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                             </div>
                                         )}
                                     </div>
-                                    {result.url_pdf && (
-                                        <Button asChild variant="outline" className="w-full">
-                                            <a href={result.url_pdf} target="_blank" rel="noopener noreferrer">
-                                                <Download className="h-4 w-4 mr-2" />
-                                                Generar PDF SAT
-                                            </a>
-                                        </Button>
-                                    )}
                                 </div>
                             ))}
                         </CardContent>

@@ -28,6 +28,13 @@ class CheckServiceAccess
             return $this->responseUnauthorized($request);
         }
 
+        // BYPASS: SuperAdmin tiene acceso ilimitado a todos los servicios (es administrador de Atinet)
+        if ($request->user()->isSuperAdmin()) {
+            $request->attributes->set('service_code', $serviceCode);
+            $request->attributes->set('service_access', 'superadmin_unlimited');
+            return $next($request);
+        }
+
         // Verificar que el usuario tenga una notaría asociada
         $notaria = $request->user()->notaria;
         if (! $notaria) {
