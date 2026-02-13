@@ -160,10 +160,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // NOTA: Los PDFs NO consumen límites porque son resultado de búsquedas ya realizadas
     Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
-        Route::get('ofac-negative', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacNegativePdf'])->name('ofac-negative');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
-        Route::get('sat-negative', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatNegativePdf'])->name('sat-negative');
-        Route::get('combined', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateCombinedPdf'])->name('combined');
     });
 });
 

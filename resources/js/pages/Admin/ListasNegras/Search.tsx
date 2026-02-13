@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, Clock } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -98,8 +98,8 @@ export default function ListasNegrasSearch() {
     }>({});
 
     // Estados para estadísticas y búsquedas recientes
-    const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
-    const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+    const [searchStats] = useState<SearchStats | null>(null);
+    const [recentSearches] = useState<RecentSearch[]>([]);
 
     // TODO: Implementar endpoints de estadísticas y búsquedas recientes en el backend
     // Cargar estadísticas y búsquedas recientes al montar el componente
@@ -188,8 +188,8 @@ export default function ListasNegrasSearch() {
 
             if (data.success && data.data) {
                 const allResults = [
-                    ...(data.data.ofac_resultados || []),
-                    ...(data.data.sat_resultados || []),
+                    ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
+                    ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
                 ];
                 setResults(allResults);
                 setTotalResults(data.data.total_resultados);
@@ -235,8 +235,8 @@ export default function ListasNegrasSearch() {
 
             if (data.success && data.data) {
                 const allResults = [
-                    ...(data.data.ofac_resultados || []),
-                    ...(data.data.sat_resultados || []),
+                    ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
+                    ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
                 ];
                 setResults(allResults);
                 setTotalResults(data.data.total_resultados);
@@ -290,7 +290,8 @@ export default function ListasNegrasSearch() {
             const data: SearchResponse = await response.json();
 
             if (data.success) {
-                setResults(data.data?.sat_resultados || []);
+                const satResults = (data.data?.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const }));
+                setResults(satResults);
                 setTotalResults(data.data?.total_resultados || 0);
                 setLastSearch(data.data?.termino_busqueda || '');
 
@@ -336,7 +337,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
     const handleCombinedRfcChange = (value: string) => {
         const upperValue = value.toUpperCase();
         const rfcLength = upperValue.trim().length;
-        
+
         // Auto-detectar tipo de persona según longitud del RFC
         let autoTipoPersona = combinedForm.tipo_persona;
         if (rfcLength === 12) {
@@ -344,7 +345,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         } else if (rfcLength === 13) {
             autoTipoPersona = 'moral';
         }
-        
+
         setCombinedForm({ ...combinedForm, rfc: upperValue, tipo_persona: autoTipoPersona });
 
         // Validar en tiempo real con el tipo detectado automáticamente
@@ -394,7 +395,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         // Auto-detectar tipo de persona según longitud del RFC (más confiable que el selector)
         const rfcLength = combinedForm.rfc.trim().length;
         let tipoPersonaReal = combinedForm.tipo_persona;
-        
+
         if (rfcLength === 12) {
             tipoPersonaReal = 'fisica';
         } else if (rfcLength === 13) {
@@ -430,8 +431,8 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
 
             if (data.success && data.data) {
                 const allResults = [
-                    ...(data.data.ofac_resultados || []),
-                    ...(data.data.sat_resultados || []),
+                    ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
+                    ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
                 ];
                 setResults(allResults);
                 setTotalResults(data.data.total_resultados);
@@ -527,179 +528,206 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         const searchNombre = searchParts ? searchParts[1] : lastSearch;
         const searchRfc = searchParts ? searchParts[2] : '';
 
-        // Generar URLs de PDF para resultados
-        const generateOfacPdfUrl = () => {
+        // Generar URL de PDF para un resultado OFAC individual
+        const generateSingleOfacPdfUrl = (result: SearchResult) => {
             const params = new URLSearchParams({
                 nombre: searchNombre,
                 rfc: searchRfc || '',
-                resultados: JSON.stringify(ofacResults.map(r => ({
-                    name: r.name || r.nombre_limpio,
-                    nombre_limpio: r.nombre_limpio,
-                    similarity: r.similarity || r.coincidencia,
-                    tipo_coincidencia: r.tipo_coincidencia,
-                    publicacion_ofac: r.publicacion_ofac,
-                }))),
+                resultados: JSON.stringify([{
+                    name: result.name || result.nombre_limpio,
+                    nombre_limpio: result.nombre_limpio,
+                    similarity: result.similarity || result.coincidencia,
+                    tipo_coincidencia: result.tipo_coincidencia,
+                    publicacion_ofac: result.publicacion_ofac,
+                }]),
             });
-            return `/pdf/ofac?${params.toString()}`;
+            return `/admin/pdf/ofac?${params.toString()}`;
         };
 
-        const generateSatPdfUrl = () => {
+        // Generar URL de PDF para un resultado SAT individual
+        const generateSingleSatPdfUrl = (result: SearchResult) => {
             const params = new URLSearchParams({
                 nombre: searchNombre,
                 rfc: searchRfc || '',
-                resultados: JSON.stringify(satResults.map(r => ({
-                    name: r.name || r.nombre_limpio,
-                    nombre_limpio: r.nombre_limpio,
-                    rfc: r.rfc,
-                    similarity: r.similarity || r.coincidencia,
-                    situacion: r.situacion,
-                    tipo_coincidencia: r.tipo_coincidencia,
-                    publicacion_sat: r.publicacion_sat,
-                }))),
+                resultados: JSON.stringify([{
+                    name: result.name || result.nombre_limpio,
+                    nombre_limpio: result.nombre_limpio,
+                    rfc: result.rfc,
+                    similarity: result.similarity || result.coincidencia,
+                    situacion: result.situacion,
+                    tipo_coincidencia: result.tipo_coincidencia,
+                    publicacion_sat: result.publicacion_sat,
+                }]),
             });
-            return `/pdf/sat?${params.toString()}`;
-        };
-
-        const generateCombinedPdfUrl = () => {
-            const params = new URLSearchParams({
-                nombre: searchNombre,
-                rfc: searchRfc || '',
-                resultados_ofac: JSON.stringify(ofacResults.map(r => ({
-                    name: r.name || r.nombre_limpio,
-                    nombre_limpio: r.nombre_limpio,
-                    similarity: r.similarity || r.coincidencia,
-                    tipo_coincidencia: r.tipo_coincidencia,
-                    publicacion_ofac: r.publicacion_ofac,
-                }))),
-                resultados_sat: JSON.stringify(satResults.map(r => ({
-                    name: r.name || r.nombre_limpio,
-                    nombre_limpio: r.nombre_limpio,
-                    rfc: r.rfc,
-                    similarity: r.similarity || r.coincidencia,
-                    situacion: r.situacion,
-                    tipo_coincidencia: r.tipo_coincidencia,
-                    publicacion_sat: r.publicacion_sat,
-                }))),
-            });
-            return `/pdf/combined?${params.toString()}`;
+            return `/admin/pdf/sat?${params.toString()}`;
         };
 
         return (
             <div className="space-y-6">
-                {/* Botón para PDF combinado cuando hay resultados de ambas listas */}
-                {ofacResults.length > 0 && satResults.length > 0 && (
-                    <div className="flex justify-center">
-                        <Button asChild variant="default" size="lg">
-                            <a href={generateCombinedPdfUrl()} target="_blank" rel="noopener noreferrer">
-                                <Download className="h-5 w-5 mr-2" />
-                                Generar PDF Combinado (OFAC + SAT)
-                            </a>
-                        </Button>
-                    </div>
-                )}
 
                 {/* Resultados OFAC */}
                 {ofacResults.length > 0 && (
-                    <Card>
-                        <CardHeader>
+                    <Card className="border-red-200 bg-linear-to-br from-red-50 to-transparent dark:from-red-950/30">
+                        <CardHeader className="border-b border-red-200 dark:border-red-800">
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2">
-                                    <AlertTriangle className="h-5 w-5 text-red-500" />
-                                    Lista OFAC (Estados Unidos)
-                                </CardTitle>
-                                <Button asChild variant="default" size="sm">
-                                    <a href={generateOfacPdfUrl()} target="_blank" rel="noopener noreferrer">
-                                        <Download className="h-4 w-4 mr-2" />
-                                        Generar PDF
-                                    </a>
-                                </Button>
+                                <div className="flex-1">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <AlertTriangle className="h-5 w-5 text-red-600" />
+                                        Lista OFAC (Estados Unidos)
+                                    </CardTitle>
+                                    <CardDescription className="mt-2">
+                                        {ofacResults.length} coincidencia{ofacResults.length !== 1 ? 's' : ''} encontrada{ofacResults.length !== 1 ? 's' : ''}
+                                    </CardDescription>
+                                </div>
                             </div>
-                            <CardDescription>
-                                {ofacResults.length} coincidencia{ofacResults.length !== 1 ? 's' : ''} encontrada{ofacResults.length !== 1 ? 's' : ''}
-                            </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            {ofacResults.map((result, index) => (
-                                <div key={`ofac-${index}`} className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20 space-y-3">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="font-medium text-lg">{result.nombre_limpio || result.name}</div>
-                                            <div className="text-sm text-muted-foreground mt-1">
-                                                Tipo: {result.type} | Fuente: OFAC
+                        <CardContent className="pt-6">
+                            <div className="space-y-4">
+                                {ofacResults.map((result, index) => (
+                                    <div key={`ofac-${index}`} className="border border-red-200 dark:border-red-800 rounded-lg p-5 bg-white dark:bg-slate-950 hover:shadow-md transition-shadow">
+                                        <div className="space-y-4">
+                                            {/* Header with PDF Button */}
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-lg text-red-700 dark:text-red-400">{result.nombre_limpio || result.name}</h4>
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        <span className="font-medium">Tipo:</span> {result.type || 'N/A'}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 items-start flex-wrap justify-end">
+                                                    {getSimilarityBadge(result.similarity, result.coincidencia)}
+                                                    <Button asChild variant="destructive" size="sm" className="whitespace-nowrap">
+                                                        <a href={generateSingleOfacPdfUrl(result)} target="_blank" rel="noopener noreferrer">
+                                                            <Download className="h-4 w-4 mr-2" />
+                                                            PDF
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Detalles en grid */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-4">
+                                                {result.rfc && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">RFC</p>
+                                                        <p className="font-mono text-sm mt-1 font-bold">{result.rfc}</p>
+                                                    </div>
+                                                )}
+                                                {result.tipo_coincidencia && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">Tipo Coincidencia</p>
+                                                        <p className="text-sm mt-1">{result.tipo_coincidencia}</p>
+                                                    </div>
+                                                )}
+                                                {result.publicacion_ofac && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded md:col-span-2">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">Publicación OFAC</p>
+                                                        <p className="text-sm mt-1 text-muted-foreground">{result.publicacion_ofac}</p>
+                                                    </div>
+                                                )}
+                                                {result.details && Object.keys(result.details).length > 0 && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded md:col-span-2">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">Información Adicional</p>
+                                                        <ul className="text-sm mt-2 space-y-1">
+                                                            {Object.entries(result.details).map(([key, value]) => (
+                                                                <li key={key}>
+                                                                    <span className="font-medium">{key}:</span> {String(value)}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                        {getSimilarityBadge(result.similarity, result.coincidencia)}
                                     </div>
-                                    {result.rfc && (
-                                        <div className="text-sm">
-                                            <span className="font-medium">RFC:</span>
-                                            <span className="ml-2 font-mono">{result.rfc}</span>
-                                        </div>
-                                    )}
-                                    {result.publicacion_ofac && (
-                                        <div className="text-sm">
-                                            <span className="font-medium">Publicación:</span>
-                                            <span className="ml-2 text-muted-foreground">{result.publicacion_ofac}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
                 )}
 
                 {/* Resultados SAT */}
                 {satResults.length > 0 && (
-                    <Card>
-                        <CardHeader>
+                    <Card className="border-blue-200 bg-linear-to-br from-blue-50 to-transparent dark:from-blue-950/30">
+                        <CardHeader className="border-b border-blue-200 dark:border-blue-800">
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2">
-                                    <FileText className="h-5 w-5 text-purple-500" />
-                                    Lista SAT (Artículo 69-B)
-                                </CardTitle>
-                                <Button asChild variant="default" size="sm">
-                                    <a href={generateSatPdfUrl()} target="_blank" rel="noopener noreferrer">
-                                        <Download className="h-4 w-4 mr-2" />
-                                        Generar PDF
-                                    </a>
-                                </Button>
-                            </div>
-                            <CardDescription>
-                                {satResults.length} coincidencia{satResults.length !== 1 ? 's' : ''} encontrada{satResults.length !== 1 ? 's' : ''}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {satResults.map((result, index) => (
-                                <div key={`sat-${index}`} className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-3">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="font-medium text-lg">{result.nombre_limpio || result.name}</div>
-                                            <div className="text-sm text-muted-foreground mt-1">
-                                                {result.tipo_coincidencia && `${result.tipo_coincidencia} | `}
-                                                Fuente: SAT
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {getSimilarityBadge(result.similarity, result.coincidencia)}
-                                            {getSituacionBadge(result.situacion)}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm border-t pt-3">
-                                        {result.rfc && (
-                                            <div>
-                                                <span className="font-medium">RFC:</span>
-                                                <span className="ml-2 font-mono">{result.rfc}</span>
-                                            </div>
-                                        )}
-                                        {result.publicacion_sat && (
-                                            <div>
-                                                <span className="font-medium">Publicación SAT:</span>
-                                                <span className="ml-2 text-xs text-muted-foreground">{result.publicacion_sat}</span>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div className="flex-1">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <FileText className="h-5 w-5 text-blue-600" />
+                                        Lista SAT (Artículo 69-B)
+                                    </CardTitle>
+                                    <CardDescription className="mt-2">
+                                        {satResults.length} coincidencia{satResults.length !== 1 ? 's' : ''} encontrada{satResults.length !== 1 ? 's' : ''}
+                                    </CardDescription>
                                 </div>
-                            ))}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            <div className="space-y-4">
+                                {satResults.map((result, index) => (
+                                    <div key={`sat-${index}`} className="border border-blue-200 dark:border-blue-800 rounded-lg p-5 bg-white dark:bg-slate-950 hover:shadow-md transition-shadow">
+                                        <div className="space-y-4">
+                                            {/* Header with PDF Button */}
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-lg text-blue-700 dark:text-blue-400">{result.nombre_limpio || result.name}</h4>
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        {result.tipo_coincidencia && (
+                                                            <>
+                                                                <span className="font-medium">Búsqueda:</span> {result.tipo_coincidencia}
+                                                            </>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 flex-wrap justify-end items-start">
+                                                    {getSimilarityBadge(result.similarity, result.coincidencia)}
+                                                    {getSituacionBadge(result.situacion)}
+                                                    <Button asChild variant="default" size="sm" className="whitespace-nowrap">
+                                                        <a href={generateSingleSatPdfUrl(result)} target="_blank" rel="noopener noreferrer">
+                                                            <Download className="h-4 w-4 mr-2" />
+                                                            PDF
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Detalles en grid */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t pt-4">
+                                                {result.rfc && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">RFC</p>
+                                                        <p className="font-mono text-sm mt-1 font-bold">{result.rfc}</p>
+                                                    </div>
+                                                )}
+                                                {result.situacion && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">Situación</p>
+                                                        <p className="text-sm mt-1">{result.situacion}</p>
+                                                    </div>
+                                                )}
+                                                {result.publicacion_sat && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded md:col-span-2">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">Fecha de Publicación SAT</p>
+                                                        <p className="text-sm mt-1 text-muted-foreground">{result.publicacion_sat}</p>
+                                                    </div>
+                                                )}
+                                                {result.details && Object.keys(result.details).length > 0 && (
+                                                    <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded md:col-span-2">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase">Información Adicional</p>
+                                                        <ul className="text-sm mt-2 space-y-1">
+                                                            {Object.entries(result.details).map(([key, value]) => (
+                                                                <li key={key}>
+                                                                    <span className="font-medium">{key}:</span> {String(value)}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -710,21 +738,33 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                         <CardContent className="pt-6">
                             <div className="text-center space-y-4">
                                 <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-                                <h3 className="font-medium">Ninguna coincidencia encontrada</h3>
+                                <h3 className="font-medium text-lg">✓ Ninguna coincidencia encontrada</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    No se encontraron registros en las listas OFAC y SAT para: <strong>{lastSearch}</strong>
+                                    No se encontraron registros en las listas OFAC y SAT para: <strong className="text-foreground">{lastSearch}</strong>
                                 </p>
 
                                 {/* Opción de generar PDF negativo */}
                                 <div className="flex flex-col sm:flex-row gap-2 justify-center items-center mt-4">
-                                    <Button variant="outline" asChild>
-                                        <a href={`/pdf/ofac-negative?nombre=${encodeURIComponent(lastSearch)}`} target="_blank">
+                                    <Button
+                                        variant="outline"
+                                        asChild
+                                    >
+                                        <a
+                                            href={`/admin/pdf/ofac?nombre=${encodeURIComponent(lastSearch)}&rfc=${encodeURIComponent('')}&resultados=${encodeURIComponent('[]')}`}
+                                            target="_blank"
+                                        >
                                             <Download className="h-4 w-4 mr-2" />
                                             PDF OFAC (Sin coincidencias)
                                         </a>
                                     </Button>
-                                    <Button variant="outline" asChild>
-                                        <a href={`/pdf/sat-negative?nombre=${encodeURIComponent(lastSearch)}`} target="_blank">
+                                    <Button
+                                        variant="outline"
+                                        asChild
+                                    >
+                                        <a
+                                            href={`/admin/pdf/sat?nombre=${encodeURIComponent(lastSearch)}&rfc=${encodeURIComponent('')}&resultados=${encodeURIComponent('[]')}`}
+                                            target="_blank"
+                                        >
                                             <Download className="h-4 w-4 mr-2" />
                                             PDF SAT (Sin coincidencias)
                                         </a>
