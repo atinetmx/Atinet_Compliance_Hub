@@ -322,13 +322,12 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
             return 'RFC de persona moral debe tener exactamente 13 caracteres';
         }
 
-        // Validación básica de formato RFC
-        const rfcPattern = tipoPersona === 'fisica'
-            ? /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{2}$/
-            : /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
+        // Validación permisiva: RFC solo puede contener letras (A-Z, Ñ, &), números y no puede estar vacío
+        // Esto permite variaciones en la estructura del RFC que están registradas en el SAT
+        const rfcPattern = /^[A-ZÑ&0-9]+$/;
 
         if (!rfcPattern.test(rfcClean)) {
-            return `Formato de RFC ${tipoPersona === 'fisica' ? 'persona física' : 'persona moral'} inválido`;
+            return `RFC solo puede contener letras, números, Ñ y &`;
         }
 
         return undefined;

@@ -38,6 +38,17 @@ Este documento sirve como índice central de toda la documentación del proyecto
 - [`CHECKLIST_FASE_1.5.md`](docs/phases/phase-1.5/completed/CHECKLIST_FASE_1.5.md)
 - [`NOTAS_PROXIMA_SESION.md`](docs/phases/phase-1.5/completed/NOTAS_PROXIMA_SESION.md)
 
+#### Fase 2 - Búsqueda en Listas Negras (OFAC + SAT) ✅ Completada
+- [`LISTAS_NEGRAS_OFAC_SAT.md`](docs/LISTAS_NEGRAS_OFAC_SAT.md) - **Sistema completo de búsqueda y PDFs**
+  - ✅ Búsqueda en lista OFAC (Persona Física/Moral)
+  - ✅ Búsqueda en lista SAT (RFC - Artículo 69-B)
+  - ✅ Búsqueda combinada (OFAC + SAT)
+  - ✅ Generación de reportes en PDF profesionales
+  - ✅ Visualización detallada de múltiples resultados
+  - ✅ Migración a tFPDF con soporte UTF-8 completo
+  - ✅ Interfaz React/TypeScript con Shadcn UI
+  - ✅ Rutas protegidas por middleware de suscripción
+
 ### 📘 Documentos de Referencia Rápida
 
 | Documento | Descripción | Ubicación |
@@ -45,6 +56,10 @@ Este documento sirve como índice central de toda la documentación del proyecto
 | `CONVENCIONES.md` | Convenciones de código PHP/Laravel/TypeScript | [`docs/development/`](docs/development/CONVENCIONES.md) |
 | `HELPERS_SERVICIOS.md` | Funciones helper de servicios | [`docs/development/`](docs/development/HELPERS_SERVICIOS.md) |
 | `PALETA_COLORES_ATINET.md` | Paleta de colores corporativa | [`docs/design/`](docs/design/PALETA_COLORES_ATINET.md) |
+| `LISTAS_NEGRAS_OFAC_SAT.md` | 📘 Documentación técnica completa búsqueda | [`docs/`](docs/LISTAS_NEGRAS_OFAC_SAT.md) |
+| `CAMBIOS_TECNICOS_FASE_2.md` | 🔧 Cambios y migraciones Fase 2 | [`docs/`](docs/CAMBIOS_TECNICOS_FASE_2.md) |
+| `GUIA_RAPIDA_LISTAS_NEGRAS.md` | ⚡ Troubleshooting y comandos rápidos | [`docs/`](docs/GUIA_RAPIDA_LISTAS_NEGRAS.md) |
+| `INDICE_FASE_2.md` | 📑 Índice completo de Fase 2 | [`docs/`](docs/INDICE_FASE_2.md) |
 
 ---
 
@@ -71,6 +86,16 @@ Este documento sirve como índice central de toda la documentación del proyecto
 - ✅ **Gestión completa de suscripciones**
 - ✅ **Sistema automático de verificación de suscripciones vencidas**
 - ✅ **Dashboard con visualización de datos interactiva**
+
+### Búsqueda en Listas Negras (Fase 2) ✨ NUEVO
+- ✅ **4 tipos de búsqueda:** Persona Física, Persona Moral, RFC, Combinada
+- ✅ **OFAC List:** Búsqueda de personas y empresas en lista negra OFAC
+- ✅ **SAT Artículo 69-B:** Búsqueda de RFC en lista de incumplimiento del SAT
+- ✅ **Visualización detallada:** Resultados con multiple coincidencias
+- ✅ **Generación de PDFs profesionales:** Reportes idénticos al sistema legacy
+- ✅ **tFPDF v1.33:** UTF-8 completo, PHP 8.2+ compatible, sin deprecaciones
+- ✅ **Interfaz SuperAdmin:** React/TypeScript con Shadcn UI
+- ✅ **Protección:** Middleware de suscripción + servicio habilitado
 
 ---
 
@@ -316,23 +341,23 @@ INERTIA_SSR_ENABLED=false
 ### Progreso General
 - **Fase 0:** ✅ 100% Completada
 - **Fase 1:** ✅ 100% Completada
-- **Fase 1.5:** 🚀 82% Completada
-- **Fase 2:** 📅 0% (No iniciada)
+- **Fase 1.5:** ✅ 100% Completada
+- **Fase 2:** ✅ 100% Completada (Listas Negras OFAC + SAT)
 
 ### Cobertura de Tests
-- **15 tests** implementados
-- **34 assertions** ejecutándose
+- **15+ tests** implementados
+- **34+ assertions** ejecutándose
 - **100%** de tests pasando
 
 ### Documentación
-- **12 documentos** principales
-- **1 documento nuevo** de visualización
+- **15+ documentos** principales
+- **4 documentos nuevos** Fase 2 (Búsqueda, Cambios, Guía Rápida, Índice)
 - **100%** de funcionalidades documentadas
 
 ---
 
-**Última actualización:** 10 de Febrero, 2026  
-**Mantenido por:** Equipo de Desarrollo ATINET  
-**Versión:** 1.5.0
+**Última actualización:** 13 de Febrero, 2026  
+**Mantenido por:** Equipo de Desarrollo ATINET / GitHub Copilot  
+**Versión:** 2.0.0
 
 🚀 **Desarrollado con excelencia para ATINET Compliance Hub**
