@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Clock, Trash2, AlertCircle, BarChart3 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -150,11 +150,6 @@ export default function SearchHistorySidebar({ onSelectSearch, refreshTrigger = 
         }
     };
 
-    const getTypeIcon = (type: string) => {
-        const iconClass = 'h-3 w-3 inline mr-1';
-        return '•';
-    };
-
     if (loading) {
         return (
             <div className="space-y-6">
@@ -283,7 +278,7 @@ export default function SearchHistorySidebar({ onSelectSearch, refreshTrigger = 
                                     <button
                                         onClick={() => handleDeleteSearch(search.id)}
                                         disabled={deleting === search.id}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-1.5 hover:bg-destructive/10 rounded text-destructive hover:text-destructive/80 disabled:opacity-50"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1.5 hover:bg-destructive/10 rounded text-destructive hover:text-destructive/80 disabled:opacity-50"
                                         title="Eliminar búsqueda"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />

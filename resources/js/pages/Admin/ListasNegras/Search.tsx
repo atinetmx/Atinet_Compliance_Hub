@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, Clock } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download } from 'lucide-react';
 import { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import SearchHistorySidebar from '@/components/SearchHistorySidebar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,20 +28,6 @@ interface SearchResult {
     tipo_coincidencia?: string;
     url_pdf?: string;
     details?: Record<string, unknown>;
-}
-
-interface SearchStats {
-    total_searches: number;
-    this_month: number;
-    this_week: number;
-    today: number;
-}
-
-interface RecentSearch {
-    search_term: string;
-    search_type: string;
-    results_count: number;
-    created_at: string;
 }
 
 interface SearchResponse {
@@ -99,72 +85,10 @@ export default function ListasNegrasSearch() {
         rfcOnly?: string;
     }>({});
 
-    // Estados para estadísticas y búsquedas recientes
-    const [searchStats] = useState<SearchStats | null>(null);
-    const [recentSearches] = useState<RecentSearch[]>([]);
-
     // TODO: Implementar endpoints de estadísticas y búsquedas recientes en el backend
-    // Cargar estadísticas y búsquedas recientes al montar el componente
-    // useEffect(() => {
-    //     loadSearchStats();
-    //     loadRecentSearches();
-    // }, []);
+    // Historial de búsquedas ahora se maneja con SearchHistorySidebar component
 
-    // const loadSearchStats = async () => {
-    //     try {
-    //         const response = await fetch('/admin/search/stats', {
-    //             headers: {
-    //                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-    //             },
-    //         });
-    //         if (response.ok) {
-    //             const data = await response.json();
-    //             setSearchStats(data);
-    //         }
-    //     } catch (error) {
-    //         console.error('Error loading search stats:', error);
-    //     }
-    // };
-
-    // const loadRecentSearches = async () => {
-    //     try {
-    //         const response = await fetch('/admin/search/recent', {
-    //             headers: {
-    //                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-    //             },
-    //         });
-    //         if (response.ok) {
-    //             const data = await response.json();
-    //             setRecentSearches(data);
-    //         }
-    //     } catch (error) {
-    //         console.error('Error loading recent searches:', error);
-    //     }
-    // };
-
-    // const saveRecentSearch = async (searchTerm: string, searchType: string, resultsCount: number) => {
-    //     try {
-    //         const response = await fetch('/admin/search/save-recent', {
-    //             method: 'POST',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-    //             },
-    //             body: JSON.stringify({
-    //                 search_term: searchTerm,
-    //                 search_type: searchType,
-    //                 results_count: resultsCount,
-    //             }),
-    //         });
-    //         if (response.ok) {
-    //             // Recargar búsquedas recientes y estadísticas
-    //             loadRecentSearches();
-    //             loadSearchStats();
-    //         }
-    //     } catch (error) {
-    //         console.error('Error saving recent search:', error);
-    //     }
-    // };
+    // Búsquedas se guardan automáticamente en el backend (ver saveSearchHistory en SuperAdminSearchController)
 
     const handlePersonaFisicaSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -461,40 +385,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         );
     };
 
-    const handleRecentSearchClick = (search: RecentSearch) => {
-        // Prellenar formulario según tipo de búsqueda
-        switch (search.search_type) {
-            case 'Persona Física':
-                setActiveTab('persona-fisica');
-                setPersonaFisicaForm({ nombre: search.search_term });
-                break;
-            case 'Persona Moral':
-                setActiveTab('persona-moral');
-                setPersonaMoralForm({ razon_social: search.search_term });
-                break;
-            case 'RFC':
-                setActiveTab('rfc');
-                setRfcForm({ rfc: search.search_term });
-                break;
-            case 'Búsqueda Combinada': {
-                setActiveTab('combinada');
-                // Para búsqueda combinada, el término incluye nombre y RFC
-                const parts = search.search_term.split(' (');
-                if (parts.length === 2) {
-                    const nombre = parts[0];
-                    const rfc = parts[1].replace(')', '');
-                    setCombinedForm({
-                        ...combinedForm,
-                        nombre: nombre,
-                        rfc: rfc,
-                    });
-                }
-                break;
-            }
-        }
-    };
-
-    const handleSearchHistorySelect = (search: any) => {
+    const handleSearchHistorySelect = (search: { tipo_busqueda: string; termino_busqueda: string }) => {
         const tipo = search.tipo_busqueda;
 
         switch (tipo) {
@@ -510,7 +401,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 setActiveTab('rfc');
                 setRfcForm({ rfc: search.termino_busqueda });
                 break;
-            case 'Búsqueda Combinada':
+            case 'Búsqueda Combinada': {
                 setActiveTab('combinada');
                 // Parseamos el término que viene en formato "RFC / nombre"
                 const parts = search.termino_busqueda.split(' / ');
@@ -522,6 +413,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                     });
                 }
                 break;
+            }
         }
     };
 
