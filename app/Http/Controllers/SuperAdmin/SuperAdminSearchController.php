@@ -458,7 +458,7 @@ class SuperAdminSearchController extends Controller
     ): void {
         try {
             $user = Auth::user();
-            
+
             // Log de entrada para debug
             Log::info('saveSearchHistory() llamado', [
                 'tipo' => $tipo,

@@ -43,7 +43,7 @@ try {
 
     // Intentar crear un registro
     echo "Intentando crear registro de búsqueda...\n";
-    
+
     $busqueda = Busqueda::create([
         'notaria_id' => $user->notaria->id,
         'user_id' => $user->id,
@@ -87,7 +87,7 @@ try {
     echo "1. El método saveSearchHistory() no se está ejecutando\n";
     echo "2. Hay un error silencioso en el try-catch\n";
     echo "3. Las búsquedas no están llegando al punto donde se guarda el historial\n\n";
-    
+
     echo "Revisa los logs en storage/logs/laravel.log\n";
 
 } catch (\Exception $e) {

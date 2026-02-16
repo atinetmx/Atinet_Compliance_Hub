@@ -16,12 +16,12 @@ echo "Total de búsquedas en la BD: $total\n\n";
 if ($total > 0) {
     echo "Últimas 5 búsquedas:\n";
     echo str_repeat("=", 80) . "\n";
-    
+
     $ultimas = Busqueda::with(['user', 'notaria'])
         ->orderBy('created_at', 'desc')
         ->limit(5)
         ->get();
-    
+
     foreach ($ultimas as $busqueda) {
         echo "ID: {$busqueda->id}\n";
         echo "Tipo: {$busqueda->tipo_busqueda}\n";

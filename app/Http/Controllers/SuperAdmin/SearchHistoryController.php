@@ -17,20 +17,20 @@ class SearchHistoryController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         // SuperAdmin puede ver todas las búsquedas, usuarios normales solo de su notaría
         if ($user->isSuperAdmin()) {
             $query = Busqueda::query();
         } else {
             $notaria = $user->notaria;
-            
+
             if (! $notaria) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Usuario no asociado a notaría',
                 ], 403);
             }
-            
+
             $query = Busqueda::where('notaria_id', $notaria->id);
         }
 
@@ -144,17 +144,17 @@ class SearchHistoryController extends Controller
     public function statistics()
     {
         $user = Auth::user();
-        
+
         // SuperAdmin puede ver estadísticas de todas las búsquedas
         if ($user->isSuperAdmin()) {
             $busquedas = Busqueda::query();
         } else {
             $notaria = $user->notaria;
-            
+
             if (! $notaria) {
                 return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
             }
-            
+
             $busquedas = Busqueda::where('notaria_id', $notaria->id);
         }
 
