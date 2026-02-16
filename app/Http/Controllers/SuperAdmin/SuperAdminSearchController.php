@@ -458,15 +458,28 @@ class SuperAdminSearchController extends Controller
     ): void {
         try {
             $user = Auth::user();
+            
+            // Log de entrada para debug
+            Log::info('saveSearchHistory() llamado', [
+                'tipo' => $tipo,
+                'termino' => $termino,
+                'user_id' => $user->id ?? 'NULL',
+                'ofac_count' => count($resultadosOfac),
+                'sat_count' => count($resultadosSat),
+            ]);
+
             $notaria = $user->notaria;
 
             if (! $notaria) {
-                return; // Salir si no hay notaría asociada
+                Log::warning('saveSearchHistory(): Usuario sin notaría asociada', [
+                    'user_id' => $user->id,
+                ]);
+                return;
             }
 
             $totalResultados = count($resultadosOfac) + count($resultadosSat);
 
-            \App\Models\Busqueda::create([
+            $busqueda = \App\Models\Busqueda::create([
                 'notaria_id' => $notaria->id,
                 'user_id' => $user->id,
                 'tipo_busqueda' => $tipo,
@@ -481,7 +494,8 @@ class SuperAdminSearchController extends Controller
                 ],
             ]);
 
-            Log::debug('Búsqueda guardada en historial', [
+            Log::info('✓ Búsqueda guardada en historial', [
+                'busqueda_id' => $busqueda->id,
                 'user_id' => $user->id,
                 'notaria_id' => $notaria->id,
                 'tipo' => $tipo,
@@ -489,10 +503,13 @@ class SuperAdminSearchController extends Controller
                 'total_resultados' => $totalResultados,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error guardando búsqueda en historial', [
+            Log::error('❌ ERROR guardando búsqueda en historial', [
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'tipo' => $tipo,
                 'termino' => $termino,
+                'trace' => $e->getTraceAsString(),
             ]);
             // No fallar la búsqueda si el historial falla
         }

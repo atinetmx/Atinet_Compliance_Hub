@@ -76,7 +76,13 @@ class Busqueda extends Model
      */
     public function tieneResultados(): bool
     {
-        return ! empty($this->resultados['data'] ?? $this->resultados);
+        $data = $this->resultados['data'] ?? $this->resultados;
+
+        if (isset($this->resultados['total'])) {
+            return $this->resultados['total'] > 0;
+        }
+
+        return ! empty($data);
     }
 
     /**
