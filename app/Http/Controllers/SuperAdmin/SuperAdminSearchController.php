@@ -470,17 +470,19 @@ class SuperAdminSearchController extends Controller
 
             $notaria = $user->notaria;
 
-            if (! $notaria) {
+            // Super admins no tienen notaría: se guarda con notaria_id = null
+            if (! $notaria && ! $user->isSuperAdmin()) {
                 Log::warning('saveSearchHistory(): Usuario sin notaría asociada', [
                     'user_id' => $user->id,
                 ]);
+
                 return;
             }
 
             $totalResultados = count($resultadosOfac) + count($resultadosSat);
 
             $busqueda = \App\Models\Busqueda::create([
-                'notaria_id' => $notaria->id,
+                'notaria_id' => $notaria?->id,
                 'user_id' => $user->id,
                 'tipo_busqueda' => $tipo,
                 'termino_busqueda' => $termino,

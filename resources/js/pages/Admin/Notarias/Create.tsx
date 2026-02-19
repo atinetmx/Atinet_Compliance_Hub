@@ -1,6 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Building2, Save, ArrowLeft } from 'lucide-react';
-import { ESTADOS_MEXICO } from '@/types/estados';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,11 +10,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import AppLayout from '@/layouts/app-layout';
-
-import type { BreadcrumbItem } from '@/types';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+import { ESTADOS_MEXICO } from '@/types/estados';
 
 interface Plan {
     id: number;
