@@ -10,7 +10,7 @@ import {
     FileText,
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
+
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -55,110 +55,234 @@ export default function SuperAdminDashboard({
     const statsCardsRef = useRef<HTMLDivElement>(null);
     const actionCardsRef = useRef<HTMLDivElement>(null);
     const mainCardRef = useRef<HTMLDivElement>(null);
+    const backgroundRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Animación de entrada para las tarjetas de estadísticas
+        // 🎨 EFECTOS INSPIRADOS EN TU CSS DASHBOARD
+
+        // 1. Fondo animado con gradientes (similar a tu ::before)
+        if (backgroundRef.current) {
+            gsap.set(backgroundRef.current, {
+                background: "linear-gradient(135deg, rgba(8, 27, 41, 0.1), rgba(0, 238, 255, 0.05), rgba(8, 27, 41, 0.1))",
+                backgroundSize: "400% 400%"
+            });
+
+            gsap.to(backgroundRef.current, {
+                backgroundPosition: "100% 0%",
+                duration: 8,
+                repeat: -1,
+                yoyo: true,
+                ease: "sine.inOut"
+            });
+        }
+
+        // 2. Animación de entrada espectacular para las tarjetas de estadísticas
         if (statsCardsRef.current) {
             const statsCards = statsCardsRef.current.children;
             gsap.fromTo(
                 statsCards,
                 {
-                    y: 60,
+                    y: 100,
                     opacity: 0,
-                    scale: 0.8,
+                    scale: 0.6,
+                    rotationX: 90,
+                    transformOrigin: "center bottom",
                 },
                 {
                     y: 0,
                     opacity: 1,
                     scale: 1,
-                    duration: 0.8,
-                    stagger: 0.1,
-                    ease: 'back.out(1.4)',
-                    snap: {
-                        y: 1, // snap to nearest pixel
-                    },
+                    rotationX: 0,
+                    duration: 1.2,
+                    stagger: 0.15,
+                    ease: 'elastic.out(1, 0.4)',
+                    clearProps: "transform"
                 },
             );
         }
 
-        // Animación de entrada para las tarjetas de acción
+        // 3. Entrada con efecto 3D para las tarjetas de acción
         if (actionCardsRef.current) {
             const actionCards = actionCardsRef.current.children;
             gsap.fromTo(
                 actionCards,
                 {
-                    x: -60,
+                    x: -120,
                     opacity: 0,
-                    rotationY: -15,
+                    rotationY: -45,
+                    z: -100,
+                    transformOrigin: "right center",
                 },
                 {
                     x: 0,
                     opacity: 1,
                     rotationY: 0,
-                    duration: 0.9,
-                    delay: 0.4,
-                    stagger: 0.15,
+                    z: 0,
+                    duration: 1.4,
+                    delay: 0.8,
+                    stagger: 0.2,
                     ease: 'power3.out',
-                    snap: {
-                        x: 1,
-                    },
+                    clearProps: "transform"
                 },
             );
         }
 
-        // Animación de entrada para la tarjeta principal
+        // 4. Entrada fluida para la tarjeta principal
         if (mainCardRef.current) {
             gsap.fromTo(
                 mainCardRef.current,
                 {
-                    y: 40,
+                    y: 80,
                     opacity: 0,
+                    scale: 0.95,
                 },
                 {
                     y: 0,
                     opacity: 1,
-                    duration: 1,
-                    delay: 0.7,
+                    scale: 1,
+                    duration: 1.6,
+                    delay: 1.5,
                     ease: 'power2.out',
                 },
             );
         }
 
-        // Agregar efectos hover a todas las tarjetas
+        // 5. Efectos hover avanzados para todas las tarjetas
         const allCards = document.querySelectorAll('.dashboard-card');
         allCards.forEach((card) => {
+            // Crear elemento de gradiente para cada tarjeta (similar a tu ::before)
+            const gradientEl = document.createElement('div');
+            gradientEl.className = 'absolute inset-0 opacity-0 pointer-events-none z-0 rounded-xl';
+            gradientEl.style.background = 'linear-gradient(45deg, transparent, rgba(0, 238, 255, 0.1), transparent, rgba(0, 238, 255, 0.15))';
+            card.appendChild(gradientEl);
+
+            // Hover enter - inspirado en tu efecto de gradiente animado
             card.addEventListener('mouseenter', () => {
-                gsap.to(card, {
-                    y: -8,
-                    scale: 1.02,
-                    duration: 0.3,
-                    ease: 'power2.out',
-                });
+                gsap.timeline()
+                    .to(card, {
+                        y: -12,
+                        scale: 1.03,
+                        rotationX: 5,
+                        z: 50,
+                        duration: 0.4,
+                        ease: 'power2.out',
+                    })
+                    .to(gradientEl, {
+                        opacity: 1,
+                        scale: 1.1,
+                        duration: 0.6,
+                        ease: 'power2.out'
+                    }, '-=0.2')
+                    .to(card.querySelectorAll('.text-2xl, .text-lg'), {
+                        scale: 1.05,
+                        color: 'rgba(255, 174, 0, 0.9)',
+                        duration: 0.15,
+                        ease: 'power2.out'
+                    }, '-=0.4');
             });
 
+            // Hover leave
             card.addEventListener('mouseleave', () => {
-                gsap.to(card, {
-                    y: 0,
-                    scale: 1,
-                    duration: 0.3,
-                    ease: 'power2.in',
-                });
+                gsap.timeline()
+                    .to(card, {
+                        y: 0,
+                        scale: 1,
+                        rotationX: 0,
+                        z: 0,
+                        duration: 0.2,
+                        ease: 'power2.in',
+                    })
+                    .to(gradientEl, {
+                        opacity: 0,
+                        scale: 1,
+                        duration: 0.3,
+                        ease: 'power2.in'
+                    }, '-=0.2')
+                    .to(card.querySelectorAll('.text-2xl, .text-lg'), {
+                        scale: 1,
+                        color: 'inherit',
+                        duration: 0.15,
+                        ease: 'power2.in'
+                    }, '-=0.3');
+            });
+
+            // Efecto click inspirado en tu CSS (efecto rebote)
+            card.addEventListener('click', () => {
+                gsap.timeline()
+                    .to(card, {
+                        scale: 0.98,
+                        duration: 0.1,
+                        ease: 'power2.in'
+                    })
+                    .to(card, {
+                        scale: 1.05,
+                        duration: 0.2,
+                        ease: 'elastic.out(1, 0.3)'
+                    })
+                    .to(card, {
+                        scale: 1,
+                        duration: 0.2,
+                        ease: 'power2.out'
+                    });
             });
         });
+
+        // 6. Animación de partículas flotantes de fondo
+        const createFloatingElements = () => {
+            for (let i = 0; i < 8; i++) {
+                const floatingEl = document.createElement('div');
+                floatingEl.className = 'fixed w-2 h-2 rounded-full pointer-events-none z-0';
+                floatingEl.style.background = 'radial-gradient(circle, rgba(0, 238, 255, 0.3), transparent)';
+                floatingEl.style.left = Math.random() * 100 + '%';
+                floatingEl.style.top = Math.random() * 100 + '%';
+                document.body.appendChild(floatingEl);
+
+                gsap.to(floatingEl, {
+                    y: `random(-100, 100)`,
+                    x: `random(-50, 50)`,
+                    rotation: 360,
+                    scale: `random(0.5, 1.5)`,
+                    opacity: `random(0.1, 0.4)`,
+                    duration: `random(8, 15)`,
+                    repeat: -1,
+                    yoyo: true,
+                    delay: i * 0.5,
+                    ease: 'sine.inOut'
+                });
+            }
+        };
+
+        createFloatingElements();
 
         // Cleanup
         return () => {
             allCards.forEach((card) => {
+                const gradientEl = card.querySelector('.absolute.inset-0');
+                if (gradientEl) gradientEl.remove();
+
                 card.removeEventListener('mouseenter', () => {});
                 card.removeEventListener('mouseleave', () => {});
+                card.removeEventListener('click', () => {});
             });
+
+            // Limpiar elementos flotantes
+            document.querySelectorAll('.fixed.w-2.h-2').forEach(el => el.remove());
         };
     }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard - Super Administrador" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            {/* Fondo animado inspirado en tu CSS */}
+            <div
+                ref={backgroundRef}
+                className="fixed inset-0 pointer-events-none z-0 opacity-30"
+                style={{
+                    background: "linear-gradient(135deg, rgba(8, 27, 41, 0.1), rgba(0, 238, 255, 0.05), rgba(8, 27, 41, 0.1))",
+                    backgroundSize: "400% 400%"
+                }}
+            />
+            <div className="relative flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4 z-10">
                 {/* Stats Cards */}
                 <div
                     ref={statsCardsRef}
@@ -216,7 +340,7 @@ export default function SuperAdminDashboard({
                     </div>
 
                     <Link
-                        href={SubscriptionController.index().url}
+                        href="/admin/subscriptions"
                         className="dashboard-card group relative aspect-video cursor-pointer overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 transition-shadow hover:shadow-lg dark:border-sidebar-border"
                     >
                         <div className="flex items-center justify-between">
@@ -317,7 +441,7 @@ export default function SuperAdminDashboard({
                 {/* Main Dashboard Area */}
                 <div
                     ref={mainCardRef}
-                    className="dashboard-card relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 transition-shadow hover:shadow-lg md:min-h-min dark:border-sidebar-border"
+                    className="dashboard-card relative min-h-screen flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 transition-shadow hover:shadow-lg md:min-h-min dark:border-sidebar-border"
                 >
                     <div className="mb-6 flex items-center gap-4">
                         <FileText className="h-6 w-6 text-primary" />

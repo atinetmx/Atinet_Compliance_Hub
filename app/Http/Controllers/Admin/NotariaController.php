@@ -229,10 +229,21 @@ class NotariaController extends Controller
      * ✅ MÉTODO PARA CREAR BASE DE DATOS ESPECÍFICA DE NOTARÍA
      * Según la arquitectura híbrida: cada notaría necesita su propia BD local
      * SIN AFECTAR LA SESIÓN ACTUAL DEL SUPER ADMIN
+     *
+     * Formato del nombre: atinet_{estado}_notaria_{numero}
+     * Ejemplos:
+     *   - atinet_bcs_notaria_21      (Baja California Sur, Notaría 21)
+     *   - atinet_edomex_notaria_1    (Estado de México, Notaría 1)
+     *   - atinet_jal_notaria_15      (Jalisco, Notaría 15)
+     *   - atinet_default_notaria_99  (Sin estado definido)
      */
     private function createNotariaDatabase(Notaria $notaria): void
     {
-        $databaseName = 'atinet_notaria_'.$notaria->numero_notaria;
+        // Obtener código del estado (ej: "Baja California Sur" => "bcs")
+        $estadoCodigo = EstadoMexico::getCodeFromName($notaria->estado);
+
+        // Generar nombre de BD: atinet_{estado}_notaria_{numero}
+        $databaseName = "atinet_{$estadoCodigo}_notaria_{$notaria->numero_notaria}";
 
         try {
             // ✅ 1. CREAR BASE DE DATOS ESPECÍFICA (SIN CAMBIAR CONEXIÓN ACTUAL)
@@ -241,6 +252,8 @@ class NotariaController extends Controller
             Log::info('Base de datos creada para notaría', [
                 'notaria_id' => $notaria->id,
                 'numero_notaria' => $notaria->numero_notaria,
+                'estado' => $notaria->estado,
+                'estado_codigo' => $estadoCodigo,
                 'database_name' => $databaseName,
                 'contacto' => $notaria->email_contacto,
             ]);
@@ -415,7 +428,7 @@ class NotariaController extends Controller
             // Tenant Services (customizaciones por notaría)
             'CREATE TABLE IF NOT EXISTS `tenant_services` (
                 `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-                `tenant_id` bigint unsigned NOT NULL,
+                `notaria_id` bigint unsigned NOT NULL,
                 `service_id` bigint unsigned NOT NULL,
                 `is_enabled` tinyint(1) NOT NULL DEFAULT 1,
                 `custom_limit` int DEFAULT NULL,
@@ -426,15 +439,15 @@ class NotariaController extends Controller
                 `created_at` timestamp NULL DEFAULT NULL,
                 `updated_at` timestamp NULL DEFAULT NULL,
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `tenant_services_tenant_id_service_id_unique` (`tenant_id`,`service_id`),
-                KEY `tenant_services_tenant_id_index` (`tenant_id`),
+                UNIQUE KEY `tenant_services_notaria_id_service_id_unique` (`notaria_id`,`service_id`),
+                KEY `tenant_services_notaria_id_index` (`notaria_id`),
                 KEY `tenant_services_service_id_index` (`service_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
 
             // Service Usage (tracking de consumo)
             'CREATE TABLE IF NOT EXISTS `service_usage` (
                 `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-                `tenant_id` bigint unsigned NOT NULL,
+                `notaria_id` bigint unsigned NOT NULL,
                 `service_id` bigint unsigned NOT NULL,
                 `user_id` bigint unsigned NOT NULL,
                 `consumed_at` timestamp NOT NULL,
@@ -445,7 +458,7 @@ class NotariaController extends Controller
                 `metadata` json DEFAULT NULL,
                 `created_at` timestamp NULL DEFAULT NULL,
                 PRIMARY KEY (`id`),
-                KEY `service_usage_tenant_id_index` (`tenant_id`),
+                KEY `service_usage_notaria_id_index` (`notaria_id`),
                 KEY `service_usage_consumed_at_index` (`consumed_at`),
                 KEY `service_usage_billable_index` (`billable`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
@@ -665,13 +678,13 @@ class NotariaController extends Controller
         // Si hay customizaciones en la BD central para esta notaría, copiarlas
         try {
             $tenantServices = DB::table('tenant_services')
-                ->where('tenant_id', $notaria->id)
+                ->where('notaria_id', $notaria->id)
                 ->get();
 
             if ($tenantServices->count() > 0) {
                 foreach ($tenantServices as $tenantService) {
                     $sql = "INSERT INTO `{$databaseName}`.`tenant_services`
-                            (`id`, `tenant_id`, `service_id`, `is_enabled`, `custom_limit`, `custom_price`, `activation_date`, `expiration_date`, `notes`, `created_at`, `updated_at`)
+                            (`id`, `notaria_id`, `service_id`, `is_enabled`, `custom_limit`, `custom_price`, `activation_date`, `expiration_date`, `notes`, `created_at`, `updated_at`)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ON DUPLICATE KEY UPDATE
                                 `is_enabled` = VALUES(`is_enabled`),
@@ -681,7 +694,7 @@ class NotariaController extends Controller
 
                     DB::statement($sql, [
                         $tenantService->id,
-                        $tenantService->tenant_id,
+                        $tenantService->notaria_id,
                         $tenantService->service_id,
                         $tenantService->is_enabled,
                         $tenantService->custom_limit,

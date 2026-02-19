@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\CheckServiceAccess;
+use App\Http\Middleware\CheckSubscriptionStatus;
 use App\Http\Middleware\EnsureAdminNotaria;
 use App\Http\Middleware\EnsureInvitado;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -33,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'ensure.admin.notaria' => EnsureAdminNotaria::class,
             'ensure.usuario.notaria' => EnsureUsuarioNotaria::class,
             'ensure.invitado' => EnsureInvitado::class,
+            'service' => CheckServiceAccess::class,
+            'subscription' => CheckSubscriptionStatus::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

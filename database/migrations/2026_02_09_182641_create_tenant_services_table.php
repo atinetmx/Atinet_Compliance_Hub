@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('tenant_services', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->constrained('notarias')->cascadeOnDelete()->comment('Notaría');
+            $table->foreignId('notaria_id')->constrained('notarias')->cascadeOnDelete()->comment('Notaría');
             $table->foreignId('service_id')->constrained('services')->cascadeOnDelete()->comment('Servicio');
             $table->boolean('is_enabled')->default(true)->comment('Servicio activo');
             $table->integer('custom_limit')->nullable()->comment('Límite personalizado');
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Índice único compuesto para evitar duplicados
-            $table->unique(['tenant_id', 'service_id']);
+            $table->unique(['notaria_id', 'service_id']);
         });
     }
 

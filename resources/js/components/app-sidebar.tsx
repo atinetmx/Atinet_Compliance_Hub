@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3 } from 'lucide-react';
+
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
+
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
@@ -30,6 +32,7 @@ export function AppSidebar() {
         },
         ...(isSuperAdmin
             ? [
+
                   {
                       title: 'Suscripciones',
                       href: SubscriptionController.index().url,
@@ -44,6 +47,16 @@ export function AppSidebar() {
                       title: 'Servicios',
                       href: '/admin/services',
                       icon: Package,
+                  },
+                  {
+                      title: 'Reportes',
+                      href: '/admin/reports',
+                      icon: BarChart3,
+                  },
+                  {
+                      title: 'Listas Negras',
+                      href: '/admin/listas-negras',
+                      icon: Shield,
                   },
               ]
             : []),
@@ -63,11 +76,11 @@ export function AppSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" className="backdrop-blur-md bg-background/1 border-sidebar-border/50">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton size="lg" asChild className="bg-background/10 hover:bg-amber-500/80 hover:text-amber-50 backdrop-blur-sm transition-all duration-200">
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
@@ -76,11 +89,11 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="bg-background/10">
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="bg-background/10 backdrop-blur-sm">
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>

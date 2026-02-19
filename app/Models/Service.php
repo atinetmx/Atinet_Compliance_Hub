@@ -55,7 +55,7 @@ class Service extends Model
      */
     public function notarias(): BelongsToMany
     {
-        return $this->belongsToMany(Notaria::class, 'tenant_services', 'service_id', 'tenant_id')
+        return $this->belongsToMany(Notaria::class, 'tenant_services', 'service_id', 'notaria_id')
             ->withPivot([
                 'is_enabled',
                 'custom_limit',

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('service_usage', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->constrained('notarias')->cascadeOnDelete()->comment('Notaría');
+            $table->foreignId('notaria_id')->constrained('notarias')->cascadeOnDelete()->comment('Notaría');
             $table->foreignId('service_id')->constrained('services')->cascadeOnDelete()->comment('Servicio usado');
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete()->comment('Usuario que lo usó');
             $table->timestamp('consumed_at')->comment('Timestamp del consumo');
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent()->comment('Fecha de creación');
 
             // Índices para performance
-            $table->index('tenant_id');
+            $table->index('notaria_id');
             $table->index('consumed_at');
             $table->index('billable');
         });

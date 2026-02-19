@@ -1,0 +1,8 @@
+{
+  "diagnostics": {
+    "deprecatedTag": false
+  },
+  "exclude": [
+    "**/vendor/**"
+  ]
+}

@@ -11,7 +11,7 @@ class TenantService extends Model
     use BelongsToNotaria;
 
     protected $fillable = [
-        'tenant_id',
+        'notaria_id',
         'service_id',
         'is_enabled',
         'custom_limit',
@@ -34,7 +34,7 @@ class TenantService extends Model
 
     public function notaria(): BelongsTo
     {
-        return $this->belongsTo(Notaria::class, 'tenant_id');
+        return $this->belongsTo(Notaria::class, 'notaria_id');
     }
 
     public function service(): BelongsTo
