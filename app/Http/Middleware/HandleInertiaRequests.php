@@ -35,11 +35,34 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $servicios = [];
+
+        // Cargar servicios disponibles para admin_notaria
+        if ($user && $user->tipo_cuenta === 'admin_notaria' && $user->notaria_id) {
+            $notaria = $user->notaria()
+                ->with(['subscripcionActiva.plan.services'])
+                ->first();
+
+            if ($notaria?->subscripcionActiva?->plan?->services) {
+                $servicios = $notaria->subscripcionActiva->plan->services->map(function ($service) {
+                    return [
+                        'code' => $service->code,
+                        'name' => $service->name,
+                        'is_included' => $service->pivot->is_included ?? true,
+                    ];
+                })->filter(function ($service) {
+                    return $service['is_included'];
+                })->values()->toArray();
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
+                'servicios' => $servicios,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

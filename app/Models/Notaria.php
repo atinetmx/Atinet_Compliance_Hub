@@ -99,11 +99,17 @@ class Notaria extends Model
     }
 
     /**
-     * Suscripción activa de la notaría
+     * Suscripción activa de la notaría (incluye trial y vencida en periodo de gracia)
      */
     public function subscripcionActiva(): HasOne
     {
-        return $this->hasOne(Subscription::class)->where('status', Subscription::STATUS_ACTIVA);
+        return $this->hasOne(Subscription::class)
+            ->whereIn('status', [
+                Subscription::STATUS_ACTIVA,
+                Subscription::STATUS_TRIAL,
+                Subscription::STATUS_VENCIDA, // Periodo de gracia
+            ])
+            ->where('fecha_vencimiento', '>=', now()->subDays(7)); // 7 días de gracia
     }
 
     /**

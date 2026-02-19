@@ -54,6 +54,7 @@ export default function PasswordManager({
                 `/admin/users/${user.id}/reveal-password`,
                 {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN':
@@ -95,6 +96,7 @@ export default function PasswordManager({
                 `/admin/users/${user.id}/reset-password`,
                 {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN':

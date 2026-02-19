@@ -68,8 +68,13 @@ class SearchHistoryController extends Controller
      */
     public function show($id)
     {
-        $busqueda = Busqueda::with(['user', 'notaria'])->findOrFail($id);
         $user = Auth::user();
+        $busqueda = Busqueda::with(['user', 'notaria'])->find($id);
+
+        // Si no existe, retornar 404
+        if (! $busqueda) {
+            return response()->json(['success' => false, 'message' => 'Búsqueda no encontrada'], 404);
+        }
 
         // Verificar que pertenece a su notaría o es super_admin
         if ($busqueda->notaria_id !== $user->notaria_id && ! $user->isSuperAdmin()) {
@@ -116,17 +121,29 @@ class SearchHistoryController extends Controller
     public function clearNotaria(Request $request)
     {
         $user = Auth::user();
-        $notaria = $user->notaria;
 
-        // Solo admins de la notaría
+        // Solo admins de la notaría o super admin
         if (! in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria'])) {
             return response()->json(['success' => false, 'message' => 'No autorizado'], 403);
         }
 
-        $cantidad = Busqueda::where('notaria_id', $notaria->id)->delete();
+        // Super admin puede especificar notaria_id, admin usa su propia notaría
+        if ($user->isSuperAdmin()) {
+            $notariaId = $request->input('notaria_id');
+            if (! $notariaId) {
+                return response()->json(['success' => false, 'message' => 'notaria_id requerido'], 422);
+            }
+        } else {
+            $notariaId = $user->notaria_id;
+            if (! $notariaId) {
+                return response()->json(['success' => false, 'message' => 'Usuario sin notaría asignada'], 403);
+            }
+        }
+
+        $cantidad = Busqueda::where('notaria_id', $notariaId)->delete();
 
         Log::info('Historial de búsquedas limpiado', [
-            'notaria_id' => $notaria->id,
+            'notaria_id' => $notariaId,
             'cantidad' => $cantidad,
             'user_id' => $user->id,
         ]);
@@ -178,7 +195,7 @@ class SearchHistoryController extends Controller
             'busquedas_hoy' => (clone $busquedas)->whereDate('created_at', today())->count(),
             'busquedas_esta_semana' => (clone $busquedas)->recientes(7)->count(),
             'busquedas_este_mes' => (clone $busquedas)->recientes(30)->count(),
-            'promedio_resultados' => round($promedioResultados, 1),
+            'promedio_resultados' => (float) round($promedioResultados, 1),
             'tipo_mas_usado' => $tipoMasUsado?->tipo_busqueda,
             'por_tipo' => (clone $busquedas)
                 ->selectRaw('tipo_busqueda, COUNT(*) as total')

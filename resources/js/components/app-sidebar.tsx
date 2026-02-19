@@ -20,9 +20,19 @@ import type { NavItem } from '@/types';
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
-    const { auth } = usePage<{ auth: { user: { tipo_cuenta: string } } }>()
-        .props;
+    const { auth } = usePage<{
+        auth: {
+            user: { tipo_cuenta: string };
+            servicios?: Array<{ code: string; name: string; is_included: boolean }>;
+        };
+    }>().props;
     const isSuperAdmin = auth?.user?.tipo_cuenta === 'super_admin';
+    const servicios = auth?.servicios || [];
+
+    // Check if user has blacklist services
+    const hasBlacklistServices = servicios.some(
+        (s) => s.code === 'BLACKLIST_OFAC' || s.code === 'BLACKLIST_SAT'
+    );
 
     const mainNavItems: NavItem[] = [
         {
@@ -32,7 +42,6 @@ export function AppSidebar() {
         },
         ...(isSuperAdmin
             ? [
-
                   {
                       title: 'Suscripciones',
                       href: SubscriptionController.index().url,
@@ -53,6 +62,15 @@ export function AppSidebar() {
                       href: '/admin/reports',
                       icon: BarChart3,
                   },
+                  {
+                      title: 'Listas Negras',
+                      href: '/admin/listas-negras',
+                      icon: Shield,
+                  },
+              ]
+            : []),
+        ...(hasBlacklistServices && !isSuperAdmin
+            ? [
                   {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',

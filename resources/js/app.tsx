@@ -4,8 +4,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../css/app.css';
 import { initializeTheme } from './hooks/use-appearance';
+import { initializeCsrfHandler } from './utils/csrf-handler';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+// Inicializar manejador automático de errores CSRF
+initializeCsrfHandler();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

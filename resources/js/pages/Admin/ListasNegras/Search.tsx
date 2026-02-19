@@ -112,6 +112,7 @@ export default function ListasNegrasSearch() {
         try {
             setStatsLoading(true);
             const res = await fetch('/admin/search-history/statistics', {
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
@@ -138,6 +139,7 @@ export default function ListasNegrasSearch() {
         try {
             const response = await fetch('/admin/search/persona-fisica', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -179,6 +181,7 @@ export default function ListasNegrasSearch() {
         try {
             const response = await fetch('/admin/search/persona-moral', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -229,6 +232,7 @@ export default function ListasNegrasSearch() {
         try {
             const response = await fetch('/admin/search/rfc', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -360,6 +364,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         try {
             const response = await fetch('/admin/search/combined', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',

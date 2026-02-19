@@ -55,11 +55,13 @@ export default function SearchHistorySidebar({ onSelectSearch, refreshTrigger = 
             // Cargar historial y estadísticas en paralelo
             const [historyRes, statsRes] = await Promise.all([
                 fetch('/admin/search-history?per_page=15', {
+                    credentials: 'same-origin',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     },
                 }),
                 fetch('/admin/search-history/statistics', {
+                    credentials: 'same-origin',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     },
@@ -93,6 +95,7 @@ export default function SearchHistorySidebar({ onSelectSearch, refreshTrigger = 
             setDeleting(searchId);
             const response = await fetch(`/admin/search-history/${searchId}`, {
                 method: 'DELETE',
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
@@ -116,6 +119,7 @@ export default function SearchHistorySidebar({ onSelectSearch, refreshTrigger = 
             setDeleting(-1);
             const response = await fetch('/admin/search-history/clear-notaria', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },

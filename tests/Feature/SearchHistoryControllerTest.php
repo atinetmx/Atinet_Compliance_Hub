@@ -145,7 +145,9 @@ test('no puede ver búsqueda de otra notaría', function () {
 
     $response = $this->getJson("/admin/search-history/{$busqueda->id}");
 
-    $response->assertForbidden();
+    // El global scope filtra automáticamente por notaria_id, por lo que devuelve 404
+    // Esto es correcto para seguridad multi-tenant: no revelar existencia de recursos de otros tenants
+    $response->assertNotFound();
 });
 
 test('super admin puede ver búsqueda de cualquier usuario', function () {
@@ -249,7 +251,10 @@ test('estadísticas incluyen promedio de resultados', function () {
 
     $response->assertSuccessful();
 
-    expect($response->json('data.promedio_resultados'))->toBe(4.0);
+    // JSON puede omitir .0 cuando el decimal es cero (4.0 se serializa como 4)
+    $promedio = $response->json('data.promedio_resultados');
+    expect($promedio)->toBeIn([4, 4.0])
+        ->and($promedio == 4.0)->toBeTrue();
 });
 
 test('estadísticas incluyen tipo más usado', function () {

@@ -72,11 +72,11 @@ class Subscription extends Model
     }
 
     /**
-     * Scope para suscripciones activas
+     * Scope para suscripciones activas (incluye trial)
      */
     public function scopeActivas($query)
     {
-        return $query->where('status', self::STATUS_ACTIVA)
+        return $query->whereIn('status', [self::STATUS_ACTIVA, self::STATUS_TRIAL])
             ->where('fecha_vencimiento', '>', now());
     }
 
@@ -90,12 +90,24 @@ class Subscription extends Model
     }
 
     /**
-     * Verificar si la suscripción está activa
+     * Verificar si la suscripción está activa (incluye trial)
+     * Estados válidos: trial, activa
+     * Vencida solo si aún no pasa la fecha de vencimiento (periodo de gracia)
      */
     public function estaActiva(): bool
     {
-        return $this->status === self::STATUS_ACTIVA &&
-               $this->fecha_vencimiento > now();
+        // Trial y Activa están completamente operativas
+        if (in_array($this->status, [self::STATUS_ACTIVA, self::STATUS_TRIAL])) {
+            return $this->fecha_vencimiento > now();
+        }
+
+        // Vencida tiene periodo de gracia (ej: 7 días después de vencimiento)
+        if ($this->status === self::STATUS_VENCIDA) {
+            $periodoGracia = 7; // días
+            return now()->lessThanOrEqualTo($this->fecha_vencimiento->addDays($periodoGracia));
+        }
+
+        return false;
     }
 
     /**
