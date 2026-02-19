@@ -189,6 +189,11 @@ class SearchHistoryController extends Controller
                 ->selectRaw('user_id, COUNT(*) as total')
                 ->groupBy('user_id')
                 ->get(),
+            'por_notaria_y_tipo' => (clone $busquedas)
+                ->with('notaria:id,nombre,numero_notaria')
+                ->selectRaw('notaria_id, tipo_busqueda, COUNT(*) as total')
+                ->groupBy('notaria_id', 'tipo_busqueda')
+                ->get(),
             'tipos_disponibles' => [
                 'Persona Física',
                 'Persona Moral',

@@ -1,8 +1,8 @@
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
-import SearchHistorySidebar from '@/components/SearchHistorySidebar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,10 +85,47 @@ export default function ListasNegrasSearch() {
         rfcOnly?: string;
     }>({});
 
-    // TODO: Implementar endpoints de estadísticas y búsquedas recientes en el backend
-    // Historial de búsquedas ahora se maneja con SearchHistorySidebar component
+    // Estadísticas del historial
+    interface SearchStatistics {
+        total_busquedas: number;
+        busquedas_este_mes: number;
+        busquedas_esta_semana: number;
+        busquedas_hoy: number;
+        promedio_resultados: number;
+        tipo_mas_usado: string;
+        por_tipo: Array<{ tipo_busqueda: string; total: number }>;
+        por_notaria_y_tipo: Array<{
+            notaria_id: number | null;
+            tipo_busqueda: string;
+            total: number;
+            notaria?: { id: number; nombre: string; numero_notaria: string };
+        }>;
+    }
+    const [statistics, setStatistics] = useState<SearchStatistics | null>(null);
+    const [statsLoading, setStatsLoading] = useState(true);
 
-    // Búsquedas se guardan automáticamente en el backend (ver saveSearchHistory en SuperAdminSearchController)
+    useEffect(() => {
+        loadStats();
+    }, [historyRefresh]);
+
+    const loadStats = async () => {
+        try {
+            setStatsLoading(true);
+            const res = await fetch('/admin/search-history/statistics', {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.success) setStatistics(json.data);
+            }
+        } catch {
+            // silencioso – las cards mostrarán —
+        } finally {
+            setStatsLoading(false);
+        }
+    };
 
     const handlePersonaFisicaSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -385,36 +422,39 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         );
     };
 
-    const handleSearchHistorySelect = (search: { tipo_busqueda: string; termino_busqueda: string }) => {
-        const tipo = search.tipo_busqueda;
+    // ── helpers para el scatter chart ────────────────────────────
+    const TIPO_NUM: Record<string, number> = {
+        'Persona Física': 1,
+        'Persona Moral': 2,
+        RFC: 3,
+        'Búsqueda Combinada': 4,
+    };
+    const TIPO_LABEL: Record<number, string> = { 1: 'P. Física', 2: 'P. Moral', 3: 'RFC', 4: 'Combinada' };
+    const SCATTER_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
-        switch (tipo) {
-            case 'Persona Física':
-                setActiveTab('persona-fisica');
-                setPersonaFisicaForm({ nombre: search.termino_busqueda });
-                break;
-            case 'Persona Moral':
-                setActiveTab('persona-moral');
-                setPersonaMoralForm({ razon_social: search.termino_busqueda });
-                break;
-            case 'RFC':
-                setActiveTab('rfc');
-                setRfcForm({ rfc: search.termino_busqueda });
-                break;
-            case 'Búsqueda Combinada': {
-                setActiveTab('combinada');
-                // Parseamos el término que viene en formato "RFC / nombre"
-                const parts = search.termino_busqueda.split(' / ');
-                if (parts.length === 2) {
-                    setCombinedForm({
-                        ...combinedForm,
-                        rfc: parts[0].trim(),
-                        nombre: parts[1].trim(),
-                    });
-                }
-                break;
-            }
-        }
+    const buildScatterSeries = () => {
+        if (!statistics?.por_notaria_y_tipo?.length) return [];
+
+        // Agrupar por notaría
+        const grouped: Record<string, { label: string; points: { x: number; y: number; z: number; tipo: string }[] }> = {};
+
+        statistics.por_notaria_y_tipo.forEach((item) => {
+            const key = item.notaria_id == null ? 'super-admin' : String(item.notaria_id);
+            const label = item.notaria?.nombre
+                ? `${item.notaria.nombre} #${item.notaria.numero_notaria}`
+                : 'Super Admin';
+
+            if (!grouped[key]) grouped[key] = { label, points: [] };
+
+            grouped[key].points.push({
+                x: TIPO_NUM[item.tipo_busqueda] ?? 0,
+                y: item.total,
+                z: Math.max(item.total * 200, 400),
+                tipo: item.tipo_busqueda,
+            });
+        });
+
+        return Object.values(grouped);
     };
 
     const renderAdvancedResults = () => {
@@ -684,12 +724,11 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
             <Head title="Búsqueda en Listas Negras - SuperAdmin" />
 
             <div className="space-y-6">
+                {/* ── Header ── */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Listas Negras</h1>
-                        <p className="text-muted-foreground">
-                            Búsqueda en listas OFAC y SAT - Acceso SuperAdmin
-                        </p>
+                        <p className="text-muted-foreground">Búsqueda en listas OFAC y SAT - Acceso SuperAdmin</p>
                     </div>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
                         <AlertCircle className="w-4 h-4 mr-1" />
@@ -700,25 +739,216 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                        Las búsquedas se realizan en las bases de datos oficiales OFAC (EE.UU.) y SAT 69-B (México).
-                        Los resultados pueden contener falsos positivos que requieren verificación manual.
+                        Las búsquedas se realizan en las bases de datos oficiales OFAC (EE.UU.) y SAT 69-B (México). Los resultados pueden contener falsos positivos que requieren verificación manual.
                     </AlertDescription>
                 </Alert>
 
-                {/* Layout principal con grilla: formulario + sidebar */}
-                <div className="grid gap-6 lg:grid-cols-4">
-                    {/* Formulario de Búsqueda - Ocupa 3 columnas */}
-                    <div className="lg:col-span-3 space-y-6">
+                {/* ── Stats cards (4 columnas) ── */}
+                <div className="grid gap-4 md:grid-cols-4">
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Total búsquedas</p>
+                                    <p className="text-3xl font-bold">
+                                        {statsLoading ? '—' : (statistics?.total_busquedas ?? 0)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">Historial completo</p>
+                                </div>
+                                <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Este mes</p>
+                                    <p className="text-3xl font-bold">
+                                        {statsLoading ? '—' : (statistics?.busquedas_este_mes ?? 0)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">Últimos 30 días</p>
+                                </div>
+                                <Calendar className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Hoy</p>
+                                    <p className="text-3xl font-bold">
+                                        {statsLoading ? '—' : (statistics?.busquedas_hoy ?? 0)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Esta semana: {statsLoading ? '—' : (statistics?.busquedas_esta_semana ?? 0)}
+                                    </p>
+                                </div>
+                                <Clock className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Promedio resultados</p>
+                                    <p className="text-3xl font-bold">
+                                        {statsLoading ? '—' : (statistics?.promedio_resultados ?? 0)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                        Más usado: {statsLoading ? '—' : (statistics?.tipo_mas_usado ?? 'N/A')}
+                                    </p>
+                                </div>
+                                <TrendingUp className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* ── Tabla por tipo + Scatter chart ── */}
+                {statistics && (
+                    <div className="grid gap-4 md:grid-cols-3">
+                        {/* Tabla distribución por tipo */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Search className="w-5 h-5" />
-                                    Búsqueda en Listas Negras
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    Búsquedas por tipo
+                                </CardTitle>
+                                <CardDescription>Distribución total del historial</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="text-left py-2 font-medium text-muted-foreground">Tipo</th>
+                                            <th className="text-right py-2 font-medium text-muted-foreground">Total</th>
+                                            <th className="text-right py-2 font-medium text-muted-foreground">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(['Persona Física', 'Persona Moral', 'RFC', 'Búsqueda Combinada'] as const).map((tipo) => {
+                                            const row = statistics.por_tipo.find((r) => r.tipo_busqueda === tipo);
+                                            const count = row?.total ?? 0;
+                                            const pct = statistics.total_busquedas > 0 ? Math.round((count / statistics.total_busquedas) * 100) : 0;
+                                            const colorMap: Record<string, string> = {
+                                                'Persona Física': 'bg-blue-500',
+                                                'Persona Moral': 'bg-purple-500',
+                                                RFC: 'bg-green-500',
+                                                'Búsqueda Combinada': 'bg-orange-500',
+                                            };
+                                            return (
+                                                <tr key={tipo} className="border-b last:border-0">
+                                                    <td className="py-2 flex items-center gap-2">
+                                                        <span className={`inline-block w-2 h-2 rounded-full ${colorMap[tipo]}`} />
+                                                        {tipo}
+                                                    </td>
+                                                    <td className="py-2 text-right font-mono font-bold">{count}</td>
+                                                    <td className="py-2 text-right text-muted-foreground">{pct}%</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td className="pt-3 font-semibold">Total</td>
+                                            <td className="pt-3 text-right font-mono font-bold">{statistics.total_busquedas}</td>
+                                            <td className="pt-3 text-right text-muted-foreground">100%</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </CardContent>
+                        </Card>
+
+                        {/* Scatter chart por tipo y notaría */}
+                        <Card className="md:col-span-2">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <BarChart3 className="h-4 w-4" />
+                                    Dispersión por notaría y tipo de búsqueda
                                 </CardTitle>
                                 <CardDescription>
-                                    Selecciona el tipo de búsqueda que deseas realizar
+                                    Eje X: tipo · Eje Y: cantidad · Tamaño: volumen relativo
                                 </CardDescription>
                             </CardHeader>
+                            <CardContent>
+                                {statistics.por_notaria_y_tipo.length === 0 ? (
+                                    <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                                        Sin datos suficientes para la gráfica
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height={260}>
+                                        <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                                            <XAxis
+                                                type="number"
+                                                dataKey="x"
+                                                domain={[0.5, 4.5]}
+                                                ticks={[1, 2, 3, 4]}
+                                                tickFormatter={(v) => TIPO_LABEL[v] ?? ''}
+                                                tick={{ fontSize: 11 }}
+                                                label={{ value: 'Tipo de búsqueda', position: 'insideBottom', offset: -10, fontSize: 11 }}
+                                            />
+                                            <YAxis
+                                                type="number"
+                                                dataKey="y"
+                                                allowDecimals={false}
+                                                tick={{ fontSize: 11 }}
+                                                label={{ value: 'Búsquedas', angle: -90, position: 'insideLeft', fontSize: 11 }}
+                                            />
+                                            <ZAxis type="number" dataKey="z" range={[60, 600]} />
+                                            <Tooltip
+                                                cursor={{ strokeDasharray: '3 3' }}
+                                                content={({ payload }) => {
+                                                    if (!payload?.length) return null;
+                                                    const d = payload[0].payload as { tipo: string; y: number };
+                                                    return (
+                                                        <div className="rounded border bg-background p-2 text-xs shadow-lg">
+                                                            <p className="font-semibold">{d.tipo}</p>
+                                                            <p className="text-muted-foreground">Búsquedas: {d.y}</p>
+                                                        </div>
+                                                    );
+                                                }}
+                                            />
+                                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                                            {buildScatterSeries().map((series, idx) => (
+                                                <Scatter
+                                                    key={series.label}
+                                                    name={series.label}
+                                                    data={series.points}
+                                                    fill={SCATTER_COLORS[idx % SCATTER_COLORS.length]}
+                                                >
+                                                    {series.points.map((_, pi) => (
+                                                        <Cell
+                                                            key={pi}
+                                                            fill={SCATTER_COLORS[idx % SCATTER_COLORS.length]}
+                                                            fillOpacity={0.75}
+                                                        />
+                                                    ))}
+                                                </Scatter>
+                                            ))}
+                                        </ScatterChart>
+                                    </ResponsiveContainer>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* ── Formulario de búsqueda (ancho completo) ── */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Search className="w-5 h-5" />
+                            Búsqueda en Listas Negras
+                        </CardTitle>
+                        <CardDescription>Selecciona el tipo de búsqueda que deseas realizar</CardDescription>
+                    </CardHeader>
                     <CardContent>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="grid w-full grid-cols-4 bg-gray-100 p-1 rounded-lg">
@@ -829,7 +1059,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                         <Label htmlFor="nombre-combinado">Nombre / Razón social</Label>
                                         <Input
                                             id="nombre-combinado"
-                                            placeholder={combinedForm.tipo_persona === 'fisica' ? "Ej: Juan Pérez García" : "Ej: EMPRESA DEMO SA DE CV"}
+                                            placeholder={combinedForm.tipo_persona === 'fisica' ? 'Ej: Juan Pérez García' : 'Ej: EMPRESA DEMO SA DE CV'}
                                             value={combinedForm.nombre}
                                             onChange={(e) => setCombinedForm({ ...combinedForm, nombre: e.target.value })}
                                             required
@@ -837,13 +1067,14 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="rfc-combinado">
-                                            RFC <span className="text-sm text-muted-foreground">
+                                            RFC{' '}
+                                            <span className="text-sm text-muted-foreground">
                                                 ({combinedForm.tipo_persona === 'fisica' ? '12' : '13'} caracteres)
                                             </span>
                                         </Label>
                                         <Input
                                             id="rfc-combinado"
-                                            placeholder={combinedForm.tipo_persona === 'fisica' ? "Ej: XAXX010101XX" : "Ej: XXX010101XXX"}
+                                            placeholder={combinedForm.tipo_persona === 'fisica' ? 'Ej: XAXX010101XX' : 'Ej: XXX010101XXX'}
                                             value={combinedForm.rfc}
                                             onChange={(e) => handleCombinedRfcChange(e.target.value)}
                                             maxLength={13}
@@ -863,47 +1094,36 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                     </CardContent>
                 </Card>
 
-                        {error && (
-                            <Alert variant="destructive">
-                                <XCircle className="h-4 w-4" />
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
+                {error && (
+                    <Alert variant="destructive">
+                        <XCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
 
-                        {/* Resultados con diseño avanzado */}
-                        {(results.length > 0 || (!loading && lastSearch)) && (
-                            <div>
-                                {results.length > 0 && (
-                                    <div className="mb-4">
-                                        <Card>
-                                            <CardHeader>
-                                                <CardTitle className="flex items-center justify-between">
-                                                    Resultados de búsqueda
-                                                    <Badge variant="outline">
-                                                        {totalResults} resultado{totalResults !== 1 ? 's' : ''}
-                                                    </Badge>
-                                                </CardTitle>
-                                                <CardDescription>
-                                                    Búsqueda: <strong>{lastSearch}</strong>
-                                                </CardDescription>
-                                            </CardHeader>
-                                        </Card>
-                                    </div>
-                                )}
-
-                                {renderAdvancedResults()}
+                {/* ── Resultados ── */}
+                {(results.length > 0 || (!loading && lastSearch)) && (
+                    <div>
+                        {results.length > 0 && (
+                            <div className="mb-4">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center justify-between">
+                                            Resultados de búsqueda
+                                            <Badge variant="outline">
+                                                {totalResults} resultado{totalResults !== 1 ? 's' : ''}
+                                            </Badge>
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Búsqueda: <strong>{lastSearch}</strong>
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
                             </div>
                         )}
+                        {renderAdvancedResults()}
                     </div>
-
-                    {/* Sidebar con historial de búsquedas - Ocupa 1 columna */}
-                    <div>
-                        <SearchHistorySidebar
-                            onSelectSearch={handleSearchHistorySelect}
-                            refreshTrigger={historyRefresh}
-                        />
-                    </div>
-                </div>
+                )}
             </div>
         </AppLayout>
     );
