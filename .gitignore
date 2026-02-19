@@ -26,3 +26,5 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+# Dumps de BDs — no versionar (contienen datos sensibles y son pesados)
+/docs/*.sql

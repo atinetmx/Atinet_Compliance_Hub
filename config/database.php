@@ -109,6 +109,31 @@ return [
             ]) : [],
         ],
 
+        // Conexión a la base de datos de aplicativos Atinet (sistema legacy)
+        // Contiene los usuarios y notarías del sistema actual de Atinet.
+        // Se usa en modo lectura para migrar tenants al nuevo sistema.
+        // En producción usa el usuario unificado (DB_USERNAME/DB_PASSWORD).
+        // En local requiere importar un dump de esta BD o dejarla vacía.
+        'aplicativos' => [
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_APLICATIVOS_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_APLICATIVOS_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_APLICATIVOS_DATABASE', 'atinet65_aplicativos'),
+            'username' => env('DB_APLICATIVOS_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('DB_APLICATIVOS_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false, // Legacy DB puede tener datos no estrictos
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
