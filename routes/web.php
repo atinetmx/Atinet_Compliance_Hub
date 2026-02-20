@@ -44,8 +44,29 @@ Route::get('dashboard', function () {
 
         case 'admin_notaria':
         case 'usuario_notaria':
+            $notaria = $user->notaria()->with(['subscripcionActiva.plan.services'])->first();
+            $subscription = $notaria?->subscripcionActiva;
+
             return Inertia::render('NotariaDashboard', [
-                'notaria' => $user->notaria,
+                'notaria' => $notaria,
+                'subscription' => $subscription ? [
+                    'status' => $subscription->status,
+                    'fecha_inicio' => $subscription->fecha_inicio,
+                    'fecha_vencimiento' => $subscription->fecha_vencimiento,
+                    'ciclo_facturacion' => $subscription->ciclo_facturacion,
+                    'plan' => $subscription->plan ? [
+                        'nombre' => $subscription->plan->nombre,
+                        'descripcion' => $subscription->plan->descripcion,
+                        'limite_usuarios' => $subscription->plan->limite_usuarios,
+                        'limite_busquedas_mes' => $subscription->plan->limite_busquedas_mes,
+                        'servicios' => $subscription->plan->services->map(fn($s) => [
+                            'code' => $s->code,
+                            'name' => $s->name,
+                            'description' => $s->description,
+                            'is_included' => $s->pivot->is_included ?? true,
+                        ])->filter(fn($s) => $s['is_included'])->values(),
+                    ] : null,
+                ] : null,
                 'stats' => [
                     'busquedas_mes' => \App\Models\Busqueda::whereMonth('created_at', now()->month)->count(),
                     'busquedas_hoy' => \App\Models\Busqueda::whereDate('created_at', today())->count(),
@@ -184,6 +205,12 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         // Eliminar una búsqueda del historial
         Route::delete('{busqueda}', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'destroy'])->name('destroy');
     });
+});
+
+// Rutas para admin_notaria - Gestión de usuarios de su notaría
+Route::middleware(['auth', 'verified'])->prefix('notaria')->name('notaria.')->group(function () {
+    // Gestión de usuarios de la notaría (desde BD tenant)
+    Route::resource('users', \App\Http\Controllers\Notaria\NotariaUserController::class);
 });
 
 require __DIR__.'/settings.php';
