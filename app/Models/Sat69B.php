@@ -47,10 +47,6 @@ class Sat69B extends Model
      *
      * Valida que el RFC tenga 12 caracteres (persona moral) o 13 (persona física)
      * y que sea alfanumérico en mayúsculas
-     *
-     * @param Builder $query
-     * @param string $rfc
-     * @return Builder
      */
     public function scopeSearchByRfc(Builder $query, string $rfc): Builder
     {
@@ -64,10 +60,6 @@ class Sat69B extends Model
     /**
      * Búsqueda por nombre en lista SAT
      * Similar al algoritmo OFAC pero en tabla 69-B
-     *
-     * @param Builder $query
-     * @param string $nombre
-     * @return Builder
      */
     public function scopeSearchByName(Builder $query, string $nombre): Builder
     {
@@ -83,11 +75,6 @@ class Sat69B extends Model
      *
      * Esta es la búsqueda más precisa: encuentra registros que coincidan
      * tanto en RFC como en nombre
-     *
-     * @param Builder $query
-     * @param string $rfc
-     * @param string $nombre
-     * @return Builder
      */
     public function scopeSearchCombined(Builder $query, string $rfc, string $nombre): Builder
     {
@@ -104,9 +91,6 @@ class Sat69B extends Model
      *
      * RFC Persona Física: 13 caracteres (CURP-homoclave)
      * RFC Persona Moral: 12 caracteres
-     *
-     * @param string $rfc
-     * @return bool
      */
     public static function isValidRfc(string $rfc): bool
     {
@@ -121,7 +105,6 @@ class Sat69B extends Model
      * Búsqueda solo por RFC con validación previa
      * Implementa algoritmo exacto del sistema legacy
      *
-     * @param string $rfc
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function searchRfc(string $rfc)
@@ -138,7 +121,6 @@ class Sat69B extends Model
     /**
      * Búsqueda solo por nombre en SAT
      *
-     * @param string $nombre
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function searchNombre(string $nombre)
@@ -150,8 +132,6 @@ class Sat69B extends Model
      * Búsqueda combinada RFC + nombre
      * Esta es la búsqueda con mayor precisión
      *
-     * @param string $rfc
-     * @param string $nombre
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function searchRfcAndName(string $rfc, string $nombre)
@@ -167,8 +147,6 @@ class Sat69B extends Model
 
     /**
      * Obtener el nombre limpio (sin comas)
-     *
-     * @return string
      */
     public function getNombreLimpioAttribute(): string
     {

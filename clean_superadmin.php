@@ -21,4 +21,4 @@ if ($user->notaria_id) {
 echo "✅ SuperAdmin configurado correctamente\n";
 echo "   - Email: {$user->email}\n";
 echo "   - Tipo: {$user->tipo_cuenta}\n";
-echo "   - Notaría: " . ($user->notaria_id ?? 'NINGUNA (correcto para SuperAdmin)') . "\n";
+echo '   - Notaría: '.($user->notaria_id ?? 'NINGUNA (correcto para SuperAdmin)')."\n";

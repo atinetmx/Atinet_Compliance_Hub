@@ -32,6 +32,7 @@ class CheckServiceAccess
         if ($request->user()->isSuperAdmin()) {
             $request->attributes->set('service_code', $serviceCode);
             $request->attributes->set('service_access', 'superadmin_unlimited');
+
             return $next($request);
         }
 

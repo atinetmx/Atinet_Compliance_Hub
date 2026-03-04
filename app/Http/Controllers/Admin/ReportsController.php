@@ -7,9 +7,7 @@ use App\Models\Notaria;
 use App\Models\Service;
 use App\Models\ServiceUsage;
 use App\Services\ServiceAccessManager;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -51,11 +49,11 @@ class ReportsController extends Controller
         $notariaId = $request->input('notaria_id');
 
         $query = ServiceUsage::with(['service', 'notaria', 'user'])
-            ->when($serviceCode, fn($q) => $q->whereHas('service', fn($sq) => $sq->where('code', $serviceCode)))
-            ->when($notariaId, fn($q) => $q->where('notaria_id', $notariaId))
-            ->when($period === 'month', fn($q) => $q->whereMonth('consumed_at', now()->month))
-            ->when($period === 'week', fn($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
-            ->when($period === 'year', fn($q) => $q->whereYear('consumed_at', now()->year))
+            ->when($serviceCode, fn ($q) => $q->whereHas('service', fn ($sq) => $sq->where('code', $serviceCode)))
+            ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId))
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+            ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
             ->orderBy('consumed_at', 'desc');
 
         $usage = $query->paginate(50);
@@ -83,7 +81,7 @@ class ReportsController extends Controller
             ->get();
 
         return Inertia::render('Admin/Reports/NotariaStats', [
-            'notaria' => $notaria->load(['subscripciones' => fn($q) => $q->latest()->with('plan')]),
+            'notaria' => $notaria->load(['subscripciones' => fn ($q) => $q->latest()->with('plan')]),
             'services' => $services,
             'monthlyUsage' => $monthlyUsage,
         ]);
@@ -102,25 +100,25 @@ class ReportsController extends Controller
                 'serviceUsages' => function ($query) use ($period, $serviceCode) {
                     $this->applyPeriodFilter($query, $period);
                     if ($serviceCode) {
-                        $query->whereHas('service', fn($q) => $q->where('code', $serviceCode));
+                        $query->whereHas('service', fn ($q) => $q->where('code', $serviceCode));
                     }
-                }
+                },
             ])
             ->withSum([
                 'serviceUsages as total_cost' => function ($query) use ($period, $serviceCode) {
                     $this->applyPeriodFilter($query, $period);
                     if ($serviceCode) {
-                        $query->whereHas('service', fn($q) => $q->where('code', $serviceCode));
+                        $query->whereHas('service', fn ($q) => $q->where('code', $serviceCode));
                     }
-                }
+                },
             ], 'cost')
             ->withSum([
                 'serviceUsages as total_quantity' => function ($query) use ($period, $serviceCode) {
                     $this->applyPeriodFilter($query, $period);
                     if ($serviceCode) {
-                        $query->whereHas('service', fn($q) => $q->where('code', $serviceCode));
+                        $query->whereHas('service', fn ($q) => $q->where('code', $serviceCode));
                     }
-                }
+                },
             ], 'quantity')
             ->orderBy('service_usages_count', 'desc')
             ->get();
@@ -151,8 +149,8 @@ class ReportsController extends Controller
                 SUM(cost) as total_cost
             ")
             ->where('consumed_at', '>=', $startDate)
-            ->when($notariaId, fn($q) => $q->where('notaria_id', $notariaId))
-            ->when($serviceCode, fn($q) => $q->whereHas('service', fn($sq) => $sq->where('code', $serviceCode)))
+            ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId))
+            ->when($serviceCode, fn ($q) => $q->whereHas('service', fn ($sq) => $sq->where('code', $serviceCode)))
             ->groupBy('month', 'service_id')
             ->orderBy('month')
             ->with('service:id,code,name')
@@ -181,9 +179,9 @@ class ReportsController extends Controller
                 SUM(cost) as total_cost,
                 COUNT(DISTINCT notaria_id) as total_notarias
             ')
-            ->when($period === 'month', fn($q) => $q->whereMonth('consumed_at', now()->month))
-            ->when($period === 'week', fn($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
-            ->when($period === 'year', fn($q) => $q->whereYear('consumed_at', now()->year))
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+            ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
             ->groupBy('service_id')
             ->orderBy('total_requests', 'desc')
             ->limit($limit)
@@ -210,7 +208,7 @@ class ReportsController extends Controller
             $services = $this->accessManager->getAvailableServices($notaria);
 
             foreach ($services as $service) {
-                if (!$service['is_unlimited'] && $service['usage_percentage'] >= $threshold) {
+                if (! $service['is_unlimited'] && $service['usage_percentage'] >= $threshold) {
                     $nearLimit[] = [
                         'notaria' => $notaria->only(['id', 'nombre', 'numero_notaria']),
                         'service' => $service,
@@ -233,7 +231,7 @@ class ReportsController extends Controller
         $type = $request->input('type', 'usage'); // usage, notarias, services
         $period = $request->input('period', 'month');
 
-        $filename = "reporte_{$type}_" . now()->format('Ymd_His') . '.csv';
+        $filename = "reporte_{$type}_".now()->format('Ymd_His').'.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
@@ -305,9 +303,9 @@ class ReportsController extends Controller
         fputcsv($file, ['Fecha', 'Notaría', 'Servicio', 'Usuario', 'Cantidad', 'Costo']);
 
         ServiceUsage::with(['notaria:id,nombre', 'service:id,name', 'user:id,name'])
-            ->when($period === 'month', fn($q) => $q->whereMonth('consumed_at', now()->month))
-            ->when($period === 'week', fn($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
-            ->when($period === 'year', fn($q) => $q->whereYear('consumed_at', now()->year))
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+            ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
             ->orderBy('consumed_at', 'desc')
             ->chunk(1000, function ($usages) use ($file) {
                 foreach ($usages as $usage) {
@@ -331,13 +329,13 @@ class ReportsController extends Controller
         fputcsv($file, ['Notaría', 'Total Solicitudes', 'Total Cantidad', 'Total Costo']);
 
         Notaria::withCount([
-                'serviceUsages' => fn($q) => $this->applyPeriodFilter($q, $period)
-            ])
+            'serviceUsages' => fn ($q) => $this->applyPeriodFilter($q, $period),
+        ])
             ->withSum([
-                'serviceUsages as total_quantity' => fn($q) => $this->applyPeriodFilter($q, $period)
+                'serviceUsages as total_quantity' => fn ($q) => $this->applyPeriodFilter($q, $period),
             ], 'quantity')
             ->withSum([
-                'serviceUsages as total_cost' => fn($q) => $this->applyPeriodFilter($q, $period)
+                'serviceUsages as total_cost' => fn ($q) => $this->applyPeriodFilter($q, $period),
             ], 'cost')
             ->where('activa', true)
             ->chunk(100, function ($notarias) use ($file) {
@@ -360,21 +358,21 @@ class ReportsController extends Controller
         fputcsv($file, ['Servicio', 'Total Solicitudes', 'Total Cantidad', 'Total Costo', 'Notarías Únicas']);
 
         Service::withCount([
-                'serviceUsages' => fn($q) => $this->applyPeriodFilter($q, $period)
-            ])
+            'serviceUsages' => fn ($q) => $this->applyPeriodFilter($q, $period),
+        ])
             ->withSum([
-                'serviceUsages as total_quantity' => fn($q) => $this->applyPeriodFilter($q, $period)
+                'serviceUsages as total_quantity' => fn ($q) => $this->applyPeriodFilter($q, $period),
             ], 'quantity')
             ->withSum([
-                'serviceUsages as total_cost' => fn($q) => $this->applyPeriodFilter($q, $period)
+                'serviceUsages as total_cost' => fn ($q) => $this->applyPeriodFilter($q, $period),
             ], 'cost')
             ->where('is_active', true)
             ->chunk(100, function ($services) use ($file, $period) {
                 foreach ($services as $service) {
                     $uniqueNotarias = ServiceUsage::where('service_id', $service->id)
-                        ->when($period === 'month', fn($q) => $q->whereMonth('consumed_at', now()->month))
-                        ->when($period === 'week', fn($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
-                        ->when($period === 'year', fn($q) => $q->whereYear('consumed_at', now()->year))
+                        ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+                        ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+                        ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
                         ->distinct('notaria_id')
                         ->count('notaria_id');
 

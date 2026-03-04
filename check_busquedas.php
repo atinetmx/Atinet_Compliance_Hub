@@ -15,7 +15,7 @@ echo "Total de búsquedas en la BD: $total\n\n";
 
 if ($total > 0) {
     echo "Últimas 5 búsquedas:\n";
-    echo str_repeat("=", 80) . "\n";
+    echo str_repeat('=', 80)."\n";
 
     $ultimas = Busqueda::with(['user', 'notaria'])
         ->orderBy('created_at', 'desc')
@@ -31,7 +31,7 @@ if ($total > 0) {
         echo "Fecha: {$busqueda->created_at}\n";
         $total_resultados = $busqueda->resultados['total'] ?? 'N/A';
         echo "Resultados: {$total_resultados}\n";
-        echo str_repeat("-", 80) . "\n";
+        echo str_repeat('-', 80)."\n";
     }
 } else {
     echo "⚠️ No hay búsquedas registradas en el historial.\n\n";

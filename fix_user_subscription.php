@@ -11,7 +11,7 @@ echo "🔧 Arreglando configuración de usuario y suscripción...\n\n";
 $user = App\Models\User::first();
 $notaria = App\Models\Notaria::first();
 
-if (!$user || !$notaria) {
+if (! $user || ! $notaria) {
     echo "❌ No hay usuario o notaría disponible\n";
     exit(1);
 }
@@ -25,20 +25,20 @@ echo "   ✅ Usuario asociado correctamente\n\n";
 echo "2️⃣ Verificando suscripción...\n";
 $subscription = $notaria->activeSubscription;
 
-if (!$subscription) {
+if (! $subscription) {
     echo "   No hay suscripción activa, creando una...\n";
-    
+
     // Buscar plan completo o el primer plan disponible
     $plan = App\Models\Plan::where('slug', 'plan-completo')->first()
         ?? App\Models\Plan::first();
-    
-    if (!$plan) {
+
+    if (! $plan) {
         echo "   ❌ No existen planes en el sistema\n";
         exit(1);
     }
-    
+
     echo "   Usando plan: {$plan->nombre}\n";
-    
+
     $subscription = App\Models\Subscription::create([
         'notaria_id' => $notaria->id,
         'plan_id' => $plan->id,
@@ -51,7 +51,7 @@ if (!$subscription) {
         'auto_renovacion' => true,
         'metodo_pago' => 'manual',
     ]);
-    
+
     echo "   ✅ Suscripción creada: ID {$subscription->id}\n\n";
 } else {
     echo "   ✅ Suscripción activa existente: ID {$subscription->id}\n\n";
@@ -61,14 +61,14 @@ if (!$subscription) {
 echo "3️⃣ Verificando servicio BLACKLIST_OFAC...\n";
 $ofacService = App\Models\Service::where('codigo', 'BLACKLIST_OFAC')->first();
 
-if (!$ofacService) {
+if (! $ofacService) {
     echo "   ❌ No existe el servicio BLACKLIST_OFAC\n";
     exit(1);
 }
 
 $hasService = $subscription->services()->where('service_id', $ofacService->id)->exists();
 
-if (!$hasService) {
+if (! $hasService) {
     echo "   Agregando servicio BLACKLIST_OFAC a la suscripción...\n";
     $subscription->services()->attach($ofacService->id, [
         'limite_mensual' => 1000,
@@ -83,12 +83,12 @@ if (!$hasService) {
 echo "4️⃣ Verificando servicio BLACKLIST_SAT...\n";
 $satService = App\Models\Service::where('codigo', 'BLACKLIST_SAT')->first();
 
-if (!$satService) {
+if (! $satService) {
     echo "   ⚠️  No existe el servicio BLACKLIST_SAT (opcional)\n\n";
 } else {
     $hasSatService = $subscription->services()->where('service_id', $satService->id)->exists();
-    
-    if (!$hasSatService) {
+
+    if (! $hasSatService) {
         echo "   Agregando servicio BLACKLIST_SAT a la suscripción...\n";
         $subscription->services()->attach($satService->id, [
             'limite_mensual' => 1000,

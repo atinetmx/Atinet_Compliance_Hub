@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Notaria;
 
-use App\EstadoMexico;
+use App\Enums\EstadoMexico;
 use App\Http\Controllers\Controller;
 use App\Models\Notaria;
 use Illuminate\Http\Request;
@@ -17,32 +17,21 @@ use Inertia\Inertia;
 class NotariaUserController extends Controller
 {
     /**
-     * Constructor - Asegurar que solo admin_notaria puede acceder
-     */
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            if (!Auth::check() || Auth::user()->tipo_cuenta !== 'admin_notaria') {
-                abort(403, 'Solo los administradores de notaría pueden gestionar usuarios.');
-            }
-            return $next($request);
-        });
-    }
-
-    /**
      * Lista de usuarios de la notaría (desde BD tenant)
      */
     public function index()
     {
+        $this->checkAdminNotaria();
+
         $user = Auth::user();
         $notaria = $user->notaria;
 
-        if (!$notaria) {
+        if (! $notaria) {
             abort(403, 'Tu cuenta no está asignada a ninguna notaría.');
         }
 
         // Conectar a BD tenant y obtener usuarios
-        $users = $this->executeInTenantDatabase($notaria, function($connection) {
+        $users = $this->executeInTenantDatabase($notaria, function ($connection) {
             return DB::connection($connection)
                 ->table('users')
                 ->select('id', 'name', 'email', 'tipo_cuenta', 'created_at')
@@ -78,10 +67,12 @@ class NotariaUserController extends Controller
      */
     public function create()
     {
+        $this->checkAdminNotaria();
+
         $user = Auth::user();
         $notaria = $user->notaria;
 
-        if (!$notaria) {
+        if (! $notaria) {
             abort(403, 'Tu cuenta no está asignada a ninguna notaría.');
         }
 
@@ -90,7 +81,7 @@ class NotariaUserController extends Controller
         $plan = $subscription?->plan;
         $limiteUsuarios = $plan?->limite_usuarios ?? 5;
 
-        $usuariosActuales = $this->executeInTenantDatabase($notaria, function($connection) {
+        $usuariosActuales = $this->executeInTenantDatabase($notaria, function ($connection) {
             return DB::connection($connection)->table('users')->count();
         });
 
@@ -112,10 +103,12 @@ class NotariaUserController extends Controller
      */
     public function store(Request $request)
     {
+        $this->checkAdminNotaria();
+
         $user = Auth::user();
         $notaria = $user->notaria;
 
-        if (!$notaria) {
+        if (! $notaria) {
             abort(403, 'Tu cuenta no está asignada a ninguna notaría.');
         }
 
@@ -131,19 +124,19 @@ class NotariaUserController extends Controller
         $plan = $subscription?->plan;
         $limiteUsuarios = $plan?->limite_usuarios ?? 5;
 
-        $usuariosActuales = $this->executeInTenantDatabase($notaria, function($connection) {
+        $usuariosActuales = $this->executeInTenantDatabase($notaria, function ($connection) {
             return DB::connection($connection)->table('users')->count();
         });
 
         if ($usuariosActuales >= $limiteUsuarios && $limiteUsuarios !== -1) {
             return back()->withErrors([
-                'limit' => "Has alcanzado el límite de {$limiteUsuarios} usuarios de tu plan."
+                'limit' => "Has alcanzado el límite de {$limiteUsuarios} usuarios de tu plan.",
             ]);
         }
 
         try {
             // Verificar si el email ya existe en la BD tenant
-            $existingUser = $this->executeInTenantDatabase($notaria, function($connection) use ($validated) {
+            $existingUser = $this->executeInTenantDatabase($notaria, function ($connection) use ($validated) {
                 return DB::connection($connection)
                     ->table('users')
                     ->where('email', $validated['email'])
@@ -152,12 +145,12 @@ class NotariaUserController extends Controller
 
             if ($existingUser) {
                 return back()->withErrors([
-                    'email' => 'Este correo electrónico ya está registrado en tu notaría.'
+                    'email' => 'Este correo electrónico ya está registrado en tu notaría.',
                 ])->withInput();
             }
 
             // Crear usuario en BD tenant
-            $this->executeInTenantDatabase($notaria, function($connection) use ($validated, $notaria) {
+            $this->executeInTenantDatabase($notaria, function ($connection) use ($validated, $notaria) {
                 DB::connection($connection)->table('users')->insert([
                     'name' => $validated['name'],
                     'email' => $validated['email'],
@@ -180,7 +173,7 @@ class NotariaUserController extends Controller
             ]);
 
             return back()->withErrors([
-                'error' => 'Ocurrió un error al crear el usuario. Por favor intenta nuevamente.'
+                'error' => 'Ocurrió un error al crear el usuario. Por favor intenta nuevamente.',
             ])->withInput();
         }
     }
@@ -190,21 +183,23 @@ class NotariaUserController extends Controller
      */
     public function edit($id)
     {
+        $this->checkAdminNotaria();
+
         $user = Auth::user();
         $notaria = $user->notaria;
 
-        if (!$notaria) {
+        if (! $notaria) {
             abort(403, 'Tu cuenta no está asignada a ninguna notaría.');
         }
 
-        $tenantUser = $this->executeInTenantDatabase($notaria, function($connection) use ($id) {
+        $tenantUser = $this->executeInTenantDatabase($notaria, function ($connection) use ($id) {
             return DB::connection($connection)
                 ->table('users')
                 ->where('id', $id)
                 ->first();
         });
 
-        if (!$tenantUser) {
+        if (! $tenantUser) {
             abort(404, 'Usuario no encontrado.');
         }
 
@@ -227,10 +222,12 @@ class NotariaUserController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->checkAdminNotaria();
+
         $user = Auth::user();
         $notaria = $user->notaria;
 
-        if (!$notaria) {
+        if (! $notaria) {
             abort(403, 'Tu cuenta no está asignada a ninguna notaría.');
         }
 
@@ -243,7 +240,7 @@ class NotariaUserController extends Controller
 
         try {
             // Verificar si el email ya existe (excepto el usuario actual)
-            $existingUser = $this->executeInTenantDatabase($notaria, function($connection) use ($validated, $id) {
+            $existingUser = $this->executeInTenantDatabase($notaria, function ($connection) use ($validated, $id) {
                 return DB::connection($connection)
                     ->table('users')
                     ->where('email', $validated['email'])
@@ -253,7 +250,7 @@ class NotariaUserController extends Controller
 
             if ($existingUser) {
                 return back()->withErrors([
-                    'email' => 'Este correo electrónico ya está registrado en tu notaría.'
+                    'email' => 'Este correo electrónico ya está registrado en tu notaría.',
                 ])->withInput();
             }
 
@@ -266,12 +263,12 @@ class NotariaUserController extends Controller
             ];
 
             // Si se proporcionó nueva contraseña
-            if (!empty($validated['password'])) {
+            if (! empty($validated['password'])) {
                 $updateData['password'] = Hash::make($validated['password']);
                 $updateData['recoverable_password'] = Crypt::encryptString($validated['password']);
             }
 
-            $this->executeInTenantDatabase($notaria, function($connection) use ($id, $updateData) {
+            $this->executeInTenantDatabase($notaria, function ($connection) use ($id, $updateData) {
                 DB::connection($connection)
                     ->table('users')
                     ->where('id', $id)
@@ -289,7 +286,7 @@ class NotariaUserController extends Controller
             ]);
 
             return back()->withErrors([
-                'error' => 'Ocurrió un error al actualizar el usuario. Por favor intenta nuevamente.'
+                'error' => 'Ocurrió un error al actualizar el usuario. Por favor intenta nuevamente.',
             ])->withInput();
         }
     }
@@ -299,10 +296,12 @@ class NotariaUserController extends Controller
      */
     public function destroy($id)
     {
+        $this->checkAdminNotaria();
+
         $user = Auth::user();
         $notaria = $user->notaria;
 
-        if (!$notaria) {
+        if (! $notaria) {
             abort(403, 'Tu cuenta no está asignada a ninguna notaría.');
         }
 
@@ -310,22 +309,22 @@ class NotariaUserController extends Controller
         $subscription = $notaria->subscripcionActiva;
         $plan = $subscription?->plan;
 
-        if (!$this->canDeleteUsers($plan)) {
+        if (! $this->canDeleteUsers($plan)) {
             return back()->withErrors([
-                'plan' => 'Tu plan no permite eliminar usuarios. Contacta a soporte de Atinet o actualiza a Dashboard Avanzado.'
+                'plan' => 'Tu plan no permite eliminar usuarios. Contacta a soporte de Atinet o actualiza a Dashboard Avanzado.',
             ]);
         }
 
         try {
             // Verificar que no sea el único admin
-            $adminCount = $this->executeInTenantDatabase($notaria, function($connection) {
+            $adminCount = $this->executeInTenantDatabase($notaria, function ($connection) {
                 return DB::connection($connection)
                     ->table('users')
                     ->where('tipo_cuenta', 'admin_notaria')
                     ->count();
             });
 
-            $targetUser = $this->executeInTenantDatabase($notaria, function($connection) use ($id) {
+            $targetUser = $this->executeInTenantDatabase($notaria, function ($connection) use ($id) {
                 return DB::connection($connection)
                     ->table('users')
                     ->where('id', $id)
@@ -334,12 +333,12 @@ class NotariaUserController extends Controller
 
             if ($targetUser->tipo_cuenta === 'admin_notaria' && $adminCount <= 1) {
                 return back()->withErrors([
-                    'admin' => 'No puedes eliminar al único administrador de la notaría.'
+                    'admin' => 'No puedes eliminar al único administrador de la notaría.',
                 ]);
             }
 
             // Eliminar usuario
-            $this->executeInTenantDatabase($notaria, function($connection) use ($id) {
+            $this->executeInTenantDatabase($notaria, function ($connection) use ($id) {
                 DB::connection($connection)
                     ->table('users')
                     ->where('id', $id)
@@ -357,8 +356,18 @@ class NotariaUserController extends Controller
             ]);
 
             return back()->withErrors([
-                'error' => 'Ocurrió un error al eliminar el usuario. Por favor intenta nuevamente.'
+                'error' => 'Ocurrió un error al eliminar el usuario. Por favor intenta nuevamente.',
             ]);
+        }
+    }
+
+    /**
+     * Validar que el usuario autenticado sea admin_notaria
+     */
+    private function checkAdminNotaria(): void
+    {
+        if (! Auth::check() || Auth::user()->tipo_cuenta !== 'admin_notaria') {
+            abort(403, 'Solo los administradores de notaría pueden gestionar usuarios.');
         }
     }
 
@@ -399,7 +408,7 @@ class NotariaUserController extends Controller
      */
     private function canDeleteUsers($plan): bool
     {
-        if (!$plan) {
+        if (! $plan) {
             return false; // Sin plan, no puede eliminar
         }
 
@@ -414,7 +423,7 @@ class NotariaUserController extends Controller
      */
     private function hasDashboardAvanzado($plan): bool
     {
-        if (!$plan) {
+        if (! $plan) {
             return false;
         }
 

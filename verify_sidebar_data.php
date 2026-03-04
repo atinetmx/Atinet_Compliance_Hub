@@ -8,7 +8,7 @@ $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 // Buscar el usuario admin_notaria
 $user = \App\Models\User::where('email', 'leinad@notaria1.com')->first();
 
-if (!$user) {
+if (! $user) {
     echo "❌ Usuario no encontrado\n";
     exit(1);
 }
@@ -22,7 +22,7 @@ $notaria = $user->notaria()
     ->with(['subscripcionActiva.plan.services'])
     ->first();
 
-if (!$notaria) {
+if (! $notaria) {
     echo "❌ Notaría no encontrada\n";
     exit(1);
 }
@@ -31,7 +31,7 @@ echo "✅ Notaría: {$notaria->nombre}\n\n";
 
 $subscripcion = $notaria->subscripcionActiva;
 
-if (!$subscripcion) {
+if (! $subscripcion) {
     echo "❌ Sin suscripción activa\n";
     exit(1);
 }

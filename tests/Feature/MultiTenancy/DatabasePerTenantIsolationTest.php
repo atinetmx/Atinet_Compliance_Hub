@@ -3,7 +3,6 @@
 use App\Enums\EstadoMexico;
 use App\Http\Controllers\Notaria\NotariaUserController;
 use App\Models\Notaria;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -262,13 +261,13 @@ describe('aislamiento database per tenant', function () {
             'collation' => 'utf8mb4_unicode_ci',
         ]]);
 
-        DB::connection('tenant_temp_1')->statement("
+        DB::connection('tenant_temp_1')->statement('
             CREATE TABLE IF NOT EXISTS users (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL
             )
-        ");
+        ');
 
         DB::connection('tenant_temp_1')->table('users')->insert([
             ['name' => 'User Notaria 999', 'email' => 'user@999.com'],
@@ -286,13 +285,13 @@ describe('aislamiento database per tenant', function () {
             'collation' => 'utf8mb4_unicode_ci',
         ]]);
 
-        DB::connection('tenant_temp_2')->statement("
+        DB::connection('tenant_temp_2')->statement('
             CREATE TABLE IF NOT EXISTS users (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL
             )
-        ");
+        ');
 
         DB::connection('tenant_temp_2')->table('users')->insert([
             ['name' => 'User Notaria 888', 'email' => 'user@888.com'],

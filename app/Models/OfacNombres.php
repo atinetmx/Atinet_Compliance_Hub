@@ -42,10 +42,6 @@ class OfacNombres extends Model
      *
      * Algoritmo: Divide el nombre en palabras y busca cada palabra individualmente.
      * Ejemplo: "BIN LADEN Osama" → encuentra "Osama BIN LADEN" y "BIN LADEN, Osama"
-     *
-     * @param Builder $query
-     * @param string $nombre
-     * @return Builder
      */
     public function scopeSearchByName(Builder $query, string $nombre): Builder
     {
@@ -57,7 +53,7 @@ class OfacNombres extends Model
 
         // Dividir el nombre en palabras para búsqueda flexible
         // Esto permite encontrar "BIN LADEN, Osama" con búsqueda "OSAMA BIN LADEN"
-        $palabras = array_filter(explode(' ', $nombreLimpio), function($palabra) {
+        $palabras = array_filter(explode(' ', $nombreLimpio), function ($palabra) {
             return strlen(trim($palabra)) > 1; // Solo palabras de más de 1 carácter
         });
 
@@ -78,7 +74,6 @@ class OfacNombres extends Model
      * Búsqueda para persona física
      * Implementa lógica específica del sistema legacy
      *
-     * @param string $nombre
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function searchPersonaFisica(string $nombre)
@@ -90,7 +85,6 @@ class OfacNombres extends Model
      * Búsqueda para persona moral (denominación social)
      * Misma lógica que persona física pero con contexto diferente
      *
-     * @param string $denominacion
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public static function searchPersonaMoral(string $denominacion)
@@ -100,8 +94,6 @@ class OfacNombres extends Model
 
     /**
      * Obtener el nombre limpio (sin caracteres especiales)
-     *
-     * @return string
      */
     public function getNombreLimpioAttribute(): string
     {

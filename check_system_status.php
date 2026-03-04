@@ -14,13 +14,13 @@ $notarias = App\Models\Notaria::count();
 $users = App\Models\User::count();
 
 echo "📊 Base de Datos:\n";
-echo "   Planes: " . $plans->count() . "\n";
+echo '   Planes: '.$plans->count()."\n";
 foreach ($plans as $plan) {
     $serviceCount = $plan->services()->count();
     echo "      - {$plan->nombre} (ID: {$plan->id}) - {$serviceCount} servicios\n";
 }
 echo "   Servicios totales: {$services}\n";
-echo "   Servicio Listas Negras: " . ($lnService ? "✅ Existe (ID: {$lnService->id})" : "❌ No existe") . "\n";
+echo '   Servicio Listas Negras: '.($lnService ? "✅ Existe (ID: {$lnService->id})" : '❌ No existe')."\n";
 echo "   Notarías: {$notarias}\n";
 echo "   Usuarios: {$users}\n\n";
 
@@ -45,7 +45,7 @@ if ($notarias == 0) {
     echo "📋 Primera notaría:\n";
     echo "   Nombre: {$notaria->nombre}\n";
     echo "   ID: {$notaria->id}\n";
-    echo "   Plan: " . ($notaria->plan ? $notaria->plan->nombre : "Sin plan") . "\n\n";
+    echo '   Plan: '.($notaria->plan ? $notaria->plan->nombre : 'Sin plan')."\n\n";
 
     $adminNotaria = App\Models\User::where('notaria_id', $notaria->id)
         ->where('tipo_cuenta', 'admin_notaria')

@@ -14,10 +14,12 @@ class CheckSubscriptionStatusTest extends TestCase
     use RefreshDatabase;
 
     protected Notaria $notaria;
+
     protected Plan $plan;
+
     protected User $user;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 

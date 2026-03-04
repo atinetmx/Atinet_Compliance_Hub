@@ -10,34 +10,34 @@ echo "=== DIAGNÓSTICO DE CSRF Y SESIÓN ===\n\n";
 
 // Verificar configuración de sesión
 echo "📋 Configuración de Sesión:\n";
-echo "   Driver: " . config('session.driver') . "\n";
-echo "   Lifetime: " . config('session.lifetime') . " minutos\n";
-echo "   Expire on close: " . (config('session.expire_on_close') ? 'Sí' : 'No') . "\n";
-echo "   Encrypt: " . (config('session.encrypt') ? 'Sí' : 'No') . "\n";
-echo "   Cookie name: " . config('session.cookie') . "\n";
-echo "   Same site: " . config('session.same_site') . "\n\n";
+echo '   Driver: '.config('session.driver')."\n";
+echo '   Lifetime: '.config('session.lifetime')." minutos\n";
+echo '   Expire on close: '.(config('session.expire_on_close') ? 'Sí' : 'No')."\n";
+echo '   Encrypt: '.(config('session.encrypt') ? 'Sí' : 'No')."\n";
+echo '   Cookie name: '.config('session.cookie')."\n";
+echo '   Same site: '.config('session.same_site')."\n\n";
 
 // Verificar tabla de sesiones
 if (config('session.driver') === 'database') {
     try {
         $sessionsCount = \DB::table('sessions')->count();
         echo "✅ Tabla 'sessions' existe: $sessionsCount sesiones activas\n";
-        
+
         // Mostrar sesiones recientes
         $recentSessions = \DB::table('sessions')
             ->orderBy('last_activity', 'desc')
             ->limit(5)
             ->get(['id', 'user_id', 'last_activity']);
-        
+
         echo "\n📊 Sesiones recientes:\n";
         foreach ($recentSessions as $session) {
             $userId = $session->user_id ?? 'guest';
             $time = date('Y-m-d H:i:s', $session->last_activity);
-            $id = substr($session->id, 0, 8) . '...';
+            $id = substr($session->id, 0, 8).'...';
             echo "   • $id | User: $userId | Última actividad: $time\n";
         }
     } catch (\Exception $e) {
-        echo "❌ Error al acceder a tabla sessions: " . $e->getMessage() . "\n";
+        echo '❌ Error al acceder a tabla sessions: '.$e->getMessage()."\n";
     }
 }
 
@@ -46,7 +46,7 @@ echo "\n";
 // Verificar middleware CSRF
 echo "🔐 Middleware CSRF:\n";
 $excludedRoutes = config('sanctum.stateful', []);
-echo "   Dominios permitidos (stateful): " . implode(', ', $excludedRoutes) . "\n\n";
+echo '   Dominios permitidos (stateful): '.implode(', ', $excludedRoutes)."\n\n";
 
 // Verificar rutas de búsqueda
 echo "🔍 Rutas de Búsqueda:\n";
@@ -55,7 +55,7 @@ try {
     $searchRoutes = collect($routes)->filter(function ($route) {
         return str_contains($route->uri(), 'search');
     });
-    
+
     foreach ($searchRoutes as $route) {
         $methods = implode('|', $route->methods());
         $middleware = implode(', ', $route->middleware());
@@ -63,7 +63,7 @@ try {
         echo "      Middleware: $middleware\n";
     }
 } catch (\Exception $e) {
-    echo "   ❌ Error: " . $e->getMessage() . "\n";
+    echo '   ❌ Error: '.$e->getMessage()."\n";
 }
 
 echo "\n";
@@ -76,7 +76,7 @@ if ($user) {
     echo "   ID: {$user->id}\n";
     echo "   Tipo: {$user->tipo_cuenta}\n";
     echo "   Notaría ID: {$user->notaria_id}\n";
-    
+
     if ($user->notaria) {
         $subscription = $user->notaria->subscripcionActiva;
         if ($subscription) {

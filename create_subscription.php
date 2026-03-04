@@ -8,13 +8,13 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 echo "=== Creando Suscripción para Notaría ===\n\n";
 
 $notaria = App\Models\Notaria::find(1);
-if (!$notaria) {
+if (! $notaria) {
     echo "❌ Notaría no encontrada\n";
     exit;
 }
 
 $planBasico = App\Models\Plan::where('nombre', 'Plan Básico')->first();
-if (!$planBasico) {
+if (! $planBasico) {
     echo "❌ Plan Básico no encontrado\n";
     exit;
 }

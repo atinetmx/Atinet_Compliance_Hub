@@ -8,16 +8,16 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 // Obtener el primer usuario (probablemente el SuperAdmin)
 $user = App\Models\User::first();
 
-if (!$user) {
+if (! $user) {
     echo "❌ No hay usuarios en el sistema\n";
     exit(1);
 }
 
 echo "✅ Usuario encontrado: {$user->email}\n";
 echo "   ID: {$user->id}\n";
-echo "   Notaría ID: " . ($user->notaria_id ?? 'NINGUNA') . "\n\n";
+echo '   Notaría ID: '.($user->notaria_id ?? 'NINGUNA')."\n\n";
 
-if (!$user->notaria) {
+if (! $user->notaria) {
     echo "❌ El usuario NO tiene notaría asociada\n";
     echo "   Esto es el problema del error 403\n\n";
 
@@ -45,7 +45,7 @@ echo "   ID: {$notaria->id}\n\n";
 
 // Verificar suscripción
 $subscription = $notaria->activeSubscription;
-if (!$subscription) {
+if (! $subscription) {
     echo "❌ La notaría NO tiene suscripción activa\n";
     echo "   Esto es el problema del error 403\n\n";
 
@@ -70,7 +70,7 @@ echo "   Fecha fin: {$subscription->fecha_fin}\n\n";
 
 // Verificar si tiene el servicio BLACKLIST_OFAC
 $ofacService = App\Models\Service::where('codigo', 'BLACKLIST_OFAC')->first();
-if (!$ofacService) {
+if (! $ofacService) {
     echo "❌ No existe el servicio BLACKLIST_OFAC en el sistema\n";
     exit(1);
 }
@@ -81,7 +81,7 @@ echo "   Nombre: {$ofacService->nombre}\n\n";
 
 // Verificar si la suscripción tiene ese servicio
 $hasService = $subscription->services()->where('service_id', $ofacService->id)->exists();
-if (!$hasService) {
+if (! $hasService) {
     echo "❌ La suscripción NO tiene el servicio BLACKLIST_OFAC asignado\n";
     echo "   Esto es el problema del error 403\n\n";
     echo "💡 Solución: Agregar servicio con este comando:\n";
@@ -97,8 +97,8 @@ echo "✅ La suscripción TIENE el servicio BLACKLIST_OFAC\n\n";
 // Verificar límites
 $serviceSubscription = $subscription->services()->where('service_id', $ofacService->id)->first();
 echo "📊 Límites del servicio:\n";
-echo "   Límite mensual: " . ($serviceSubscription->pivot->limite_mensual ?? 'ILIMITADO') . "\n";
-echo "   Límite anual: " . ($serviceSubscription->pivot->limite_anual ?? 'ILIMITADO') . "\n\n";
+echo '   Límite mensual: '.($serviceSubscription->pivot->limite_mensual ?? 'ILIMITADO')."\n";
+echo '   Límite anual: '.($serviceSubscription->pivot->limite_anual ?? 'ILIMITADO')."\n\n";
 
 echo "✅ ¡TODO CONFIGURADO CORRECTAMENTE!\n";
 echo "   El usuario debería poder hacer búsquedas sin problemas\n\n";

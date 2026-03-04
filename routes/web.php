@@ -59,12 +59,12 @@ Route::get('dashboard', function () {
                         'descripcion' => $subscription->plan->descripcion,
                         'limite_usuarios' => $subscription->plan->limite_usuarios,
                         'limite_busquedas_mes' => $subscription->plan->limite_busquedas_mes,
-                        'servicios' => $subscription->plan->services->map(fn($s) => [
+                        'servicios' => $subscription->plan->services->map(fn ($s) => [
                             'code' => $s->code,
                             'name' => $s->name,
                             'description' => $s->description,
                             'is_included' => $s->pivot->is_included ?? true,
-                        ])->filter(fn($s) => $s['is_included'])->values(),
+                        ])->filter(fn ($s) => $s['is_included'])->values(),
                     ] : null,
                 ] : null,
                 'stats' => [

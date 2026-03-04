@@ -33,19 +33,20 @@ class CheckSubscriptionStatus
     public function handle(Request $request, Closure $next, ?string $mode = null): Response
     {
         // Verificar que el usuario esté autenticado
-        if (!$request->user()) {
+        if (! $request->user()) {
             return $this->responseUnauthorized($request);
         }
 
         // BYPASS: SuperAdmin no requiere suscripción (es administrador de Atinet, no cliente)
         if ($request->user()->isSuperAdmin()) {
             $request->attributes->set('subscription_status', 'superadmin_bypass');
+
             return $next($request);
         }
 
         // Verificar que el usuario tenga una notaría asociada
         $notaria = $request->user()->notaria;
-        if (!$notaria) {
+        if (! $notaria) {
             return $this->responseNoNotaria($request);
         }
 
@@ -60,7 +61,7 @@ class CheckSubscriptionStatus
             ->first();
 
         // Verificar si existe suscripción
-        if (!$subscription) {
+        if (! $subscription) {
             return $this->responseNoSubscription($request);
         }
 

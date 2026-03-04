@@ -104,6 +104,7 @@ class Subscription extends Model
         // Vencida tiene periodo de gracia (ej: 7 días después de vencimiento)
         if ($this->status === self::STATUS_VENCIDA) {
             $periodoGracia = 7; // días
+
             return now()->lessThanOrEqualTo($this->fecha_vencimiento->addDays($periodoGracia));
         }
 

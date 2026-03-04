@@ -9,17 +9,17 @@ echo "🔍 Verificando configuración de SuperAdmin...\n\n";
 
 $user = App\Models\User::first();
 
-if (!$user) {
+if (! $user) {
     echo "❌ No hay usuarios en el sistema\n";
     exit(1);
 }
 
 echo "Usuario: {$user->email}\n";
 echo "ID: {$user->id}\n";
-echo "Tipo de cuenta: " . ($user->tipo_cuenta ?? 'NO DEFINIDO') . "\n";
-echo "¿Es SuperAdmin?: " . ($user->isSuperAdmin() ? '✅ SÍ' : '❌ NO') . "\n\n";
+echo 'Tipo de cuenta: '.($user->tipo_cuenta ?? 'NO DEFINIDO')."\n";
+echo '¿Es SuperAdmin?: '.($user->isSuperAdmin() ? '✅ SÍ' : '❌ NO')."\n\n";
 
-if (!$user->isSuperAdmin()) {
+if (! $user->isSuperAdmin()) {
     echo "⚠️  El usuario NO es SuperAdmin\n";
     echo "💡 Corrigiendo...\n\n";
 

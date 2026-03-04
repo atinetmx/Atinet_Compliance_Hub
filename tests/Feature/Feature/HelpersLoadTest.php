@@ -1,7 +1,5 @@
 <?php
 
-use function Pest\Laravel\assertDatabaseHas;
-
 test('all helper functions are loaded', function () {
     expect(function_exists('can_use_service'))->toBeTrue();
     expect(function_exists('has_service_limit'))->toBeTrue();

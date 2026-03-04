@@ -11,7 +11,7 @@ echo "\n=== AGREGAR SUSCRIPCIONES DE EJEMPLO PARA GRÁFICOS ===\n\n";
 $currentCount = \App\Models\Subscription::count();
 if ($currentCount >= 10) {
     echo "⚠️  Ya hay {$currentCount} suscripciones en el sistema.\n";
-    echo "¿Deseas agregar más suscripciones de ejemplo? (y/n): ";
+    echo '¿Deseas agregar más suscripciones de ejemplo? (y/n): ';
     $handle = fopen('php://stdin', 'r');
     $line = trim(fgets($handle));
     if (strtolower($line) !== 'y') {
@@ -123,7 +123,7 @@ foreach ($distributions as $status => $count) {
 echo "\n=== RESUMEN ===\n";
 echo "✅ Suscripciones creadas: {$created}\n";
 echo "⚠️  Suscripciones omitidas: {$skipped}\n";
-echo "📊 Total en sistema: ".\App\Models\Subscription::count()."\n\n";
+echo '📊 Total en sistema: '.\App\Models\Subscription::count()."\n\n";
 
 // Mostrar distribución actual
 echo "=== DISTRIBUCIÓN ACTUAL ===\n";

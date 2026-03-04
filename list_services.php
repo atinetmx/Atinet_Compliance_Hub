@@ -18,7 +18,7 @@ if ($user) {
     echo "Email: {$user->email}\n";
     echo "Nombre: {$user->name}\n";
     echo "Tipo cuenta: {$user->tipo_cuenta}\n";
-    echo "Plain password: " . ($user->plain_password ?: 'No disponible') . "\n\n";
+    echo 'Plain password: '.($user->plain_password ?: 'No disponible')."\n\n";
     echo "⚠️  Si no tienes la contraseña, debes:\n";
     echo "1. Login como Super Admin\n";
     echo "2. Ir a Usuarios\n";

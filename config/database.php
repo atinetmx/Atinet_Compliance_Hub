@@ -63,9 +63,13 @@ return [
             ]) : [],
         ],
 
-        // Conexión a la base de datos OFAC (Office of Foreign Assets Control)
-        // Base de datos global compartida por todos los tenants
-        // Contiene la lista de sanciones de EE.UU.
+        // =========================================================
+        // CONEXIONES LOCALES (Lectura rápida para búsquedas)
+        // =========================================================
+
+        // Conexión LOCAL a OFAC (Office of Foreign Assets Control)
+        // Base de datos local con réplica sincronizada desde Hostgator
+        // Usada para todas las búsquedas (velocidad máxima)
         'ofac' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
@@ -86,8 +90,8 @@ return [
             ]) : [],
         ],
 
-        // Conexión a la base de datos SAT (Servicio de Administración Tributaria)
-        // Base de datos global compartida por todos los tenants
+        // Conexión LOCAL a SAT (Servicio de Administración Tributaria)
+        // Base de datos local con réplica sincronizada desde Hostgator
         // Contiene la lista 69-B de contribuyentes incumplidos de México
         'sat' => [
             'driver' => 'mysql',
@@ -109,19 +113,61 @@ return [
             ]) : [],
         ],
 
+        // =========================================================
+        // CONEXIONES REMOTAS (Solo sincronización incremental)
+        // =========================================================
+
+        // Conexión REMOTA a OFAC en Hostgator
+        // Usada SOLO para sincronización incremental (comando sync)
+        // NO usar para búsquedas (latencia alta)
+        'ofac_remote' => [
+            'driver' => 'mysql',
+            'host' => env('DB_OFAC_REMOTE_HOST', '162.144.6.1'),
+            'port' => env('DB_OFAC_REMOTE_PORT', '3306'),
+            'database' => env('DB_OFAC_REMOTE_DATABASE', 'atinet65_listasofac'),
+            'username' => env('DB_OFAC_REMOTE_USERNAME', 'atinet65_ucompliance'),
+            'password' => env('DB_OFAC_REMOTE_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
+        // Conexión REMOTA a SAT en Hostgator
+        // Usada SOLO para sincronización incremental (comando sync)
+        // NO usar para búsquedas (latencia alta)
+        'sat_remote' => [
+            'driver' => 'mysql',
+            'host' => env('DB_SAT_REMOTE_HOST', '162.144.6.1'),
+            'port' => env('DB_SAT_REMOTE_PORT', '3306'),
+            'database' => env('DB_SAT_REMOTE_DATABASE', 'atinet65_listassat'),
+            'username' => env('DB_SAT_REMOTE_USERNAME', 'atinet65_ucompliance'),
+            'password' => env('DB_SAT_REMOTE_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
         // Conexión a la base de datos de aplicativos Atinet (sistema legacy)
         // Contiene los usuarios y notarías del sistema actual de Atinet.
         // Se usa en modo lectura para migrar tenants al nuevo sistema.
         // En producción usa el usuario unificado (DB_USERNAME/DB_PASSWORD).
         // En local requiere importar un dump de esta BD o dejarla vacía.
+
+        // Conexión LOCAL a Aplicativos (búsquedas rápidas, operaciones normales)
         'aplicativos' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
-            'host' => env('DB_APLICATIVOS_HOST', env('DB_HOST', '127.0.0.1')),
-            'port' => env('DB_APLICATIVOS_PORT', env('DB_PORT', '3306')),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
             'database' => env('DB_APLICATIVOS_DATABASE', 'atinet65_aplicativos'),
-            'username' => env('DB_APLICATIVOS_USERNAME', env('DB_USERNAME', 'root')),
-            'password' => env('DB_APLICATIVOS_PASSWORD', env('DB_PASSWORD', '')),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
@@ -132,6 +178,22 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+        ],
+
+        // Conexión REMOTA a Aplicativos en Hostgator (solo sincronización)
+        'aplicativos_remote' => [
+            'driver' => 'mysql',
+            'host' => env('DB_APLICATIVOS_REMOTE_HOST', '162.144.6.1'),
+            'port' => env('DB_APLICATIVOS_REMOTE_PORT', '3306'),
+            'database' => env('DB_APLICATIVOS_REMOTE_DATABASE', 'atinet65_aplicativos'),
+            'username' => env('DB_APLICATIVOS_REMOTE_USERNAME', 'atinet65_ucompliance'),
+            'password' => env('DB_APLICATIVOS_REMOTE_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
         ],
 
         'mariadb' => [

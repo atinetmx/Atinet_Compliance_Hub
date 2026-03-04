@@ -9,7 +9,7 @@ echo "=== Análisis de Acceso de Usuario ===\n\n";
 
 $user = App\Models\User::where('email', 'leinad@notaria1.com')->first();
 
-if (!$user) {
+if (! $user) {
     echo "❌ Usuario no encontrado\n";
     exit;
 }
@@ -18,7 +18,7 @@ echo "👤 Usuario: {$user->name} ({$user->email})\n";
 echo "   Tipo: {$user->tipo_cuenta}\n\n";
 
 $notaria = $user->notaria;
-if (!$notaria) {
+if (! $notaria) {
     echo "❌ No tiene notaría asignada\n";
     exit;
 }
@@ -35,7 +35,7 @@ foreach ($todasSubs as $sub) {
 echo "\n";
 
 $subscription = $notaria->subscripcionActiva;
-if (!$subscription) {
+if (! $subscription) {
     echo "❌ No tiene suscripción activa/trial\n";
     echo "Necesitas crear una suscripción desde el panel de Super Admin\n";
     exit;
@@ -47,7 +47,7 @@ echo "   Fecha inicio: {$subscription->fecha_inicio}\n";
 echo "   Fecha vencimiento: {$subscription->fecha_vencimiento}\n\n";
 
 $plan = $subscription->plan;
-if (!$plan) {
+if (! $plan) {
     echo "❌ No tiene plan asignado\n";
     exit;
 }
@@ -66,8 +66,8 @@ echo "\n=== ¿Tiene acceso a Listas Negras? ===\n";
 $tieneOfac = $servicios->where('code', 'BLACKLIST_OFAC')->count() > 0;
 $tieneSat = $servicios->where('code', 'BLACKLIST_SAT')->count() > 0;
 
-echo "BLACKLIST_OFAC: " . ($tieneOfac ? "✅ SÍ" : "❌ NO") . "\n";
-echo "BLACKLIST_SAT: " . ($tieneSat ? "✅ SÍ" : "❌ NO") . "\n";
+echo 'BLACKLIST_OFAC: '.($tieneOfac ? '✅ SÍ' : '❌ NO')."\n";
+echo 'BLACKLIST_SAT: '.($tieneSat ? '✅ SÍ' : '❌ NO')."\n";
 
 if ($tieneOfac || $tieneSat) {
     echo "\n✅ El usuario DEBERÍA ver 'Listas Negras' en el menú\n";

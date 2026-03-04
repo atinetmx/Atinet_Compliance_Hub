@@ -13,14 +13,14 @@ echo "=== Crear Suscripción Trial ===\n\n";
 
 // Obtener la notaría
 $notaria = Notaria::find(1);
-if (!$notaria) {
+if (! $notaria) {
     echo "❌ No se encontró la notaría con ID 1\n";
     exit(1);
 }
 
 // Obtener el plan básico
 $planBasico = Plan::where('nombre', 'Plan Básico')->first();
-if (!$planBasico) {
+if (! $planBasico) {
     echo "❌ No se encontró el Plan Básico\n";
     exit(1);
 }
@@ -73,7 +73,7 @@ echo "Plan: {$planBasico->nombre}\n";
 echo "Status: {$subscription->status}\n";
 echo "Inicio: {$subscription->fecha_inicio->format('d/m/Y')}\n";
 echo "Vencimiento: {$subscription->fecha_vencimiento->format('d/m/Y')}\n";
-echo "Días restantes: " . now()->diffInDays($subscription->fecha_vencimiento) . "\n\n";
+echo 'Días restantes: '.now()->diffInDays($subscription->fecha_vencimiento)."\n\n";
 
 echo "=== Servicios incluidos en el Plan Básico ===\n\n";
 $servicios = $planBasico->services;

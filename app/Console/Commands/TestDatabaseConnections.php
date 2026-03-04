@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use App\Models\OfacNombres;
 use App\Models\Sat69B;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Command para probar las conexiones a las bases de datos OFAC y SAT
@@ -61,6 +61,7 @@ class TestDatabaseConnections extends Command
             return Command::SUCCESS;
         } else {
             $this->error('❌ Algunas conexiones fallaron. Revisa la configuración del .env');
+
             return Command::FAILURE;
         }
     }
@@ -82,7 +83,7 @@ class TestDatabaseConnections extends Command
 
             // Intentar conectar
             DB::connection($connection)->getPdo();
-            $this->line("  ✅ Conexión exitosa");
+            $this->line('  ✅ Conexión exitosa');
 
             // Obtener información adicional si es modo detailed
             if ($this->option('detailed')) {
@@ -91,16 +92,18 @@ class TestDatabaseConnections extends Command
 
                 // Contar tablas
                 $tables = DB::connection($connection)
-                    ->select("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?", [$dbName]);
+                    ->select('SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?', [$dbName]);
                 $this->line("  📊 Tablas encontradas: {$tables[0]->count}");
             }
 
             $this->newLine();
+
             return true;
 
         } catch (\Exception $e) {
-            $this->line("  ❌ Error de conexión: " . $e->getMessage());
+            $this->line('  ❌ Error de conexión: '.$e->getMessage());
             $this->newLine();
+
             return false;
         }
     }
@@ -126,14 +129,14 @@ class TestDatabaseConnections extends Command
                 $sample = OfacNombres::first();
                 $sampleName = $sample->name ?? 'Sin campo name';
                 $this->line("  📝 Muestra: {$sampleName}");
-                $this->line("  🔍 Test de búsqueda disponible");
+                $this->line('  🔍 Test de búsqueda disponible');
             }
 
-            $this->line("  ✅ Modelo OFAC funcional");
+            $this->line('  ✅ Modelo OFAC funcional');
             $this->newLine();
 
         } catch (\Exception $e) {
-            $this->line("  ❌ Error en modelo OFAC: " . $e->getMessage());
+            $this->line('  ❌ Error en modelo OFAC: '.$e->getMessage());
             $this->newLine();
         }
 
@@ -150,14 +153,14 @@ class TestDatabaseConnections extends Command
                 $sample = Sat69B::first();
                 $sampleRfc = $sample->rfc ?? 'Sin campo RFC';
                 $this->line("  📝 Muestra RFC: {$sampleRfc}");
-                $this->line("  🔍 Test de validación RFC disponible");
+                $this->line('  🔍 Test de validación RFC disponible');
             }
 
-            $this->line("  ✅ Modelo SAT funcional");
+            $this->line('  ✅ Modelo SAT funcional');
             $this->newLine();
 
         } catch (\Exception $e) {
-            $this->line("  ❌ Error en modelo SAT: " . $e->getMessage());
+            $this->line('  ❌ Error en modelo SAT: '.$e->getMessage());
             $this->newLine();
         }
 

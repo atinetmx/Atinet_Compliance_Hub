@@ -6,9 +6,7 @@ $app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Models\Busqueda;
-use App\Models\Notaria;
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
 
 try {
     echo "=== TEST: Guardar búsqueda en historial ===\n\n";
@@ -16,7 +14,7 @@ try {
     // Obtener el primer usuario con notaría
     $user = User::whereHas('notaria')->with('notaria')->first();
 
-    if (!$user) {
+    if (! $user) {
         echo "❌ ERROR: No hay usuarios con notaría asociada\n";
         exit(1);
     }
@@ -26,7 +24,7 @@ try {
 
     // Verificar que la tabla existe
     $tableExists = \Illuminate\Support\Facades\Schema::hasTable('busquedas');
-    if (!$tableExists) {
+    if (! $tableExists) {
         echo "❌ ERROR: La tabla 'busquedas' no existe\n";
         echo "Ejecuta: php artisan migrate\n";
         exit(1);
@@ -63,7 +61,7 @@ try {
     echo "  ID: {$busqueda->id}\n";
     echo "  Tipo: {$busqueda->tipo_busqueda}\n";
     echo "  Término: {$busqueda->termino_busqueda}\n";
-    echo "  Resultados: " . json_encode($busqueda->resultados) . "\n\n";
+    echo '  Resultados: '.json_encode($busqueda->resultados)."\n\n";
 
     // Verificar que se puede leer
     $busquedaLeida = Busqueda::find($busqueda->id);
