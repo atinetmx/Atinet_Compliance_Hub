@@ -1,6 +1,6 @@
 # Sincronización Completa de Listas OFAC y SAT
 
-**Fecha**: 4 de marzo de 2026  
+**Fecha**: 4 de marzo de 2026
 **Estado**: ✅ Implementado y Probado
 
 ## 📋 Resumen
@@ -11,7 +11,7 @@ Se actualizó el sistema de sincronización de listas negras para sincronizar **
 
 ### Antes (Sincronización Parcial)
 - **OFAC**: Solo 1 de 11 tablas (Nombres) → 9% de cobertura
-- **SAT**: Solo 1 de 4 tablas (69-B) → 25% de cobertura  
+- **SAT**: Solo 1 de 4 tablas (69-B) → 25% de cobertura
 - **Total**: ~48,714 registros sincronizados
 
 ### Después (Sincronización Completa)
@@ -131,15 +131,24 @@ Muestra conteo completo de todas las tablas
 
 ## ⏰ Sincronización Automática
 
-El sistema sincroniza automáticamente **2 veces al día**:
-- 🌅 2:00 AM (Madrugada)
-- 🌆 2:00 PM (Tarde)
+El sistema sincroniza automáticamente **2 veces al día** durante horario de operación del servidor:
+- 🌅 **9:30 AM** (Sincronización matutina)
+- 🌆 **6:15 PM** (Sincronización vespertina)
+
+> **Nota**: Los horarios están configurados para ejecutarse cuando el servidor está activo, ya que normalmente se apaga durante las noches.
 
 Configurado en: [`routes/console.php`](routes/console.php)
 
 ```php
+// Sincronización matutina
 Schedule::command('blacklists:sync')
-    ->twiceDaily(2, 14)
+    ->dailyAt('09:30')
+    ->withoutOverlapping(10)
+    ->timezone('America/Mexico_City');
+
+// Sincronización vespertina
+Schedule::command('blacklists:sync')
+    ->dailyAt('18:15')
     ->withoutOverlapping(10)
     ->timezone('America/Mexico_City');
 ```

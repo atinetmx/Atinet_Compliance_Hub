@@ -48,20 +48,48 @@ class ReportsController extends Controller
         $period = $request->input('period', 'month');
         $notariaId = $request->input('notaria_id');
 
-        $query = ServiceUsage::with(['service', 'notaria', 'user'])
+        $query = ServiceUsage::with(['service:id,code,name,category', 'notaria:id,nombre,numero_notaria', 'user:id,name'])
             ->when($serviceCode, fn ($q) => $q->whereHas('service', fn ($sq) => $sq->where('code', $serviceCode)))
             ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId))
-            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month)->whereYear('consumed_at', now()->year))
             ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
             ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
             ->orderBy('consumed_at', 'desc');
 
         $usage = $query->paginate(50);
 
+        // Obtener tendencia de últimos 7 días por servicio (para sparklines)
+        $sparklineData = ServiceUsage::selectRaw('
+                service_id,
+                DATE(consumed_at) as date,
+                COUNT(*) as count
+            ')
+            ->whereBetween('consumed_at', [now()->subDays(6)->startOfDay(), now()->endOfDay()])
+            ->groupBy('service_id', 'date')
+            ->orderBy('date')
+            ->get()
+            ->groupBy('service_id')
+            ->map(function ($serviceData) {
+                // Crear array con todos los días (rellenar con 0 si no hay datos)
+                $last7Days = collect(range(6, 0))->map(fn ($daysAgo) => now()->subDays($daysAgo)->format('Y-m-d'));
+
+                return $last7Days->map(function ($date) use ($serviceData) {
+                    $dayData = $serviceData->firstWhere('date', $date);
+
+                    return $dayData ? (int) $dayData->count : 0;
+                })->values();
+            });
+
         return Inertia::render('Admin/Reports/ServiceUsage', [
             'usage' => $usage,
-            'services' => Service::select('id', 'code', 'name')->where('is_active', true)->get(),
-            'notarias' => Notaria::select('id', 'nombre')->where('activa', true)->get(),
+            'sparklineData' => $sparklineData,
+            'services' => Service::select('id', 'code', 'name')->where('is_active', true)->orderBy('name')->get(),
+            'notarias' => Notaria::select('id', 'nombre', 'numero_notaria')->where('activa', true)->orderBy('nombre')->get(),
+            'filters' => [
+                'service_code' => $serviceCode,
+                'period' => $period,
+                'notaria_id' => $notariaId,
+            ],
         ]);
     }
 
@@ -201,10 +229,13 @@ class ReportsController extends Controller
     {
         $threshold = $request->input('threshold', 80); // 80% por defecto
 
-        $notarias = Notaria::where('activa', true)->get();
+        $notarias = Notaria::where('activa', true)
+            ->with('subscripcionActiva.plan')
+            ->get();
         $nearLimit = [];
 
         foreach ($notarias as $notaria) {
+            // 1. Verificar límites de uso de servicios
             $services = $this->accessManager->getAvailableServices($notaria);
 
             foreach ($services as $service) {
@@ -212,12 +243,48 @@ class ReportsController extends Controller
                     $nearLimit[] = [
                         'notaria' => $notaria->only(['id', 'nombre', 'numero_notaria']),
                         'service' => $service,
+                        'alert_type' => 'usage', // Alerta por uso
+                    ];
+                }
+            }
+
+            // 2. Verificar fecha de expiración de suscripción (alerta si quedan <= 7 días)
+            $subscription = $notaria->subscripcionActiva;
+            if ($subscription && $subscription->fecha_vencimiento) {
+                $daysRemaining = now()->diffInDays($subscription->fecha_vencimiento, false);
+
+                // Alertar si quedan 7 días o menos
+                if ($daysRemaining >= 0 && $daysRemaining <= 7) {
+                    // Calcular porcentaje real basado en tiempo transcurrido
+                    $totalDays = $subscription->fecha_inicio->diffInDays($subscription->fecha_vencimiento);
+                    $elapsedDays = $subscription->fecha_inicio->diffInDays(now());
+                    $timePercentage = $totalDays > 0 ? min(100, round(($elapsedDays / $totalDays) * 100, 2)) : 100;
+
+                    $nearLimit[] = [
+                        'notaria' => $notaria->only(['id', 'nombre', 'numero_notaria']),
+                        'service' => [
+                            'name' => 'Suscripción '.$subscription->plan->name,
+                            'code' => 'SUBSCRIPTION',
+                            'usage_count' => 0,
+                            'usage_limit' => 0,
+                            'used' => 0,
+                            'limit' => 0,
+                            'remaining' => 0,
+                            'usage_percentage' => $timePercentage,
+                            'is_unlimited' => false,
+                        ],
+                        'alert_type' => 'subscription', // Alerta por vencimiento
+                        'days_remaining' => (int) $daysRemaining,
+                        'expiration_date' => $subscription->fecha_vencimiento->format('Y-m-d'),
+                        'subscription_status' => $subscription->status,
+                        'total_days' => $totalDays,
+                        'elapsed_days' => $elapsedDays,
                     ];
                 }
             }
         }
 
-        return response()->json([
+        return Inertia::render('Admin/Reports/NotariasNearLimit', [
             'near_limit' => $nearLimit,
             'threshold' => $threshold,
         ]);
@@ -272,13 +339,18 @@ class ReportsController extends Controller
             $query->where('notaria_id', $notariaId);
         }
 
+        // Contar notarías con suscripción activa (no solo las que tienen uso)
+        $activeNotarias = Notaria::whereHas('subscripcionActiva')
+            ->where('activa', true)
+            ->count();
+
         return [
             'total_requests' => (clone $query)->count(),
-            'total_quantity' => (clone $query)->sum('quantity') ?? 0,
-            'total_cost' => (clone $query)->sum('cost') ?? 0,
-            'unique_notarias' => (clone $query)->distinct('notaria_id')->count('notaria_id'),
+            'total_quantity' => (int) ((clone $query)->sum('quantity') ?? 0),
+            'total_cost' => (float) ((clone $query)->sum('cost') ?? 0),
+            'active_notarias' => $activeNotarias,
             'unique_services' => (clone $query)->distinct('service_id')->count('service_id'),
-            'avg_cost_per_request' => (clone $query)->avg('cost') ?? 0,
+            'avg_cost_per_request' => (float) ((clone $query)->avg('cost') ?? 0),
         ];
     }
 

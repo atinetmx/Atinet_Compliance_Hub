@@ -7,14 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 
 interface ReportsStats {
     total_requests: number;
     total_quantity: number;
     total_cost: number;
-    unique_notarias: number;
+    active_notarias: number;
     unique_services: number;
     avg_cost_per_request: number;
 }
@@ -34,7 +33,7 @@ interface ReportsProps {
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: dashboard.url(),
+        href: '/admin/dashboard',
     },
     {
         title: 'Reportes',
@@ -138,9 +137,9 @@ export default function Index({ stats, period, notarias }: ReportsProps) {
                                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">${(stats.total_cost ?? 0).toFixed(2)}</div>
+                                <div className="text-2xl font-bold">${Number(stats.total_cost ?? 0).toFixed(2)}</div>
                                 <p className="text-xs text-muted-foreground">
-                                    Promedio: ${(stats.avg_cost_per_request ?? 0).toFixed(2)} por solicitud
+                                    Promedio: ${Number(stats.avg_cost_per_request ?? 0).toFixed(2)} por solicitud
                                 </p>
                             </CardContent>
                         </Card>
@@ -151,9 +150,9 @@ export default function Index({ stats, period, notarias }: ReportsProps) {
                                 <Users className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{stats.unique_notarias}</div>
+                                <div className="text-2xl font-bold">{stats.active_notarias}</div>
                                 <p className="text-xs text-muted-foreground">
-                                    {stats.unique_services} servicios utilizados
+                                    {stats.active_notarias === 0 ? '0 servicios utilizados' : `${stats.unique_services} servicios disponibles`}
                                 </p>
                             </CardContent>
                         </Card>
