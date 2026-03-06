@@ -163,34 +163,56 @@ class ReportsController extends Controller
      */
     public function usageTrends(Request $request)
     {
-        $months = (int) $request->input('months', 6); // Últimos 6 meses por defecto
+        // ============================================================
+        // � GRANULARIDAD DINÁMICA - Carga Bajo Demanda
+        // ============================================================
+        // Vista inicial: 'monthly' (solo 6 puntos para 6 meses)
+        // Zoom medio: 'weekly' (carga semanas del rango visible)
+        // Zoom cercano: 'daily' (carga días del rango visible)
+        // ============================================================
+        $granularity = $request->input('granularity', 'monthly');
+        $months = (int) $request->input('months', 6);
         $notariaId = $request->input('notaria_id');
         $serviceCode = $request->input('service_code');
-        $metric = $request->input('metric', 'requests'); // requests, cost, quantity
+        $metric = $request->input('metric', 'requests');
 
-        $startDate = now()->subMonths($months)->startOfMonth();
+        // Rango de fechas (puede ser específico para zoom o general)
+        $dateFrom = $request->input('date_from')
+            ? \Carbon\Carbon::parse($request->input('date_from'))
+            : now()->subMonths($months)->startOfMonth();
+        $dateTo = $request->input('date_to')
+            ? \Carbon\Carbon::parse($request->input('date_to'))
+            : now();
 
-        // Obtener datos agrupados por mes y servicio
+        // ============================================================
+        // 📅 SQL DINÁMICO según granularidad
+        // ============================================================
+        $periodFormat = match ($granularity) {
+            'daily' => 'DATE(consumed_at)',
+            'weekly' => "DATE_FORMAT(consumed_at, '%Y-W%U')",
+            default => "DATE_FORMAT(consumed_at, '%Y-%m')", // monthly
+        };
+
         $rawTrends = ServiceUsage::selectRaw("
-                DATE_FORMAT(consumed_at, '%Y-%m') as month,
+                {$periodFormat} as period,
                 service_id,
                 COUNT(*) as total_requests,
                 SUM(quantity) as total_quantity,
                 SUM(cost) as total_cost
             ")
-            ->where('consumed_at', '>=', $startDate)
+            ->whereBetween('consumed_at', [$dateFrom, $dateTo])
             ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId))
             ->when($serviceCode, fn ($q) => $q->whereHas('service', fn ($sq) => $sq->where('code', $serviceCode)))
-            ->groupBy('month', 'service_id')
-            ->orderBy('month')
+            ->groupBy('period', 'service_id')
+            ->orderBy('period')
             ->with('service:id,code,name,category')
             ->get();
 
-        // Generar lista completa de meses
-        $allMonths = collect();
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $allMonths->push(now()->subMonths($i)->format('Y-m'));
-        }
+        // ============================================================
+        // 📅 OBTENER PERÍODOS ÚNICOS (solo los que tienen datos)
+        // ============================================================
+        // No generamos todos los períodos vacíos - solo mostramos los que tienen datos
+        $allPeriods = $rawTrends->pluck('period')->unique()->sort()->values();
 
         // Obtener servicios únicos
         $services = $rawTrends->pluck('service')->unique('id')->values()->map(function ($service) {
@@ -202,23 +224,24 @@ class ReportsController extends Controller
             ];
         });
 
-        // Transformar datos a formato de chart: [{ month: '2025-10', service_1: 10, service_2: 20 }]
-        $trends = $allMonths->map(function ($month) use ($rawTrends, $metric) {
-            $monthData = ['month' => $month];
+        // Agrupar por período
+        $groupedByPeriod = $rawTrends->groupBy('period');
 
-            $monthRecords = $rawTrends->where('month', $month);
+        // Transformar datos: [{ period: '2025-10', service_1: 10, service_2: 20 }]
+        $trends = $allPeriods->map(function ($period) use ($groupedByPeriod, $metric) {
+            $periodData = ['period' => $period];
+            $periodRecords = $groupedByPeriod->get($period, collect());
 
-            foreach ($monthRecords as $record) {
+            foreach ($periodRecords as $record) {
                 $value = match ($metric) {
                     'cost' => (float) $record->total_cost,
                     'quantity' => (int) $record->total_quantity,
                     default => (int) $record->total_requests,
                 };
-
-                $monthData["service_{$record->service_id}"] = $value;
+                $periodData["service_{$record->service_id}"] = $value;
             }
 
-            return $monthData;
+            return $periodData;
         })->values();
 
         // Calcular totales y estadísticas
@@ -228,22 +251,22 @@ class ReportsController extends Controller
             'total_cost' => (float) $rawTrends->sum('total_cost'),
         ];
 
-        // Calcular promedio por mes
+        $periodCount = $allPeriods->count();
         $averages = [
-            'avg_requests' => $months > 0 ? round($totals['total_requests'] / $months, 2) : 0,
-            'avg_quantity' => $months > 0 ? round($totals['total_quantity'] / $months, 2) : 0,
-            'avg_cost' => $months > 0 ? round($totals['total_cost'] / $months, 2) : 0,
+            'avg_requests' => $periodCount > 0 ? round($totals['total_requests'] / $periodCount, 2) : 0,
+            'avg_quantity' => $periodCount > 0 ? round($totals['total_quantity'] / $periodCount, 2) : 0,
+            'avg_cost' => $periodCount > 0 ? round($totals['total_cost'] / $periodCount, 2) : 0,
         ];
 
-        // Obtener mes pico
-        $peakMonth = $rawTrends->groupBy('month')->map(function ($records, $month) use ($metric) {
+        // Obtener período pico
+        $peakPeriod = $rawTrends->groupBy('period')->map(function ($records, $period) use ($metric) {
             $value = match ($metric) {
                 'cost' => $records->sum('total_cost'),
                 'quantity' => $records->sum('total_quantity'),
                 default => $records->sum('total_requests'),
             };
 
-            return ['month' => $month, 'value' => $value];
+            return ['period' => $period, 'value' => $value];
         })->sortByDesc('value')->first();
 
         // Obtener notarías para filtro
@@ -261,7 +284,8 @@ class ReportsController extends Controller
             'services' => $services,
             'totals' => $totals,
             'averages' => $averages,
-            'peakMonth' => $peakMonth,
+            'peakPeriod' => $peakPeriod,
+            'granularity' => $granularity,
             'notarias' => $notarias,
             'allServices' => $allServices,
             'filters' => [
@@ -269,6 +293,8 @@ class ReportsController extends Controller
                 'notaria_id' => $notariaId,
                 'service_code' => $serviceCode,
                 'metric' => $metric,
+                'date_from' => $dateFrom->format('Y-m-d'),
+                'date_to' => $dateTo->format('Y-m-d'),
             ],
         ]);
     }
