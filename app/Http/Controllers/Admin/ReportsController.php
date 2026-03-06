@@ -163,13 +163,15 @@ class ReportsController extends Controller
      */
     public function usageTrends(Request $request)
     {
-        $months = $request->input('months', 6); // Últimos 6 meses por defecto
+        $months = (int) $request->input('months', 6); // Últimos 6 meses por defecto
         $notariaId = $request->input('notaria_id');
         $serviceCode = $request->input('service_code');
+        $metric = $request->input('metric', 'requests'); // requests, cost, quantity
 
         $startDate = now()->subMonths($months)->startOfMonth();
 
-        $trends = ServiceUsage::selectRaw("
+        // Obtener datos agrupados por mes y servicio
+        $rawTrends = ServiceUsage::selectRaw("
                 DATE_FORMAT(consumed_at, '%Y-%m') as month,
                 service_id,
                 COUNT(*) as total_requests,
@@ -181,14 +183,93 @@ class ReportsController extends Controller
             ->when($serviceCode, fn ($q) => $q->whereHas('service', fn ($sq) => $sq->where('code', $serviceCode)))
             ->groupBy('month', 'service_id')
             ->orderBy('month')
-            ->with('service:id,code,name')
-            ->get()
-            ->groupBy('month');
+            ->with('service:id,code,name,category')
+            ->get();
 
-        return response()->json([
+        // Generar lista completa de meses
+        $allMonths = collect();
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $allMonths->push(now()->subMonths($i)->format('Y-m'));
+        }
+
+        // Obtener servicios únicos
+        $services = $rawTrends->pluck('service')->unique('id')->values()->map(function ($service) {
+            return [
+                'id' => $service->id,
+                'code' => $service->code,
+                'name' => $service->name,
+                'category' => $service->category,
+            ];
+        });
+
+        // Transformar datos a formato de chart: [{ month: '2025-10', service_1: 10, service_2: 20 }]
+        $trends = $allMonths->map(function ($month) use ($rawTrends, $metric) {
+            $monthData = ['month' => $month];
+
+            $monthRecords = $rawTrends->where('month', $month);
+
+            foreach ($monthRecords as $record) {
+                $value = match ($metric) {
+                    'cost' => (float) $record->total_cost,
+                    'quantity' => (int) $record->total_quantity,
+                    default => (int) $record->total_requests,
+                };
+
+                $monthData["service_{$record->service_id}"] = $value;
+            }
+
+            return $monthData;
+        })->values();
+
+        // Calcular totales y estadísticas
+        $totals = [
+            'total_requests' => (int) $rawTrends->sum('total_requests'),
+            'total_quantity' => (int) $rawTrends->sum('total_quantity'),
+            'total_cost' => (float) $rawTrends->sum('total_cost'),
+        ];
+
+        // Calcular promedio por mes
+        $averages = [
+            'avg_requests' => $months > 0 ? round($totals['total_requests'] / $months, 2) : 0,
+            'avg_quantity' => $months > 0 ? round($totals['total_quantity'] / $months, 2) : 0,
+            'avg_cost' => $months > 0 ? round($totals['total_cost'] / $months, 2) : 0,
+        ];
+
+        // Obtener mes pico
+        $peakMonth = $rawTrends->groupBy('month')->map(function ($records, $month) use ($metric) {
+            $value = match ($metric) {
+                'cost' => $records->sum('total_cost'),
+                'quantity' => $records->sum('total_quantity'),
+                default => $records->sum('total_requests'),
+            };
+
+            return ['month' => $month, 'value' => $value];
+        })->sortByDesc('value')->first();
+
+        // Obtener notarías para filtro
+        $notarias = Notaria::select('id', 'nombre as name', 'numero_notaria as number')
+            ->orderBy('numero_notaria')
+            ->get();
+
+        // Obtener servicios para filtro
+        $allServices = Service::select('id', 'code', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Admin/Reports/UsageTrends', [
             'trends' => $trends,
-            'months' => $months,
-            'start_date' => $startDate->format('Y-m-d'),
+            'services' => $services,
+            'totals' => $totals,
+            'averages' => $averages,
+            'peakMonth' => $peakMonth,
+            'notarias' => $notarias,
+            'allServices' => $allServices,
+            'filters' => [
+                'months' => $months,
+                'notaria_id' => $notariaId,
+                'service_code' => $serviceCode,
+                'metric' => $metric,
+            ],
         ]);
     }
 
@@ -199,26 +280,70 @@ class ReportsController extends Controller
     {
         $period = $request->input('period', 'month');
         $limit = $request->input('limit', 10);
+        $sortBy = $request->input('sort_by', 'requests'); // requests, cost, quantity
 
-        $topServices = ServiceUsage::selectRaw('
+        $query = ServiceUsage::selectRaw('
                 service_id,
                 COUNT(*) as total_requests,
                 SUM(quantity) as total_quantity,
                 SUM(cost) as total_cost,
                 COUNT(DISTINCT notaria_id) as total_notarias
             ')
-            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month)->whereYear('consumed_at', now()->year))
             ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
             ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
-            ->groupBy('service_id')
-            ->orderBy('total_requests', 'desc')
+            ->groupBy('service_id');
+
+        // Aplicar ordenamiento según el criterio seleccionado
+        $orderColumn = match ($sortBy) {
+            'cost' => 'total_cost',
+            'quantity' => 'total_quantity',
+            default => 'total_requests',
+        };
+
+        $topServices = $query->orderBy($orderColumn, 'desc')
             ->limit($limit)
             ->with('service:id,code,name,category,billing_model')
-            ->get();
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'service_id' => $item->service_id,
+                    'service_code' => $item->service->code,
+                    'service_name' => $item->service->name,
+                    'service_category' => $item->service->category,
+                    'billing_model' => $item->service->billing_model,
+                    'total_requests' => (int) $item->total_requests,
+                    'total_quantity' => (int) $item->total_quantity,
+                    'total_cost' => (float) $item->total_cost,
+                    'total_notarias' => (int) $item->total_notarias,
+                ];
+            });
 
-        return response()->json([
-            'top_services' => $topServices,
-            'period' => $period,
+        // Calcular totales generales del período
+        $totals = ServiceUsage::selectRaw('
+                COUNT(*) as total_requests,
+                SUM(quantity) as total_quantity,
+                SUM(cost) as total_cost,
+                COUNT(DISTINCT service_id) as unique_services
+            ')
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month)->whereYear('consumed_at', now()->year))
+            ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
+            ->first();
+
+        return Inertia::render('Admin/Reports/TopServices', [
+            'topServices' => $topServices,
+            'totals' => [
+                'total_requests' => (int) ($totals->total_requests ?? 0),
+                'total_quantity' => (int) ($totals->total_quantity ?? 0),
+                'total_cost' => (float) ($totals->total_cost ?? 0),
+                'unique_services' => (int) ($totals->unique_services ?? 0),
+            ],
+            'filters' => [
+                'period' => $period,
+                'limit' => $limit,
+                'sort_by' => $sortBy,
+            ],
         ]);
     }
 

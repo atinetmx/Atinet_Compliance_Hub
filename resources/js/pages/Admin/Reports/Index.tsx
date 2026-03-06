@@ -178,6 +178,18 @@ export default function Index({ stats, period, notarias }: ReportsProps) {
                                     </div>
                                 </a>
                                 <a
+                                    href={ReportsController.topServices.url()}
+                                    className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Activity className="h-4 w-4" />
+                                        <div className="font-medium">Top Servicios</div>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Ranking de servicios más utilizados
+                                    </div>
+                                </a>
+                                <a
                                     href={ReportsController.notariasComparison.url()}
                                     className="block p-3 rounded-lg border hover:bg-accent transition-colors"
                                 >
