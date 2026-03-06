@@ -36,8 +36,8 @@ echo "\nTotal de tablas: {$tableCount}\n";
 echo "\n=== TABLAS CANDIDATAS PARA BÚSQUEDA ===\n";
 foreach ($tables as $table) {
     $tableName = array_values((array) $table)[0];
-    if (stripos($tableName, 'aplicativo') !== false || 
-        stripos($tableName, 'ofac') !== false || 
+    if (stripos($tableName, 'aplicativo') !== false ||
+        stripos($tableName, 'ofac') !== false ||
         stripos($tableName, 'sat') !== false ||
         stripos($tableName, 'listas') !== false ||
         stripos($tableName, 'busqueda') !== false ||

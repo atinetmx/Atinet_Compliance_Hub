@@ -16,17 +16,17 @@ echo "Total de notarías: " . $notarias->count() . "\n\n";
 if ($notarias->count() > 0) {
     echo "Listado de notarías:\n";
     echo str_repeat('-', 80) . "\n";
-    
+
     foreach ($notarias as $notaria) {
-        echo sprintf("ID: %-4d | Número: %-4s | %s\n", 
+        echo sprintf("ID: %-4d | Número: %-4s | %s\n",
             $notaria->id,
             $notaria->numero_notaria ?? 'N/A',
             $notaria->nombre ?? 'SIN NOMBRE'
         );
     }
-    
+
     echo str_repeat('-', 80) . "\n";
-    
+
     // Buscar si hay algo relacionado con "142" o "etla"
     echo "\nBuscando términos relacionados con '142' o 'etla':\n";
     $related = DB::table('notarias')
@@ -34,7 +34,7 @@ if ($notarias->count() > 0) {
         ->orWhere('nombre', 'LIKE', '%142%')
         ->orWhere('nombre', 'LIKE', '%etla%')
         ->get();
-    
+
     if ($related->count() > 0) {
         echo "ENCONTRADAS {$related->count()} notarías relacionadas:\n";
         foreach ($related as $not) {
