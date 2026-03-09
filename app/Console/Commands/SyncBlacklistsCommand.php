@@ -38,8 +38,8 @@ class SyncBlacklistsCommand extends Command
             return $this->testConnections($syncService);
         }
 
-        // Confirmar si no es dry-run
-        if (! $this->option('dry-run')) {
+        // Confirmar si no es dry-run y se está ejecutando interactivamente
+        if (! $this->option('dry-run') && $this->input->isInteractive()) {
             if (! $this->confirm('¿Deseas sincronizar las listas negras? (Esto traerá registros nuevos desde Hostgator)')) {
                 $this->warn('Operación cancelada');
 
