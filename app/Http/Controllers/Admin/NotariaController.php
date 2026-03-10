@@ -68,6 +68,7 @@ class NotariaController extends Controller
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
             'numero_notaria' => 'required|string|max:10|unique:notarias',
+            'legacy_identifier' => 'nullable|string|max:100',
             'plan_id' => 'required|exists:plans,id',
             'contacto_principal' => 'required|string|max:255',
             'email_contacto' => 'required|email|max:255',

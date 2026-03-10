@@ -149,6 +149,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('users/{user}/reveal-password', [\App\Http\Controllers\Admin\PasswordController::class, 'revealPassword'])->name('users.reveal-password');
     Route::post('users/{user}/reset-password', [\App\Http\Controllers\Admin\PasswordController::class, 'resetPassword'])->name('users.reset-password');
 
+    // === INTEGRACIÓN SISTEMA LEGACY ===
+    // API para acceder al catálogo de notarías legacy y sus búsquedas
+    Route::prefix('legacy')->name('legacy.')->group(function () {
+        Route::get('notarias/catalog', [\App\Http\Controllers\Admin\LegacyController::class, 'getNotariasCatalog'])->name('notarias.catalog');
+        Route::get('notarias/search', [\App\Http\Controllers\Admin\LegacyController::class, 'searchNotarias'])->name('notarias.search');
+        Route::post('notarias/refresh', [\App\Http\Controllers\Admin\LegacyController::class, 'refreshCatalog'])->name('notarias.refresh');
+        Route::get('notarias/statistics', [\App\Http\Controllers\Admin\LegacyController::class, 'getStatistics'])->name('notarias.statistics');
+    });
+
     // === BÚSQUEDAS EN LISTAS NEGRAS (OFAC + SAT) - SUPERADMIN ===
     // Estas rutas permiten a los superadministradores realizar búsquedas
     // sin restricciones de servicios en las listas negras OFAC y SAT

@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { ESTADOS_MEXICO } from '@/types/estados';
+import LegacyNotariaAutocomplete from '@/components/Admin/LegacyNotariaAutocomplete';
 
 interface Plan {
     id: number;
@@ -49,6 +50,7 @@ export default function NotariaCreate({ planes }: NotariaCreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         nombre: '',
         numero_notaria: '',
+        legacy_identifier: '',
         plan_id: '',
         contacto_principal: '',
         email_contacto: '',
@@ -150,6 +152,21 @@ export default function NotariaCreate({ planes }: NotariaCreateProps) {
                                             {errors.numero_notaria}
                                         </p>
                                     )}
+                                </div>
+
+                                {/* Legacy System Identifier */}
+                                <div className="md:col-span-2">
+                                    <LegacyNotariaAutocomplete
+                                        value={data.legacy_identifier}
+                                        onChange={(value, legacyData) => {
+                                            setData('legacy_identifier', value);
+                                            // Optionally auto-fill some fields from legacy data
+                                            if (legacyData) {
+                                                console.log('Legacy data:', legacyData);
+                                            }
+                                        }}
+                                        error={errors.legacy_identifier}
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
