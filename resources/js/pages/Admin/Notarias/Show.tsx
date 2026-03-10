@@ -9,8 +9,10 @@ import {
     Edit,
     Settings,
     CreditCard,
+    Database,
 } from 'lucide-react';
 
+import HistorialBusquedasLegacy from '@/components/Admin/HistorialBusquedasLegacy';
 import PasswordManager from '@/components/PasswordManager';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,6 +79,9 @@ interface Notaria {
     limite_usuarios_custom: number | null;
     limite_busquedas_mes_custom: number | null;
     herramientas_activas_custom: string[] | null;
+    legacy_identifier: string | null;
+    legacy_busquedas_count: number | null;
+    legacy_ultima_busqueda: string | null;
     plan: Plan;
     subscripcionActiva: Subscription;
     users: User[];
@@ -540,6 +545,42 @@ export default function NotariaShow({ notaria }: NotariaShowProps) {
                         <p className="text-muted-foreground">
                             {notaria.notas_internas}
                         </p>
+                    </div>
+                )}
+
+                {/* Historial Sistema Legacy */}
+                {notaria.legacy_identifier && (
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-6">
+                        <div className="mb-6 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                                    <Database className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold">
+                                        Historial Sistema Legacy
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Identificador:{' '}
+                                        <code className="rounded bg-muted px-1.5 py-0.5">
+                                            {notaria.legacy_identifier}
+                                        </code>
+                                    </p>
+                                </div>
+                            </div>
+                            {notaria.legacy_busquedas_count && (
+                                <Badge variant="outline" className="text-sm">
+                                    {notaria.legacy_busquedas_count.toLocaleString(
+                                        'es-MX',
+                                    )}{' '}
+                                    búsquedas totales
+                                </Badge>
+                            )}
+                        </div>
+                        <HistorialBusquedasLegacy
+                            legacyIdentifier={notaria.legacy_identifier}
+                            limit={100}
+                        />
                     </div>
                 )}
             </div>

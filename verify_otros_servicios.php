@@ -39,7 +39,7 @@ $table = $soloOtrosServicios->map(function ($item) {
 
 // ASCII table
 echo str_repeat('=', 90)."\n";
-printf("| %-20s | %-10s | %-8s | %-10s | %-20s | %-10s |\n", 
+printf("| %-20s | %-10s | %-8s | %-10s | %-20s | %-10s |\n",
     'ID', 'Búsquedas', 'Usuarios', 'Acceso Web', 'Tipo', 'Estado'
 );
 echo str_repeat('=', 90)."\n";

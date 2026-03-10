@@ -1,5 +1,10 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Building2, Save, ArrowLeft } from 'lucide-react';
+
+import CodigoPostalInput from '@/components/Admin/CodigoPostalInput';
+import EstadoSelector from '@/components/Admin/EstadoSelector';
+import LegacyNotariaAutocomplete from '@/components/Admin/LegacyNotariaAutocomplete';
+import MunicipioSelector from '@/components/Admin/MunicipioSelector';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,8 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { ESTADOS_MEXICO } from '@/types/estados';
-import LegacyNotariaAutocomplete from '@/components/Admin/LegacyNotariaAutocomplete';
+
 
 interface Plan {
     id: number;
@@ -298,95 +302,69 @@ export default function NotariaCreate({ planes }: NotariaCreateProps) {
 
                             {/* Sección Ubicación */}
                             <div className="mt-6 space-y-4">
-                                <h3 className="text-lg font-semibold">
-                                    Ubicación
-                                </h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-semibold">
+                                        Ubicación
+                                    </h3>
+                                    <span className="text-xs text-muted-foreground">
+                                        Datos de SEPOMEX
+                                    </span>
+                                </div>
 
                                 <div className="grid gap-4 md:grid-cols-2">
-                                    {/* Estado */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="estado">Estado</Label>
-                                        <select
-                                            id="estado"
-                                            value={data.estado}
-                                            onChange={(e) =>
-                                                setData('estado', e.target.value)
-                                            }
-                                            className={`w-full rounded-md border ${
-                                                errors.estado
-                                                    ? 'border-red-500'
-                                                    : 'border-gray-300'
-                                            } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                        >
-                                            <option value="">
-                                                Seleccionar estado
-                                            </option>
-                                            {ESTADOS_MEXICO.map((estado) => (
-                                                <option
-                                                    key={estado}
-                                                    value={estado}
-                                                >
-                                                    {estado}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.estado && (
-                                            <p className="text-sm text-red-500">
-                                                {errors.estado}
-                                            </p>
-                                        )}
-                                    </div>
+                                    {/* Código Postal con auto-completado */}
+                                    <CodigoPostalInput
+                                        value={data.codigo_postal}
+                                        onChange={(value) =>
+                                            setData('codigo_postal', value)
+                                        }
+                                        coloniaValue={data.colonia}
+                                        onColoniaChange={(value) =>
+                                            setData('colonia', value)
+                                        }
+                                        onAutoComplete={(cpData) => {
+                                            // Auto-completar estado y municipio
+                                            setData({
+                                                ...data,
+                                                estado: cpData.estado,
+                                                municipio: cpData.municipio,
+                                                colonia: cpData.colonia || '',
+                                            });
+                                        }}
+                                        error={errors.codigo_postal}
+                                        showColoniaSelector={false}
+                                    />
 
-                                    {/* Municipio */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="municipio">
-                                            Municipio
-                                        </Label>
-                                        <Input
-                                            id="municipio"
-                                            value={data.municipio}
-                                            onChange={(e) =>
-                                                setData(
-                                                    'municipio',
-                                                    e.target.value,
-                                                )
-                                            }
-                                            placeholder="Ej: Guadalajara"
-                                        />
-                                        {errors.municipio && (
-                                            <p className="text-sm text-red-500">
-                                                {errors.municipio}
-                                            </p>
-                                        )}
-                                    </div>
+                                    {/* Estado dinámico (solo lectura si viene de CP) */}
+                                    <EstadoSelector
+                                        value={data.estado}
+                                        onChange={(value) => {
+                                            setData({
+                                                ...data,
+                                                estado: value,
+                                                municipio: '', // Limpiar municipio al cambiar estado
+                                            });
+                                        }}
+                                        error={errors.estado}
+                                        required
+                                    />
 
-                                    {/* Código Postal */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="codigo_postal">
-                                            Código Postal
-                                        </Label>
-                                        <Input
-                                            id="codigo_postal"
-                                            value={data.codigo_postal}
-                                            onChange={(e) =>
-                                                setData(
-                                                    'codigo_postal',
-                                                    e.target.value,
-                                                )
-                                            }
-                                            placeholder="44100"
-                                            maxLength={5}
-                                        />
-                                        {errors.codigo_postal && (
-                                            <p className="text-sm text-red-500">
-                                                {errors.codigo_postal}
-                                            </p>
-                                        )}
-                                    </div>
+                                    {/* Municipio en cascada (filtrado por estado) */}
+                                    <MunicipioSelector
+                                        value={data.municipio}
+                                        onChange={(value) =>
+                                            setData('municipio', value)
+                                        }
+                                        estado={data.estado}
+                                        error={errors.municipio}
+                                        required
+                                    />
 
                                     {/* Colonia */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="colonia">Colonia</Label>
+                                        <Label htmlFor="colonia">
+                                            Colonia / Asentamiento
+                                        </Label>
                                         <Input
                                             id="colonia"
                                             value={data.colonia}
@@ -400,6 +378,9 @@ export default function NotariaCreate({ planes }: NotariaCreateProps) {
                                                 {errors.colonia}
                                             </p>
                                         )}
+                                        <p className="text-xs text-muted-foreground">
+                                            Se auto-completa al ingresar el CP
+                                        </p>
                                     </div>
 
                                     {/* Calle (span 2 columns) */}

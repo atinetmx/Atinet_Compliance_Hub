@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\BusquedasLegacyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -183,5 +184,56 @@ class LegacyController extends Controller
         }
 
         return $stats;
+    }
+
+    /**
+     * Obtener búsquedas consolidadas de una notaría legacy
+     */
+    public function getBusquedasNotaria(Request $request, string $legacyIdentifier)
+    {
+        $request->validate([
+            'limit' => 'nullable|integer|min:1|max:500',
+            'fuente' => 'nullable|in:web,desktop,ofac,sat',
+            'fecha_desde' => 'nullable|date',
+            'fecha_hasta' => 'nullable|date|after_or_equal:fecha_desde',
+        ]);
+
+        try {
+            $service = new BusquedasLegacyService();
+
+            $options = [
+                'limit' => $request->input('limit', 100),
+                'fuente' => $request->input('fuente'),
+                'fecha_desde' => $request->input('fecha_desde'),
+                'fecha_hasta' => $request->input('fecha_hasta'),
+            ];
+
+            $result = $service->getBusquedasConsolidadas($legacyIdentifier, $options);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener búsquedas',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener estadísticas de búsquedas de una notaría legacy
+     */
+    public function getEstadisticasNotaria(string $legacyIdentifier)
+    {
+        try {
+            $service = new BusquedasLegacyService();
+            $stats = $service->getEstadisticas($legacyIdentifier);
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al obtener estadísticas',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

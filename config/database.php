@@ -180,6 +180,29 @@ return [
             ]) : [],
         ],
 
+        // Conexión LOCAL a Catálogos (lectura de estados, municipios, códigos postales)
+        // Base de datos local con catálogos geográficos del sistema legacy
+        // Contiene cat_estados, cat_municipios, cat_cp
+        'catalogos' => [
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_CATALOGOS_DATABASE', 'atinet65_catalogos'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false, // Legacy DB puede tener datos no estrictos
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         // Conexión REMOTA a Aplicativos en Hostgator (solo sincronización)
         'aplicativos_remote' => [
             'driver' => 'mysql',
@@ -188,6 +211,24 @@ return [
             'database' => env('DB_APLICATIVOS_REMOTE_DATABASE', 'atinet65_aplicativos'),
             'username' => env('DB_APLICATIVOS_REMOTE_USERNAME', 'atinet65_ucompliance'),
             'password' => env('DB_APLICATIVOS_REMOTE_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+        ],
+
+        // Conexión REMOTA a Catálogos en Hostgator
+        // Contiene estados, municipios, códigos postales del sistema legacy
+        // Usada para sincronizar catálogos de ubicación geográfica
+        'catalogos_remote' => [
+            'driver' => 'mysql',
+            'host' => env('DB_CATALOGOS_REMOTE_HOST', '162.144.6.1'),
+            'port' => env('DB_CATALOGOS_REMOTE_PORT', '3306'),
+            'database' => env('DB_CATALOGOS_REMOTE_DATABASE', 'atinet65_catalogos'),
+            'username' => env('DB_CATALOGOS_REMOTE_USERNAME', 'atinet65_ucompliance'),
+            'password' => env('DB_CATALOGOS_REMOTE_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',

@@ -163,7 +163,7 @@ class GenerateNotariasCatalog extends Command
 
         // 2. Obtener TODAS las notarías registradas en usuario (pueden usar otros servicios)
         $this->info('Consultando tabla usuario...');
-        
+
         $usuariosNotarias = DB::connection('aplicativos')
             ->table('usuario')
             ->where('notaria', '!=', 'atinet')
@@ -199,7 +199,7 @@ class GenerateNotariasCatalog extends Command
         // Agregar notarías solo con registro (sin búsquedas en listas negras)
         foreach ($usuariosNotarias as $usuario) {
             $notariaLower = strtolower($usuario->notaria);
-            
+
             // Buscar si ya existe en el catálogo (case-insensitive)
             $existente = $catalogoFinal->first(function ($item) use ($notariaLower) {
                 return strtolower($item['notaria_id']) === $notariaLower;
@@ -265,7 +265,7 @@ class GenerateNotariasCatalog extends Command
     {
         $total = count($catalog);
         $catalog = collect($catalog);
-        
+
         $activas = $catalog->where('es_activa', true)->count();
         $inactivas = $total - $activas;
 
@@ -318,18 +318,18 @@ class GenerateNotariasCatalog extends Command
         $sample = array_slice($catalog, 0, 15);
 
         $rows = collect($sample)->map(function ($item) {
-            $fechaPrimera = $item['primera_busqueda'] 
+            $fechaPrimera = $item['primera_busqueda']
                 ? \Carbon\Carbon::parse($item['primera_busqueda'])->format('Y-m-d')
                 : 'N/A';
-            
+
             $fechaUltima = $item['ultima_busqueda']
                 ? \Carbon\Carbon::parse($item['ultima_busqueda'])->format('Y-m-d')
                 : 'N/A';
-            
-            $fuentes = count($item['fuentes']) > 0 
+
+            $fuentes = count($item['fuentes']) > 0
                 ? implode(', ', $item['fuentes'])
                 : 'Otros servicios';
-            
+
             $tipo = isset($item['tipo']) && $item['tipo'] === 'solo_otros_servicios'
                 ? '🌐 Web'
                 : ($item['es_activa'] ? '🟢 Activa' : '🔴 Inactiva');

@@ -156,6 +156,21 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('notarias/search', [\App\Http\Controllers\Admin\LegacyController::class, 'searchNotarias'])->name('notarias.search');
         Route::post('notarias/refresh', [\App\Http\Controllers\Admin\LegacyController::class, 'refreshCatalog'])->name('notarias.refresh');
         Route::get('notarias/statistics', [\App\Http\Controllers\Admin\LegacyController::class, 'getStatistics'])->name('notarias.statistics');
+
+        // Búsquedas consolidadas de una notaría específica
+        Route::get('notarias/{legacyIdentifier}/busquedas', [\App\Http\Controllers\Admin\LegacyController::class, 'getBusquedasNotaria'])->name('notarias.busquedas');
+        Route::get('notarias/{legacyIdentifier}/estadisticas', [\App\Http\Controllers\Admin\LegacyController::class, 'getEstadisticasNotaria'])->name('notarias.estadisticas');
+    });
+
+    // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===
+    // API para acceder a los catálogos de ubicación del sistema legacy
+    // BD: atinet65_catalogos (usada por "registro web" legacy)
+    Route::prefix('catalogos')->name('catalogos.')->group(function () {
+        Route::get('estados', [\App\Http\Controllers\Api\CatalogosController::class, 'getEstados'])->name('estados');
+        Route::get('municipios', [\App\Http\Controllers\Api\CatalogosController::class, 'getMunicipios'])->name('municipios');
+        Route::get('buscar-cp', [\App\Http\Controllers\Api\CatalogosController::class, 'buscarCodigoPostal'])->name('buscar-cp');
+        Route::get('colonias', [\App\Http\Controllers\Api\CatalogosController::class, 'getColonias'])->name('colonias');
+        Route::get('estadisticas', [\App\Http\Controllers\Api\CatalogosController::class, 'getEstadisticas'])->name('estadisticas');
     });
 
     // === BÚSQUEDAS EN LISTAS NEGRAS (OFAC + SAT) - SUPERADMIN ===
