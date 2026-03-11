@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -67,7 +68,14 @@ class NotariaController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
-            'numero_notaria' => 'required|string|max:10|unique:notarias',
+            'numero_notaria' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::unique('notarias')
+                    ->where('estado', $request->estado)
+                    ->where('municipio', $request->municipio),
+            ],
             'legacy_identifier' => 'nullable|string|max:100',
             'plan_id' => 'required|exists:plans,id',
             'contacto_principal' => 'required|string|max:255',
@@ -179,7 +187,15 @@ class NotariaController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
-            'numero_notaria' => 'required|string|max:10|unique:notarias,numero_notaria,'.$notaria->id,
+            'numero_notaria' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::unique('notarias')
+                    ->where('estado', $request->estado)
+                    ->where('municipio', $request->municipio)
+                    ->ignore($notaria->id),
+            ],
             'plan_id' => 'required|exists:plans,id',
             'contacto_principal' => 'required|string|max:255',
             'email_contacto' => 'required|email|max:255',
