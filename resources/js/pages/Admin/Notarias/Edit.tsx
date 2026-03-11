@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Building2, Save, ArrowLeft } from 'lucide-react';
+import LegacyNotariaAutocomplete from '@/components/Admin/LegacyNotariaAutocomplete';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,7 @@ interface Notaria {
     direccion: string;
     notas_internas: string;
     activa: boolean;
+    legacy_identifier?: string | null;
     limite_usuarios_custom: number | null;
     limite_busquedas_mes_custom: number | null;
     herramientas_activas_custom: string[] | null;
@@ -65,6 +67,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
         direccion: notaria.direccion || '',
         notas_internas: notaria.notas_internas || '',
         activa: notaria.activa,
+        legacy_identifier: notaria.legacy_identifier || '',
         limite_usuarios_custom:
             notaria.limite_usuarios_custom?.toString() || '',
         limite_busquedas_mes_custom:
@@ -438,6 +441,15 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Vinculación Sistema Legacy */}
+                            <LegacyNotariaAutocomplete
+                                value={data.legacy_identifier ?? ''}
+                                onChange={(value) =>
+                                    setData('legacy_identifier', value)
+                                }
+                                error={errors.legacy_identifier}
+                            />
 
                             {/* Notas Internas */}
                             <div className="space-y-2">

@@ -213,6 +213,8 @@ class NotariaController extends Controller
             'codigo_postal' => 'nullable|regex:/^\d{5}$/',
             'colonia' => 'nullable|string|max:100',
             'calle' => 'nullable|string|max:255',
+            // Integración sistema legacy
+            'legacy_identifier' => 'nullable|string|max:100',
         ]);
 
         $notaria->update($validated);

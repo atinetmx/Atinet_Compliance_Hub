@@ -36,6 +36,10 @@ class Notaria extends Model
         'codigo_postal',
         'colonia',
         'calle',
+        // Integración sistema legacy
+        'legacy_identifier',
+        'legacy_busquedas_count',
+        'legacy_ultima_busqueda',
     ];
 
     protected $casts = [
