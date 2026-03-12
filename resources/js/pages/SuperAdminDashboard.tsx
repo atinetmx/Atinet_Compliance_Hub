@@ -8,6 +8,9 @@ import {
     Plus,
     Settings,
     FileText,
+    Database,
+    Calendar,
+    ArrowRight,
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
@@ -23,6 +26,25 @@ interface SuperAdminDashboardProps {
         suscripciones_trial: number;
         suscripciones_vencidas: number;
         suscripciones_suspendidas: number;
+    };
+    legacy_stats: {
+        notarias_count: number;
+        total_busquedas: number;
+        periodo: {
+            inicio: string;
+            fin: string;
+        } | null;
+        top_notarias: Array<{
+            legacy_identifier: string;
+            nombre: string;
+            numero_notaria: string;
+            busquedas: number;
+        }>;
+        fuentes: {
+            ofac: number;
+            sat: number;
+        };
+        error?: string;
     };
     recent_subscriptions: Array<{
         id: number;
@@ -51,6 +73,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function SuperAdminDashboard({
     stats,
+    legacy_stats,
 }: SuperAdminDashboardProps) {
     const statsCardsRef = useRef<HTMLDivElement>(null);
     const actionCardsRef = useRef<HTMLDivElement>(null);
@@ -367,6 +390,117 @@ export default function SuperAdminDashboard({
                             <CreditCard className="h-8 w-8 text-muted-foreground transition-colors group-hover:text-foreground" />
                         </div>
                     </Link>
+
+                    {/* Sistema Legacy Card - Span full width on mobile, 2 columns on tablet, 3 on desktop */}
+                    <div className="dashboard-card col-span-full relative overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 transition-shadow hover:shadow-lg md:col-span-4 dark:border-sidebar-border">
+                        <div className="mb-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Database className="h-6 w-6 text-primary" />
+                                <div>
+                                    <h3 className="text-lg font-semibold">
+                                        Sistema Legacy
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Historial importado del sistema anterior
+                                    </p>
+                                </div>
+                            </div>
+                            {legacy_stats.periodo && (
+                                <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+                                    <Calendar className="h-4 w-4" />
+                                    <span>
+                                        {new Date(legacy_stats.periodo.inicio).toLocaleDateString('es-MX')} 
+                                        {' - '}
+                                        {new Date(legacy_stats.periodo.fin).toLocaleDateString('es-MX')}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-3">
+                            {/* Left: Main stats */}
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Notarías con Historial
+                                    </p>
+                                    <p className="text-3xl font-bold text-primary">
+                                        {legacy_stats.notarias_count}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Total Búsquedas Legacy
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {legacy_stats.total_busquedas.toLocaleString('es-MX')}
+                                    </p>
+                                    <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
+                                        <span>
+                                            OFAC: {legacy_stats.fuentes.ofac.toLocaleString('es-MX')}
+                                        </span>
+                                        <span>·</span>
+                                        <span>
+                                            SAT: {legacy_stats.fuentes.sat.toLocaleString('es-MX')}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right: Top 5 notarías */}
+                            <div className="md:col-span-2">
+                                <h4 className="mb-3 text-sm font-semibold">
+                                    Top 5 Notarías por Búsquedas Legacy
+                                </h4>
+                                {legacy_stats.top_notarias.length > 0 ? (
+                                    <ol className="space-y-2">
+                                        {legacy_stats.top_notarias.map((notaria, i) => (
+                                            <li
+                                                key={notaria.legacy_identifier}
+                                                className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                                                        {i + 1}
+                                                    </span>
+                                                    <div>
+                                                        <p className="font-medium">
+                                                            {notaria.numero_notaria} - {notaria.nombre}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {notaria.legacy_identifier}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className="font-semibold text-primary">
+                                                    {notaria.busquedas.toLocaleString('es-MX')}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                ) : (
+                                    <div className="flex h-32 items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
+                                        No hay datos disponibles
+                                    </div>
+                                )}
+
+                                {/* Link to full reports */}
+                                <Link
+                                    href="/admin/legacy/reports"
+                                    className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                                >
+                                    <span>Ver Análisis Completo</span>
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </div>
+                        </div>
+
+                        {legacy_stats.error && (
+                            <div className="mt-4 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+                                ⚠️ Error al cargar estadísticas: {legacy_stats.error}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Action Cards */}

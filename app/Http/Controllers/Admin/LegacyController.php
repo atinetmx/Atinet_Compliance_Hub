@@ -7,6 +7,7 @@ use App\Services\BusquedasLegacyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class LegacyController extends Controller
@@ -150,6 +151,76 @@ class LegacyController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get dashboard statistics for SuperAdmin dashboard card
+     */
+    public function getDashboardStats()
+    {
+        return Cache::remember('legacy-dashboard-stats', 3600, function () {
+            try {
+                // 1. Count notarías with legacy data
+                $notariasCount = \App\Models\Notaria::whereNotNull('legacy_identifier')->count();
+
+                // 2. Get total búsquedas from OFAC + SAT
+                $busquedasOfac = DB::connection('ofac')->table('consultas')->count();
+                $busquedasSat = DB::connection('sat')->table('consultas')->count();
+                $totalBusquedas = $busquedasOfac + $busquedasSat;
+
+                // 3. Get date range (periodo)
+                $primeraOfac = DB::connection('ofac')->table('consultas')->min('fecha');
+                $primeraSat = DB::connection('sat')->table('consultas')->min('fecha');
+                $ultimaOfac = DB::connection('ofac')->table('consultas')->max('fecha');
+                $ultimaSat = DB::connection('sat')->table('consultas')->max('fecha');
+
+                $fechaInicio = min($primeraOfac, $primeraSat);
+                $fechaFin = max($ultimaOfac, $ultimaSat);
+
+                // 4. Get top 5 notarías by búsquedas count
+                $topNotarias = \App\Models\Notaria::whereNotNull('legacy_identifier')
+                    ->whereNotNull('legacy_busquedas_count')
+                    ->where('legacy_busquedas_count', '>', 0)
+                    ->orderBy('legacy_busquedas_count', 'desc')
+                    ->limit(5)
+                    ->get(['legacy_identifier', 'nombre', 'numero_notaria', 'legacy_busquedas_count'])
+                    ->map(function ($notaria) {
+                        return [
+                            'legacy_identifier' => $notaria->legacy_identifier,
+                            'nombre' => $notaria->nombre,
+                            'numero_notaria' => $notaria->numero_notaria,
+                            'busquedas' => $notaria->legacy_busquedas_count,
+                        ];
+                    });
+
+                return [
+                    'notarias_count' => $notariasCount,
+                    'total_busquedas' => $totalBusquedas,
+                    'periodo' => [
+                        'inicio' => $fechaInicio,
+                        'fin' => $fechaFin,
+                    ],
+                    'top_notarias' => $topNotarias,
+                    'fuentes' => [
+                        'ofac' => $busquedasOfac,
+                        'sat' => $busquedasSat,
+                    ],
+                ];
+            } catch (\Exception $e) {
+                // Return empty stats if error occurs (e.g., connection issues)
+                return [
+                    'notarias_count' => 0,
+                    'total_busquedas' => 0,
+                    'periodo' => null,
+                    'top_notarias' => [],
+                    'fuentes' => [
+                        'ofac' => 0,
+                        'sat' => 0,
+                    ],
+                    'error' => $e->getMessage(),
+                ];
+            }
+        });
     }
 
     /**

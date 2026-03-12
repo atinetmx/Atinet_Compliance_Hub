@@ -26,6 +26,10 @@ Route::get('dashboard', function () {
     // Redireccionar según el tipo de cuenta
     switch ($user->tipo_cuenta) {
         case 'super_admin':
+            // Get legacy system stats
+            $legacyController = app(\App\Http\Controllers\Admin\LegacyController::class);
+            $legacyStats = $legacyController->getDashboardStats();
+
             return Inertia::render('SuperAdminDashboard', [
                 'stats' => [
                     'total_notarias' => \App\Models\Notaria::count(),
@@ -36,6 +40,7 @@ Route::get('dashboard', function () {
                     'suscripciones_vencidas' => \App\Models\Subscription::where('status', 'vencida')->count(),
                     'suscripciones_suspendidas' => \App\Models\Subscription::where('status', 'suspendida')->count(),
                 ],
+                'legacy_stats' => $legacyStats,
                 'recent_subscriptions' => \App\Models\Subscription::with(['notaria', 'plan'])
                     ->latest()
                     ->take(5)
