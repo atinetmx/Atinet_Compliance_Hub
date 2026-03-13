@@ -34,16 +34,14 @@ export function AppSidebar() {
         (s) => s.code === 'BLACKLIST_OFAC' || s.code === 'BLACKLIST_SAT'
     );
 
+    // Check if user has Control Notarial service (future: will be checked from servicios)
+    const hasControlNotarial = servicios.some((s) => s.code === 'CONTROL_NOTARIAL') || isSuperAdmin;
+
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
-        },
-        {
-            title: 'Control Notarial',
-            href: '/admin/control-notarial',
-            icon: Scale,
         },
         ...(isSuperAdmin
             ? [
@@ -72,6 +70,11 @@ export function AppSidebar() {
                       href: '/admin/listas-negras',
                       icon: Shield,
                   },
+                  {
+                      title: 'Control Notarial',
+                      href: '/admin/control-notarial',
+                      icon: Scale,
+                  },
               ]
             : []),
         ...(hasBlacklistServices && !isSuperAdmin
@@ -80,6 +83,15 @@ export function AppSidebar() {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',
                       icon: Shield,
+                  },
+              ]
+            : []),
+        ...(hasControlNotarial && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Control Notarial',
+                      href: '/admin/control-notarial',
+                      icon: Scale,
                   },
               ]
             : []),
