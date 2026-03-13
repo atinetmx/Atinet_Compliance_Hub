@@ -824,7 +824,7 @@ Este script crea:
 
 ```tsx
 <Select value={chartType} onValueChange={handleChartTypeChange}>
-    <SelectTrigger className="w-[200px]">
+    <SelectTrigger className="w-50">
         <SelectValue placeholder="Tipo de gráfico" />
     </SelectTrigger>
     <SelectContent>

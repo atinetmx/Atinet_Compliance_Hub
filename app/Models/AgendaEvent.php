@@ -19,13 +19,18 @@ class AgendaEvent extends Model
         'comentarios',
         'color',
         'tipo',
+        'rrule',
+        'duration',
+        'all_day',
     ];
 
     protected function casts(): array
     {
         return [
             'start_fecha' => 'datetime',
-            'end_fecha' => 'datetime',
+            'end_fecha'   => 'datetime',
+            'rrule'       => 'array',
+            'all_day'     => 'boolean',
         ];
     }
 
@@ -60,23 +65,33 @@ class AgendaEvent extends Model
     }
 
     /**
-     * Formatea el evento para FullCalendar
-     *
-     * @return array{id: int, title: string, start: string, end: string, color: string, extendedProps: array{comentarios: string|null, tipo: string}}
+     * Formatea el evento para FullCalendar.
      */
     public function toFullCalendar(): array
     {
-        return [
-            'id' => $this->id,
-            'title' => $this->titulo,
-            'start' => $this->start_fecha?->toIso8601String(),
-            'end' => $this->end_fecha?->toIso8601String(),
-            'color' => $this->color,
+        $data = [
+            'id'            => $this->id,
+            'title'         => $this->titulo,
+            'color'         => $this->color,
+            'allDay'        => $this->all_day,
             'extendedProps' => [
                 'comentarios' => $this->comentarios,
-                'tipo' => $this->tipo,
-                'user_id' => $this->user_id,
+                'tipo'        => $this->tipo,
+                'user_id'     => $this->user_id,
             ],
         ];
+
+        // Evento recurrente: rrule + duration en lugar de start/end fijos
+        if ($this->rrule) {
+            $data['rrule']    = array_merge($this->rrule, [
+                'dtstart' => $this->start_fecha?->toIso8601String(),
+            ]);
+            $data['duration'] = $this->duration;
+        } else {
+            $data['start'] = $this->start_fecha?->toIso8601String();
+            $data['end']   = $this->end_fecha?->toIso8601String();
+        }
+
+        return $data;
     }
 }

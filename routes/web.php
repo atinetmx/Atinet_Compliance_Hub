@@ -172,6 +172,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('agenda')->name('agenda.')->group(function () {
         Route::get('/', [\App\Http\Controllers\AgendaController::class, 'index'])->name('index');
         Route::get('events', [\App\Http\Controllers\AgendaController::class, 'events'])->name('events');
+        Route::get('today', [\App\Http\Controllers\AgendaController::class, 'today'])->name('today');
+        Route::get('log', [\App\Http\Controllers\AgendaController::class, 'log'])->name('log');
         Route::post('/', [\App\Http\Controllers\AgendaController::class, 'store'])->name('store');
         Route::put('{agendaEvent}', [\App\Http\Controllers\AgendaController::class, 'update'])->name('update');
         Route::delete('{agendaEvent}', [\App\Http\Controllers\AgendaController::class, 'destroy'])->name('destroy');

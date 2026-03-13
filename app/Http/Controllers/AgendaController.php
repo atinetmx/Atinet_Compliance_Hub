@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AgendaEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,27 +17,99 @@ class AgendaController extends Controller
     }
 
     /**
-     * Devuelve eventos en formato FullCalendar JSON.
-     * El rango de fechas lo pasan como query params: start, end
+     * Devuelve eventos en formato FullCalendar JSON (incluye recurrentes con rrule).
      */
     public function events(Request $request): JsonResponse
     {
         $user = $request->user();
-        $notariaId = $user->notaria_id;
 
-        $query = AgendaEvent::where('notaria_id', $notariaId)
+        $query = AgendaEvent::where('notaria_id', $user->notaria_id)
             ->visiblePara($user);
 
-        if ($request->filled('start')) {
-            $query->where('end_fecha', '>=', $request->input('start'));
-        }
-
-        if ($request->filled('end')) {
-            $query->where('start_fecha', '<=', $request->input('end'));
+        // Para eventos NO recurrentes filtramos por rango; los recurrentes se incluyen siempre
+        if ($request->filled('start') && $request->filled('end')) {
+            $query->where(function ($q) use ($request) {
+                $q->whereNotNull('rrule')
+                    ->orWhere(function ($q2) use ($request) {
+                        $q2->whereNull('rrule')
+                            ->where('end_fecha', '>=', $request->input('start'))
+                            ->where('start_fecha', '<=', $request->input('end'));
+                    });
+            });
         }
 
         return response()->json(
             $query->get()->map->toFullCalendar()
+        );
+    }
+
+    /**
+     * Eventos del día seleccionado (vista de lista / Citas del día).
+     */
+    public function today(Request $request): JsonResponse
+    {
+        $request->validate(['fecha' => ['nullable', 'date']]);
+
+        $user = $request->user();
+        $fecha = $request->input('fecha', now()->toDateString());
+
+        $events = AgendaEvent::where('notaria_id', $user->notaria_id)
+            ->visiblePara($user)
+            ->whereNull('rrule') // los recurrentes se manejan solo en el calendario
+            ->whereDate('start_fecha', '<=', $fecha)
+            ->whereDate('end_fecha', '>=', $fecha)
+            ->orderBy('start_fecha')
+            ->get();
+
+        return response()->json($events->map(fn ($e) => [
+            'id' => $e->id,
+            'titulo' => $e->titulo,
+            'start_fecha' => $e->start_fecha?->format('H:i'),
+            'end_fecha' => $e->end_fecha?->format('H:i'),
+            'comentarios' => $e->comentarios,
+            'color' => $e->color,
+            'tipo' => $e->tipo,
+            'user_id' => $e->user_id,
+        ]));
+    }
+
+    /**
+     * Bitácora de actividad desde la BD legacy (atinet65_aplicativos.log).
+     */
+    public function log(Request $request): JsonResponse
+    {
+        $request->validate([
+            'fecha' => ['nullable', 'date'],
+            'limit' => ['nullable', 'integer', 'min:10', 'max:500'],
+        ]);
+
+        $user = $request->user();
+        $fecha = $request->input('fecha', now()->toDateString());
+        $limit = $request->integer('limit', 100);
+
+        // Obtenemos el slug legacy de la notaría del usuario
+        $legacySlug = DB::table('notarias')
+            ->where('id', $user->notaria_id)
+            ->value('legacy_identifier');
+
+        if (! $legacySlug) {
+            return response()->json([]);
+        }
+
+        $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
+
+        $query = DB::connection('aplicativos')
+            ->table('log')
+            ->where('notaria', $legacySlug)
+            ->where('fecha', $fecha)
+            ->orderBy('hora');
+
+        if (! $esAdmin) {
+            $query->where('mail', $user->name);
+        }
+
+        return response()->json(
+            $query->limit($limit)->get()
         );
     }
 
@@ -45,10 +118,13 @@ class AgendaController extends Controller
         $validated = $request->validate([
             'titulo' => ['required', 'string', 'max:145'],
             'start_fecha' => ['required', 'date'],
-            'end_fecha' => ['required', 'date', 'after_or_equal:start_fecha'],
+            'end_fecha' => ['nullable', 'date'],
             'comentarios' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:10'],
             'tipo' => ['nullable', 'in:general,cita,recordatorio,festivo'],
+            'rrule' => ['nullable', 'array'],
+            'duration' => ['nullable', 'string', 'max:10'],
+            'all_day' => ['nullable', 'boolean'],
         ]);
 
         $user = $request->user();
@@ -71,10 +147,13 @@ class AgendaController extends Controller
         $validated = $request->validate([
             'titulo' => ['sometimes', 'required', 'string', 'max:145'],
             'start_fecha' => ['sometimes', 'required', 'date'],
-            'end_fecha' => ['sometimes', 'required', 'date', 'after_or_equal:start_fecha'],
+            'end_fecha' => ['sometimes', 'nullable', 'date'],
             'comentarios' => ['nullable', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:10'],
             'tipo' => ['nullable', 'in:general,cita,recordatorio,festivo'],
+            'rrule' => ['nullable', 'array'],
+            'duration' => ['nullable', 'string', 'max:10'],
+            'all_day' => ['nullable', 'boolean'],
         ]);
 
         $agendaEvent->update($validated);
@@ -91,10 +170,6 @@ class AgendaController extends Controller
         return response()->json(null, 204);
     }
 
-    /**
-     * Verifica que el usuario pueda modificar/eliminar el evento.
-     * Admin puede cualquier evento de su notaría; usuario solo los propios.
-     */
     private function authorizeEvent(AgendaEvent $event, \App\Models\User $user): void
     {
         $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
@@ -112,3 +187,4 @@ class AgendaController extends Controller
         );
     }
 }
+
