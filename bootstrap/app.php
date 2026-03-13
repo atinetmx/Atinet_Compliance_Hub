@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Trust Cloudflare proxy headers (fix HTTPS/Mixed Content en producción)
-        if (app()->environment('production')) {
+        if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
             $middleware->trustProxies(
                 at: '*',
                 headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR |
