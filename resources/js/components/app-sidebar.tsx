@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale } from 'lucide-react';
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -37,6 +37,9 @@ export function AppSidebar() {
     // Check if user has Control Notarial service (future: will be checked from servicios)
     const hasControlNotarial = servicios.some((s) => s.code === 'CONTROL_NOTARIAL') || isSuperAdmin;
 
+    // Agenda Web: disponible para todos los usuarios autenticados
+    const hasAgenda = isSuperAdmin || servicios.some((s) => s.code === 'AGENDA') || true;
+
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -71,6 +74,11 @@ export function AppSidebar() {
                       icon: Shield,
                   },
                   {
+                      title: 'Agenda',
+                      href: '/admin/agenda',
+                      icon: CalendarDays,
+                  },
+                  {
                       title: 'Control Notarial',
                       href: '/admin/control-notarial',
                       icon: Scale,
@@ -83,6 +91,15 @@ export function AppSidebar() {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',
                       icon: Shield,
+                  },
+              ]
+            : []),
+        ...(hasAgenda && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Agenda',
+                      href: '/admin/agenda',
+                      icon: CalendarDays,
                   },
               ]
             : []),

@@ -167,6 +167,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('notarias/{legacyIdentifier}/estadisticas', [\App\Http\Controllers\Admin\LegacyController::class, 'getEstadisticasNotaria'])->name('notarias.estadisticas');
     });
 
+    // === MÓDULO AGENDA WEB ===
+    // Calendario y gestión de eventos (replicado desde sistema PHP legacy)
+    Route::prefix('agenda')->name('agenda.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\AgendaController::class, 'index'])->name('index');
+        Route::get('events', [\App\Http\Controllers\AgendaController::class, 'events'])->name('events');
+        Route::post('/', [\App\Http\Controllers\AgendaController::class, 'store'])->name('store');
+        Route::put('{agendaEvent}', [\App\Http\Controllers\AgendaController::class, 'update'])->name('update');
+        Route::delete('{agendaEvent}', [\App\Http\Controllers\AgendaController::class, 'destroy'])->name('destroy');
+    });
+
     // === MÓDULO CONTROL NOTARIAL ===
     // Sistema de gestión notarial (migración desde VB6)
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
