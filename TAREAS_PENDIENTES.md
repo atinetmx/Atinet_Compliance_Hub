@@ -1,6 +1,38 @@
 # 🎯 TAREAS PENDIENTES Y PRIORIDADES
 
-**Última actualización:** 4 de marzo de 2026
+**Última actualización:** 13 de marzo de 2026
+
+---
+
+## 🔧 PENDIENTES MÓDULO LEGACY BÚSQUEDAS (retomar cuando sea necesario)
+
+> Tareas pausadas para avanzar con otros servicios. Estado estable y funcional.
+
+### Priority 3 — Reports Page (`/admin/legacy/reports`)
+- Hero stats cards (notarías con historial, total búsquedas legacy)
+- Charts: Area (timeline mensual), Pie (por fuente OFAC/SAT), Bar (top notarías)
+- Tabla con filtros por fecha y notaría
+- Exportación Excel/CSV
+- **Tiempo estimado:** 2-3 horas
+
+### Priority 4 — Optimizaciones
+- Loading skeletons en tarjeta legacy del dashboard
+- Error boundaries y retry logic para llamadas API legacy
+- Cache tuning
+- **Tiempo estimado:** 1 hora
+
+### Priority 5 — Documentación
+- Guía de usuario para estadísticas legacy
+- Guía de admin para proceso de sincronización
+- Docs técnicos
+- **Tiempo estimado:** 30 min
+
+### Fix — Dashboard Top 5
+- Poblar campo `legacy_busquedas_count` en notarías
+- Opción A: UPDATE manual vía tinker (30 min)
+- Opción B: Comando `Legacy/SyncLegacyStatsCommand` completo (2 horas)
+
+---
 
 ---
 

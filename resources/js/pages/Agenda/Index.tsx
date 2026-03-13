@@ -1,10 +1,10 @@
-import FullCalendar from '@fullcalendar/react';
+import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
+import type { DateClickArg } from '@fullcalendar/interaction';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
+import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { DateClickArg } from '@fullcalendar/interaction';
-import { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { router, usePage } from '@inertiajs/react';
 import { CalendarDays, Plus, X } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -78,7 +78,6 @@ export default function AgendaIndex() {
     const [modalOpen, setModalOpen] = useState(false);
     const [form, setForm] = useState<EventForm>(emptyForm());
     const [processing, setProcessing] = useState(false);
-    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
     const isAdmin = ['super_admin', 'admin_notaria'].includes(auth.user.tipo_cuenta);
 
@@ -93,7 +92,6 @@ export default function AgendaIndex() {
 
         if (!canEdit) return;
 
-        setDeleteConfirmId(null);
         setForm({
             id: Number(event.event.id),
             titulo: event.event.title,
