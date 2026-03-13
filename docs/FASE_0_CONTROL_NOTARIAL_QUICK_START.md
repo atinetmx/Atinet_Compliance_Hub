@@ -656,6 +656,198 @@ cat storage/app/control_notarial_schema_analysis.json
 
 ---
 
+## 🔀 Git Workflow - Rama Dedicada
+
+### Setup Inicial (Primera Vez)
+
+Para mantener el trabajo del módulo Control Notarial aislado del desarrollo principal, se ha creado una rama dedicada:
+
+```bash
+# 1. Cambiar a la rama de Control Notarial
+git checkout feature/control-notarial
+
+# 2. Verificar que estás en la rama correcta
+git branch  # Debe mostrar * feature/control-notarial
+
+# 3. Sincronizar con el remoto (si existe)
+git pull origin feature/control-notarial
+```
+
+### Workflow Diario
+
+```bash
+# 1. Antes de empezar a trabajar, asegúrate de estar en la rama correcta
+git checkout feature/control-notarial
+
+# 2. Sincroniza cambios del remoto
+git pull origin feature/control-notarial
+
+# 3. Trabaja en tus tareas...
+# (análisis BD, documentación, scripts, etc.)
+
+# 4. Guarda tu progreso frecuentemente
+git add .
+git commit -m "feat(control-notarial): [descripción del avance]"
+
+# 5. Sube tus cambios al remoto
+git push origin feature/control-notarial
+```
+
+### Convenciones de Commits
+
+Usa **Conventional Commits** para mensajes claros:
+
+```bash
+# ✅ Buenos ejemplos (recommended):
+git commit -m "docs(control-notarial): add diccionario datos expedientes"
+git commit -m "feat(control-notarial): create schema analysis script"
+git commit -m "docs(control-notarial): document workflow expedientes"
+git commit -m "chore(control-notarial): setup dev database connection"
+
+# ❌ Evitar mensajes genéricos:
+git commit -m "updates"
+git commit -m "cambios"
+git commit -m "WIP"
+```
+
+**Prefijos recomendados**:
+- `docs(control-notarial):` - Documentación (diccionarios, workflows)
+- `feat(control-notarial):` - Nuevos scripts, models, servicios
+- `chore(control-notarial):` - Setup, configuración
+- `refactor(control-notarial):` - Mejoras de código existente
+- `test(control-notarial):` - Tests
+
+### Submódulos/Carpetas del Proyecto
+
+El trabajo de Control Notarial se organizará en estas carpetas:
+
+```
+Atinet_Compliance_Hub/
+├── app/
+│   ├── Console/Commands/ControlNotarial/    # Scripts de análisis
+│   ├── Models/ControlNotarial/               # Eloquent models (Phase 1+)
+│   ├── Http/Controllers/ControlNotarial/     # Controllers (Phase 1+)
+│   └── Services/ControlNotarial/             # Business logic (Phase 1+)
+│
+├── docs/control-notarial/                    # 📁 TU CARPETA PRINCIPAL
+│   ├── diccionarios-datos/                   # Diccionarios de tablas
+│   ├── workflows/                            # Diagramas Mermaid
+│   ├── analisis-vb6/                         # Análisis código VB6
+│   └── reportes/                             # Catálogo de reportes
+│
+├── resources/js/Pages/ControlNotarial/       # React pages (Phase 1+)
+└── storage/app/control-notarial-analysis/    # Scripts outputs (JSONs)
+```
+
+### Commits por Fase
+
+**Fase 0 (Weeks 1-12)** - Solo documentación y análisis:
+
+```bash
+# Week 1-2
+git commit -m "chore(control-notarial): setup dev database connection"
+
+# Week 3-4
+git commit -m "feat(control-notarial): add schema analysis script"
+git commit -m "docs(control-notarial): add diccionario datos - expedientes"
+git commit -m "docs(control-notarial): add diccionario datos - escrituras"
+
+# Week 5-6
+git commit -m "docs(control-notarial): analisis vb6 - modulo expedientes"
+git commit -m "docs(control-notarial): analisis vb6 - modulo escrituras"
+
+# Week 7-8
+git commit -m "docs(control-notarial): workflow expedientes diagram"
+git commit -m "docs(control-notarial): workflow escrituras diagram"
+
+# Week 9-10
+git commit -m "docs(control-notarial): catalogo 121 reportes crystal"
+
+# Week 11-12
+git commit -m "feat(control-notarial): create preliminary eloquent models"
+git commit -m "feat(control-notarial): create multi-tenant connection service"
+git commit -m "docs(control-notarial): fase 1 detailed plan"
+```
+
+### Sincronización con Master
+
+**⚠️ IMPORTANTE**: Durante la Fase 0 (primeros 3 meses), NO es necesario mergear a `master` constantemente, ya que solo estás generando documentación y análisis.
+
+**Cuándo sincronizar**:
+- ✅ Al finalizar cada fase (Fase 0, Fase 1, etc.)
+- ✅ Antes de comenzar desarrollo funcional (Phase 1+)
+- ✅ Cuando necesites cambios críticos de `master` (ej: actualizaciones de dependencias)
+
+**Cómo traer cambios de master** (si es necesario):
+
+```bash
+# 1. Guarda tu trabajo actual
+git add .
+git commit -m "docs(control-notarial): WIP - saving progress"
+
+# 2. Trae cambios de master
+git checkout master
+git pull origin master
+
+# 3. Vuelve a tu rama
+git checkout feature/control-notarial
+
+# 4. Integra cambios de master
+git merge master
+
+# 5. Resuelve conflictos si existen
+# (probablemente no habrá conflictos en Fase 0)
+
+# 6. Sube los cambios
+git push origin feature/control-notarial
+```
+
+### Pull Request - Al Finalizar Fase 0
+
+Cuando termines la Fase 0 (12 semanas), crearás un Pull Request para integrar la documentación a `master`:
+
+```bash
+# 1. Asegúrate de que todo esté commiteado
+git status  # Debe estar limpio
+
+# 2. Sube la rama (si no lo has hecho)
+git push origin feature/control-notarial
+
+# 3. Ir a GitHub/GitLab y crear Pull Request
+# Base: master
+# Compare: feature/control-notarial
+# Título: "feat(control-notarial): Fase 0 - Análisis y Documentación Completa"
+# Descripción: 
+#   - Diccionarios de datos (20+ tablas)
+#   - 4 workflows documentados
+#   - 121 reportes catalogados
+#   - Scripts de análisis
+#   - Modelos Eloquent preliminares
+#   - Plan detallado Fase 1
+```
+
+### Protección de la Rama
+
+**Reglas recomendadas** (configurar en GitHub/GitLab):
+- ✅ Solo tú puedes hacer push directo a `feature/control-notarial`
+- ✅ `master` requiere Pull Request + revisión
+- ✅ No permitir force push en `feature/control-notarial`
+
+### Backup Local
+
+**Recomendación**: Haz backups periódicos del trabajo (cada viernes):
+
+```bash
+# Crear ZIP del directorio docs/control-notarial/
+7z a control-notarial-backup-$(Get-Date -Format 'yyyy-MM-dd').zip docs/control-notarial/
+
+# O usa Git tags
+git tag -a fase0-week4 -m "Fase 0 - Week 4 checkpoint"
+git push origin fase0-week4
+```
+
+---
+
 **Última actualización**: 13 de Marzo de 2026  
 **Autor**: Equipo Atinet Development  
 **Estado**: READY TO START ✅

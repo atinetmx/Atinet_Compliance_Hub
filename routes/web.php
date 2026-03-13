@@ -167,6 +167,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('notarias/{legacyIdentifier}/estadisticas', [\App\Http\Controllers\Admin\LegacyController::class, 'getEstadisticasNotaria'])->name('notarias.estadisticas');
     });
 
+    // === MÓDULO CONTROL NOTARIAL ===
+    // Sistema de gestión notarial (migración desde VB6)
+    Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
+        Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');
+        Route::get('escrituras', [\App\Http\Controllers\ControlNotarialController::class, 'escrituras'])->name('escrituras');
+        Route::get('presupuestos', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestos'])->name('presupuestos');
+    });
+
     // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===
     // API para acceder a los catálogos de ubicación del sistema legacy
     // BD: atinet65_catalogos (usada por "registro web" legacy)
