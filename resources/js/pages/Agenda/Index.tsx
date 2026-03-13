@@ -406,16 +406,16 @@ export default function AgendaIndex() {
 
                 {/* Tabs */}
                 <Tabs defaultValue="calendario" className="flex flex-1 flex-col gap-4">
-                    <TabsList className="w-fit">
-                        <TabsTrigger value="calendario" className="gap-1.5">
+                    <TabsList className="w-fit bg-muted/30">
+                        <TabsTrigger value="calendario" className="gap-1.5 data-[state=inactive]:text-foreground/60">
                             <CalendarDays className="h-4 w-4" />
                             Calendario
                         </TabsTrigger>
-                        <TabsTrigger value="citas" className="gap-1.5">
+                        <TabsTrigger value="citas" className="gap-1.5 data-[state=inactive]:text-foreground/60">
                             <List className="h-4 w-4" />
                             Citas del día
                         </TabsTrigger>
-                        <TabsTrigger value="bitacora" className="gap-1.5">
+                        <TabsTrigger value="bitacora" className="gap-1.5 data-[state=inactive]:text-foreground/60">
                             <BookOpen className="h-4 w-4" />
                             Bitácora
                         </TabsTrigger>
