@@ -29,13 +29,13 @@ try {
             SUM(CASE WHEN fuente = "SAT" THEN 1 ELSE 0 END) as sat
         ')
         ->first();
-    
+
     echo "Total registros: " . number_format($busquedasWeb->total) . "\n";
     echo "  ├─ OFAC: " . number_format($busquedasWeb->ofac) . "\n";
     echo "  └─ SAT: " . number_format($busquedasWeb->sat) . "\n";
     echo "Primera: {$busquedasWeb->primera}\n";
     echo "Última: {$busquedasWeb->ultima}\n";
-    
+
     // Muestra de registros
     $muestra = DB::connection('aplicativos')
         ->table('busquedas')
@@ -43,7 +43,7 @@ try {
         ->orderBy('fecha', 'desc')
         ->limit(3)
         ->get(['fecha', 'fuente', 'RFC', 'NOMBRE']);
-    
+
     echo "\n📋 Muestra (últimas 3):\n";
     foreach ($muestra as $b) {
         echo "  • {$b->fecha} | {$b->fuente} | RFC: {$b->RFC} | Nombre: {$b->NOMBRE}\n";
@@ -69,13 +69,13 @@ try {
             SUM(CASE WHEN fuente = "SAT" THEN 1 ELSE 0 END) as sat
         ')
         ->first();
-    
+
     echo "Total registros: " . number_format($busquedasEscritorio->total) . "\n";
     echo "  ├─ OFAC: " . number_format($busquedasEscritorio->ofac) . "\n";
     echo "  └─ SAT: " . number_format($busquedasEscritorio->sat) . "\n";
     echo "Primera: {$busquedasEscritorio->primera}\n";
     echo "Última: {$busquedasEscritorio->ultima}\n";
-    
+
     // Muestra de registros
     $muestra = DB::connection('aplicativos')
         ->table('busquedas_escritorio')
@@ -83,7 +83,7 @@ try {
         ->orderBy('fecha', 'desc')
         ->limit(3)
         ->get(['fecha', 'fuente', 'RFC', 'NOMBRE']);
-    
+
     echo "\n📋 Muestra (últimas 3):\n";
     foreach ($muestra as $b) {
         echo "  • {$b->fecha} | {$b->fuente} | RFC: {$b->RFC} | Nombre: {$b->NOMBRE}\n";
@@ -107,11 +107,11 @@ try {
             MAX(fecha) as ultima
         ')
         ->first();
-    
+
     echo "Total registros: " . number_format($consultasOfac->total) . "\n";
     echo "Primera: {$consultasOfac->primera}\n";
     echo "Última: {$consultasOfac->ultima}\n";
-    
+
     // Muestra de registros
     $muestra = DB::connection('ofac')
         ->table('consultas')
@@ -119,7 +119,7 @@ try {
         ->orderBy('fecha', 'desc')
         ->limit(3)
         ->get(['fecha', 'termino', 'resultados']);
-    
+
     echo "\n📋 Muestra (últimas 3):\n";
     foreach ($muestra as $b) {
         echo "  • {$b->fecha} | Término: {$b->termino} | Resultados: {$b->resultados}\n";
@@ -143,11 +143,11 @@ try {
             MAX(fecha) as ultima
         ')
         ->first();
-    
+
     echo "Total registros: " . number_format($consultasSat->total) . "\n";
     echo "Primera: {$consultasSat->primera}\n";
     echo "Última: {$consultasSat->ultima}\n";
-    
+
     // Muestra de registros
     $muestra = DB::connection('sat')
         ->table('consultas')
@@ -155,7 +155,7 @@ try {
         ->orderBy('fecha', 'desc')
         ->limit(3)
         ->get(['fecha', 'termino', 'resultados']);
-    
+
     echo "\n📋 Muestra (últimas 3):\n";
     foreach ($muestra as $b) {
         echo "  • {$b->fecha} | Término: {$b->termino} | Resultados: {$b->resultados}\n";
@@ -200,11 +200,11 @@ if ($totalAplicativos > 0 && $totalListas > 0) {
     echo "cada búsqueda que hace el usuario en la app. Si busca OFAC + SAT en\n";
     echo "la misma consulta, se registra UNA fila en aplicativos con fuente='OFAC'\n";
     echo "o 'SAT', PERO además se registra en listasofac.consultas Y listassat.consultas.\n\n";
-    
+
     echo "Esto significa que:\n";
     echo "  • aplicativos.busquedas es la FUENTE DE VERDAD (acciones del usuario)\n";
     echo "  • listasofac/sat.consultas son LOG de queries a las BDs (técnico)\n\n";
-    
+
     echo "📌 RECOMENDACIÓN:\n";
     echo "Usar SOLO aplicativos.busquedas + busquedas_escritorio como conteo\n";
     echo "real de \"búsquedas del usuario\". Las tablas de listas son audit trail.\n\n";
@@ -214,14 +214,14 @@ if ($totalAplicativos > 0 && $totalListas > 0) {
     echo "lo que significa que:\n";
     echo "  • Usa la app vieja (Desktop VB6) que NO registra en aplicativos\n";
     echo "  • O las búsquedas son muy antiguas (antes de implementar aplicativos)\n\n";
-    
+
     echo "📌 RECOMENDACIÓN:\n";
     echo "Usar listasofac.consultas + listassat.consultas como conteo.\n\n";
 } else if ($totalAplicativos > 0 && $totalListas == 0) {
     echo "✅ SOLO APLICATIVOS\n\n";
     echo "Esta notaría solo usa aplicativos (Web/Desktop moderno).\n";
     echo "No hay registros en las tablas de listas negras.\n\n";
-    
+
     echo "📌 RECOMENDACIÓN:\n";
     echo "Usar aplicativos.busquedas + busquedas_escritorio como conteo.\n\n";
 }
