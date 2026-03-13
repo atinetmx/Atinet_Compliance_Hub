@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3 } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -39,6 +39,11 @@ export function AppSidebar() {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
+        },
+        {
+            title: 'Control Notarial',
+            href: '/admin/control-notarial',
+            icon: Scale,
         },
         ...(isSuperAdmin
             ? [
