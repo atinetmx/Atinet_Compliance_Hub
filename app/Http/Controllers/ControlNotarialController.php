@@ -68,4 +68,12 @@ class ControlNotarialController extends Controller
             'message' => 'Disponible en Fase 4 - Presupuestos (meses 8-13)',
         ]);
     }
+
+    /**
+     * Display configuración module
+     */
+    public function configuracion(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Index');
+    }
 }

@@ -174,6 +174,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');
         Route::get('escrituras', [\App\Http\Controllers\ControlNotarialController::class, 'escrituras'])->name('escrituras');
         Route::get('presupuestos', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestos'])->name('presupuestos');
+        Route::get('configuracion', [\App\Http\Controllers\ControlNotarialController::class, 'configuracion'])->name('configuracion');
     });
 
     // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===
