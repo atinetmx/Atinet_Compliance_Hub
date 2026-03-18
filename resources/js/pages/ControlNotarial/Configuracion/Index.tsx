@@ -370,11 +370,11 @@ export default function ControlNotarialConfiguracionIndex() {
                     body: JSON.stringify(controlPayload),
                 });
 
-                if (!controlResponse.ok) {
-                    throw new Error(`Error al guardar configuración de control: ${controlResponse.status}`);
-                }
-
                 const controlData2 = await controlResponse.json();
+
+                if (!controlResponse.ok) {
+                    throw new Error(controlData2?.message || `Error al guardar configuración de control: ${controlResponse.status}`);
+                }
                 console.log('Control guardado:', controlData2);
             }
 

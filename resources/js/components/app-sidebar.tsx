@@ -79,6 +79,28 @@ export function AppSidebar() {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               icon: Settings,
+                              items: [
+                                  {
+                                      title: 'Notaria',
+                                      href: '/admin/control-notarial/configuracion',
+                                      icon: Settings,
+                                  },
+                                  {
+                                      title: 'Usuarios',
+                                      href: '/admin/control-notarial/usuarios',
+                                      icon: Settings,
+                                  },
+                                  {
+                                      title: 'Alta Catalogos',
+                                      href: '/admin/control-notarial/alta-catalogos',
+                                      icon: Settings,
+                                  },
+                                  {
+                                      title: 'Reporte de Usuarios',
+                                      href: '/admin/control-notarial/reporte-usuarios',
+                                      icon: BarChart3,
+                                  },
+                              ],
                           },
                       ],
                   },
@@ -104,6 +126,18 @@ export function AppSidebar() {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               icon: Settings,
+                              items: [
+                                  {
+                                      title: 'Notaria',
+                                      href: '/admin/control-notarial/configuracion',
+                                      icon: Settings,
+                                  },
+                                  {
+                                      title: 'Usuarios',
+                                      href: '/admin/control-notarial/usuarios',
+                                      icon: Settings,
+                                  },
+                              ],
                           },
                       ],
                   },

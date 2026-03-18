@@ -76,4 +76,28 @@ class ControlNotarialController extends Controller
     {
         return Inertia::render('ControlNotarial/Configuracion/Index');
     }
+
+    /**
+     * Display usuarios module within configuración
+     */
+    public function usuarios(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Usuarios');
+    }
+
+    /**
+     * Display alta catalogos module within configuración
+     */
+    public function altaCatalogos(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/AltaCatalogos');
+    }
+
+    /**
+     * Display reporte de usuarios module within configuración
+     */
+    public function reporteUsuarios(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/ReporteUsuarios');
+    }
 }
