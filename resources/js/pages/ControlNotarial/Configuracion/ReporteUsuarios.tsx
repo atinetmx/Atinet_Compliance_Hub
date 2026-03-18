@@ -1,73 +1,149 @@
 import { Head } from '@inertiajs/react';
-import { BarChart3, Download, Filter } from 'lucide-react';
-import React, { useState } from 'react';
+import { BarChart3, Download, Filter, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { useToast } from '@/contexts/ToastContext';
+
+// Función auxiliar para obtener la fecha de hoy en formato YYYY-MM-DD
+const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 export default function ControlNotarialReporteUsuarios() {
-    const [filtroEmail, setFiltroEmail] = useState('');
-    const [filtroNombre, setFiltroNombre] = useState('');
-    const [reportData, setReportData] = useState<any[]>([]);
+    const { addToast } = useToast();
+    const [userId, setUserId] = useState('all');
+    const [usuarios, setUsuarios] = useState<any[]>([]);
+    const [filtroUsuario, setFiltroUsuario] = useState('');
+    const [operacion, setOperacion] = useState('all');
+    const [fechaInicio, setFechaInicio] = useState(getTodayDate());
+    const [fechaFin, setFechaFin] = useState(getTodayDate());
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(false);
+
+    // Cargar usuarios al montar el componente
+    useEffect(() => {
+        cargarUsuarios('');
+    }, []);
+
+    const cargarUsuarios = async (filtro: string) => {
+        setIsLoadingUsuarios(true);
+        try {
+            const response = await fetch('https://localhost:44327/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+            if (data.dataResponse && Array.isArray(data.dataResponse)) {
+                setUsuarios(data.dataResponse);
+            }
+        } catch (error) {
+            console.error('Error cargando usuarios:', error);
+            addToast('Error al cargar usuarios', 'error');
+        } finally {
+            setIsLoadingUsuarios(false);
+        }
+    };
+
+    const handleFiltroUsuarioChange = (valor: string) => {
+        setFiltroUsuario(valor);
+        cargarUsuarios(valor);
+    };
 
     const handleGenerarReporte = async () => {
         setIsLoading(true);
+        setPdfUrl(null);
         try {
-            // Aquí iría la lógica para traer datos de usuarios
-            const response = await fetch(`/api/usuarios/reporte`, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-            if (data.dataResponse) {
-                setReportData(data.dataResponse);
+            // Convertir fechas de formato YYYY-MM-DD a YYYY/MM/DD
+            const convertirFecha = (fecha: string) => {
+                if (!fecha) return '0';
+                return fecha.replace(/-/g, '/');
+            };
+
+// Construir URL con parámetros, omitiendo operacion si es 'all'
+            let url = 'https://localhost:44327/api/Bitacora/GenerateReporteBitacora?';
+            const params = [];
+
+            params.push(`userId=${encodeURIComponent(userId && userId !== 'all' ? userId : '0')}`);
+            if (operacion && operacion !== 'all') {
+                params.push(`operacion=${encodeURIComponent(operacion)}`);
             }
+            params.push(`fechaInicio=${encodeURIComponent(convertirFecha(fechaInicio))}`);
+            params.push(`fechaFin=${encodeURIComponent(convertirFecha(fechaFin))}`);
+
+            url += params.join('&');
+
+            console.log(`[DEBUG] Solicitando PDF a: ${url}`);
+
+            const response = await fetch(url, {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            // Obtener el PDF como blob
+            const pdfBlob = await response.blob();
+            console.log(`[DEBUG] PDF recibido, tamaño: ${pdfBlob.size} bytes`);
+
+            // Crear una URL para el blob
+            const blobUrl = URL.createObjectURL(pdfBlob);
+            setPdfUrl(blobUrl);
+            addToast('Reporte generado correctamente', 'success');
         } catch (error) {
-            console.error('Error al generar reporte:', error);
+            const message = error instanceof Error ? error.message : 'Error desconocido';
+            console.error('[DEBUG] Error:', message);
+            addToast(message, 'error');
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleDescargarPDF = () => {
-        // Lógica para descargar reporte como PDF
-        console.log('Descargando reporte como PDF...');
-    };
+        if (!pdfUrl) {
+            addToast('Primero debes generar un reporte', 'info');
+            return;
+        }
 
-    const handleDescargarExcel = () => {
-        // Lógica para descargar reporte como Excel
-        console.log('Descargando reporte como Excel...');
+        // Descargar el PDF
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.download = `Reporte_Bitacora_${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
-
-    // Filtrar datos
-    const datosFiltrados = reportData.filter(usuario =>
-        (usuario.email?.toLowerCase().includes(filtroEmail.toLowerCase()) || true) &&
-        (usuario.nombre?.toLowerCase().includes(filtroNombre.toLowerCase()) || true)
-    );
 
     return (
         <>
-            <Head title="Reporte de Usuarios - Control Notarial" />
+            <Head title="Reporte de Bitácora - Control Notarial" />
 
             <div className="space-y-8">
-                <div className="pb-8 border-b px-6">
-                    <div className="flex items-center gap-3 mb-2">
+                <div className="px-6 pt-8">
+                    <div className="flex items-center gap-3 mb-8">
                         <div className="rounded-lg bg-orange-500 p-3 text-white">
                             <BarChart3 className="size-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Reporte de Usuarios</h1>
-                            <p className="text-muted-foreground">Análisis y estadísticas de usuarios del sistema</p>
+                            <h1 className="text-3xl font-bold tracking-tight">Reporte de Bitácora</h1>
+                            <p className="text-muted-foreground">Análisis de operaciones y actividades del sistema</p>
                         </div>
                     </div>
                 </div>
@@ -75,30 +151,59 @@ export default function ControlNotarialReporteUsuarios() {
                 <div className="px-6">
                     {/* Sección de Filtros */}
                     <div className="bg-background border rounded-lg p-6 space-y-6 mb-6">
-                        <h2 className="text-lg font-semibold">Filtros</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <h2 className="text-lg font-semibold">Parámetros del Reporte</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="filtro-nombre">Nombre</Label>
+                                <Label htmlFor="usuario">Usuario</Label>
+                                <Select value={userId} onValueChange={setUserId}>
+                                    <SelectTrigger id="usuario">
+                                        <SelectValue placeholder={isLoadingUsuarios ? 'Cargando usuarios...' : 'Selecciona un usuario'} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                        {usuarios.map((usuario: any) => (
+                                            <SelectItem key={usuario.id} value={String(usuario.id)}>
+                                                {usuario.nombre || usuario.email}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="operacion">Operación</Label>
+                                <Select value={operacion} onValueChange={setOperacion}>
+                                    <SelectTrigger id="operacion">
+                                        <SelectValue placeholder="Selecciona una operación" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todo</SelectItem>
+                                        <SelectItem value="create">Crear</SelectItem>
+                                        <SelectItem value="update">Actualizar</SelectItem>
+                                        <SelectItem value="delete">Eliminar</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="fecha-inicio">Fecha Inicio</Label>
                                 <Input
-                                    id="filtro-nombre"
-                                    placeholder="Buscar por nombre..."
-                                    value={filtroNombre}
-                                    onChange={(e) => setFiltroNombre(e.target.value)}
+                                    id="fecha-inicio"
+                                    type="date"
+                                    value={fechaInicio}
+                                    onChange={(e) => setFechaInicio(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="filtro-email">Email</Label>
+                                <Label htmlFor="fecha-fin">Fecha Fin</Label>
                                 <Input
-                                    id="filtro-email"
-                                    type="email"
-                                    placeholder="Buscar por email..."
-                                    value={filtroEmail}
-                                    onChange={(e) => setFiltroEmail(e.target.value)}
+                                    id="fecha-fin"
+                                    type="date"
+                                    value={fechaFin}
+                                    onChange={(e) => setFechaFin(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 justify-end">
                             <Button
                                 onClick={handleGenerarReporte}
                                 disabled={isLoading}
@@ -107,79 +212,42 @@ export default function ControlNotarialReporteUsuarios() {
                                 <Filter className="h-4 w-4" />
                                 {isLoading ? 'Generando...' : 'Generar Reporte'}
                             </Button>
-                            <Button
-                                variant="outline"
-                                onClick={handleDescargarPDF}
-                                disabled={reportData.length === 0}
-                                className="gap-2"
-                            >
-                                <Download className="h-4 w-4" />
-                                Descargar PDF
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={handleDescargarExcel}
-                                disabled={reportData.length === 0}
-                                className="gap-2"
-                            >
-                                <Download className="h-4 w-4" />
-                                Descargar Excel
-                            </Button>
+                            {pdfUrl && (
+                                <Button
+                                    variant="outline"
+                                    onClick={handleDescargarPDF}
+                                    className="gap-2"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Descargar PDF
+                                </Button>
+                            )}
                         </div>
                     </div>
 
-                    {/* Tabla de Resultados */}
-                    <div className="bg-background border rounded-lg p-6">
-                        <h2 className="text-lg font-semibold mb-4">Resultados</h2>
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>ID</TableHead>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Rol</TableHead>
-                                        <TableHead>Estado</TableHead>
-                                        <TableHead>Fecha Creación</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {datosFiltrados.length > 0 ? (
-                                        datosFiltrados.map((usuario) => (
-                                            <TableRow key={usuario.id}>
-                                                <TableCell className="font-medium">{usuario.id}</TableCell>
-                                                <TableCell>{usuario.nombre}</TableCell>
-                                                <TableCell>{usuario.email}</TableCell>
-                                                <TableCell>{usuario.rol}</TableCell>
-                                                <TableCell>
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                        usuario.activo
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {usuario.activo ? 'Activo' : 'Inactivo'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>{usuario.created_at}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                                {reportData.length === 0 ? 'Haz clic en "Generar Reporte" para ver resultados' : 'No hay resultados que coincidan con los filtros'}
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                    {/* Previsualización del PDF */}
+                    {pdfUrl && (
+                        <div className="bg-background border rounded-lg p-6">
+                            <h2 className="text-lg font-semibold mb-4">Previsualización</h2>
+                            <div className="w-full bg-gray-100 rounded-lg overflow-hidden">
+                                <iframe
+                                    src={pdfUrl}
+                                    title="Previsualización de PDF"
+                                    className="w-full h-[700px] border-0"
+                                />
+                            </div>
                         </div>
+                    )}
 
-                        {datosFiltrados.length > 0 && (
-                            <p className="text-sm text-muted-foreground mt-4">
-                                Total: <span className="text-amber-600 font-semibold">{datosFiltrados.length}</span> usuario(s)
+                    {!pdfUrl && (
+                        <div className="bg-background border rounded-lg p-12 text-center">
+                            <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                            <h3 className="text-lg font-semibold mb-2">Sin reporte generado</h3>
+                            <p className="text-muted-foreground">
+                                Completa los parámetros y haz clic en "Generar Reporte" para ver la previsualización
                             </p>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </>
