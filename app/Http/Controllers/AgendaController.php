@@ -23,8 +23,8 @@ class AgendaController extends Controller
     {
         $user = $request->user();
 
-        $query = AgendaEvent::where('notaria_id', $user->notaria_id)
-            ->visiblePara($user);
+        // El scope visiblePara maneja toda la lógica de visibilidad
+        $query = AgendaEvent::visiblePara($user);
 
         // Para eventos NO recurrentes filtramos por rango; los recurrentes se incluyen siempre
         if ($request->filled('start') && $request->filled('end')) {
@@ -53,8 +53,7 @@ class AgendaController extends Controller
         $user = $request->user();
         $fecha = $request->input('fecha', now()->toDateString());
 
-        $events = AgendaEvent::where('notaria_id', $user->notaria_id)
-            ->visiblePara($user)
+        $events = AgendaEvent::visiblePara($user)
             ->whereNull('rrule') // los recurrentes se manejan solo en el calendario
             ->whereDate('start_fecha', '<=', $fecha)
             ->whereDate('end_fecha', '>=', $fecha)
@@ -87,16 +86,21 @@ class AgendaController extends Controller
         $fecha = $request->input('fecha', now()->toDateString());
         $limit = $request->integer('limit', 100);
 
-        // Obtenemos el slug legacy de la notaría del usuario
-        $legacySlug = DB::table('notarias')
-            ->where('id', $user->notaria_id)
-            ->value('legacy_identifier');
-
-        if (! $legacySlug) {
-            return response()->json([]);
-        }
-
         $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
+
+        // Super admins sin notaría asignada se mapean a 'atinet' legacy
+        if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
+            $legacySlug = 'atinet';
+        } else {
+            // Obtenemos el slug legacy de la notaría del usuario
+            $legacySlug = DB::table('notarias')
+                ->where('id', $user->notaria_id)
+                ->value('legacy_identifier');
+
+            if (! $legacySlug) {
+                return response()->json([]);
+            }
+        }
 
         $query = DB::connection('aplicativos')
             ->table('log')

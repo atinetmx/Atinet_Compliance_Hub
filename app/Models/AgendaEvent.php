@@ -45,15 +45,42 @@ class AgendaEvent extends Model
     }
 
     /**
-     * Scope: eventos visibles para el usuario (admin ve todos, usuario ve propios)
+     * Scope: eventos visibles para el usuario
+     * 
+     * LÓGICA:
+     * - Admin ve: eventos de usuarios de su notaría + eventos legacy (user_id NULL)
+     * - Usuario normal ve: sus eventos + eventos legacy de su notaría (user_id NULL)
+     * - Super admin ve: sus eventos + eventos legacy de 'atinet' (user_id NULL)
      */
     public function scopeVisiblePara($query, User $user): void
     {
-        $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
+        $query->where(function ($q) use ($user) {
+            // Eventos propios
+            $q->where('user_id', $user->id);
 
-        if (! $esAdmin) {
-            $query->where('user_id', $user->id);
-        }
+            // Eventos legacy compartidos (user_id IS NULL)
+            $q->orWhere(function ($q2) use ($user) {
+                $q2->whereNull('user_id');
+
+                // Super admin: eventos legacy de 'atinet'
+                if ($user->tipo_cuenta === 'super_admin' && !$user->notaria_id) {
+                    $q2->where('legacy_notaria', 'atinet');
+                } 
+                // Usuarios de notaría: eventos legacy de su notaría
+                elseif ($user->notaria_id) {
+                    $q2->where('notaria_id', $user->notaria_id);
+                }
+            });
+
+            // Admin de notaría: también ve eventos de otros usuarios de su notaría
+            if ($user->tipo_cuenta === 'admin_notaria' && $user->notaria_id) {
+                $q->orWhere(function ($q3) use ($user) {
+                    $q3->whereNotNull('user_id')
+                        ->where('user_id', '!=', $user->id)
+                        ->where('notaria_id', $user->notaria_id);
+                });
+            }
+        });
     }
 
     /**
