@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale } from 'lucide-react';
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -72,6 +72,18 @@ export function AppSidebar() {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',
                       icon: Shield,
+                      items: [
+                          {
+                              title: 'Búsqueda',
+                              href: '/admin/listas-negras',
+                              icon: Search,
+                          },
+                          {
+                              title: 'Historial',
+                              href: '/admin/listas-negras/historial',
+                              icon: History,
+                          },
+                      ],
                   },
                   {
                       title: 'Agenda',
@@ -91,6 +103,18 @@ export function AppSidebar() {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',
                       icon: Shield,
+                      items: [
+                          {
+                              title: 'Búsqueda',
+                              href: '/admin/listas-negras',
+                              icon: Search,
+                          },
+                          {
+                              title: 'Historial',
+                              href: '/admin/listas-negras/historial',
+                              icon: History,
+                          },
+                      ],
                   },
               ]
             : []),

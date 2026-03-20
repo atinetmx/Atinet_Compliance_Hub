@@ -208,6 +208,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return Inertia::render('Admin/ListasNegras/Search');
     })->name('listas-negras');
 
+    // Página de historial de búsquedas
+    Route::get('listas-negras/historial', function () {
+        return Inertia::render('Admin/ListasNegras/History');
+    })->name('listas-negras.historial');
+
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)
     Route::prefix('search')->name('search.')->middleware(['subscription'])->group(function () {
         // Búsquedas que usan OFAC como servicio principal (también pueden incluir SAT)

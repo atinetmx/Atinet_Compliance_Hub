@@ -1,6 +1,36 @@
 # 🎯 TAREAS PENDIENTES Y PRIORIDADES
 
-**Última actualización:** 13 de marzo de 2026
+**Última actualización:** 20 de marzo de 2026
+
+---
+
+## ✅ COMPLETADO RECIENTEMENTE
+
+### 📅 Módulo Agenda (19-20 Marzo 2026)
+
+**Estado:** ✅ 100% Completado y en Producción
+
+**Implementado:**
+- ✅ Sistema completo de calendario con FullCalendar v7
+- ✅ 3 tabs: Calendario, Citas del día, Bitácora
+- ✅ Eventos recurrentes con RRule (RFC 5545)
+- ✅ Migración de 1,020 eventos legacy desde atinet65_aplicativos.agenda
+- ✅ View selector para admins ("Ver todo" / "Solo míos")
+- ✅ Modal read-only para eventos legacy compartidos (user_id=NULL)
+- ✅ Drag & Drop y Resize de eventos
+- ✅ Sistema de permisos por notaría y tipo de usuario
+- ✅ 4 tipos de eventos: General, Cita, Recordatorio, Festivo
+- ✅ Testing comprehensivo (6 scripts de validación)
+- ✅ Resolución de bugs críticos (infinite loops, sync issues)
+- ✅ Integración con React/TypeScript + Inertia.js v2
+
+**Documentación:**
+- 📘 [`docs/MODULO_AGENDA.md`](docs/MODULO_AGENDA.md) - Documentación técnica completa
+
+**Pendientes opcionales:**
+- ⏸️ Migración de otras notarías (71monterrey: 2,279 eventos, 12Colima: 706 eventos)
+- ⏸️ Notificaciones por email de recordatorios
+- ⏸️ Exportación a iCal/Google Calendar
 
 ---
 
@@ -39,12 +69,36 @@
 ## 📋 Estado General del Proyecto
 
 ```
-Fase 1.5: 100% Completa ✅
+Fase 0: Infraestructura Base (100%) ✅
+Fase 1: Multi-Tenant (100%) ✅
+Fase 1.5: Servicios y Suscripciones (100%) ✅
 ├── Core (100%) ✅
 ├── Control de Límites (100%) ✅  
 ├── Reportes - Dashboard Básico (100%) ✅
 ├── Gestión Multi-Tenant Usuarios (100%) ✅
 └── Pagos (0%) ⏸️ (Futuro)
+
+Fase 2: Listas Negras OFAC + SAT (100%) ✅
+├── Búsqueda OFAC (100%) ✅
+├── Búsqueda SAT (100%) ✅
+├── Búsqueda Combinada (100%) ✅
+├── Generación PDFs (100%) ✅
+└── Middleware de Protección (100%) ✅
+
+Módulo Agenda (100%) ✅ [NUEVO - Marzo 2026]
+├── FullCalendar + RRule (100%) ✅
+├── Migración Legacy (100%) ✅
+├── View Selector (100%) ✅
+├── Modal Read-Only (100%) ✅
+└── Testing Comprehensivo (100%) ✅
+
+Fase 3: Mejoras (0%) ⏸️ Planificada
+├── Historial Búsquedas (0%)
+├── Excel Export (0%)
+├── Cache (0%)
+├── Dashboard Estadísticas (0%)
+├── Alertas (0%)
+└── API Real OFAC/SAT (0%)
 ```
 
 ---

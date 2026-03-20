@@ -49,6 +49,18 @@ Este documento sirve como índice central de toda la documentación del proyecto
   - ✅ Interfaz React/TypeScript con Shadcn UI
   - ✅ Rutas protegidas por middleware de suscripción
 
+#### Módulo Agenda 📅 Completado (Marzo 2026)
+- [`MODULO_AGENDA.md`](docs/MODULO_AGENDA.md) - **Sistema completo de gestión de calendario**
+  - ✅ FullCalendar v7 con 3 tabs (Calendario, Citas del día, Bitácora)
+  - ✅ Eventos recurrentes con RRule (RFC 5545)
+  - ✅ Migración de 1,020 eventos legacy desde atinet65_aplicativos
+  - ✅ View selector para admins ("Ver todo" / "Solo míos")
+  - ✅ Modal read-only para eventos legacy compartidos
+  - ✅ Drag & Drop y Resize de eventos
+  - ✅ Sistema completo de permisos y visibilidad por notaría
+  - ✅ 4 tipos de eventos (General, Cita, Recordatorio, Festivo)
+  - ✅ Integración con React/TypeScript + Inertia.js v2
+
 ### 📘 Documentos de Referencia Rápida
 
 | Documento | Descripción | Ubicación |
@@ -78,6 +90,31 @@ Este documento sirve como índice central de toda la documentación del proyecto
 - ✅ Aislamiento de datos por tenant
 
 ### Sistema de Servicios y Planes (Fase 1.5)
+- ✅ CRUD completo de servicios y planes
+- ✅ Control de límites de uso por suscripción
+- ✅ Dashboard con gráficos interactivos (Chart.js)
+- ✅ Gestión de suscripciones automáticas
+- ✅ Verificación automática de vencimientos
+
+### Sistema de Búsquedas en Listas Negras (Fase 2)
+- ✅ Búsqueda OFAC (Persona Física/Moral)
+- ✅ Búsqueda SAT (RFC - Artículo 69-B)
+- ✅ Búsqueda combinada (OFAC + SAT)
+- ✅ Generación de PDFs profesionales (tFPDF)
+- ✅ Visualización detallada de múltiples resultados
+- ✅ Middleware de protección por suscripción
+
+### Sistema de Agenda (Módulo Agenda)
+- ✅ Calendario completo con FullCalendar v7
+- ✅ 3 tabs: Calendario, Citas del día, Bitácora
+- ✅ Eventos recurrentes (Diario, Semanal, Mensual, Anual)
+- ✅ View selector ("Ver todo" / "Solo míos") para admins
+- ✅ 4 tipos de eventos: General, Cita, Recordatorio, Festivo
+- ✅ Drag & Drop y Resize de eventos
+- ✅ Migración de 1,020 eventos legacy de 'atinet'
+- ✅ Modal read-only para eventos legacy compartidos
+- ✅ Sistema de permisos multi-nivel (Super Admin, Admin Notaría, Usuario)
+- ✅ Integración con sistema legacy para bitácora de actividades
 - ✅ CRUD de servicios con categorías
 - ✅ CRUD de planes con auto-sincronización
 - ✅ Asignación de servicios a planes
