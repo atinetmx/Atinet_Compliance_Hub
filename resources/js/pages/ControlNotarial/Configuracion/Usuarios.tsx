@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -339,10 +338,10 @@ export default function ControlNotarialUsuarios() {
 
     // Componente de Label para campos requeridos
     const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
-        <Label htmlFor={htmlFor} className="flex items-center gap-1">
+        <label htmlFor={htmlFor} className="text-sm font-medium flex items-center gap-1">
             {children}
             <span className="text-red-500">*</span>
-        </Label>
+        </label>
     );
 
     return (
@@ -557,7 +556,7 @@ export default function ControlNotarialUsuarios() {
                                 {/* Fila 3: Correo, Usuario, Contraseña */}
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="correo">Correo</Label>
+                                        <label htmlFor="correo" className="text-sm font-medium">Correo</label>
                                         <Input
                                             id="correo"
                                             name="correo"
@@ -593,7 +592,7 @@ export default function ControlNotarialUsuarios() {
                                 {/* Fila 4: CURP, RFC */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="curp">CURP</Label>
+                                        <label htmlFor="curp" className="text-sm font-medium">CURP</label>
                                         <Input
                                             id="curp"
                                             name="curp"
@@ -604,7 +603,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="rfc">RFC</Label>
+                                        <label htmlFor="rfc" className="text-sm font-medium">RFC</label>
                                         <Input
                                             id="rfc"
                                             name="rfc"
@@ -629,7 +628,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="adscripcion">Adscripción</Label>
+                                        <label htmlFor="adscripcion" className="text-sm font-medium">Adscripción</label>
                                         <Input
                                             id="adscripcion"
                                             name="adscripcion"
@@ -639,7 +638,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="tipo">Tipo</Label>
+                                        <label htmlFor="tipo" className="text-sm font-medium">Tipo</label>
                                         <Input
                                             id="tipo"
                                             name="tipo"
@@ -649,7 +648,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="procedencia">Procedencia</Label>
+                                        <label htmlFor="procedencia" className="text-sm font-medium">Procedencia</label>
                                         <Input
                                             id="procedencia"
                                             name="procedencia"
@@ -662,7 +661,7 @@ export default function ControlNotarialUsuarios() {
 
                                 {/* Fila 6: Observaciones */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="observaciones">Observaciones</Label>
+                                    <label htmlFor="observaciones" className="text-sm font-medium">Observaciones</label>
                                     <textarea
                                         id="observaciones"
                                         name="observaciones"
@@ -684,7 +683,7 @@ export default function ControlNotarialUsuarios() {
                                         onChange={handleInputChange}
                                         className="h-4 w-4 border border-primary rounded"
                                     />
-                                    <Label htmlFor="activo" className="cursor-pointer">Activo</Label>
+                                    <label htmlFor="activo" className="text-sm font-medium cursor-pointer">Activo</label>
                                 </div>
 
                                 {/* Botones */}
@@ -727,4 +726,5 @@ ControlNotarialUsuarios.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+
 

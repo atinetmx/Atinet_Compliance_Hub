@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -599,10 +598,10 @@ export default function ControlNotarialClientes() {
 
     // Componente de Label para campos requeridos
     const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
-        <Label htmlFor={htmlFor} className="flex items-center gap-1">
+        <label htmlFor={htmlFor} className="text-sm font-medium flex items-center gap-1">
             {children}
             <span className="text-red-500">*</span>
-        </Label>
+        </label>
     );
 
     const handleCancelEdit = () => {
@@ -835,7 +834,7 @@ export default function ControlNotarialClientes() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="apellido_materno">Apellido Materno</Label>
+                                        <label htmlFor="apellido_materno" className="text-sm font-medium">Apellido Materno</label>
                                         <Input
                                             id="apellido_materno"
                                             name="apellido_materno"
@@ -848,7 +847,7 @@ export default function ControlNotarialClientes() {
                                 {/* CURP, RFC, Fecha Nacimiento, Edad */}
                                 <div className="grid grid-cols-4 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="curp">C.U.R.P.</Label>
+                                        <label htmlFor="curp">C.U.R.P.</label>
                                         <Input
                                             id="curp"
                                             name="curp"
@@ -878,7 +877,7 @@ export default function ControlNotarialClientes() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="edad">Edad</Label>
+                                        <label htmlFor="edad">Edad</label>
                                         <Input
                                             id="edad"
                                             name="edad"
@@ -892,7 +891,7 @@ export default function ControlNotarialClientes() {
 
                                 {/* Régimen Fiscal */}
                                 <div className="space-y-2 mb-4">
-                                    <Label htmlFor="regimen_fiscal">Régimen Fiscal</Label>
+                                    <label htmlFor="regimen_fiscal">Régimen Fiscal</label>
                                     <Input
                                         id="regimen_fiscal"
                                         name="regimen_fiscal"
@@ -903,9 +902,9 @@ export default function ControlNotarialClientes() {
 
                                 {/* Cliente Activo Switch */}
                                 <div className="flex items-center gap-3 pt-4 border-t">
-                                    <Label htmlFor="activo" className="text-sm font-medium">
+                                    <label htmlFor="activo" className="text-sm font-medium">
                                         Cliente Activo
-                                    </Label>
+                                    </label>
                                     <Switch
                                         id="activo"
                                         checked={formData.activo}
@@ -943,7 +942,7 @@ export default function ControlNotarialClientes() {
                                 {/* Ciudad, Municipio, Estado */}
                                 <div className="grid grid-cols-3 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="ciudad_nacimiento">Ciudad</Label>
+                                        <label htmlFor="ciudad_nacimiento" className="text-sm font-medium">Ciudad</label>
                                         <Input
                                             id="ciudad_nacimiento"
                                             name="ciudad_nacimiento"
@@ -988,9 +987,9 @@ export default function ControlNotarialClientes() {
                                             onChange={() => setDomicilioType('particular')}
                                             className="h-4 w-4"
                                         />
-                                        <Label htmlFor="domicilio-particular" className="cursor-pointer">
+                                        <label htmlFor="domicilio-particular" className="cursor-pointer">
                                             Domicilio Particular
-                                        </Label>
+                                        </label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <input
@@ -1001,9 +1000,9 @@ export default function ControlNotarialClientes() {
                                             onChange={() => setDomicilioType('fiscal')}
                                             className="h-4 w-4"
                                         />
-                                        <Label htmlFor="domicilio-fiscal" className="cursor-pointer">
+                                        <label htmlFor="domicilio-fiscal" className="cursor-pointer">
                                             Domicilio Fiscal
-                                        </Label>
+                                        </label>
                                     </div>
                                 </div>
 
@@ -1033,7 +1032,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="numero_interior">No. Interior</Label>
+                                                <label htmlFor="numero_interior">No. Interior</label>
                                                 <Input
                                                     id="numero_interior"
                                                     name="numero_interior"
@@ -1042,7 +1041,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="manzana">Mz.</Label>
+                                                <label htmlFor="manzana">Mz.</label>
                                                 <Input
                                                     id="manzana"
                                                     name="manzana"
@@ -1051,7 +1050,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="lote">Lote</Label>
+                                                <label htmlFor="lote">Lote</label>
                                                 <Input
                                                     id="lote"
                                                     name="lote"
@@ -1133,7 +1132,7 @@ export default function ControlNotarialClientes() {
 
                                         {/* Calle */}
                                         <div className="space-y-2">
-                                            <Label htmlFor="domicilio_fiscal_calle">Calle</Label>
+                                            <label htmlFor="domicilio_fiscal_calle">Calle</label>
                                             <Input
                                                 id="domicilio_fiscal_calle"
                                                 name="domicilio_fiscal_calle"
@@ -1145,7 +1144,7 @@ export default function ControlNotarialClientes() {
                                         {/* No. Exterior, No. Interior, Mz., Lote */}
                                         <div className="grid grid-cols-4 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_num_ext">No. Exterior</Label>
+                                                <label htmlFor="domicilio_fiscal_num_ext">No. Exterior</label>
                                                 <Input
                                                     id="domicilio_fiscal_num_ext"
                                                     name="domicilio_fiscal_num_ext"
@@ -1154,7 +1153,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_num_int">No. Interior</Label>
+                                                <label htmlFor="domicilio_fiscal_num_int">No. Interior</label>
                                                 <Input
                                                     id="domicilio_fiscal_num_int"
                                                     name="domicilio_fiscal_num_int"
@@ -1163,7 +1162,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_mz">Mz.</Label>
+                                                <label htmlFor="domicilio_fiscal_mz">Mz.</label>
                                                 <Input
                                                     id="domicilio_fiscal_mz"
                                                     name="domicilio_fiscal_mz"
@@ -1172,7 +1171,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_lote">Lote</Label>
+                                                <label htmlFor="domicilio_fiscal_lote">Lote</label>
                                                 <Input
                                                     id="domicilio_fiscal_lote"
                                                     name="domicilio_fiscal_lote"
@@ -1185,7 +1184,7 @@ export default function ControlNotarialClientes() {
                                         {/* Ciudad, Colonia, CP */}
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_ciudad">Municipio</Label>
+                                                <label htmlFor="domicilio_fiscal_ciudad">Municipio</label>
                                                 <Input
                                                     id="domicilio_fiscal_ciudad"
                                                     name="domicilio_fiscal_ciudad"
@@ -1194,7 +1193,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_colonia">Colonia</Label>
+                                                <label htmlFor="domicilio_fiscal_colonia">Colonia</label>
                                                 <Input
                                                     id="domicilio_fiscal_colonia"
                                                     name="domicilio_fiscal_colonia"
@@ -1203,7 +1202,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_cp">CP</Label>
+                                                <label htmlFor="domicilio_fiscal_cp">CP</label>
                                                 <Input
                                                     id="domicilio_fiscal_cp"
                                                     name="domicilio_fiscal_cp"
@@ -1216,7 +1215,7 @@ export default function ControlNotarialClientes() {
                                         {/* Estado, País */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_estado">Estado/Provincia</Label>
+                                                <label htmlFor="domicilio_fiscal_estado">Estado/Provincia</label>
                                                 <Input
                                                     id="domicilio_fiscal_estado"
                                                     name="domicilio_fiscal_estado"
@@ -1225,7 +1224,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="domicilio_fiscal_pais">País</Label>
+                                                <label htmlFor="domicilio_fiscal_pais">País</label>
                                                 <Input
                                                     id="domicilio_fiscal_pais"
                                                     name="domicilio_fiscal_pais"
@@ -1246,7 +1245,7 @@ export default function ControlNotarialClientes() {
                                 {/* Teléfonos */}
                                 <div className="grid grid-cols-3 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="tel_particular">Tel. Particular</Label>
+                                        <label htmlFor="tel_particular">Tel. Particular</label>
                                         <Input
                                             id="tel_particular"
                                             name="tel_particular"
@@ -1255,7 +1254,7 @@ export default function ControlNotarialClientes() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="tel_oficina">Tel. Oficina</Label>
+                                        <label htmlFor="tel_oficina">Tel. Oficina</label>
                                         <Input
                                             id="tel_oficina"
                                             name="tel_oficina"
@@ -1277,7 +1276,7 @@ export default function ControlNotarialClientes() {
                                 {/* Email 1, Email 2 */}
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="email_1">E-mail (1)</Label>
+                                        <label htmlFor="email_1">E-mail (1)</label>
                                         <Input
                                             id="email_1"
                                             name="email_1"
@@ -1287,7 +1286,7 @@ export default function ControlNotarialClientes() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="email_2">E-mail (2)</Label>
+                                        <label htmlFor="email_2">E-mail (2)</label>
                                         <Input
                                             id="email_2"
                                             name="email_2"
@@ -1328,7 +1327,7 @@ export default function ControlNotarialClientes() {
                                 {/* Sexo, IDMEX */}
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="sexo">Sexo</Label>
+                                        <label htmlFor="sexo">Sexo</label>
                                         <Select value={formData.sexo} onValueChange={(value) => setFormData(prev => ({ ...prev, sexo: value as 'M' | 'F' | '' }))}>
                                             <SelectTrigger>
                                                 <SelectValue />
@@ -1340,7 +1339,7 @@ export default function ControlNotarialClientes() {
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="idmex">IDMEX (INE)</Label>
+                                        <label htmlFor="idmex">IDMEX (INE)</label>
                                         <Input
                                             id="idmex"
                                             name="idmex"
@@ -1353,7 +1352,7 @@ export default function ControlNotarialClientes() {
                                 {/* OCR, Autoridad Emisora, Vigencia */}
                                 <div className="grid grid-cols-3 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="ocr">OCR</Label>
+                                        <label htmlFor="ocr">OCR</label>
                                         <Input
                                             id="ocr"
                                             name="ocr"
@@ -1385,7 +1384,7 @@ export default function ControlNotarialClientes() {
                                 {/* Ocupación, Estado Civil */}
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="ocupacion">Ocupación</Label>
+                                        <label htmlFor="ocupacion">Ocupación</label>
                                         <Input
                                             id="ocupacion"
                                             name="ocupacion"
@@ -1436,7 +1435,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="apellido_materno_conyuge">Apellido Materno</Label>
+                                                <label htmlFor="apellido_materno_conyuge">Apellido Materno</label>
                                                 <Input
                                                     id="apellido_materno_conyuge"
                                                     name="apellido_materno_conyuge"
@@ -1467,7 +1466,7 @@ export default function ControlNotarialClientes() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="autoridad_emisora_conyuge">Autoridad Emisora</Label>
+                                                <label htmlFor="autoridad_emisora_conyuge">Autoridad Emisora</label>
                                                 <Input
                                                     id="autoridad_emisora_conyuge"
                                                     name="autoridad_emisora_conyuge"
@@ -1533,3 +1532,4 @@ ControlNotarialClientes.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+

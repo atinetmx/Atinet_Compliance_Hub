@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, DollarSign } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,14 @@ import type { BreadcrumbItem } from '@/types';
 
 interface PresupuestoPrevioData {
     id?: string | number;
-    cliente: string;
-    operacion: string;
-    zona_municipio: string;
+    cliente: string | number;
+    operacion: string | number;
+    zona_municipio: string | number;
     observaciones: string;
     valor_operacion: number;
     valor_avaluo: number;
     valor_catastral: number;
+    parametro: string;
     honorarios: number;
     descuento: number;
     incluir_iva: boolean;
@@ -70,7 +71,8 @@ interface Cliente {
 }
 
 interface ImpuestoDerechoAPI {
-    id: number;
+    id?: number;
+    impuestos_derechos_Id: number;
     descripcion: string;
     importe?: number;
     observaciones?: string;
@@ -84,6 +86,7 @@ const defaultPresupuestoData: PresupuestoPrevioData = {
     valor_operacion: 0,
     valor_avaluo: 0,
     valor_catastral: 0,
+    parametro: '',
     honorarios: 0,
     descuento: 0,
     incluir_iva: false,
@@ -117,6 +120,9 @@ export default function PresupuestoPrevioIndex() {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [ret_isr_check, setRetISRCheck] = useState(false);
     const [ret_iva_check, setRetIVACheck] = useState(false);
+    const [showPdfViewer, setShowPdfViewer] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [isLoadingPdf, setIsLoadingPdf] = useState(false);
     const { addToast } = useToast();
 
     // Cargar presupuestos al montar (filtro vacío = todos)
@@ -211,11 +217,16 @@ export default function PresupuestoPrevioIndex() {
     };
 
     const handleSelectChange = async (name: string, value: string) => {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        // Si es cliente u operación, convertir a número
+        let actualValue: string | number = value;
+        if ((name === 'operacion' || name === 'cliente') && value) {
+            actualValue = Number(value);
+        }
+        setFormData(prev => ({ ...prev, [name]: actualValue }));
 
         // Si se selecciona una operación, cargar impuestos y derechos
         if (name === 'operacion' && value) {
-            const operacionSeleccionada = operaciones.find(op => op.descripcion === value);
+            const operacionSeleccionada = operaciones.find(op => op.id === Number(value));
             if (operacionSeleccionada) {
                 try {
                     setIsLoadingImpuestos(true);
@@ -228,7 +239,7 @@ export default function PresupuestoPrevioIndex() {
                     if (response.ok && data.dataResponse) {
                         // Mapear los datos del API al formato de impuestos_derechos
                         const impuestosFormato = data.dataResponse.map((item: ImpuestoDerechoAPI) => ({
-                            id: item.id.toString(),
+                            id: item.impuestos_derechos_Id.toString(),
                             descripcion: item.descripcion,
                             importe: item.importe || 0,
                             observaciones: item.observaciones || ''
@@ -343,23 +354,44 @@ export default function PresupuestoPrevioIndex() {
 
             const totales = calcularTotales();
 
+            // Validar que cliente y operacion tienen valores válidos
+            const clienteId = Number(formData.cliente);
+            const operacionId = Number(formData.operacion);
+
+            if (isNaN(clienteId) || clienteId === 0) {
+                addToast('Cliente inválido', 'error');
+                setIsSaving(false);
+                return;
+            }
+
+            if (isNaN(operacionId) || operacionId === 0) {
+                addToast('Operación inválida', 'error');
+                setIsSaving(false);
+                return;
+            }
+
             const payload = {
-                cliente: formData.cliente,
-                operacion: formData.operacion,
-                zona_municipio: formData.zona_municipio,
-                observaciones: formData.observaciones,
-                valor_operacion: formData.valor_operacion,
-                valor_avaluo: formData.valor_avaluo,
-                valor_catastral: formData.valor_catastral,
-                honorarios: formData.honorarios,
-                descuento: formData.descuento,
-                incluir_iva: formData.incluir_iva,
-                iva: totales.ivaCalculado,
-                retencion_isr: totales.retISR,
-                retencion_iva: totales.retIVA,
-                impuestos_derechos: formData.impuestos_derechos,
-                gastos_notariales: formData.gastos_notariales,
-                activo: formData.activo,
+                presupuestoPrevio: {
+                    cliente_Id: clienteId,
+                    operacion_Id: operacionId,
+                    zona_Municipio_Id: formData.zona_municipio ? Number(formData.zona_municipio) : 0,
+                    observaciones: formData.observaciones,
+                    valor_Operacion: formData.valor_operacion,
+                    valor_Avaluo: formData.valor_avaluo,
+                    valor_Catastral: formData.valor_catastral,
+                    parametro: formData.parametro,
+                    honorarios: formData.honorarios,
+                    descuento: formData.descuento,
+                },
+                presupuestoPrevioImpuestosDerechos: formData.impuestos_derechos.map(item => ({
+                    impuestos_Derechos_Id: Number(item.id),
+                    importe: item.importe,
+                    observaciones: item.observaciones || '',
+                })),
+                presupuestoPrevioGastosNotariales: formData.gastos_notariales.map(item => ({
+                    concepto: item.descripcion,
+                    importe: item.importe,
+                })),
             };
 
             const url = isEditing && formData.id
@@ -402,25 +434,55 @@ export default function PresupuestoPrevioIndex() {
         setSaveError(null);
         setActiveTab('formulario');
         try {
-            setFormData({
-                id: presupuesto.id,
-                cliente: presupuesto.nombre,
-                operacion: presupuesto.operacion,
-                zona_municipio: '',
-                observaciones: `Creado: ${presupuesto.fecha_Creacion}`,
-                valor_operacion: 0,
-                valor_avaluo: 0,
-                valor_catastral: 0,
-                honorarios: 0,
-                descuento: 0,
-                incluir_iva: false,
-                iva: 0,
-                retencion_isr: 0,
-                retencion_iva: 0,
-                impuestos_derechos: [],
-                gastos_notariales: [],
-                activo: presupuesto.activo,
+            // Llamar a la API para obtener los detalles completos del presupuesto
+            const response = await fetch(`https://localhost:44327/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
+                headers: { 'Content-Type': 'application/json' },
             });
+
+            if (!response.ok) {
+                throw new Error('Error al obtener los detalles del presupuesto');
+            }
+
+            const data = await response.json();
+            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data.dataResponse;
+
+            // Mapear impuestos y derechos al formato DetalleItem
+            const impuestosFormato = impuestosDerechos.map((item: any) => ({
+                id: item.impuestos_Derechos_Id.toString(),
+                descripcion: item.descripcion,
+                importe: item.importe,
+                observaciones: item.observaciones || ''
+            }));
+
+            // Mapear gastos notariales al formato DetalleItem
+            const gastosFormato = gastosNotariales.map((item: any) => ({
+                id: Date.now().toString() + Math.random(),
+                descripcion: item.concepto,
+                importe: item.importe
+            }));
+
+            setFormData({
+                id: presupuestoPrevio.id,
+                cliente: presupuestoPrevio.cliente_Id,
+                operacion: presupuestoPrevio.operacion_Id,
+                zona_municipio: presupuestoPrevio.zona_Municipio_Id || '',
+                observaciones: presupuestoPrevio.observaciones,
+                valor_operacion: presupuestoPrevio.valor_Operacion,
+                valor_avaluo: presupuestoPrevio.valor_Avaluo,
+                valor_catastral: presupuestoPrevio.valor_Catastral,
+                parametro: presupuestoPrevio.parametro,
+                honorarios: presupuestoPrevio.honorarios,
+                descuento: presupuestoPrevio.descuento,
+                incluir_iva: presupuestoPrevio.iva > 0,
+                iva: presupuestoPrevio.iva,
+                retencion_isr: presupuestoPrevio.retencion_ISR,
+                retencion_iva: presupuestoPrevio.retencion_IVA,
+                impuestos_derechos: impuestosFormato,
+                gastos_notariales: gastosFormato,
+                activo: presupuestoPrevio.activo,
+            });
+
+            addToast('Presupuesto cargado correctamente', 'success');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar el presupuesto';
             addToast(message, 'error');
@@ -436,6 +498,44 @@ export default function PresupuestoPrevioIndex() {
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
+    };
+
+    const handleViewPdf = async () => {
+        if (!formData.id) {
+            addToast('Debe guardar el presupuesto primero', 'error');
+            return;
+        }
+
+        try {
+            setIsLoadingPdf(true);
+            const response = await fetch(`https://localhost:44327/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al generar el PDF');
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            setPdfUrl(url);
+            setShowPdfViewer(true);
+            addToast('PDF cargado correctamente', 'success');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al generar el PDF';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setIsLoadingPdf(false);
+        }
+    };
+
+    const closePdfViewer = () => {
+        setShowPdfViewer(false);
+        if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(null);
+        }
     };
 
     // Componente de Label para campos requeridos
@@ -610,13 +710,13 @@ export default function PresupuestoPrevioIndex() {
                                                 <select
                                                     id="cliente"
                                                     name="cliente"
-                                                    value={formData.cliente}
+                                                    value={formData.cliente ? String(formData.cliente) : ''}
                                                     onChange={(e) => handleSelectChange('cliente', e.target.value)}
                                                     className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                                 >
                                                     <option value="">Selecciona un cliente</option>
                                                     {clientes.map((cliente) => (
-                                                        <option key={cliente.id} value={`${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`}>
+                                                        <option key={cliente.id} value={String(cliente.id)}>
                                                             {cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}
                                                         </option>
                                                     ))}
@@ -627,14 +727,14 @@ export default function PresupuestoPrevioIndex() {
                                                 <select
                                                     id="operacion"
                                                     name="operacion"
-                                                    value={formData.operacion}
+                                                    value={formData.operacion || ''}
                                                     onChange={(e) => handleSelectChange('operacion', e.target.value)}
-                                                    disabled={isLoadingOperaciones || isEditing}
+                                                    disabled={isLoadingOperaciones}
                                                     className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     <option value="">Selecciona una operación</option>
                                                     {operaciones.map((operacion) => (
-                                                        <option key={operacion.id} value={operacion.descripcion}>
+                                                        <option key={operacion.id} value={operacion.id}>
                                                             {operacion.descripcion}
                                                         </option>
                                                     ))}
@@ -718,35 +818,42 @@ export default function PresupuestoPrevioIndex() {
                                     <div className="grid grid-cols-3 gap-4 mb-4">
                                         <div className="space-y-1">
                                             <label className="text-sm font-medium">Honorarios</label>
-                                            <Input
-                                                name="honorarios"
-                                                type="number"
-                                                step="0.01"
-                                                value={formData.honorarios}
-                                                onChange={handleInputChange}
-                                                className="text-right font-bold"
-                                            />
+                                            <div className="flex items-center border rounded-md overflow-hidden">
+                                                <Input
+                                                    name="honorarios"
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={formData.honorarios}
+                                                    onChange={handleInputChange}
+                                                    className="text-right font-bold border-0 rounded-none"
+                                                />
+                                            </div>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-sm font-medium">Descuento</label>
-                                            <Input
-                                                name="descuento"
-                                                type="number"
-                                                step="0.01"
-                                                value={formData.descuento}
-                                                onChange={handleInputChange}
-                                                className="text-right font-bold"
-                                            />
+                                            <div className="flex items-center border rounded-md overflow-hidden">
+
+                                                <Input
+                                                    name="descuento"
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={formData.descuento}
+                                                    onChange={handleInputChange}
+                                                    className="text-right font-bold border-0 rounded-none"
+                                                />
+                                            </div>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-sm font-medium">Subtotal Honorarios</label>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={(formData.honorarios - formData.descuento).toFixed(2)}
-                                                disabled
-                                                className="text-right font-bold text-green-600"
-                                            />
+                                            <div className="flex items-center border rounded-md overflow-hidden">
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={(formData.honorarios - formData.descuento).toFixed(2)}
+                                                    disabled
+                                                    className="text-right font-bold text-green-600 border-0 rounded-none"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -853,50 +960,61 @@ export default function PresupuestoPrevioIndex() {
                                     {formData.impuestos_derechos.length === 0 ? (
                                         <p className="text-center text-muted-foreground py-4">No hay conceptos agregados</p>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {formData.impuestos_derechos.map((item) => (
-                                                <div key={item.id} className="grid grid-cols-12 gap-2 p-3 border rounded-lg bg-background/30">
-                                                    <div className="col-span-5">
-                                                        <label className="text-xs font-medium text-muted-foreground">Descripción</label>
-                                                        <Input
-                                                            value={item.descripcion}
-                                                            placeholder="Descripción"
-                                                            disabled
-                                                            className="w-full bg-muted"
-                                                        />
-                                                    </div>
-                                                    <div className="col-span-2">
-                                                        <label className="text-xs font-medium text-muted-foreground">Importe</label>
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={item.importe}
-                                                            onChange={(e) => updateImpuestoDerechos(item.id, 'importe', e.target.value)}
-                                                            placeholder="0.00"
-                                                            className="text-right w-full"
-                                                        />
-                                                    </div>
-                                                    <div className="col-span-4">
-                                                        <label className="text-xs font-medium text-muted-foreground">Observaciones</label>
-                                                        <Input
-                                                            value={item.observaciones || ''}
-                                                            onChange={(e) => updateImpuestoDerechos(item.id, 'observaciones', e.target.value)}
-                                                            placeholder="Observaciones"
-                                                            className="w-full"
-                                                        />
-                                                    </div>
-                                                    <div className="col-span-1 flex items-end">
-                                                        <Button
-                                                            onClick={() => removeImpuestoDerechos(item.id)}
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            className="w-full"
-                                                        >
-                                                            <X className="h-3 w-3" />
-                                                        </Button>
-                                                    </div>
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted border-b">
+                                                <div className="col-span-6">
+                                                    <p className="text-xs font-medium">Descripción</p>
                                                 </div>
-                                            ))}
+                                                <div className="col-span-1">
+                                                    <p className="text-xs font-medium">Importe</p>
+                                                </div>
+                                                <div className="col-span-4">
+                                                    <p className="text-xs font-medium">Observaciones</p>
+                                                </div>
+                                                <div className="col-span-1"></div>
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto">
+                                                {formData.impuestos_derechos.map((item) => (
+                                                    <div key={item.id} className="grid grid-cols-12 gap-2 p-2 border-b last:border-b-0 bg-background hover:bg-muted/50">
+                                                        <div className="col-span-6">
+                                                            <Input
+                                                                value={item.descripcion}
+                                                                placeholder="Descripción"
+                                                                disabled
+                                                                className="w-full bg-muted text-sm h-8"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-1">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={item.importe}
+                                                                onChange={(e) => updateImpuestoDerechos(item.id, 'importe', e.target.value)}
+                                                                placeholder="0.00"
+                                                                className="text-right w-full text-sm h-8"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-4">
+                                                            <Input
+                                                                value={item.observaciones || ''}
+                                                                onChange={(e) => updateImpuestoDerechos(item.id, 'observaciones', e.target.value)}
+                                                                placeholder="Observaciones"
+                                                                className="w-full text-sm h-8"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-1 flex items-center justify-center">
+                                                            <Button
+                                                                onClick={() => removeImpuestoDerechos(item.id)}
+                                                                size="xs"
+                                                                variant="destructive"
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                <X className="h-2 w-2" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -913,32 +1031,50 @@ export default function PresupuestoPrevioIndex() {
                                     {formData.gastos_notariales.length === 0 ? (
                                         <p className="text-center text-muted-foreground py-4">No hay conceptos agregados</p>
                                     ) : (
-                                        <div className="space-y-2">
-                                            {formData.gastos_notariales.map((item) => (
-                                                <div key={item.id} className="flex gap-2">
-                                                    <Input
-                                                        value={item.descripcion}
-                                                        placeholder="Concepto"
-                                                        disabled
-                                                        className="flex-1 bg-muted"
-                                                    />
-                                                    <Input
-                                                        type="number"
-                                                        step="0.01"
-                                                        value={item.importe}
-                                                        onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
-                                                        placeholder="Importe"
-                                                        className="w-32 text-right"
-                                                    />
-                                                    <Button
-                                                        onClick={() => removeGastoNotarial(item.id)}
-                                                        size="sm"
-                                                        variant="destructive"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted border-b">
+                                                <div className="col-span-9">
+                                                    <p className="text-xs font-medium">Concepto</p>
                                                 </div>
-                                            ))}
+                                                <div className="col-span-2">
+                                                    <p className="text-xs font-medium">Importe</p>
+                                                </div>
+                                                <div className="col-span-1"></div>
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto">
+                                                {formData.gastos_notariales.map((item) => (
+                                                    <div key={item.id} className="grid grid-cols-12 gap-2 p-2 border-b last:border-b-0 bg-background hover:bg-muted/50">
+                                                        <div className="col-span-9">
+                                                            <Input
+                                                                value={item.descripcion}
+                                                                onChange={(e) => updateGastoNotarial(item.id, 'descripcion', e.target.value)}
+                                                                placeholder="Concepto"
+                                                                className="w-full text-sm h-8"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={item.importe}
+                                                                onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
+                                                                placeholder="Importe"
+                                                                className="text-right w-full text-sm h-8"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-1 flex items-center justify-center">
+                                                            <Button
+                                                                onClick={() => removeGastoNotarial(item.id)}
+                                                                size="xs"
+                                                                variant="destructive"
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                <X className="h-2 w-2" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -973,10 +1109,24 @@ export default function PresupuestoPrevioIndex() {
                                 {/* BOTONES DE ACCIÓN */}
                                 <div className="flex gap-2 justify-end pt-4 border-t">
                                     {isEditing && (
-                                        <Button variant="outline" onClick={handleCancelEdit}>
-                                            <X className="h-4 w-4 mr-2" />
-                                            Cancelar
-                                        </Button>
+                                        <>
+                                            <Button variant="outline" onClick={handleCancelEdit}>
+                                                <X className="h-4 w-4 mr-2" />
+                                                Cancelar
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={handleViewPdf}
+                                                disabled={isLoadingPdf || !formData.id}
+                                            >
+                                                {isLoadingPdf ? (
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                )}
+                                                Ver Impresión
+                                            </Button>
+                                        </>
                                     )}
                                     <Button
                                         onClick={handleAddPresupuesto}
@@ -992,22 +1142,52 @@ export default function PresupuestoPrevioIndex() {
                                     </Button>
                                 </div>
 
-                                {/* CHECKBOX ACTIVO */}
-                                <div className="flex items-center space-x-2 pt-2">
-                                    <input
-                                        id="activo"
-                                        name="activo"
-                                        type="checkbox"
-                                        checked={formData.activo}
-                                        onChange={handleInputChange}
-                                        className="h-4 w-4 border border-primary rounded"
-                                    />
-                                    <label htmlFor="activo" className="cursor-pointer text-sm">Activo</label>
-                                </div>
+
                             </div>
                         )}
                     </TabsContent>
                 </Tabs>
+
+                {/* VISOR DE PDF */}
+                {showPdfViewer && pdfUrl && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+                        <div className="bg-white rounded-lg shadow-lg w-[95vw] h-[95vh] flex flex-col">
+                            <div className="flex justify-between items-center p-3 border-b bg-gray-50">
+                                <h2 className="text-lg font-bold">Impresión - Presupuesto Previo</h2>
+                                <button
+                                    onClick={closePdfViewer}
+                                    className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <iframe
+                                    src={pdfUrl}
+                                    width="100%"
+                                    height="100%"
+                                    style={{ border: 'none' }}
+                                    title="PDF Viewer"
+                                />
+                            </div>
+                            <div className="flex gap-2 justify-end p-3 border-t bg-gray-50">
+                                <a
+                                    href={pdfUrl}
+                                    download={`Presupuesto_Previo_${formData.id}.pdf`}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                                >
+                                    Descargar PDF
+                                </a>
+                                <button
+                                    onClick={closePdfViewer}
+                                    className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </>
     );
