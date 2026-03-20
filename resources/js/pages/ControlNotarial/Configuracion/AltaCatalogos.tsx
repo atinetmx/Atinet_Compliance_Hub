@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -499,7 +499,7 @@ export default function ControlNotarialAltaCatalogos() {
 
                 {/* Descripción */}
                 <div className="space-y-2">
-                    <Label htmlFor="descripcion">Descripción *</Label>
+                    <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
                     <textarea
                         id="descripcion"
                         name="descripcion"
@@ -516,7 +516,7 @@ export default function ControlNotarialAltaCatalogos() {
                     <>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="monto">Monto ($)</Label>
+                                <RequiredLabel htmlFor="monto">Monto ($)</RequiredLabel>
                                 <Input
                                     id="monto"
                                     name="monto"
@@ -546,7 +546,7 @@ export default function ControlNotarialAltaCatalogos() {
 
                 {activeTab === 'operaciones' && (
                     <div className="space-y-2">
-                        <Label htmlFor="actividad_Vulnerable_Id">Actividad Vulnerable</Label>
+                        <RequiredLabel htmlFor="actividad_Vulnerable_Id">Actividad Vulnerable</RequiredLabel>
                         <Select
                             value={(currentState as Operacion).actividad_Vulnerable_Id ? String((currentState as Operacion).actividad_Vulnerable_Id) : ''}
                             onValueChange={(value) => handleSelectChange('actividad_Vulnerable_Id', value)}
@@ -568,7 +568,7 @@ export default function ControlNotarialAltaCatalogos() {
                 {activeTab === 'impuestos_derechos' && (
                     <>
                         <div className="space-y-2">
-                            <Label htmlFor="tipo">Tipo *</Label>
+                            <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
                             <Input
                                 id="tipo"
                                 name="tipo"
@@ -578,7 +578,7 @@ export default function ControlNotarialAltaCatalogos() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="dependencia">Dependencia *</Label>
+                            <RequiredLabel htmlFor="dependencia">Dependencia *</RequiredLabel>
                             <Input
                                 id="dependencia"
                                 name="dependencia"
@@ -600,9 +600,9 @@ export default function ControlNotarialAltaCatalogos() {
                         onChange={handleInputChange}
                         className="h-4 w-4 border border-primary rounded"
                     />
-                    <Label htmlFor="activo" className="cursor-pointer">
+                    <RequiredLabel htmlFor="activo" className="cursor-pointer">
                         Activo
-                    </Label>
+                    </RequiredLabel>
                 </div>
 
                 {/* Botones */}

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, Settings } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, Settings, FileText, DollarSign, Users } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -76,6 +76,18 @@ export function AppSidebar() {
                       icon: Scale,
                       items: [
                           {
+                              title: 'Expedientes',
+                              href: '/admin/control-notarial/expedientes',
+                              icon: FileText,
+                              items: [
+                                  {
+                                      title: 'Presupuesto Previo',
+                                      href: '/admin/control-notarial/expedientes/presupuesto-previo',
+                                      icon: DollarSign,
+                                  },
+                              ],
+                          },
+                          {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               icon: Settings,
@@ -84,6 +96,11 @@ export function AppSidebar() {
                                       title: 'Notaria',
                                       href: '/admin/control-notarial/configuracion',
                                       icon: Settings,
+                                  },
+                                  {
+                                      title: 'Clientes',
+                                      href: '/admin/control-notarial/clientes',
+                                      icon: Users,
                                   },
                                   {
                                       title: 'Usuarios',
@@ -96,9 +113,14 @@ export function AppSidebar() {
                                       icon: Settings,
                                   },
                                   {
-                                      title: 'Reporte de Usuarios',
+                                      title: 'Reporte Usuarios',
                                       href: '/admin/control-notarial/reporte-usuarios',
                                       icon: BarChart3,
+                                  },
+                                  {
+                                      title: 'Cfg Operaciones',
+                                      href: '/admin/control-notarial/configuracion-operaciones',
+                                      icon: Settings,
                                   },
                               ],
                           },
@@ -123,6 +145,18 @@ export function AppSidebar() {
                       icon: Scale,
                       items: [
                           {
+                              title: 'Expedientes',
+                              href: '/admin/control-notarial/expedientes',
+                              icon: FileText,
+                              items: [
+                                  {
+                                      title: 'Presupuesto Previo',
+                                      href: '/admin/control-notarial/expedientes/presupuesto-previo',
+                                      icon: DollarSign,
+                                  },
+                              ],
+                          },
+                          {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               icon: Settings,
@@ -133,8 +167,18 @@ export function AppSidebar() {
                                       icon: Settings,
                                   },
                                   {
+                                      title: 'Clientes',
+                                      href: '/admin/control-notarial/clientes',
+                                      icon: Users,
+                                  },
+                                  {
                                       title: 'Usuarios',
                                       href: '/admin/control-notarial/usuarios',
+                                      icon: Settings,
+                                  },
+                                  {
+                                      title: 'Configuración Operaciones',
+                                      href: '/admin/control-notarial/configuracion-operaciones',
                                       icon: Settings,
                                   },
                               ],

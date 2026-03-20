@@ -27,37 +27,58 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: (url: string) => boolea
     return items.map((item) => {
         // Si el item tiene subitems, renderizar como Collapsible
         if (item.items && item.items.length > 0) {
-            return (
-                <Collapsible
-                    key={item.title}
-                    asChild
-                    defaultOpen={hasActiveChild(item, isCurrentUrl)}
-                >
-                    <SidebarMenuItem>
-                        <CollapsibleTrigger asChild>
-                            <SidebarMenuButton
-                                tooltip={{ children: item.title }}
-                                className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 data-[active=true]:bg-amber-600/90 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
-                            >
-                                {item.icon && <item.icon />}
-                                <span>{item.title}</span>
-                                <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                            </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                            {level === 0 ? (
+            if (level === 0) {
+                return (
+                    <Collapsible
+                        key={item.title}
+                        asChild
+                        defaultOpen={hasActiveChild(item, isCurrentUrl)}
+                    >
+                        <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                                <SidebarMenuButton
+                                    tooltip={{ children: item.title }}
+                                    className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 data-[active=true]:bg-amber-600/90 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
+                                >
+                                    {item.icon && <item.icon />}
+                                    <span>{item.title}</span>
+                                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
                                 <SidebarMenuSub>
                                     {renderMenuItems(item.items, isCurrentUrl, level + 1)}
                                 </SidebarMenuSub>
-                            ) : (
+                            </CollapsibleContent>
+                        </SidebarMenuItem>
+                    </Collapsible>
+                );
+            } else {
+                return (
+                    <Collapsible
+                        key={item.title}
+                        defaultOpen={hasActiveChild(item, isCurrentUrl)}
+                    >
+                        <SidebarMenuSubItem>
+                            <CollapsibleTrigger asChild>
+                                <SidebarMenuSubButton
+                                    tooltip={{ children: item.title }}
+                                    className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
+                                >
+                                    {item.icon && <item.icon className="h-4 w-4" />}
+                                    <span>{item.title}</span>
+                                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                </SidebarMenuSubButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
                                 <div className="flex flex-col gap-1 pl-4">
                                     {renderMenuItems(item.items, isCurrentUrl, level + 1)}
                                 </div>
-                            )}
-                        </CollapsibleContent>
-                    </SidebarMenuItem>
-                </Collapsible>
-            );
+                            </CollapsibleContent>
+                        </SidebarMenuSubItem>
+                    </Collapsible>
+                );
+            }
         }
 
         // Si no tiene subitems, renderizar como un item normal

@@ -1,7 +1,7 @@
 import { Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 
 interface LegacyNotaria {
     notaria_id: string;
@@ -108,9 +108,9 @@ export default function LegacyNotariaAutocomplete({
 
     return (
         <div ref={dropdownRef} className="relative space-y-2">
-            <Label htmlFor="legacy_identifier">
+            <RequiredLabel htmlFor="legacy_identifier">
                 Identificador Sistema Legacy (Opcional)
-            </Label>
+            </RequiredLabel>
 
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

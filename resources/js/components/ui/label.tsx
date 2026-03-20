@@ -3,7 +3,7 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Label({
+function RequiredLabel({
   className,
   ...props
 }: React.ComponentProps<typeof LabelPrimitive.Root>) {
@@ -19,4 +19,4 @@ function Label({
   )
 }
 
-export { Label }
+export { RequiredLabel }

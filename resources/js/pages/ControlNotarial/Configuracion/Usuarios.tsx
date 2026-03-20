@@ -337,6 +337,14 @@ export default function ControlNotarialUsuarios() {
         await handleAddUsuario();
     };
 
+    // Componente de Label para campos requeridos
+    const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
+        <Label htmlFor={htmlFor} className="flex items-center gap-1">
+            {children}
+            <span className="text-red-500">*</span>
+        </Label>
+    );
+
     return (
         <>
             <Head title="Usuarios - Control Notarial" />
@@ -482,7 +490,7 @@ export default function ControlNotarialUsuarios() {
                                 {/* Fila 1: Iniciales, Rol */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="iniciales">Iniciales *</Label>
+                                        <RequiredLabel htmlFor="iniciales">Iniciales</RequiredLabel>
                                         <Input
                                             id="iniciales"
                                             name="iniciales"
@@ -493,7 +501,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="rol">Rol *</Label>
+                                        <RequiredLabel htmlFor="rol">Rol</RequiredLabel>
                                         <Select
                                             value={formData.rol}
                                             onValueChange={(value) => handleSelectChange('rol', value)}
@@ -515,7 +523,7 @@ export default function ControlNotarialUsuarios() {
                                 {/* Fila 2: Nombre, Apellido Paterno, Apellido Materno */}
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre">Nombre *</Label>
+                                        <RequiredLabel htmlFor="nombre">Nombre</RequiredLabel>
                                         <Input
                                             id="nombre"
                                             name="nombre"
@@ -525,7 +533,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="apellido_paterno">Apellido Paterno *</Label>
+                                        <RequiredLabel htmlFor="apellido_paterno">Apellido Paterno</RequiredLabel>
                                         <Input
                                             id="apellido_paterno"
                                             name="apellido_paterno"
@@ -535,7 +543,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="apellido_materno">Apellido Materno *</Label>
+                                        <RequiredLabel htmlFor="apellido_materno">Apellido Materno</RequiredLabel>
                                         <Input
                                             id="apellido_materno"
                                             name="apellido_materno"
@@ -560,7 +568,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="usuario">Usuario *</Label>
+                                        <RequiredLabel htmlFor="usuario">Usuario</RequiredLabel>
                                         <Input
                                             id="usuario"
                                             name="usuario"
@@ -570,7 +578,7 @@ export default function ControlNotarialUsuarios() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="contraseña">Contraseña *</Label>
+                                        <RequiredLabel htmlFor="contraseña">Contraseña</RequiredLabel>
                                         <Input
                                             id="contraseña"
                                             name="contraseña"
@@ -611,7 +619,7 @@ export default function ControlNotarialUsuarios() {
                                 {/* Fila 5: Número Notaria, Adscripción, Tipo, Procedencia */}
                                 <div className="grid grid-cols-4 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="numero_notaria">Número Notaria *</Label>
+                                        <RequiredLabel htmlFor="numero_notaria">Número Notaria</RequiredLabel>
                                         <Input
                                             id="numero_notaria"
                                             name="numero_notaria"

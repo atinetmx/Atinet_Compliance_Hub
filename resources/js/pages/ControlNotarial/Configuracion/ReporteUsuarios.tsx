@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -154,7 +154,7 @@ export default function ControlNotarialReporteUsuarios() {
                         <h2 className="text-lg font-semibold">Parámetros del Reporte</h2>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="usuario">Usuario</Label>
+                                <RequiredLabel htmlFor="usuario">Usuario</RequiredLabel>
                                 <Select value={userId} onValueChange={setUserId}>
                                     <SelectTrigger id="usuario">
                                         <SelectValue placeholder={isLoadingUsuarios ? 'Cargando usuarios...' : 'Selecciona un usuario'} />
@@ -170,7 +170,7 @@ export default function ControlNotarialReporteUsuarios() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="operacion">Operación</Label>
+                                <RequiredLabel htmlFor="operacion">Operación</RequiredLabel>
                                 <Select value={operacion} onValueChange={setOperacion}>
                                     <SelectTrigger id="operacion">
                                         <SelectValue placeholder="Selecciona una operación" />
@@ -184,7 +184,7 @@ export default function ControlNotarialReporteUsuarios() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="fecha-inicio">Fecha Inicio</Label>
+                                <RequiredLabel htmlFor="fecha-inicio">Fecha Inicio</RequiredLabel>
                                 <Input
                                     id="fecha-inicio"
                                     type="date"
@@ -193,7 +193,7 @@ export default function ControlNotarialReporteUsuarios() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="fecha-fin">Fecha Fin</Label>
+                                <RequiredLabel htmlFor="fecha-fin">Fecha Fin</RequiredLabel>
                                 <Input
                                     id="fecha-fin"
                                     type="date"

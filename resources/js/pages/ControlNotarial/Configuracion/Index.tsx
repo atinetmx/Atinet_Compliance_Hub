@@ -13,7 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Tabs,
     TabsContent,
@@ -474,7 +474,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-4 text-lg font-semibold">Información Principal</h3>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
-                                            <Label htmlFor="notaria_numero">Nº Notaría</Label>
+                                            <RequiredLabel htmlFor="notaria_numero">Nº Notaría</RequiredLabel>
                                             <Input
                                                 id="notaria_numero"
                                                 value={notariaData.notaria_numero}
@@ -488,7 +488,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="nombre">Nombre del Notario</Label>
+                                            <RequiredLabel htmlFor="nombre">Nombre del Notario</RequiredLabel>
                                             <Input
                                                 id="nombre"
                                                 value={notariaData.nombre}
@@ -509,7 +509,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-4 text-lg font-semibold">Contacto</h3>
                                     <div className="grid gap-4">
                                         <div>
-                                            <Label htmlFor="telefono">Teléfono</Label>
+                                            <RequiredLabel htmlFor="telefono">Teléfono</RequiredLabel>
                                             <Input
                                                 id="telefono"
                                                 value={notariaData.telefono}
@@ -530,7 +530,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-4 text-lg font-semibold">Ubicación</h3>
                                     <div className="grid gap-4">
                                         <div>
-                                            <Label htmlFor="domicilio">Domicilio</Label>
+                                            <RequiredLabel htmlFor="domicilio">Domicilio</RequiredLabel>
                                             <Input
                                                 id="domicilio"
                                                 value={notariaData.domicilio}
@@ -545,7 +545,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-3">
                                             <div>
-                                                <Label htmlFor="estado">Estado</Label>
+                                                <RequiredLabel htmlFor="estado">Estado</RequiredLabel>
                                                 <Input
                                                     id="estado"
                                                     value={notariaData.estado}
@@ -559,7 +559,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="municipio">Municipio</Label>
+                                                <RequiredLabel htmlFor="municipio">Municipio</RequiredLabel>
                                                 <Input
                                                     id="municipio"
                                                     value={notariaData.municipio}
@@ -573,7 +573,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="codigo_postal">Código Postal</Label>
+                                                <RequiredLabel htmlFor="codigo_postal">Código Postal</RequiredLabel>
                                                 <Input
                                                     id="codigo_postal"
                                                     value={notariaData.codigo_postal}
@@ -595,7 +595,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-4 text-lg font-semibold">Foto de la Notaría</h3>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
-                                            <Label htmlFor="imagen">Subir Imagen</Label>
+                                            <RequiredLabel htmlFor="imagen">Subir Imagen</RequiredLabel>
                                             <input
                                                 id="imagen"
                                                 type="file"
@@ -619,7 +619,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         </div>
                                         {notariaData.imagen && (
                                             <div className="mt-2 md:col-span-2">
-                                                <Label>Vista Previa</Label>
+                                                <RequiredLabel>Vista Previa</RequiredLabel>
                                                 <img
                                                     src={notariaData.imagen}
                                                     alt="Foto de la notaría"
@@ -639,7 +639,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                 <h3 className="mb-4 text-lg font-semibold">Contador de Documentos</h3>
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                                     <div>
-                                        <Label htmlFor="expediente">Expediente</Label>
+                                        <RequiredLabel htmlFor="expediente">Expediente</RequiredLabel>
                                         <Input
                                             id="expediente"
                                             type="number"
@@ -654,7 +654,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="acta_fuera_protocolo">Acta Fuera de Protocolo</Label>
+                                        <RequiredLabel htmlFor="acta_fuera_protocolo">Acta Fuera de Protocolo</RequiredLabel>
                                         <Input
                                             id="acta_fuera_protocolo"
                                             type="number"
@@ -669,7 +669,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="certificacion">Certificación</Label>
+                                        <RequiredLabel htmlFor="certificacion">Certificación</RequiredLabel>
                                         <Input
                                             id="certificacion"
                                             type="number"
@@ -684,7 +684,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="recibo_honorarios">Recibo Honorarios</Label>
+                                        <RequiredLabel htmlFor="recibo_honorarios">Recibo Honorarios</RequiredLabel>
                                         <Input
                                             id="recibo_honorarios"
                                             type="number"
@@ -699,7 +699,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="ratificacion">Ratificación</Label>
+                                        <RequiredLabel htmlFor="ratificacion">Ratificación</RequiredLabel>
                                         <Input
                                             id="ratificacion"
                                             type="number"
@@ -714,7 +714,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="recibo_general">Recibo General</Label>
+                                        <RequiredLabel htmlFor="recibo_general">Recibo General</RequiredLabel>
                                         <Input
                                             id="recibo_general"
                                             type="number"
@@ -729,7 +729,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="cotejo">Cotejo</Label>
+                                        <RequiredLabel htmlFor="cotejo">Cotejo</RequiredLabel>
                                         <Input
                                             id="cotejo"
                                             type="number"
@@ -754,7 +754,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                 <div>
                                     <h3 className="mb-4 text-lg font-semibold">Configuración del Servidor</h3>
                                     <div>
-                                        <Label htmlFor="ruta">Ruta del Servidor</Label>
+                                        <RequiredLabel htmlFor="ruta">Ruta del Servidor</RequiredLabel>
                                         <Input
                                             id="ruta"
                                             value={servidorData.ruta}
@@ -779,7 +779,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-4 text-lg font-semibold">Configuración de Correo</h3>
                                     <div className="grid gap-4">
                                         <div>
-                                            <Label htmlFor="correo_servidor">Servidor SMTP</Label>
+                                            <RequiredLabel htmlFor="correo_servidor">Servidor SMTP</RequiredLabel>
                                             <Input
                                                 id="correo_servidor"
                                                 value={correoData.servidor_correo}
@@ -794,7 +794,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <div>
-                                                <Label htmlFor="correo_usuario">Usuario</Label>
+                                                <RequiredLabel htmlFor="correo_usuario">Usuario</RequiredLabel>
                                                 <Input
                                                     id="correo_usuario"
                                                     value={correoData.usuario_correo}
@@ -808,7 +808,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="correo_password">Contraseña</Label>
+                                                <RequiredLabel htmlFor="correo_password">Contraseña</RequiredLabel>
                                                 <Input
                                                     id="correo_password"
                                                     type="password"
@@ -825,7 +825,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <div>
-                                                <Label htmlFor="correo_puerto">Puerto</Label>
+                                                <RequiredLabel htmlFor="correo_puerto">Puerto</RequiredLabel>
                                                 <Input
                                                     id="correo_puerto"
                                                     value={correoData.puerto}
@@ -839,7 +839,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="correo_ssl">SSL</Label>
+                                                <RequiredLabel htmlFor="correo_ssl">SSL</RequiredLabel>
                                                 <div className="mt-2 flex items-center gap-2">
                                                     <input
                                                         id="correo_ssl"
@@ -858,7 +858,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             </div>
                                         </div>
                                         <div>
-                                            <Label htmlFor="correo_asunto">Asunto del Correo</Label>
+                                            <RequiredLabel htmlFor="correo_asunto">Asunto del Correo</RequiredLabel>
                                             <textarea
                                                 id="correo_asunto"
                                                 value={correoData.asunto_correo}
@@ -881,7 +881,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                 <h3 className="mb-4 text-lg font-semibold">Configuración de Cálculos</h3>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div>
-                                        <Label htmlFor="iva">IVA (%)</Label>
+                                        <RequiredLabel htmlFor="iva">IVA (%)</RequiredLabel>
                                         <Input
                                             id="iva"
                                             type="number"
@@ -897,7 +897,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="ret_iva">Retención IVA (%)</Label>
+                                        <RequiredLabel htmlFor="ret_iva">Retención IVA (%)</RequiredLabel>
                                         <Input
                                             id="ret_iva"
                                             type="number"
@@ -913,7 +913,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="ret_isr">Retención ISR (%)</Label>
+                                        <RequiredLabel htmlFor="ret_isr">Retención ISR (%)</RequiredLabel>
                                         <Input
                                             id="ret_isr"
                                             type="number"
@@ -929,7 +929,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="salario">Salario Diario ($)</Label>
+                                        <RequiredLabel htmlFor="salario">Salario Diario ($)</RequiredLabel>
                                         <Input
                                             id="salario"
                                             type="number"
@@ -945,7 +945,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="uma">UMA ($)</Label>
+                                        <RequiredLabel htmlFor="uma">UMA ($)</RequiredLabel>
                                         <Input
                                             id="uma"
                                             type="number"
@@ -972,7 +972,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-6 text-lg font-semibold">Folios de Instrumentos</h3>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                         <div>
-                                            <Label htmlFor="tomo_inicial_inst">Tomo Inicial</Label>
+                                            <RequiredLabel htmlFor="tomo_inicial_inst">Tomo Inicial</RequiredLabel>
                                             <Input
                                                 id="tomo_inicial_inst"
                                                 type="number"
@@ -987,7 +987,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="volumenes_tomo_inst">Volúmenes por Tomo</Label>
+                                            <RequiredLabel htmlFor="volumenes_tomo_inst">Volúmenes por Tomo</RequiredLabel>
                                             <Input
                                                 id="volumenes_tomo_inst"
                                                 type="number"
@@ -1002,7 +1002,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="folios_vol_inst">Folios por Volumen</Label>
+                                            <RequiredLabel htmlFor="folios_vol_inst">Folios por Volumen</RequiredLabel>
                                             <Input
                                                 id="folios_vol_inst"
                                                 type="number"
@@ -1017,7 +1017,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="volumen_inicial_inst">Volumen Inicial</Label>
+                                            <RequiredLabel htmlFor="volumen_inicial_inst">Volumen Inicial</RequiredLabel>
                                             <Input
                                                 id="volumen_inicial_inst"
                                                 type="number"
@@ -1032,7 +1032,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="folio_inicial_tomo_inst">Folio Inicial por Tomo</Label>
+                                            <RequiredLabel htmlFor="folio_inicial_tomo_inst">Folio Inicial por Tomo</RequiredLabel>
                                             <Input
                                                 id="folio_inicial_tomo_inst"
                                                 type="number"
@@ -1054,7 +1054,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     <h3 className="mb-6 text-lg font-semibold">Folios de Certificaciones</h3>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                         <div>
-                                            <Label htmlFor="tomo_inicial_cert">Tomo Inicial</Label>
+                                            <RequiredLabel htmlFor="tomo_inicial_cert">Tomo Inicial</RequiredLabel>
                                             <Input
                                                 id="tomo_inicial_cert"
                                                 type="number"
@@ -1069,7 +1069,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="volumenes_tomo_cert">Volúmenes por Tomo</Label>
+                                            <RequiredLabel htmlFor="volumenes_tomo_cert">Volúmenes por Tomo</RequiredLabel>
                                             <Input
                                                 id="volumenes_tomo_cert"
                                                 type="number"
@@ -1084,7 +1084,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="folios_vol_cert">Folios por Volumen</Label>
+                                            <RequiredLabel htmlFor="folios_vol_cert">Folios por Volumen</RequiredLabel>
                                             <Input
                                                 id="folios_vol_cert"
                                                 type="number"
@@ -1099,7 +1099,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="volumen_inicial_cert">Volumen Inicial</Label>
+                                            <RequiredLabel htmlFor="volumen_inicial_cert">Volumen Inicial</RequiredLabel>
                                             <Input
                                                 id="volumen_inicial_cert"
                                                 type="number"
@@ -1114,7 +1114,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor="folio_inicial_tomo_cert">Folio Inicial por Tomo</Label>
+                                            <RequiredLabel htmlFor="folio_inicial_tomo_cert">Folio Inicial por Tomo</RequiredLabel>
                                             <Input
                                                 id="folio_inicial_tomo_cert"
                                                 type="number"

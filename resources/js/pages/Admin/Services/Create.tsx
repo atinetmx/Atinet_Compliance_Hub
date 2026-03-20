@@ -3,7 +3,7 @@ import { Package, Save, ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -94,9 +94,9 @@ export default function ServicesCreate({
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="code">
+                                    <RequiredLabel htmlFor="code">
                                         Código del Servicio *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="code"
                                         value={data.code}
@@ -119,9 +119,9 @@ export default function ServicesCreate({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">
+                                    <RequiredLabel htmlFor="name">
                                         Nombre del Servicio *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="name"
                                         value={data.name}
@@ -141,9 +141,9 @@ export default function ServicesCreate({
                                 </div>
 
                                 <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="description">
+                                    <RequiredLabel htmlFor="description">
                                         Descripción *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Textarea
                                         id="description"
                                         value={data.description}
@@ -178,9 +178,9 @@ export default function ServicesCreate({
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="category">
+                                    <RequiredLabel htmlFor="category">
                                         Categoría *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Select
                                         value={data.category}
                                         onValueChange={(value) =>
@@ -215,9 +215,9 @@ export default function ServicesCreate({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="billing_model">
+                                    <RequiredLabel htmlFor="billing_model">
                                         Modelo de Facturación *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Select
                                         value={data.billing_model}
                                         onValueChange={(value) =>
@@ -253,9 +253,9 @@ export default function ServicesCreate({
 
                                 {data.billing_model === 'per_use' && (
                                     <div className="space-y-2">
-                                        <Label htmlFor="unit_price">
+                                        <RequiredLabel htmlFor="unit_price">
                                             Precio Unitario *
-                                        </Label>
+                                        </RequiredLabel>
                                         <Input
                                             id="unit_price"
                                             type="number"
@@ -290,9 +290,9 @@ export default function ServicesCreate({
                                             setData('is_active', checked)
                                         }
                                     />
-                                    <Label htmlFor="is_active">
+                                    <RequiredLabel htmlFor="is_active">
                                         Servicio activo
-                                    </Label>
+                                    </RequiredLabel>
                                 </div>
                             </div>
                         </div>

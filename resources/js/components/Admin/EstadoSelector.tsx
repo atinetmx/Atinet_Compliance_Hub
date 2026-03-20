@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -69,10 +69,10 @@ export default function EstadoSelector({
         return (
             <div className="space-y-2">
                 {label && (
-                    <Label>
+                    <RequiredLabel>
                         {label}
                         {required && <span className="text-red-500">*</span>}
-                    </Label>
+                    </RequiredLabel>
                 )}
                 <div className="flex items-center gap-2 rounded-md border border-input bg-muted/50 px-3 py-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -88,10 +88,10 @@ export default function EstadoSelector({
         return (
             <div className="space-y-2">
                 {label && (
-                    <Label>
+                    <RequiredLabel>
                         {label}
                         {required && <span className="text-red-500">*</span>}
-                    </Label>
+                    </RequiredLabel>
                 )}
                 <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2">
                     <p className="text-sm text-red-600">{loadError}</p>
@@ -110,10 +110,10 @@ export default function EstadoSelector({
     return (
         <div className="space-y-2">
             {label && (
-                <Label htmlFor="estado">
+                <RequiredLabel htmlFor="estado">
                     {label}
                     {required && <span className="text-red-500">*</span>}
-                </Label>
+                </RequiredLabel>
             )}
             <Select value={value} onValueChange={onChange}>
                 <SelectTrigger

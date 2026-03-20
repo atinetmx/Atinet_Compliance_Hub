@@ -11,7 +11,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 
 interface User {
     id: number;
@@ -161,9 +161,9 @@ export default function PasswordManager({
                 <div className="space-y-4">
                     {/* Verificación de Contraseña del Admin */}
                     <div className="space-y-2">
-                        <Label htmlFor="adminPassword">
+                        <RequiredLabel htmlFor="adminPassword">
                             Tu contraseña de Super Administrador *
-                        </Label>
+                        </RequiredLabel>
                         <div className="relative">
                             <Input
                                 id="adminPassword"
@@ -220,9 +220,9 @@ export default function PasswordManager({
                     {/* Campo para nueva contraseña (solo en modo reset) */}
                     {action === 'reset' && (
                         <div className="space-y-2">
-                            <Label htmlFor="newPassword">
+                            <RequiredLabel htmlFor="newPassword">
                                 Nueva contraseña (opcional)
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="newPassword"
                                 type="text"
@@ -240,11 +240,11 @@ export default function PasswordManager({
                     {/* Resultado */}
                     {revealedPassword && (
                         <div className="space-y-2 rounded-lg bg-muted p-4">
-                            <Label>
+                            <RequiredLabel>
                                 {action === 'reveal'
                                     ? 'Contraseña actual:'
                                     : 'Nueva contraseña:'}
-                            </Label>
+                            </RequiredLabel>
                             <div className="relative">
                                 <Input
                                     type={

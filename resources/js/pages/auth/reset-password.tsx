@@ -2,7 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { update } from '@/routes/password';
@@ -28,7 +28,7 @@ export default function ResetPassword({ token, email }: Props) {
                 {({ processing, errors }) => (
                     <div className="grid gap-6">
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
+                            <RequiredLabel htmlFor="email">Email</RequiredLabel>
                             <Input
                                 id="email"
                                 type="email"
@@ -45,7 +45,7 @@ export default function ResetPassword({ token, email }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
+                            <RequiredLabel htmlFor="password">Password</RequiredLabel>
                             <Input
                                 id="password"
                                 type="password"
@@ -59,9 +59,9 @@ export default function ResetPassword({ token, email }: Props) {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">
+                            <RequiredLabel htmlFor="password_confirmation">
                                 Confirm password
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="password_confirmation"
                                 type="password"

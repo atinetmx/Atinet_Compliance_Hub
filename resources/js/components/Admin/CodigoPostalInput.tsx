@@ -3,7 +3,7 @@ import { Loader2, MapPin, CheckCircle2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -148,10 +148,10 @@ export default function CodigoPostalInput({
             {/* Input de CP */}
             <div className="space-y-2">
                 {label && (
-                    <Label htmlFor="codigo_postal">
+                    <RequiredLabel htmlFor="codigo_postal">
                         {label}
                         {required && <span className="text-red-500">*</span>}
-                    </Label>
+                    </RequiredLabel>
                 )}
                 <div className="relative">
                     <Input
@@ -219,9 +219,9 @@ export default function CodigoPostalInput({
                 cpData.colonias.length > 0 &&
                 onColoniaChange && (
                     <div className="space-y-2">
-                        <Label htmlFor="colonia">
+                        <RequiredLabel htmlFor="colonia">
                             Colonia / Asentamiento
-                        </Label>
+                        </RequiredLabel>
                         <Select
                             value={coloniaValue}
                             onValueChange={onColoniaChange}
