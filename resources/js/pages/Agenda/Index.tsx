@@ -1,4 +1,4 @@
-﻿import type { EventApi, EventClickArg, EventDropArg, EventMountArg } from '@fullcalendar/core';
+import type { EventApi, EventClickArg, EventDropArg, EventMountArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -8,7 +8,7 @@ import rrulePlugin from '@fullcalendar/rrule';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { BookOpen, CalendarDays, List, Plus, RefreshCw, X } from 'lucide-react';
+import { BookOpen, CalendarDays, Eye, List, Plus, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -161,13 +161,18 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function AgendaIndex() {
     const { auth } = usePage<{ auth: { user: { tipo_cuenta: string; id: number } } }>().props;
     const calendarRef = useRef<FullCalendar>(null);
+    const vistaRef = useRef<'propio' | 'todos'>('todos');
 
     const isAdmin = ['super_admin', 'admin_notaria'].includes(auth.user.tipo_cuenta);
+
+    // Vista: 'propio' o 'todos' (solo para admins)
+    const [vista, setVista] = useState<'propio' | 'todos'>('todos');
 
     // Modal
     const [modalOpen, setModalOpen] = useState(false);
     const [form, setForm] = useState<EventForm>(emptyForm());
     const [processing, setProcessing] = useState(false);
+    const [readOnly, setReadOnly] = useState(false);
 
     // Tooltip
     const [tooltip, setTooltip] = useState<Tooltip>({ visible: false, x: 0, y: 0, event: null });
@@ -185,11 +190,11 @@ export default function AgendaIndex() {
 
     // -- Citas del día
 
-    const fetchCitas = useCallback(async (fecha: string) => {
+    const fetchCitas = useCallback(async (fecha: string, currentVista: string) => {
         setCitasLoading(true);
         try {
             const { data } = await axios.get<CitaItem[]>('/admin/agenda/today', {
-                params: { fecha },
+                params: { fecha, vista: currentVista },
             });
             setCitas(data);
         } finally {
@@ -211,10 +216,29 @@ export default function AgendaIndex() {
         }
     }, []);
 
+    // -- Función de eventos para FullCalendar (memoizada para evitar re-renders)
+
+    const fetchCalendarEvents = useCallback((fetchInfo: any, successCallback: any, failureCallback: any) => {
+        axios
+            .get('/admin/agenda/events', {
+                params: {
+                    start: fetchInfo.startStr,
+                    end: fetchInfo.endStr,
+                    vista: vistaRef.current,
+                },
+            })
+            .then((response) => successCallback(response.data))
+            .catch((error) => {
+                console.error('Error fetching events:', error);
+                failureCallback(error);
+            });
+    }, []);
+
     // -- Modal helpers
 
     function openCreate(start: string, end?: string) {
         setForm({ ...emptyForm(), start_fecha: start, end_fecha: end ?? start });
+        setReadOnly(false);
         setModalOpen(true);
     }
 
@@ -222,7 +246,6 @@ export default function AgendaIndex() {
         const e = arg.event;
         const ext = e.extendedProps;
         const canEdit = isAdmin || ext.user_id === auth.user.id;
-        if (!canEdit) return;
 
         setForm({
             id: Number(e.id),
@@ -238,12 +261,12 @@ export default function AgendaIndex() {
             rrule_byweekday: [],
             duration: '01:00',
         });
+        setReadOnly(!canEdit);
         setModalOpen(true);
     }
 
     function openEditFromCita(cita: CitaItem) {
         const canEdit = isAdmin || cita.user_id === auth.user.id;
-        if (!canEdit) return;
         setForm({
             id: cita.id,
             titulo: cita.titulo,
@@ -258,6 +281,7 @@ export default function AgendaIndex() {
             rrule_byweekday: [],
             duration: '01:00',
         });
+        setReadOnly(!canEdit);
         setModalOpen(true);
     }
 
@@ -295,19 +319,23 @@ export default function AgendaIndex() {
         const ok = window.confirm(`¿Mover "${info.event.title}" a ${info.event.start?.toLocaleDateString('es-MX')}?`);
         if (!ok) { info.revert(); return; }
 
-        router.put(
+        axios.put(
             `/admin/agenda/${info.event.id}`,
-            { start_fecha: info.event.startStr, end_fecha: info.event.endStr || info.event.startStr },
-            { preserveScroll: true, onError: () => info.revert() }
-        );
+            { start_fecha: info.event.startStr, end_fecha: info.event.endStr || info.event.startStr }
+        ).catch((error) => {
+            console.error('Error moving event:', error);
+            info.revert();
+        });
     }
 
     function handleResize(info: EventResizeDoneArg) {
-        router.put(
+        axios.put(
             `/admin/agenda/${info.event.id}`,
-            { start_fecha: info.event.startStr, end_fecha: info.event.endStr || info.event.startStr },
-            { preserveScroll: true, onError: () => info.revert() }
-        );
+            { start_fecha: info.event.startStr, end_fecha: info.event.endStr || info.event.startStr }
+        ).catch((error) => {
+            console.error('Error resizing event:', error);
+            info.revert();
+        });
     }
 
     // -- Submit
@@ -339,28 +367,40 @@ export default function AgendaIndex() {
             setProcessing(false);
             setModalOpen(false);
             calendarRef.current?.getApi().refetchEvents();
-            fetchCitas(citasFecha);
+            fetchCitas(citasFecha, vistaRef.current);
         };
 
         if (form.id) {
-            router.put(`/admin/agenda/${form.id}`, payload, { preserveScroll: true, onFinish });
+            axios.put(`/admin/agenda/${form.id}`, payload)
+                .then(() => onFinish())
+                .catch((error) => {
+                    console.error('Error updating event:', error);
+                    setProcessing(false);
+                });
         } else {
-            router.post('/admin/agenda', payload, { preserveScroll: true, onFinish });
+            axios.post('/admin/agenda', payload)
+                .then(() => onFinish())
+                .catch((error) => {
+                    console.error('Error creating event:', error);
+                    setProcessing(false);
+                });
         }
     }
 
     function handleDelete() {
         if (!form.id) return;
         setProcessing(true);
-        router.delete(`/admin/agenda/${form.id}`, {
-            preserveScroll: true,
-            onFinish: () => {
+        axios.delete(`/admin/agenda/${form.id}`)
+            .then(() => {
                 setProcessing(false);
                 setModalOpen(false);
                 calendarRef.current?.getApi().refetchEvents();
-                fetchCitas(citasFecha);
-            },
-        });
+                fetchCitas(citasFecha, vistaRef.current);
+            })
+            .catch((error) => {
+                console.error('Error deleting event:', error);
+                setProcessing(false);
+            });
     }
 
     // -- Weekday toggle
@@ -373,16 +413,36 @@ export default function AgendaIndex() {
                 : [...f.rrule_byweekday, day],
         }));
     }
+    // -- Cambio de vista
 
+    function handleVistaChange(newVista: 'propio' | 'todos') {
+        // Actualizar ref INMEDIATAMENTE (sincrónico)
+        vistaRef.current = newVista;
+
+        // Actualizar estado (asincrónico)
+        setVista(newVista);
+
+        // Refrescar calendario y citas AHORA (con el ref ya actualizado)
+        if (calendarRef.current) {
+            calendarRef.current.getApi().refetchEvents();
+        }
+        fetchCitas(citasFecha, newVista);
+    }
     // -- Effects
 
+    // Inicializar ref con el valor actual de vista
     useEffect(() => {
-        fetchCitas(citasFecha);
-    }, [citasFecha, fetchCitas]);
+        vistaRef.current = vista;
+    }, []); // Solo en mount
 
     useEffect(() => {
         fetchLog(logFecha);
     }, [logFecha, fetchLog]);
+
+    // Cargar citas inicialmente cuando cambia la fecha
+    useEffect(() => {
+        fetchCitas(citasFecha, vista);
+    }, [citasFecha]);
 
     // ==================== Render ====================
 
@@ -395,13 +455,36 @@ export default function AgendaIndex() {
                         <CalendarDays className="text-primary h-6 w-6" />
                         <h1 className="text-xl font-semibold">Agenda</h1>
                     </div>
-                    <Button
-                        size="sm"
-                        onClick={() => openCreate(todayString() + 'T09:00', todayString() + 'T10:00')}
-                    >
-                        <Plus className="mr-1 h-4 w-4" />
-                        Nuevo evento
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        {isAdmin && (
+                            <Select value={vista} onValueChange={(v) => handleVistaChange(v as 'propio' | 'todos')}>
+                                <SelectTrigger className="w-[160px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="todos">
+                                        <div className="flex items-center gap-2">
+                                            <Eye className="h-4 w-4" />
+                                            Ver todo
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="propio">
+                                        <div className="flex items-center gap-2">
+                                            <User className="h-4 w-4" />
+                                            Solo míos
+                                        </div>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                        <Button
+                            size="sm"
+                            onClick={() => openCreate(todayString() + 'T09:00', todayString() + 'T10:00')}
+                        >
+                            <Plus className="mr-1 h-4 w-4" />
+                            Nuevo evento
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Tabs */}
@@ -436,7 +519,7 @@ export default function AgendaIndex() {
                                     right: 'dayGridMonth,timeGridWeek,listWeek,timeGridDay',
                                 }}
                                 buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
-                                events="/admin/agenda/events"
+                                events={fetchCalendarEvents}
                                 selectable={true}
                                 selectMirror={true}
                                 editable={isAdmin}
@@ -473,7 +556,7 @@ export default function AgendaIndex() {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => fetchCitas(citasFecha)}
+                                    onClick={() => fetchCitas(citasFecha, vistaRef.current)}
                                     disabled={citasLoading}
                                 >
                                     <RefreshCw className={`h-4 w-4 ${citasLoading ? 'animate-spin' : ''}`} />
@@ -503,7 +586,7 @@ export default function AgendaIndex() {
                                                 <th className="text-muted-foreground px-4 py-2.5 font-medium">Título</th>
                                                 <th className="text-muted-foreground px-4 py-2.5 font-medium">Tipo</th>
                                                 <th className="text-muted-foreground px-4 py-2.5 font-medium">Notas</th>
-                                                {isAdmin && <th className="px-4 py-2.5" />}
+                                                <th className="px-4 py-2.5" />
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -531,20 +614,18 @@ export default function AgendaIndex() {
                                                         </span>
                                                     </td>
                                                     <td className="text-muted-foreground max-w-xs truncate px-4 py-2.5 text-xs">
-                                                        {c.comentarios ?? '�?"'}
+                                                        {c.comentarios ?? '—'}
                                                     </td>
-                                                    {isAdmin && (
-                                                        <td className="px-4 py-2.5">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-7 text-xs"
-                                                                onClick={() => openEditFromCita(c)}
-                                                            >
-                                                                Editar
-                                                            </Button>
-                                                        </td>
-                                                    )}
+                                                    <td className="px-4 py-2.5">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-7 text-xs"
+                                                            onClick={() => openEditFromCita(c)}
+                                                        >
+                                                            {isAdmin || c.user_id === auth.user.id ? 'Editar' : 'Ver'}
+                                                        </Button>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -646,7 +727,9 @@ export default function AgendaIndex() {
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>{form.id ? 'Editar evento' : 'Nuevo evento'}</DialogTitle>
+                        <DialogTitle>
+                            {readOnly ? 'Ver evento' : form.id ? 'Editar evento' : 'Nuevo evento'}
+                        </DialogTitle>
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -660,6 +743,7 @@ export default function AgendaIndex() {
                                 maxLength={145}
                                 required
                                 autoFocus
+                                disabled={readOnly}
                             />
                         </div>
 
@@ -669,6 +753,7 @@ export default function AgendaIndex() {
                                 id="all_day"
                                 checked={form.all_day}
                                 onCheckedChange={(v) => setForm({ ...form, all_day: Boolean(v) })}
+                                disabled={readOnly}
                             />
                             <Label htmlFor="all_day" className="cursor-pointer font-normal">
                                 Todo el día
@@ -686,6 +771,7 @@ export default function AgendaIndex() {
                                         value={form.start_fecha}
                                         onChange={(e) => setForm({ ...form, start_fecha: e.target.value })}
                                         required
+                                        disabled={readOnly}
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -695,6 +781,7 @@ export default function AgendaIndex() {
                                         type={form.all_day ? 'date' : 'datetime-local'}
                                         value={form.end_fecha}
                                         onChange={(e) => setForm({ ...form, end_fecha: e.target.value })}
+                                        disabled={readOnly}
                                     />
                                 </div>
                             </div>
@@ -789,7 +876,7 @@ export default function AgendaIndex() {
                         {/* Tipo */}
                         <div className="space-y-1">
                             <Label>Tipo</Label>
-                            <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                            <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })} disabled={readOnly}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -812,6 +899,7 @@ export default function AgendaIndex() {
                                 onChange={(e) => setForm({ ...form, comentarios: e.target.value })}
                                 maxLength={255}
                                 placeholder="Notas adicionales..."
+                                disabled={readOnly}
                             />
                         </div>
 
@@ -824,20 +912,23 @@ export default function AgendaIndex() {
                                         key={c.value}
                                         type="button"
                                         title={c.label}
-                                        onClick={() => setForm({ ...form, color: c.value })}
+                                        onClick={() => !readOnly && setForm({ ...form, color: c.value })}
                                         className="h-7 w-7 rounded-full border-2 transition-transform hover:scale-110"
                                         style={{
                                             backgroundColor: c.value,
                                             borderColor: form.color === c.value ? 'white' : 'transparent',
                                             outline: form.color === c.value ? `2px solid ${c.value}` : 'none',
+                                            opacity: readOnly ? 0.6 : 1,
+                                            cursor: readOnly ? 'default' : 'pointer',
                                         }}
+                                        disabled={readOnly}
                                     />
                                 ))}
                             </div>
                         </div>
 
                         <DialogFooter className="gap-2 pt-2">
-                            {form.id && (
+                            {!readOnly && form.id && (
                                 <Button
                                     type="button"
                                     variant="destructive"
@@ -851,11 +942,13 @@ export default function AgendaIndex() {
                                 </Button>
                             )}
                             <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={processing}>
-                                Cancelar
+                                {readOnly ? 'Cerrar' : 'Cancelar'}
                             </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Guardando...' : form.id ? 'Guardar cambios' : 'Crear evento'}
-                            </Button>
+                            {!readOnly && (
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Guardando...' : form.id ? 'Guardar cambios' : 'Crear evento'}
+                                </Button>
+                            )}
                         </DialogFooter>
                     </form>
                 </DialogContent>

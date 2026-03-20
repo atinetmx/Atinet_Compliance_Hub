@@ -22,9 +22,10 @@ class AgendaController extends Controller
     public function events(Request $request): JsonResponse
     {
         $user = $request->user();
+        $vista = $request->input('vista', 'todos'); // 'propio' o 'todos'
 
         // El scope visiblePara maneja toda la lógica de visibilidad
-        $query = AgendaEvent::visiblePara($user);
+        $query = AgendaEvent::visiblePara($user, $vista);
 
         // Para eventos NO recurrentes filtramos por rango; los recurrentes se incluyen siempre
         if ($request->filled('start') && $request->filled('end')) {
@@ -52,8 +53,9 @@ class AgendaController extends Controller
 
         $user = $request->user();
         $fecha = $request->input('fecha', now()->toDateString());
+        $vista = $request->input('vista', 'todos'); // 'propio' o 'todos'
 
-        $events = AgendaEvent::visiblePara($user)
+        $events = AgendaEvent::visiblePara($user, $vista)
             ->whereNull('rrule') // los recurrentes se manejan solo en el calendario
             ->whereDate('start_fecha', '<=', $fecha)
             ->whereDate('end_fecha', '>=', $fecha)
