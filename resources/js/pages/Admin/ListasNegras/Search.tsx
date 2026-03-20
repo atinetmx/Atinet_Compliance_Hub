@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock, FileSpreadsheet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -508,6 +508,143 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
             return `/admin/pdf/sat?${params.toString()}`;
         };
 
+        // Exportar resultados OFAC a Excel
+        const handleExportOfac = async () => {
+            try {
+                const searchTypeLabel = activeTab === 'persona-fisica' ? 'Persona Física' : activeTab === 'persona-moral' ? 'Persona Moral' : activeTab === 'combined' ? 'Combinada' : 'RFC';
+                const payload = {
+                    results: ofacResults.map(r => ({
+                        nombre_original: r.name,
+                        nombre_limpio: r.nombre_limpio,
+                        coincidencia: r.similarity || r.coincidencia,
+                        fuente: 'OFAC',
+                    })),
+                    searchTerm: searchNombre,
+                    searchType: `Búsqueda ${searchTypeLabel}`,
+                };
+
+                const response = await fetch('/admin/export/ofac', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) throw new Error('Error al exportar OFAC');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `busqueda_ofac_${searchNombre.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error al exportar OFAC:', error);
+                alert('Error al generar el archivo Excel. Por favor intente nuevamente.');
+            }
+        };
+
+        // Exportar resultados SAT a Excel
+        const handleExportSat = async () => {
+            try {
+                const searchTypeLabel = activeTab === 'persona-fisica' ? 'Persona Física' : activeTab === 'persona-moral' ? 'Persona Moral' : activeTab === 'combined' ? 'Combinada' : 'RFC';
+                const payload = {
+                    results: satResults.map(r => ({
+                        nombre_original: r.name,
+                        nombre_limpio: r.nombre_limpio,
+                        rfc: r.rfc,
+                        situacion: r.situacion,
+                        publicacion_sat: r.publicacion_sat,
+                        publicacion_dof: null,
+                        coincidencia: r.similarity || r.coincidencia,
+                        fuente: 'SAT',
+                    })),
+                    searchTerm: searchNombre,
+                    searchType: `Búsqueda ${searchTypeLabel}`,
+                };
+
+                const response = await fetch('/admin/export/sat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) throw new Error('Error al exportar SAT');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `busqueda_sat_${searchNombre.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error al exportar SAT:', error);
+                alert('Error al generar el archivo Excel. Por favor intente nuevamente.');
+            }
+        };
+
+        // Exportar resultados combinados (OFAC + SAT) a Excel
+        const handleExportCombined = async () => {
+            try {
+                const searchTypeLabel = activeTab === 'persona-fisica' ? 'Persona Física' : activeTab === 'persona-moral' ? 'Persona Moral' : activeTab === 'combined' ? 'Combinada' : 'RFC';
+                const payload = {
+                    ofacResults: ofacResults.map(r => ({
+                        nombre_original: r.name,
+                        nombre_limpio: r.nombre_limpio,
+                        coincidencia: r.similarity || r.coincidencia,
+                        fuente: 'OFAC',
+                    })),
+                    satResults: satResults.map(r => ({
+                        nombre_original: r.name,
+                        nombre_limpio: r.nombre_limpio,
+                        rfc: r.rfc,
+                        situacion: r.situacion,
+                        publicacion_sat: r.publicacion_sat,
+                        publicacion_dof: null,
+                        coincidencia: r.similarity || r.coincidencia,
+                        fuente: 'SAT',
+                    })),
+                    searchTerm: searchNombre,
+                    searchType: `Búsqueda ${searchTypeLabel}`,
+                };
+
+                const response = await fetch('/admin/export/combined', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) throw new Error('Error al exportar resultados combinados');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `busqueda_completa_${searchNombre.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error al exportar combinado:', error);
+                alert('Error al generar el archivo Excel. Por favor intente nuevamente.');
+            }
+        };
+
         return (
             <div className="space-y-6">
 
@@ -525,6 +662,15 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                         {ofacResults.length} coincidencia{ofacResults.length !== 1 ? 's' : ''} encontrada{ofacResults.length !== 1 ? 's' : ''}
                                     </CardDescription>
                                 </div>
+                                <Button
+                                    onClick={handleExportOfac}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950 whitespace-nowrap"
+                                >
+                                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                    Exportar Excel
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="pt-6">
@@ -606,6 +752,15 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                         {satResults.length} coincidencia{satResults.length !== 1 ? 's' : ''} encontrada{satResults.length !== 1 ? 's' : ''}
                                     </CardDescription>
                                 </div>
+                                <Button
+                                    onClick={handleExportSat}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950 whitespace-nowrap"
+                                >
+                                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                    Exportar Excel
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="pt-6">
@@ -676,6 +831,21 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             </div>
                         </CardContent>
                     </Card>
+                )}
+
+                {/* Exportar resultados combinados si hay OFAC y SAT */}
+                {ofacResults.length > 0 && satResults.length > 0 && (
+                    <div className="flex justify-center">
+                        <Button
+                            onClick={handleExportCombined}
+                            variant="default"
+                            size="lg"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            <FileSpreadsheet className="h-5 w-5 mr-2" />
+                            Exportar Todo a Excel (OFAC + SAT)
+                        </Button>
+                    </div>
                 )}
 
                 {/* Sin resultados pero con opción de PDF negativo */}

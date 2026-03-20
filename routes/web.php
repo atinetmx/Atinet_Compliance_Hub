@@ -239,6 +239,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
     });
 
+    // Exportación de Excel para resultados de búsqueda
+    // NOTA: Los exports NO consumen límites porque son resultado de búsquedas ya realizadas
+    Route::prefix('export')->name('export.')->middleware(['subscription'])->group(function () {
+        Route::post('ofac', [\App\Http\Controllers\Admin\ExportController::class, 'exportOfac'])->name('ofac');
+        Route::post('sat', [\App\Http\Controllers\Admin\ExportController::class, 'exportSat'])->name('sat');
+        Route::post('combined', [\App\Http\Controllers\Admin\ExportController::class, 'exportCombined'])->name('combined');
+    });
+
     // === HISTORIAL DE BÚSQUEDAS EN LISTAS NEGRAS ===
     // Endpoints para gestionar el historial de búsquedas realizadas
     // NOTA: Sin middleware subscription temporalmente para debug

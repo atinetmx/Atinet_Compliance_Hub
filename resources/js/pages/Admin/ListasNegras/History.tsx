@@ -142,7 +142,7 @@ export default function ListasNegrasHistory() {
 
     const getResultsCount = (item: SearchHistoryItem): number => {
         const resultados = item.resultados as { data?: unknown[] } | unknown[] | null;
-        
+
         if (!resultados) return 0;
         if (Array.isArray(resultados)) return resultados.length;
         if (typeof resultados === 'object' && 'data' in resultados) {
