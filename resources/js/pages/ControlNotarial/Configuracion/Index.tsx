@@ -431,28 +431,28 @@ export default function ControlNotarialConfiguracionIndex() {
                 {/* Tabs Container */}
                 <div className="rounded-lg border border-sidebar-border bg-background p-6">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-6">
-                            <TabsTrigger value="datos" className="gap-2">
+                        <TabsList className="grid w-full grid-cols-6 bg-transparent">
+                            <TabsTrigger value="datos" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <Building2 className="size-4" />
                                 <span className="hidden sm:inline">Datos</span>
                             </TabsTrigger>
-                            <TabsTrigger value="control" className="gap-2">
+                            <TabsTrigger value="control" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <Settings className="size-4" />
                                 <span className="hidden sm:inline">Control</span>
                             </TabsTrigger>
-                            <TabsTrigger value="servidor" className="gap-2">
+                            <TabsTrigger value="servidor" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <Server className="size-4" />
                                 <span className="hidden sm:inline">Servidor</span>
                             </TabsTrigger>
-                            <TabsTrigger value="correo" className="gap-2">
+                            <TabsTrigger value="correo" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <Settings className="size-4" />
                                 <span className="hidden sm:inline">Correo</span>
                             </TabsTrigger>
-                            <TabsTrigger value="calculos" className="gap-2">
+                            <TabsTrigger value="calculos" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <Calculator className="size-4" />
                                 <span className="hidden sm:inline">Cálculos</span>
                             </TabsTrigger>
-                            <TabsTrigger value="folios" className="gap-2">
+                            <TabsTrigger value="folios" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <File className="size-4" />
                                 <span className="hidden sm:inline">Folios</span>
                             </TabsTrigger>

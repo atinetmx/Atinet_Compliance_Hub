@@ -884,7 +884,7 @@ export default function ControlNotarialClientes() {
                                             type="number"
                                             value={formData.edad}
                                             onChange={handleInputChange}
-                                            disabled
+                                            readOnly
                                         />
                                     </div>
                                 </div>

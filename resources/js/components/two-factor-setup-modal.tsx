@@ -179,7 +179,7 @@ function TwoFactorVerificationStep({
                                 name="code"
                                 maxLength={OTP_MAX_LENGTH}
                                 onChange={setCode}
-                                disabled={processing}
+                                readOnly={processing}
                                 pattern={REGEXP_ONLY_DIGITS}
                             >
                                 <InputOTPGroup>

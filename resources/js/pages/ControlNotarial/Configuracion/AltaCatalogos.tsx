@@ -735,102 +735,104 @@ export default function ControlNotarialAltaCatalogos() {
                                 </div>
                             )}
 
-                            <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-16">ID</TableHead>
-                                            {activeTab === 'actividades_vulnerables' && (
-                                                <>
-                                                    <TableHead>Descripción</TableHead>
-                                                    <TableHead>Monto</TableHead>
-                                                    <TableHead>Siempre</TableHead>
-                                                </>
-                                            )}
-                                            {activeTab === 'operaciones' && (
-                                                <>
-                                                    <TableHead>Descripción</TableHead>
-                                                    <TableHead>Actividad Vulnerable</TableHead>
-                                                </>
-                                            )}
-                                            {activeTab === 'impuestos_derechos' && (
-                                                <>
-                                                    <TableHead>Descripción</TableHead>
-                                                    <TableHead>Tipo</TableHead>
-                                                    <TableHead>Dependencia</TableHead>
-                                                </>
-                                            )}
-                                            {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                <TableHead>Descripción</TableHead>
-                                            )}
-                                            <TableHead className="w-20 text-center">Activo</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {isSearching ? (
+                            <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[500px]">
+                                <div className="overflow-y-auto flex-1">
+                                    <Table>
+                                        <TableHeader className="sticky top-0 bg-background z-10">
                                             <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                    Cargando...
-                                                </TableCell>
+                                                <TableHead className="w-16">ID</TableHead>
+                                                {activeTab === 'actividades_vulnerables' && (
+                                                    <>
+                                                        <TableHead>Descripción</TableHead>
+                                                        <TableHead>Monto</TableHead>
+                                                        <TableHead>Siempre</TableHead>
+                                                    </>
+                                                )}
+                                                {activeTab === 'operaciones' && (
+                                                    <>
+                                                        <TableHead>Descripción</TableHead>
+                                                        <TableHead>Actividad Vulnerable</TableHead>
+                                                    </>
+                                                )}
+                                                {activeTab === 'impuestos_derechos' && (
+                                                    <>
+                                                        <TableHead>Descripción</TableHead>
+                                                        <TableHead>Tipo</TableHead>
+                                                        <TableHead>Dependencia</TableHead>
+                                                    </>
+                                                )}
+                                                {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
+                                                    <TableHead>Descripción</TableHead>
+                                                )}
+                                                <TableHead className="w-20 text-center">Activo</TableHead>
                                             </TableRow>
-                                        ) : resultados.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                    No se encontraron resultados.
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            resultados.map((item) => (
-                                                <TableRow
-                                                    key={item.id}
-                                                    className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
-                                                    onClick={() => handleSelectItem(item)}
-                                                >
-                                                    <TableCell className="font-mono text-sm">{item.id}</TableCell>
-                                                    {activeTab === 'actividades_vulnerables' && (
-                                                        <>
-                                                            <TableCell>{item.descripcion}</TableCell>
-                                                            <TableCell>${item.monto?.toFixed(2)}</TableCell>
-                                                            <TableCell>
-                                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                                    item.siempre ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                                                }`}>
-                                                                    {item.siempre ? 'Sí' : 'No'}
-                                                                </span>
-                                                            </TableCell>
-                                                        </>
-                                                    )}
-                                                    {activeTab === 'operaciones' && (
-                                                        <>
-                                                            <TableCell>{item.descripcion}</TableCell>
-                                                            <TableCell>{item.actividad_Vulnerable_Id}</TableCell>
-                                                        </>
-                                                    )}
-                                                    {activeTab === 'impuestos_derechos' && (
-                                                        <>
-                                                            <TableCell>{item.descripcion}</TableCell>
-                                                            <TableCell>{item.tipo}</TableCell>
-                                                            <TableCell>{item.dependencia}</TableCell>
-                                                        </>
-                                                    )}
-                                                    {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                        <TableCell>{item.descripcion}</TableCell>
-                                                    )}
-                                                    <TableCell className="text-center">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                            item.activo
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : 'bg-red-100 text-red-800'
-                                                        }`}>
-                                                            {item.activo ? 'Sí' : 'No'}
-                                                        </span>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {isSearching ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                        <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                        Cargando...
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                            ) : resultados.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                        No se encontraron resultados.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                resultados.map((item) => (
+                                                    <TableRow
+                                                        key={item.id}
+                                                        className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                        onClick={() => handleSelectItem(item)}
+                                                    >
+                                                        <TableCell className="font-mono text-sm">{item.id}</TableCell>
+                                                        {activeTab === 'actividades_vulnerables' && (
+                                                            <>
+                                                                <TableCell>{item.descripcion}</TableCell>
+                                                                <TableCell>${item.monto?.toFixed(2)}</TableCell>
+                                                                <TableCell>
+                                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                                        item.siempre ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                                    }`}>
+                                                                        {item.siempre ? 'Sí' : 'No'}
+                                                                    </span>
+                                                                </TableCell>
+                                                            </>
+                                                        )}
+                                                        {activeTab === 'operaciones' && (
+                                                            <>
+                                                                <TableCell>{item.descripcion}</TableCell>
+                                                                <TableCell>{item.actividad_Vulnerable_Id}</TableCell>
+                                                            </>
+                                                        )}
+                                                        {activeTab === 'impuestos_derechos' && (
+                                                            <>
+                                                                <TableCell>{item.descripcion}</TableCell>
+                                                                <TableCell>{item.tipo}</TableCell>
+                                                                <TableCell>{item.dependencia}</TableCell>
+                                                            </>
+                                                        )}
+                                                        {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
+                                                            <TableCell>{item.descripcion}</TableCell>
+                                                        )}
+                                                        <TableCell className="text-center">
+                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                                item.activo
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : 'bg-red-100 text-red-800'
+                                                            }`}>
+                                                                {item.activo ? 'Sí' : 'No'}
+                                                            </span>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </div>
 
                             {!isSearching && resultados.length > 0 && (

@@ -503,52 +503,54 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-16">ID</TableHead>
-                                        <TableHead>Descripción</TableHead>
-                                        <TableHead className="w-20 text-center">Activa</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isSearching ? (
+                        <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[500px]">
+                            <div className="overflow-y-auto flex-1">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-background z-10">
                                         <TableRow>
-                                            <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                Cargando operaciones...
-                                            </TableCell>
+                                            <TableHead className="w-16">ID</TableHead>
+                                            <TableHead>Descripción</TableHead>
+                                            <TableHead className="w-20 text-center">Activa</TableHead>
                                         </TableRow>
-                                    ) : operaciones.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                                No se encontraron operaciones.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        operaciones.map((op) => (
-                                            <TableRow
-                                                key={op.id}
-                                                className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
-                                                onClick={() => handleSelectOperacion(op)}
-                                            >
-                                                <TableCell className="font-mono text-sm">{op.id}</TableCell>
-                                                <TableCell>{op.descripcion}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                        op.activo
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {op.activo ? 'Sí' : 'No'}
-                                                    </span>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isSearching ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Cargando operaciones...
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : operaciones.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                                    No se encontraron operaciones.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            operaciones.map((op) => (
+                                                <TableRow
+                                                    key={op.id}
+                                                    className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                    onClick={() => handleSelectOperacion(op)}
+                                                >
+                                                    <TableCell className="font-mono text-sm">{op.id}</TableCell>
+                                                    <TableCell>{op.descripcion}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                            op.activo
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : 'bg-red-100 text-red-800'
+                                                        }`}>
+                                                            {op.activo ? 'Sí' : 'No'}
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
                         {!isSearching && operaciones.length > 0 && (
                             <p className="text-sm text-muted-foreground">
