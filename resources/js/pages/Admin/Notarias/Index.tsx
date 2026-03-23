@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Building2,
     Plus,
@@ -289,10 +289,15 @@ export default function NotariaIndex({ notarias }: NotariaIndexProps) {
                                                             '¿Estás seguro de eliminar esta notaría?',
                                                         )
                                                     ) {
-                                                        // TODO: Implementar eliminación
-                                                        console.log(
-                                                            'Eliminar notaría',
-                                                            notaria.id,
+                                                        router.delete(
+                                                            route(
+                                                                'admin.notarias.destroy',
+                                                                notaria.id,
+                                                            ),
+                                                            {
+                                                                preserveScroll:
+                                                                    true,
+                                                            },
                                                         );
                                                     }
                                                 }}

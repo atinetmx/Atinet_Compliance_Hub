@@ -481,6 +481,63 @@ class NotariaController extends Controller
                 KEY `service_usage_consumed_at_index` (`consumed_at`),
                 KEY `service_usage_billable_index` (`billable`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // ✅ Plans (catálogo de planes)
+            'CREATE TABLE IF NOT EXISTS `plans` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `nombre` varchar(255) NOT NULL,
+                `slug` varchar(255) NOT NULL,
+                `descripcion` text,
+                `precio_mensual` decimal(10,2) DEFAULT NULL,
+                `precio_anual` decimal(10,2) DEFAULT NULL,
+                `limite_usuarios` int NOT NULL DEFAULT -1,
+                `limite_busquedas_mes` int NOT NULL DEFAULT -1,
+                `herramientas_activas` json DEFAULT NULL,
+                `caracteristicas` json DEFAULT NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT 1,
+                `orden` int NOT NULL DEFAULT 0,
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `plans_slug_unique` (`slug`),
+                KEY `plans_is_active_index` (`is_active`),
+                KEY `plans_orden_index` (`orden`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // ✅ Búsquedas (historial local de búsquedas)
+            'CREATE TABLE IF NOT EXISTS `busquedas` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `notaria_id` bigint unsigned NOT NULL,
+                `user_id` bigint unsigned NOT NULL,
+                `tipo_busqueda` varchar(255) NOT NULL,
+                `termino_busqueda` varchar(255) NOT NULL,
+                `resultados` json DEFAULT NULL,
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `busquedas_notaria_id_index` (`notaria_id`),
+                KEY `busquedas_user_id_index` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+
+            // ✅ Agenda Events (eventos de agenda)
+            'CREATE TABLE IF NOT EXISTS `agenda_events` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `notaria_id` bigint unsigned DEFAULT NULL,
+                `user_id` bigint unsigned DEFAULT NULL,
+                `legacy_notaria` varchar(15) DEFAULT NULL,
+                `titulo` varchar(145) NOT NULL,
+                `start_fecha` datetime DEFAULT NULL,
+                `end_fecha` datetime DEFAULT NULL,
+                `comentarios` varchar(255) DEFAULT NULL,
+                `color` varchar(10) NOT NULL DEFAULT \'#2563eb\',
+                `tipo` enum(\'general\',\'cita\',\'recordatorio\',\'festivo\') NOT NULL DEFAULT \'general\',
+                `created_at` timestamp NULL DEFAULT NULL,
+                `updated_at` timestamp NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `agenda_events_notaria_id_index` (`notaria_id`),
+                KEY `agenda_events_user_id_index` (`user_id`),
+                KEY `agenda_events_legacy_notaria_index` (`legacy_notaria`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
         ];
 
         foreach ($minimalTables as $sql) {
