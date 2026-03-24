@@ -169,7 +169,7 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const response = await fetch('https://localhost:44327/api/Clientes/GetClientes', {
+                const response = await fetch('http://192.168.1.1:5000/api/Clientes/GetClientes', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -193,7 +193,7 @@ export default function PresupuestoPrevioIndex() {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await fetch('https://localhost:44327/api/Catalogos/GetOperaciones', {
+                const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetOperaciones', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -225,7 +225,7 @@ export default function PresupuestoPrevioIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Presupuestos/GetPresupuestosPrevios');
+            const url = new URL('http://192.168.1.1:5000/api/Presupuestos/GetPresupuestosPrevios');
             if (filtroValue) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -273,7 +273,7 @@ export default function PresupuestoPrevioIndex() {
             if (operacionSeleccionada) {
                 try {
                     setIsLoadingImpuestos(true);
-                    const url = `https://localhost:44327/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`;
+                    const url = `http://192.168.1.1:5000/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`;
                     const response = await fetch(url, {
                         headers: { 'Content-Type': 'application/json' },
                     });
@@ -438,8 +438,8 @@ export default function PresupuestoPrevioIndex() {
             };
 
             const url = isEditing && formData.id
-                ? `https://localhost:44327/api/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
-                : 'https://localhost:44327/api/Presupuestos/CreatePresupuestoPrevio';
+                ? `http://192.168.1.1:5000/api/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
+                : 'http://192.168.1.1:5000/api/Presupuestos/CreatePresupuestoPrevio';
 
             const method = isEditing && formData.id ? 'PUT' : 'POST';
 
@@ -478,7 +478,7 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const response = await fetch(`https://localhost:44327/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
+            const response = await fetch(`http://192.168.1.1:5000/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
                 headers: { 'Content-Type': 'application/json' },
             });
 
@@ -554,7 +554,7 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingClientes(true);
         setClienteError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Clientes/GetClientes');
+            const url = new URL('http://192.168.1.1:5000/api/Clientes/GetClientes');
             if (filtroValue) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -592,7 +592,7 @@ export default function PresupuestoPrevioIndex() {
 
         try {
             setIsLoadingPdf(true);
-            const response = await fetch(`https://localhost:44327/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
+            const response = await fetch(`http://192.168.1.1:5000/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
                 method: 'GET',
             });
 
@@ -654,10 +654,16 @@ export default function PresupuestoPrevioIndex() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-4 bg-transparent">
-                        <TabsTrigger value="busqueda" className="data-[state=active]:shadow-neutral-800">Búsqueda</TabsTrigger>
-                        <TabsTrigger value="formulario" className="data-[state=active]:shadow-neutral-800">
-                            {isEditing ? 'Editar Presupuesto' : 'Crear Presupuesto'}
+                    <TabsList className="grid w-full grid-cols-2 bg-transparent">
+                        <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Search className="size-4" />
+                            <span className="hidden sm:inline">Búsqueda</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="formulario" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Plus className="size-4" />
+                            <span className="hidden sm:inline">
+                                {isEditing ? 'Editar Presupuesto' : 'Crear Presupuesto'}
+                            </span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -1111,12 +1117,10 @@ export default function PresupuestoPrevioIndex() {
                                                         </div>
                                                         <div className="col-span-3">
                                                             <Input
-                                                                type="number"
-                                                                step="1"
-                                                                value={item.importe}
-                                                                onChange={(e) => updateImpuestoDerechos(item.id, 'importe', e.target.value)}
-                                                                placeholder="0.00"
-                                                                className="text-right w-full text-sm h-8"
+                                                                type="text"
+                                                                value={formatCurrency(item.importe)}
+                                                                readOnly
+                                                                className="text-right text-sm h-8 font-bold text-green-600"
                                                             />
                                                         </div>
                                                         <div className="col-span-3">
@@ -1178,14 +1182,17 @@ export default function PresupuestoPrevioIndex() {
                                                             />
                                                         </div>
                                                         <div className="col-span-2">
-                                                            <Input
-                                                                type="number"
-                                                                step="1"
-                                                                value={item.importe}
-                                                                onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
-                                                                placeholder="Importe"
-                                                                className="text-right w-full text-sm h-8"
-                                                            />
+                                                            <div className="flex items-center border rounded-md bg-background h-8 px-2">
+                                                                <span className="text-sm font-bold text-foreground mr-1">$</span>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    value={item.importe}
+                                                                    onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
+                                                                    placeholder="0.00"
+                                                                    className="text-right flex-1 text-sm h-6 border-0 focus-visible:ring-0 p-0 bg-transparent"
+                                                                />
+                                                            </div>
                                                         </div>
                                                         <div className="col-span-1 flex items-center justify-center">
                                                             <Button

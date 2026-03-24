@@ -81,6 +81,11 @@ export function AppSidebar() {
                               icon: FileText,
                               items: [
                                   {
+                                      title: 'Expedientes',
+                                      href: '/admin/control-notarial/expedientes/expedientes',
+                                      icon: FileText,
+                                  },
+                                  {
                                       title: 'Presupuesto Previo',
                                       href: '/admin/control-notarial/expedientes/presupuesto-previo',
                                       icon: DollarSign,
@@ -149,6 +154,11 @@ export function AppSidebar() {
                               href: '/admin/control-notarial/expedientes',
                               icon: FileText,
                               items: [
+                                  {
+                                      title: 'Expedientes',
+                                      href: '/admin/control-notarial/expedientes/expedientes',
+                                      icon: FileText,
+                                  },
                                   {
                                       title: 'Presupuesto Previo',
                                       href: '/admin/control-notarial/expedientes/presupuesto-previo',

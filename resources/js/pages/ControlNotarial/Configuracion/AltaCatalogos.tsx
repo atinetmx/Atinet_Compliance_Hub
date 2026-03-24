@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, Database } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, Database, FileText, AlertTriangle, Building2, File, Briefcase, DollarSign, Users, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -193,7 +193,7 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetActividadesVulnerables', {
+            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetActividadesVulnerables', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -207,7 +207,7 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetDependenciasPublicas', {
+            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetDependenciasPublicas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -224,7 +224,7 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const response = await fetch(`https://localhost:44327/api/Catalogos/${endpoint}`, {
+            const response = await fetch(`http://192.168.1.1:5000/api/Catalogos/${endpoint}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -449,7 +449,7 @@ export default function ControlNotarialAltaCatalogos() {
 
             console.log(`[DEBUG] Enviando ${method} a ${endpoint}`, payload);
 
-            const response = await fetch(`https://localhost:44327/api/Catalogos/${endpoint}`, {
+            const response = await fetch(`http://192.168.1.1:5000/api/Catalogos/${endpoint}`, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -686,10 +686,16 @@ export default function ControlNotarialAltaCatalogos() {
                 {/* Pestañas de Búsqueda/Crear - ABAJO */}
                 <div className="px-6">
                     <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
-                        <TabsList className="mb-4">
-                            <TabsTrigger value="busqueda">Búsqueda</TabsTrigger>
-                            <TabsTrigger value="formulario">
-                                {isEditing ? 'Editar Catálogo' : 'Crear Catálogo'}
+                        <TabsList className="grid w-full grid-cols-2 bg-transparent">
+                            <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                <Search className="size-4" />
+                                <span className="hidden sm:inline">Búsqueda</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="formulario" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                <Plus className="size-4" />
+                                <span className="hidden sm:inline">
+                                    {isEditing ? 'Editar Catálogo' : 'Crear Catálogo'}
+                                </span>
                             </TabsTrigger>
                         </TabsList>
 
@@ -735,7 +741,7 @@ export default function ControlNotarialAltaCatalogos() {
                                 </div>
                             )}
 
-                            <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[500px]">
+                            <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[470px]">
                                 <div className="overflow-y-auto flex-1">
                                     <Table>
                                         <TableHeader className="sticky top-0 bg-background z-10">
@@ -836,7 +842,7 @@ export default function ControlNotarialAltaCatalogos() {
                             </div>
 
                             {!isSearching && resultados.length > 0 && (
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground pb-4">
                                     {resultados.length} resultado(s) encontrado(s) — <span className="text-amber-600">haz clic para editar</span>
                                 </p>
                             )}

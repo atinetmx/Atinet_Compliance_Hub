@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, Users } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, Users, User, Calendar, MapPin, Phone, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -215,7 +215,7 @@ export default function ControlNotarialClientes() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Clientes/GetClientes');
+            const url = new URL('http://192.168.1.1:5000/api/Clientes/GetClientes');
             if (filtroValue.trim()) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -281,7 +281,7 @@ export default function ControlNotarialClientes() {
         try {
             // Llamar a la API para obtener los datos completos del cliente
             const response = await fetch(
-                `https://localhost:44327/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
+                `http://192.168.1.1:5000/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
                 {
                     method: 'GET',
                     headers: {
@@ -555,8 +555,8 @@ export default function ControlNotarialClientes() {
             // Determinar URL y método según si es crear o actualizar
             const isUpdating = isEditing && formData.id;
             const url = isUpdating
-                ? `https://localhost:44327/api/Clientes/UpdateCliente?clienteId=${formData.id}`
-                : 'https://localhost:44327/api/Clientes/CreateClient';
+                ? `http://192.168.1.1:5000/api/Clientes/UpdateCliente?clienteId=${formData.id}`
+                : 'http://192.168.1.1:5000/api/Clientes/CreateClient';
             const method = isUpdating ? 'PUT' : 'POST';
 
             // Llamar a API
@@ -629,10 +629,16 @@ export default function ControlNotarialClientes() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-4">
-                        <TabsTrigger value="busqueda">Búsqueda</TabsTrigger>
-                        <TabsTrigger value="formulario">
-                            {isEditing ? 'Editar Cliente' : 'Crear Cliente'}
+                    <TabsList className="grid w-full grid-cols-2 bg-transparent">
+                        <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Search className="size-4" />
+                            <span className="hidden sm:inline">Búsqueda</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="formulario" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Plus className="size-4" />
+                            <span className="hidden sm:inline">
+                                {isEditing ? 'Editar Cliente' : 'Crear Cliente'}
+                            </span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -777,12 +783,27 @@ export default function ControlNotarialClientes() {
                                 )}
 
                                 <Tabs value={activeFormTab} onValueChange={setActiveFormTab}>
-                                <TabsList className="mb-6 grid w-full grid-cols-5">
-                                    <TabsTrigger value="datos">Datos</TabsTrigger>
-                                    <TabsTrigger value="nacimiento">Nacimiento</TabsTrigger>
-                                    <TabsTrigger value="domicilio">Domicilio</TabsTrigger>
-                                    <TabsTrigger value="contacto">Contacto</TabsTrigger>
-                                    <TabsTrigger value="identificacion">Identificación</TabsTrigger>
+                                <TabsList className="grid w-full grid-cols-5 bg-transparent">
+                                    <TabsTrigger value="datos" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <User className="size-4" />
+                                        <span className="hidden sm:inline">Datos</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="nacimiento" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <Calendar className="size-4" />
+                                        <span className="hidden sm:inline">Nacimiento</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="domicilio" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <MapPin className="size-4" />
+                                        <span className="hidden sm:inline">Domicilio</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="contacto" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <Phone className="size-4" />
+                                        <span className="hidden sm:inline">Contacto</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="identificacion" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <FileText className="size-4" />
+                                        <span className="hidden sm:inline">Identificación</span>
+                                    </TabsTrigger>
                                 </TabsList>
 
                                 {/* TAB 1: DATOS DEL CLIENTE */}

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { X, AlertCircle, Search, Loader2, Building2, Save } from 'lucide-react';
+import { X, AlertCircle, Search, Loader2, Building2, Save, Settings, SettingsIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -109,7 +109,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetOperaciones', {
+            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetOperaciones', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -153,7 +153,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
 
         try {
             // Cargar etapas configuradas
-            const responseEtapasConfiguradasURL = `https://localhost:44327/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
+            const responseEtapasConfiguradasURL = `http://192.168.1.1:5000/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
             const responseEtapasConfiguradas = await fetch(responseEtapasConfiguradasURL, {
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -167,7 +167,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await fetch('https://localhost:44327/api/Catalogos/GetEtapas', {
+            const responseEtapasDisponibles = await fetch('http://192.168.1.1:5000/api/Catalogos/GetEtapas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const dataEtapasDisponibles = await responseEtapasDisponibles.json();
@@ -176,7 +176,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             setEtapasRemovidasOperacion([]);
 
             // Cargar documentos configurados
-            const responseDocumentosConfiguradosURL = `https://localhost:44327/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
+            const responseDocumentosConfiguradosURL = `http://192.168.1.1:5000/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
             const responseDocumentosConfigurados = await fetch(responseDocumentosConfiguradosURL, {
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -188,7 +188,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await fetch('https://localhost:44327/api/Catalogos/GetDocumentos', {
+            const responseDocumentosDisponibles = await fetch('http://192.168.1.1:5000/api/Catalogos/GetDocumentos', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const dataDocumentosDisponibles = await responseDocumentosDisponibles.json();
@@ -197,7 +197,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             setDocumentosRemovidosOperacion([]);
 
             // Cargar impuestos configurados
-            const responseImpuestosConfiguradosURL = `https://localhost:44327/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
+            const responseImpuestosConfiguradosURL = `http://192.168.1.1:5000/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
             const responseImpuestosConfigurados = await fetch(responseImpuestosConfiguradosURL, {
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -213,7 +213,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await fetch('https://localhost:44327/api/Catalogos/GetImpuestosDerechos', {
+            const responseImpuestosDisponibles = await fetch('http://192.168.1.1:5000/api/Catalogos/GetImpuestosDerechos', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const dataImpuestosDisponibles = await responseImpuestosDisponibles.json();
@@ -315,7 +315,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://localhost:44327/api/ConfiguracionOperacion/AddEtapasOperacion';
+            url = 'http://192.168.1.1:5000/api/ConfiguracionOperacion/AddEtapasOperacion';
         } else if (activeSubTab === 'documentos') {
             const documentosMantenidos = documentosConfiguradosOperacion
                 .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
@@ -330,7 +330,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://localhost:44327/api/ConfiguracionOperacion/AddDocumentoOperacion';
+            url = 'http://192.168.1.1:5000/api/ConfiguracionOperacion/AddDocumentoOperacion';
         } else if (activeSubTab === 'impuestos') {
             const impuestosMantenidos = impuestosConfiguradosOperacion
                 .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
@@ -351,7 +351,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://localhost:44327/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+            url = 'http://192.168.1.1:5000/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
         }
 
         setIsSavingConfig(true);
@@ -454,10 +454,14 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-4">
-                        <TabsTrigger value="busqueda">Búsqueda</TabsTrigger>
-                        <TabsTrigger value="configuracion" disabled={!operacionSeleccionada}>
-                            Configuración
+                    <TabsList className="grid w-full grid-cols-2 bg-transparent">
+                        <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Search className="size-4" />
+                            <span className="hidden sm:inline">Búsqueda</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="configuracion" disabled={!operacionSeleccionada} className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Settings className="size-4" />
+                            <span className="hidden sm:inline">Configuración</span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -594,13 +598,18 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
 
                                 {/* Sub-pestañas: Etapas */}
                                 <Tabs value={activeSubTab} onValueChange={handleChangeSubTab} className="w-full">
-                                    <TabsList className="grid w-full grid-cols-3 bg-background/50 border border-sidebar-border/50">
-                                        <TabsTrigger value="etapas">Etapas</TabsTrigger>
-                                        <TabsTrigger value="documentos">
-                                            Documentos
+                                    <TabsList className="grid w-full grid-cols-3 bg-transparent">
+                                        <TabsTrigger value="etapas" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                            <SettingsIcon className="size-4" />
+                                            <span className="hidden sm:inline">Etapas</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="impuestos">
-                                            Impuestos y Derechos
+                                        <TabsTrigger value="documentos" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                            <Search className="size-4" />
+                                            <span className="hidden sm:inline">Documentos</span>
+                                        </TabsTrigger>
+                                        <TabsTrigger value="impuestos" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                            <AlertCircle className="size-4" />
+                                            <span className="hidden sm:inline">Impuestos y Derechos</span>
                                         </TabsTrigger>
                                     </TabsList>
 

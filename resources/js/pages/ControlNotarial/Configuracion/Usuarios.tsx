@@ -97,6 +97,7 @@ export default function ControlNotarialUsuarios() {
     const [isLoadingRoles, setIsLoadingRoles] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [cambiarContraseña, setCambiarContraseña] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
 
@@ -109,7 +110,7 @@ export default function ControlNotarialUsuarios() {
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await fetch('https://localhost:44327/api/Catalogos/GetRoles', {
+                const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetRoles', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -132,10 +133,10 @@ export default function ControlNotarialUsuarios() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/User/GetUsuarios');
+            const url = new URL('http://192.168.1.1:5000/api/User/GetUsuarios');
             url.searchParams.append('filtro', filtroValue);
             const response = await fetch(url.toString(), {
-                method: 'POST',
+                method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -174,8 +175,8 @@ export default function ControlNotarialUsuarios() {
 
     const handleAddUsuario = async () => {
         if (!formData.nombre || !formData.apellido_paterno || !formData.apellido_materno ||
-            !formData.usuario || !formData.contraseña || !formData.iniciales || !formData.numero_notaria) {
-            addToast('Completa los campos obligatorios: Nombre, Apellidos, Usuario, Contraseña, Iniciales y Número Notaria', 'error');
+            !formData.usuario || !formData.iniciales || !formData.numero_notaria) {
+            addToast('Completa los campos obligatorios: Nombre, Apellidos, Usuario, Iniciales y Número Notaria', 'error');
             return;
         }
 
@@ -184,7 +185,7 @@ export default function ControlNotarialUsuarios() {
                 setIsSaving(true);
                 setSaveError(null);
                 const response = await fetch(
-                    `https://localhost:44327/api/User/UpdateUsuario?usuarioId=${formData.id}`,
+                    `http://192.168.1.1:5000/api/User/UpdateUsuario?usuarioId=${formData.id}`,
                     {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -232,7 +233,7 @@ export default function ControlNotarialUsuarios() {
                 setIsSaving(true);
                 setSaveError(null);
                 const response = await fetch(
-                    'https://localhost:44327/api/User/CreateUsuario',
+                    'http://192.168.1.1:5000/api/User/CreateUsuario',
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -283,11 +284,12 @@ export default function ControlNotarialUsuarios() {
     const handleSelectUsuario = async (usuario: UsuarioBusqueda) => {
         setIsLoadingUsuario(true);
         setIsEditing(true);
+        setCambiarContraseña(false);
         setSaveError(null);
         setActiveTab('formulario');
         try {
             const response = await fetch(
-                `https://localhost:44327/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
+                `http://192.168.1.1:5000/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
                 { headers: { 'Content-Type': 'application/json' } }
             );
             const data = await response.json();
@@ -327,6 +329,7 @@ export default function ControlNotarialUsuarios() {
     const handleCancelEdit = () => {
         setFormData(defaultUsuarioData);
         setIsEditing(false);
+        setCambiarContraseña(false);
         setSaveError(null);
         setActiveTab('busqueda');
     };
@@ -362,10 +365,16 @@ export default function ControlNotarialUsuarios() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-4">
-                        <TabsTrigger value="busqueda">Búsqueda</TabsTrigger>
-                        <TabsTrigger value="formulario">
-                            {isEditing ? 'Editar Usuario' : 'Crear Usuario'}
+                    <TabsList className="grid w-full grid-cols-2 bg-transparent">
+                        <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Search className="size-4" />
+                            <span className="hidden sm:inline">Búsqueda</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="formulario" className="gap-2 data-[state=active]:shadow-neutral-800">
+                            <Plus className="size-4" />
+                            <span className="hidden sm:inline">
+                                {isEditing ? 'Editar Usuario' : 'Crear Usuario'}
+                            </span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -553,8 +562,8 @@ export default function ControlNotarialUsuarios() {
                                     </div>
                                 </div>
 
-                                {/* Fila 3: Correo, Usuario, Contraseña */}
-                                <div className="grid grid-cols-3 gap-4">
+                                {/* Fila 3: Correo, Usuario */}
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label htmlFor="correo" className="text-sm font-medium">Correo</label>
                                         <Input
@@ -576,6 +585,38 @@ export default function ControlNotarialUsuarios() {
                                             placeholder="usuario"
                                         />
                                     </div>
+                                </div>
+
+                                {/* Fila Contraseña */}
+                                {isEditing ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center space-x-2">
+                                            <input
+                                                type="checkbox"
+                                                id="cambiarContraseña"
+                                                checked={cambiarContraseña}
+                                                onChange={(e) => setCambiarContraseña(e.target.checked)}
+                                                className="rounded border-gray-300 cursor-pointer"
+                                            />
+                                            <label htmlFor="cambiarContraseña" className="text-sm font-medium cursor-pointer">
+                                                Cambiar contraseña
+                                            </label>
+                                        </div>
+                                        {cambiarContraseña && (
+                                            <div className="space-y-2">
+                                                <RequiredLabel htmlFor="contraseña">Nueva Contraseña</RequiredLabel>
+                                                <Input
+                                                    id="contraseña"
+                                                    name="contraseña"
+                                                    type="password"
+                                                    value={formData.contraseña}
+                                                    onChange={handleInputChange}
+                                                    placeholder="••••••••"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
                                     <div className="space-y-2">
                                         <RequiredLabel htmlFor="contraseña">Contraseña</RequiredLabel>
                                         <Input
@@ -587,7 +628,7 @@ export default function ControlNotarialUsuarios() {
                                             placeholder="••••••••"
                                         />
                                     </div>
-                                </div>
+                                )}
 
                                 {/* Fila 4: CURP, RFC */}
                                 <div className="grid grid-cols-2 gap-4">

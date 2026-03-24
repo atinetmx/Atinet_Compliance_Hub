@@ -64,6 +64,18 @@ class ControlNotarialController extends Controller
     }
 
     /**
+     * Display expedientes module within expedientes
+     */
+    public function expedientesExpedientes(): Response
+    {
+        return Inertia::render('ControlNotarial/Expedientes/Expedientes/Index', [
+            'expedientes' => [],
+            'phase' => 'development',
+            'message' => 'Módulo Expedientes en desarrollo',
+        ]);
+    }
+
+    /**
      * Display escrituras module (Phase 1+)
      */
     public function escrituras(): Response

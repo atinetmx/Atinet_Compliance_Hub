@@ -172,6 +172,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');
+        Route::get('expedientes/expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientesExpedientes'])->name('expedientes-expedientes');
         Route::get('expedientes/presupuesto-previo', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestoPrevio'])->name('presupuesto-previo');
         Route::get('escrituras', [\App\Http\Controllers\ControlNotarialController::class, 'escrituras'])->name('escrituras');
         Route::get('presupuestos', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestos'])->name('presupuestos');
