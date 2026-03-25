@@ -41,6 +41,58 @@ interface Operacion {
     activo: boolean;
 }
 
+interface Dependencia {
+    id: number;
+    descripcion: string;
+    activo: boolean;
+}
+
+interface Cliente {
+    id: number;
+    tipo_Cliente: string;
+    alias: string;
+    nombre: string;
+    apellido_Paterno: string;
+    apellido_Materno: string;
+    rfc: string;
+    curp: string;
+    activo: boolean;
+}
+
+interface Compareciente {
+    id: number;
+    descripcion: string;
+    activo: boolean;
+}
+
+interface FilaCompareciente {
+    id: string;
+    nombreCompareciente: string;
+    tipoCompareciente: string;
+    firmaRequerida: boolean;
+    fechaFirma: string;
+}
+
+interface DatosDepedencia {
+    dependencia: string;
+    folioReal: string;
+    volumen: string;
+    fojas: string;
+    seccion: string;
+    libro: string;
+    observaciones: string;
+    fechaIngreso: string;
+    folio: string;
+    partida: string;
+    estatus: string;
+    fechaRechazo: string;
+    fechaSubsanado: string;
+    fechaReingreso: string;
+    fechaRegistro: string;
+    fechaRecogerDependencia: string;
+    fechaConclusión: string;
+}
+
 interface Usuario {
     id: number;
     nombre: string;
@@ -56,12 +108,14 @@ interface ExpedienteFormData {
     referencia: string;
     municipio: string;
     operaciones: string[];
+    dependencias: string[];
     observaciones: string;
     notario: string;
     responsable: string;
     secretaria: string;
     autorizado: string;
     estatus: string;
+    motivoCancelacion: string;
     ultima_etapa: string;
     financiamiento_con: boolean;
     financiamiento_monto: number;
@@ -103,12 +157,14 @@ export default function ExpedientesIndex() {
         referencia: '',
         municipio: '',
         operaciones: [],
+        dependencias: [],
         observaciones: '',
         notario: '',
         responsable: '',
         secretaria: '',
         autorizado: '',
         estatus: '',
+        motivoCancelacion: '',
         ultima_etapa: '',
         financiamiento_con: false,
         financiamiento_monto: 0,
@@ -137,6 +193,47 @@ export default function ExpedientesIndex() {
     const [mostrarDropdownOperaciones, setMostrarDropdownOperaciones] = useState(false);
     const [cargandoOperaciones, setCargandoOperaciones] = useState(false);
     const refDropdownOperaciones = useRef<HTMLDivElement>(null);
+
+    // --- Estado Combobox Dependencias ---
+    const [dependenciasDisponibles, setDependenciasDisponibles] = useState<Dependencia[]>([]);
+    const [dependenciasFiltradas, setDependenciasFiltradas] = useState<Dependencia[]>([]);
+    const [dependenciaBusqueda, setDependenciaBusqueda] = useState('');
+    const [mostrarDropdownDependencias, setMostrarDropdownDependencias] = useState(false);
+    const [cargandoDependencias, setCargandoDependencias] = useState(false);
+    const refDropdownDependencias = useRef<HTMLDivElement>(null);
+    const [datosDepdencias, setDatosDepdencias] = useState<Record<string, DatosDepedencia>>({});
+    const [dependenciaSeleccionada, setDependenciaSeleccionada] = useState<string | null>(null);
+    const [checkboxesFecha, setCheckboxesFecha] = useState<Record<string, Record<string, boolean>>>({});
+
+    // Estados para Comparecientes
+    const [clientesDisponibles, setClientesDisponibles] = useState<Cliente[]>([]);
+    const [clientesFiltrados, setClientesFiltrados] = useState<Cliente[]>([]);
+    const [clienteBusqueda, setClienteBusqueda] = useState('');
+    const [mostrarDropdownClientes, setMostrarDropdownClientes] = useState(false);
+    const [cargandoClientes, setCargandoClientes] = useState(false);
+    const refDropdownClientes = useRef<HTMLDivElement>(null);
+    const [comparecientesDisponibles, setComparecientesDisponibles] = useState<Compareciente[]>([]);
+    const [filasComparecientes, setFilasComparecientes] = useState<FilaCompareciente[]>([]);
+    const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+    const [dropdownTipoAbierto, setDropdownTipoAbierto] = useState<Record<string, boolean>>({});
+    const [busquedaTipo, setBusquedaTipo] = useState<Record<string, string>>({});
+
+    // --- Estados para Documentos ---
+    const [mostrarDropdownOtorgante, setMostrarDropdownOtorgante] = useState(false);
+    const [busquedaOtorgante, setBusquedaOtorgante] = useState('');
+    const [otorganteSeleccionado, setOtorganteSeleccionado] = useState<Cliente | null>(null);
+    const [filasDocumentos, setFilasDocumentos] = useState<Record<number, {
+        descripcion: string;
+        entregaCheck: boolean;
+        entregaFecha: string;
+        usuRecibe: boolean;
+        copia: boolean;
+        original: boolean;
+        recepcionCheck: boolean;
+        recepcionFecha: string;
+        abogadoRec: boolean;
+        observaciones: string;
+    }>>({});
 
     // --- Estado Fechas Habilitadas en Datos Escritura ---
     const [enabledDates, setEnabledDates] = useState({
@@ -178,6 +275,9 @@ export default function ExpedientesIndex() {
         fetchExpedientes('');
         fetchOperaciones();
         fetchUsuarios();
+        fetchDependencias();
+        fetchClientes();
+        fetchComparecientes();
     }, []);
 
     // Cargar operaciones disponibles desde API
@@ -216,6 +316,76 @@ export default function ExpedientesIndex() {
             console.error('Error cargando usuarios:', error);
         } finally {
             setCargandoUsuarios(false);
+        }
+    };
+
+    // Cargar dependencias disponibles desde API
+    const fetchDependencias = async () => {
+        setCargandoDependencias(true);
+        try {
+            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetDependenciasPublicas', {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setDependenciasDisponibles(data.dataResponse);
+                setDependenciasFiltradas(data.dataResponse);
+            }
+        } catch (error) {
+            console.error('Error cargando dependencias:', error);
+        } finally {
+            setCargandoDependencias(false);
+        }
+    };
+
+    const fetchClientes = async () => {
+        setCargandoClientes(true);
+        try {
+            const response = await fetch('http://192.168.1.1:5000/api/Clientes/GetClientes', {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setClientesDisponibles(data.dataResponse);
+                setClientesFiltrados(data.dataResponse);
+            }
+        } catch (error) {
+            console.error('Error cargando clientes:', error);
+        } finally {
+            setCargandoClientes(false);
+        }
+    };
+
+    const fetchComparecientes = async () => {
+        try {
+            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetComparecientes', {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            console.log('Respuesta Comparecientes:', data);
+
+            if (response.ok) {
+                // Manejar diferentes formatos de respuesta
+                const comparecientes = data.dataResponse || data.data || data;
+                if (Array.isArray(comparecientes)) {
+                    setComparecientesDisponibles(comparecientes);
+                    console.log('Comparecientes cargados:', comparecientes);
+                } else {
+                    console.warn('Formato de respuesta inesperado para comparecientes');
+                }
+            } else {
+                console.error('Error en respuesta del servidor:', data);
+            }
+        } catch (error) {
+            console.error('Error cargando comparecientes:', error);
+            addToast({
+                type: 'error',
+                title: 'Error',
+                message: 'No se pudieron cargar los comparecientes',
+            });
         }
     };
 
@@ -282,6 +452,35 @@ export default function ExpedientesIndex() {
         }
     }, [operacionBusqueda, operacionesDisponibles]);
 
+    // Filtrar dependencias mientras se escribe
+    useEffect(() => {
+        if (dependenciaBusqueda.trim() === '') {
+            setDependenciasFiltradas(dependenciasDisponibles);
+        } else {
+            const filtradas = dependenciasDisponibles.filter(dep =>
+                dep.descripcion.toLowerCase().includes(dependenciaBusqueda.toLowerCase())
+            );
+            setDependenciasFiltradas(filtradas);
+        }
+    }, [dependenciaBusqueda, dependenciasDisponibles]);
+
+    // Filtrar clientes por búsqueda
+    useEffect(() => {
+        if (clienteBusqueda.trim() === '') {
+            setClientesFiltrados(clientesDisponibles);
+        } else {
+            const filtrados = clientesDisponibles.filter(cliente => {
+                const nombreCompleto = `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`.toLowerCase();
+                const alias = cliente.alias.toLowerCase();
+                const rfc = cliente.rfc.toLowerCase();
+                return nombreCompleto.includes(clienteBusqueda.toLowerCase()) ||
+                       alias.includes(clienteBusqueda.toLowerCase()) ||
+                       rfc.includes(clienteBusqueda.toLowerCase());
+            });
+            setClientesFiltrados(filtrados);
+        }
+    }, [clienteBusqueda, clientesDisponibles]);
+
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {
         const debounceTimer = setTimeout(() => {
@@ -336,12 +535,14 @@ export default function ExpedientesIndex() {
             referencia: '',
             municipio: '',
             operaciones: [],
+            dependencias: [],
             observaciones: '',
             notario: '',
             responsable: '',
             secretaria: '',
             autorizado: '',
             estatus: '',
+            motivoCancelacion: '',
             ultima_etapa: '',
             financiamiento_con: false,
             financiamiento_monto: 0,
@@ -364,6 +565,10 @@ export default function ExpedientesIndex() {
         });
         setOperacionBusqueda('');
         setMostrarDropdownOperaciones(false);
+        setDependenciaBusqueda('');
+        setMostrarDropdownDependencias(false);
+        setDatosDepdencias({});
+        setDependenciaSeleccionada(null);
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
@@ -385,6 +590,148 @@ export default function ExpedientesIndex() {
         }));
     };
 
+    const handleSeleccionarDependencia = (dependencia: Dependencia) => {
+        const nomDependencia = dependencia.descripcion.trim();
+        setFormData(prev => ({
+            ...prev,
+            dependencias: [...prev.dependencias, nomDependencia]
+        }));
+        setDependenciaSeleccionada(nomDependencia);
+
+        // Inicializar datos del formulario si no existen
+        if (!datosDepdencias[nomDependencia]) {
+            setDatosDepdencias(prev => ({
+                ...prev,
+                [nomDependencia]: {
+                    dependencia: nomDependencia,
+                    folioReal: '',
+                    volumen: '',
+                    fojas: '',
+                    seccion: '',
+                    libro: '',
+                    observaciones: '',
+                    fechaIngreso: '',
+                    folio: '',
+                    partida: '',
+                    estatus: '',
+                    fechaRechazo: '',
+                    fechaSubsanado: '',
+                    fechaReingreso: '',
+                    fechaRegistro: '',
+                    fechaRecogerDependencia: '',
+                    fechaConclusión: ''
+                }
+            }));
+
+            // Inicializar checkboxes de fechas
+            setCheckboxesFecha(prev => ({
+                ...prev,
+                [nomDependencia]: {
+                    fechaIngreso: false,
+                    fechaRechazo: false,
+                    fechaSubsanado: false,
+                    fechaReingreso: false,
+                    fechaRegistro: false,
+                    fechaRecogerDependencia: false,
+                    fechaConclusión: false
+                }
+            }));
+        }
+
+        setDependenciaBusqueda('');
+        setMostrarDropdownDependencias(false);
+    };
+
+    const handleEliminarDependencia = (indice: number) => {
+        const nombreDependencia = formData.dependencias[indice];
+        setFormData(prev => ({
+            ...prev,
+            dependencias: prev.dependencias.filter((_, i) => i !== indice)
+        }));
+
+        // Limpiar datos de la dependencia eliminada
+        setDatosDepdencias(prev => {
+            const newDatos = { ...prev };
+            delete newDatos[nombreDependencia];
+            return newDatos;
+        });
+
+        // Si la dependencia eliminada estaba seleccionada, deseleccionar
+        if (dependenciaSeleccionada === nombreDependencia) {
+            setDependenciaSeleccionada(null);
+        }
+    };
+
+    const handleActualizarDatosDependencia = (campo: keyof DatosDepedencia, valor: string) => {
+        if (dependenciaSeleccionada) {
+            setDatosDepdencias(prev => ({
+                ...prev,
+                [dependenciaSeleccionada]: {
+                    ...prev[dependenciaSeleccionada],
+                    [campo]: valor
+                }
+            }));
+        }
+    };
+
+    const handleToggleCheckboxFecha = (campo: string) => {
+        if (dependenciaSeleccionada) {
+            setCheckboxesFecha(prev => ({
+                ...prev,
+                [dependenciaSeleccionada]: {
+                    ...prev[dependenciaSeleccionada],
+                    [campo]: !prev[dependenciaSeleccionada]?.[campo]
+                }
+            }));
+            // Si se desactiva el checkbox, limpiar la fecha
+            if (checkboxesFecha[dependenciaSeleccionada]?.[campo]) {
+                handleActualizarDatosDependencia(campo as keyof DatosDepedencia, '');
+            }
+        }
+    };
+
+    const handleAgregarCompareciente = async () => {
+        if (clienteSeleccionado && comparecientesDisponibles.length === 0) {
+            // Cargar comparecientes si no están cargados
+            await fetchComparecientes();
+        }
+        if (clienteSeleccionado) {
+            const nuevoCompareciente: FilaCompareciente = {
+                id: Date.now().toString(),
+                nombreCompareciente: `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido_Paterno} ${clienteSeleccionado.apellido_Materno}`,
+                tipoCompareciente: '',
+                firmaRequerida: false,
+                fechaFirma: ''
+            };
+            setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
+            setClienteSeleccionado(null);
+            setClienteBusqueda('');
+            setMostrarDropdownClientes(false);
+        }
+    };
+
+    const handleEliminarCompareciente = (id: string) => {
+        setFilasComparecientes(prev => prev.filter(row => row.id !== id));
+    };
+
+    const handleActualizarCompareciente = (id: string, campo: keyof FilaCompareciente, valor: any) => {
+        setFilasComparecientes(prev =>
+            prev.map(row =>
+                row.id === id ? { ...row, [campo]: valor } : row
+            )
+        );
+    };
+
+    const handleToggleCheckboxCompareciente = (id: string) => {
+        setFilasComparecientes(prev =>
+            prev.map(row =>
+                row.id === id
+                    ? { ...row, firmaRequerida: !row.firmaRequerida, fechaFirma: !row.firmaRequerida ? row.fechaFirma : '' }
+                    : row
+            )
+        );
+    };
+
     return (
         <>
             <Head title="Expedientes - Control Notarial" />
@@ -404,11 +751,11 @@ export default function ExpedientesIndex() {
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
-                        <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
+                        <TabsTrigger value="busqueda" className="gap-1 data-[state=active]:shadow-neutral-800">
                             <Search className="size-4" />
                             <span className="hidden sm:inline">Búsqueda</span>
                         </TabsTrigger>
-                        <TabsTrigger value="formulario" className="gap-2 data-[state=active]:shadow-neutral-800">
+                        <TabsTrigger value="formulario" className="gap-1 data-[state=active]:shadow-neutral-800">
                             <Plus className="size-4" />
                             <span className="hidden sm:inline">
                                 {isEditing ? 'Editar Expediente' : 'Crear Expediente'}
@@ -523,27 +870,27 @@ export default function ExpedientesIndex() {
 
                             {/* TABS INTERNOS: 4 CATEGORÍAS TEMÁTICAS */}
                             <Tabs defaultValue="info-general" className="w-full">
-                                <TabsList className="grid w-full grid-cols-4 gap-2 bg-transparent mb-6 p-0">
+                                <TabsList className="grid w-full grid-cols-4 gap-2 bg-transparent mb-4 p-0">
                                     {/* GRUPO 1: INFORMACIÓN GENERAL */}
-                                    <TabsTrigger value="info-general" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger value="info-general" className="gap-1 data-[state=active]:shadow-neutral-800">
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Info General</span>
                                     </TabsTrigger>
 
                                     {/* GRUPO 2: DOCUMENTOS & INMUEBLES */}
-                                    <TabsTrigger value="docs-inmuebles" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger value="docs-inmuebles" className="gap-1 data-[state=active]:shadow-neutral-800">
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Documentos</span>
                                     </TabsTrigger>
 
                                     {/* GRUPO 3: FINANCIERO & CONTROL */}
-                                    <TabsTrigger value="financiero-control" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger value="financiero-control" className="gap-1 data-[state=active]:shadow-neutral-800">
                                         <DollarSign className="h-4 w-4" />
                                         <span className="hidden sm:inline">Financiero</span>
                                     </TabsTrigger>
 
                                     {/* GRUPO 4: PROCESO & TRÁMITES */}
-                                    <TabsTrigger value="proceso-tramites" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger value="proceso-tramites" className="gap-1 data-[state=active]:shadow-neutral-800">
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Proceso</span>
                                     </TabsTrigger>
@@ -552,16 +899,16 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 1: INFORMACIÓN GENERAL */}
                                 <TabsContent value="info-general" className="space-y-6">
                                     <Tabs defaultValue="datos-expediente" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-800 mb-4">
+                                        <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-800 mb-3">
                                             <TabsTrigger value="datos-expediente" className="text-xs sm:text-sm">Datos Expediente</TabsTrigger>
                                             <TabsTrigger value="datos-escritura" className="text-xs sm:text-sm">Datos Escritura</TabsTrigger>
                                             <TabsTrigger value="comparecientes" className="text-xs sm:text-sm">Comparecientes</TabsTrigger>
-                                            <TabsTrigger value="declarantes" className="text-xs sm:text-sm">Declarantes</TabsTrigger>
+                                            <TabsTrigger value="dependencias" className="text-xs sm:text-sm">Dependencias</TabsTrigger>
                                         </TabsList>
 
                                         {/* SubTab: Datos Expediente */}
-                                        <TabsContent value="datos-expediente" className="space-y-4">
-                                            <div className="grid grid-cols-3 gap-4 mb-6">
+                                        <TabsContent value="datos-expediente" className="border-t pt-6  space-y-4">
+                                            <div className="grid grid-cols-4 gap-4 mb-6">
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Expediente</label>
                                                     <Input name="expediente" value={formData.expediente} readOnly className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
@@ -574,14 +921,32 @@ export default function ExpedientesIndex() {
                                                     <label className="text-sm font-medium">Municipio</label>
                                                     <Input name="municipio" value={formData.municipio} onChange={handleInputChange} placeholder="Municipio" className="text-sm" />
                                                 </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium">Estatus</label>
+                                                    <select name="estatus" value={formData.estatus} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                                                        <option value="">Selecciona un estatus</option>
+                                                        <option value="EN PROCESO">EN PROCESO</option>
+                                                        <option value="COMPLETADO">COMPLETADO</option>
+                                                        <option value="CANCELADO">CANCELADO</option>
+                                                    </select>
+                                                </div>
                                             </div>
+
+                                            {formData.estatus === 'CANCELADO' && (
+                                                <div className="mb-6">
+                                                    <label className="text-sm font-medium">Motivo de Cancelación</label>
+                                                    <textarea name="motivoCancelacion" value={formData.motivoCancelacion} onChange={handleInputChange} placeholder="Describe el motivo de la cancelación..." rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm mt-2" />
+                                                </div>
+                                            )}
+
+                                            {isEditing && (
+                                                <div className="mb-6">
+                                                    <label className="text-sm font-medium">Primer Otorgante</label>
+                                                    <Input type="text" readOnly className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
+                                                </div>
+                                            )}
 
                                             <div className="mb-6">
-                                                <label className="text-sm font-medium">Primer Otorgante</label>
-                                                <Input type="text" readOnly className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
-                                            </div>
-
-                                            <div className="border-t pt-6 mb-6">
                                                 <label className="text-sm font-medium block mb-2">Operaciones</label>
                                                 <div ref={refDropdownOperaciones} className="relative">
                                                     <div className="relative">
@@ -827,20 +1192,9 @@ export default function ExpedientesIndex() {
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Estatus</label>
-                                                    <select name="estatus" value={formData.estatus} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona un estatus</option>
-                                                        <option value="EN PROCESO">EN PROCESO</option>
-                                                        <option value="COMPLETADO">COMPLETADO</option>
-                                                        <option value="CANCELADO">CANCELADO</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Última Etapa</label>
-                                                    <textarea name="ultima_etapa" value={formData.ultima_etapa} onChange={handleInputChange} placeholder="Última etapa..." rows={2} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                                </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Última Etapa</label>
+                                                <textarea name="ultima_etapa" value={formData.ultima_etapa} onChange={handleInputChange} placeholder="Última etapa..." rows={2} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                                             </div>
                                         </TabsContent>
 
@@ -1085,67 +1439,349 @@ export default function ExpedientesIndex() {
                                         {/* SubTab: Comparecientes */}
                                         <TabsContent value="comparecientes" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Gestión de Comparecientes</h3>
-                                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">+ Agregar Compareciente</Button>
-                                            </div>
-                                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Nombre Completo</label>
-                                                            <Input type="text" placeholder="Nombre" className="text-sm" />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">RFC</label>
-                                                            <Input type="text" placeholder="RFC" className="text-sm" />
-                                                        </div>
+                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Agregar Compareciente(s)</h3>
+
+                                                {/* Dropdown de Clientes */}
+                                                <div ref={refDropdownClientes} className="relative mb-4">
+                                                    <div className="relative">
+                                                        <Input
+                                                            type="text"
+                                                            placeholder="Buscar compareciente..."
+                                                            value={clienteBusqueda}
+                                                            onChange={(e) => setClienteBusqueda(e.target.value)}
+                                                            onFocus={() => setMostrarDropdownClientes(true)}
+                                                            className="text-sm pr-8"
+                                                        />
+                                                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">CURP</label>
-                                                            <Input type="text" placeholder="CURP" className="text-sm" />
+                                                    {mostrarDropdownClientes && (
+                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
+                                                            {cargandoClientes && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
+                                                            {!cargandoClientes && clientesFiltrados.filter(c => !filasComparecientes.some(f => f.nombreCompareciente === `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`)).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
+                                                            {clientesFiltrados.filter(c => !filasComparecientes.some(f => f.nombreCompareciente === `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`)).map(cliente => (
+                                                                <div
+                                                                    key={cliente.id}
+                                                                    onClick={() => {
+                                                                        setClienteSeleccionado(cliente);
+                                                                        // Agregar directamente a la tabla
+                                                                        const nuevoCompareciente: FilaCompareciente = {
+                                                                            id: Date.now().toString(),
+                                                                            nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
+                                                                            tipoCompareciente: '',
+                                                                            firmaRequerida: false,
+                                                                            fechaFirma: ''
+                                                                        };
+                                                                        setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
+                                                                        setClienteBusqueda('');
+                                                                        setMostrarDropdownClientes(false);
+                                                                    }}
+                                                                    className="px-3 py-3 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
+                                                                >
+                                                                    <div className="font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</div>
+                                                                    <div className="text-xs text-muted-foreground mt-1">{cliente.tipo_Cliente} - {cliente.curp} - {cliente.rfc}</div>
+                                                                </div>
+                                                            ))}
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Tipo de Compareciente</label>
-                                                            <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                                <option value="">Selecciona tipo</option>
-                                                                <option value="PERSONA_FISICA">Persona Física</option>
-                                                                <option value="PERSONA_MORAL">Persona Moral</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
+
+                                            {/* Tabla de Comparecientes Agregados */}
+                                            {filasComparecientes.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                        <table className="w-full text-sm">
+                                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                                            <tr>
+                                                                <th className="px-4 py-2 text-left">Nombre Compareciente</th>
+                                                                <th className="px-4 py-2 text-left">Tipo Compareciente</th>
+                                                                <th className="px-4 py-2 text-center">Firma Requerida</th>
+                                                                <th className="px-4 py-2 text-left">Fecha Firma</th>
+                                                                <th className="px-4 py-2 text-center">Lista Negra</th>
+                                                                <th className="px-4 py-2 text-center">Lista SAT</th>
+                                                                <th className="px-4 py-2 text-center">Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {filasComparecientes.map((fila, index) => (
+                                                                <>
+                                                                    <tr key={fila.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                                    <td className="px-4 py-3">{fila.nombreCompareciente}</td>
+                                                                    <td className="px-4 py-3">
+                                                                        <div className="relative w-full">
+                                                                            <Input
+                                                                                type="text"
+                                                                                placeholder="Buscar tipo..."
+                                                                                value={busquedaTipo[fila.id] || ''}
+                                                                                onChange={(e) => setBusquedaTipo(prev => ({
+                                                                                    ...prev,
+                                                                                    [fila.id]: e.target.value
+                                                                                }))}
+                                                                                onFocus={() => setDropdownTipoAbierto(prev => ({
+                                                                                    ...prev,
+                                                                                    [fila.id]: true
+                                                                                }))}
+                                                                                className="text-sm pr-8"
+                                                                            />
+                                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
+
+                                                                            {dropdownTipoAbierto[fila.id] && (
+                                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
+                                                                                    {comparecientesDisponibles.filter(c => {
+                                                                                        if (!c.activo) return false;
+                                                                                        const busqueda = (busquedaTipo[fila.id] || '').toLowerCase().trim();
+                                                                                        if (busqueda === '') return true;
+                                                                                        return c.descripcion.toLowerCase().includes(busqueda);
+                                                                                    }).length === 0 ? (
+                                                                                        <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>
+                                                                                    ) : null}
+                                                                                    {comparecientesDisponibles.filter(c => {
+                                                                                        if (!c.activo) return false;
+                                                                                        const busqueda = (busquedaTipo[fila.id] || '').toLowerCase().trim();
+                                                                                        if (busqueda === '') return true;
+                                                                                        return c.descripcion.toLowerCase().includes(busqueda);
+                                                                                    }).map(comp => (
+                                                                                        <div
+                                                                                            key={comp.id}
+                                                                                            onClick={() => {
+                                                                                                handleActualizarCompareciente(fila.id, 'tipoCompareciente', comp.descripcion);
+                                                                                                setBusquedaTipo(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [fila.id]: comp.descripcion
+                                                                                                }));
+                                                                                                setDropdownTipoAbierto(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [fila.id]: false
+                                                                                                }));
+                                                                                            }}
+                                                                                            className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0 whitespace-nowrap"
+                                                                                        >
+                                                                                            {comp.descripcion}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={fila.firmaRequerida}
+                                                                            onChange={() => handleToggleCheckboxCompareciente(fila.id)}
+                                                                            className="rounded"
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <Input
+                                                                            type="date"
+                                                                            disabled={!fila.firmaRequerida}
+                                                                            value={fila.fechaFirma}
+                                                                            onChange={(e) => handleActualizarCompareciente(fila.id, 'fechaFirma', e.target.value)}
+                                                                            className="text-sm"
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="text-sm font-medium gap-2"
+                                                                        >
+                                                                            <Search className="h-4 w-4" />
+                                                                            Lista Negra
+                                                                        </Button>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="text-sm font-medium gap-2"
+                                                                        >
+                                                                            <Search className="h-4 w-4" />
+                                                                            Lista SAT
+                                                                        </Button>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-center flex items-center justify-center">
+                                                                        <button
+                                                                            onClick={() => handleEliminarCompareciente(fila.id)}
+                                                                            className="text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-2xl font-bold rounded-md w-8 h-8 flex items-center justify-center leading-none"
+                                                                            aria-label="Eliminar"
+                                                                        >
+                                                                            ×
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+
+                                                            </>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {filasComparecientes.length === 0 && (
+                                                <div className="text-center py-8 text-muted-foreground">
+                                                    <p>No hay comparecientes agregados. Selecciona un cliente para comenzar.</p>
+                                                </div>
+                                            )}
                                         </TabsContent>
 
-                                        {/* SubTab: Declarantes */}
-                                        <TabsContent value="declarantes" className="space-y-4">
-                                            <div className="bg-amber-50 dark:bg-amber-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-2">Gestión de Declarantes</h3>
-                                                <Button size="sm" className="bg-amber-600 hover:bg-amber-700">+ Agregar Declarante</Button>
-                                            </div>
-                                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Nombre Completo</label>
-                                                            <Input type="text" placeholder="Nombre" className="text-sm" />
+                                        {/* SubTab: Dependencias */}
+                                        <TabsContent value="dependencias" className="space-y-4">
+                                            <div className="mb-6">
+                                                <label className="text-sm font-medium block mb-2">Dependencias Públicas</label>
+                                                <div ref={refDropdownDependencias} className="relative">
+                                                    <div className="relative">
+                                                        <Input type="text" placeholder="Buscar dependencia..." value={dependenciaBusqueda} onChange={(e) => setDependenciaBusqueda(e.target.value)} onFocus={() => setMostrarDropdownDependencias(true)} className="text-sm pr-8" />
+                                                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
+                                                    </div>
+                                                    {mostrarDropdownDependencias && (
+                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
+                                                            {cargandoDependencias && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
+                                                            {!cargandoDependencias && dependenciasFiltradas.filter(dep => !formData.dependencias.includes(dep.descripcion.trim())).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
+                                                            {dependenciasFiltradas.filter(dep => !formData.dependencias.includes(dep.descripcion.trim())).map(dep => (
+                                                                <div key={dep.id} onClick={() => handleSeleccionarDependencia(dep)} className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0">{dep.descripcion.trim()}</div>
+                                                            ))}
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">RFC</label>
-                                                            <Input type="text" placeholder="RFC" className="text-sm" />
+                                                    )}
+                                                </div>
+                                                {formData.dependencias.length > 0 && (
+                                                    <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-2">
+                                                        {formData.dependencias.map((dep, idx) => (
+                                                            <div key={idx} className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
+                                                                <button onClick={() => setDependenciaSeleccionada(dep)} className="text-sm flex-1 text-left hover:underline">{dep}</button>
+                                                                <button onClick={() => handleEliminarDependencia(idx)} className="text-red-600 hover:text-red-800 dark:text-red-400 ml-2">
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Formulario de Datos de la Dependencia */}
+                                            {dependenciaSeleccionada && datosDepdencias[dependenciaSeleccionada] && (
+                                                <div className="border rounded-lg p-6 bg-slate-50 dark:bg-slate-900/30 mt-8">
+                                                    <h3 className="text-lg font-semibold mb-6">Datos de la Dependencia</h3>
+
+                                                    <div className="space-y-4">
+                                                        {/* FILA 1: Dependencia */}
+                                                        <div>
+                                                            <label className="text-sm font-medium block mb-1">Dependencia</label>
+                                                            <Input type="text" value={dependenciaSeleccionada} readOnly className="text-sm bg-background/50" />
+                                                        </div>
+
+                                                        {/* FILA 2: Folio Real, Folio, Volumen, Fojas */}
+                                                        <div className="grid grid-cols-4 gap-4">
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Folio Real</label>
+                                                                <Input type="text" placeholder="Folio real" value={datosDepdencias[dependenciaSeleccionada].folioReal} onChange={(e) => handleActualizarDatosDependencia('folioReal', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Folio</label>
+                                                                <Input type="text" placeholder="Folio" value={datosDepdencias[dependenciaSeleccionada].folio} onChange={(e) => handleActualizarDatosDependencia('folio', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Volumen</label>
+                                                                <Input type="text" placeholder="Volumen" value={datosDepdencias[dependenciaSeleccionada].volumen} onChange={(e) => handleActualizarDatosDependencia('volumen', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Fojas</label>
+                                                                <Input type="text" placeholder="Fojas" value={datosDepdencias[dependenciaSeleccionada].fojas} onChange={(e) => handleActualizarDatosDependencia('fojas', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* FILA 3: Sección, Partida, Libro, Estatus */}
+                                                        <div className="grid grid-cols-4 gap-4">
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Sección</label>
+                                                                <Input type="text" placeholder="Sección" value={datosDepdencias[dependenciaSeleccionada].seccion} onChange={(e) => handleActualizarDatosDependencia('seccion', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Partida</label>
+                                                                <Input type="text" placeholder="Partida" value={datosDepdencias[dependenciaSeleccionada].partida} onChange={(e) => handleActualizarDatosDependencia('partida', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Libro</label>
+                                                                <Input type="text" placeholder="Libro" value={datosDepdencias[dependenciaSeleccionada].libro} onChange={(e) => handleActualizarDatosDependencia('libro', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-1">Estatus</label>
+                                                                <Input type="text" placeholder="Estatus" value={datosDepdencias[dependenciaSeleccionada].estatus} onChange={(e) => handleActualizarDatosDependencia('estatus', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* FILA 4: Observaciones */}
+                                                        <div>
+                                                            <label className="text-sm font-medium block mb-1">Observaciones</label>
+                                                            <textarea placeholder="Observaciones..." value={datosDepdencias[dependenciaSeleccionada].observaciones} onChange={(e) => handleActualizarDatosDependencia('observaciones', e.target.value)} rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                                                        </div>
+
+                                                        {/* FILA 5: F. Ingreso, F. Rechazo, F. Subsanado, F. Reingreso */}
+                                                        <div className="grid grid-cols-4 gap-4">
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaIngreso" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso || false} onChange={() => handleToggleCheckboxFecha('fechaIngreso')} className="rounded" />
+                                                                    <label htmlFor="ckFechaIngreso" className="text-sm font-medium">F. Ingreso</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso} value={datosDepdencias[dependenciaSeleccionada].fechaIngreso} onChange={(e) => handleActualizarDatosDependencia('fechaIngreso', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaRechazo" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo || false} onChange={() => handleToggleCheckboxFecha('fechaRechazo')} className="rounded" />
+                                                                    <label htmlFor="ckFechaRechazo" className="text-sm font-medium">F. Rechazo</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo} value={datosDepdencias[dependenciaSeleccionada].fechaRechazo} onChange={(e) => handleActualizarDatosDependencia('fechaRechazo', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaSubsanado" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado || false} onChange={() => handleToggleCheckboxFecha('fechaSubsanado')} className="rounded" />
+                                                                    <label htmlFor="ckFechaSubsanado" className="text-sm font-medium">F. Subsanado</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado} value={datosDepdencias[dependenciaSeleccionada].fechaSubsanado} onChange={(e) => handleActualizarDatosDependencia('fechaSubsanado', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaReingreso" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso || false} onChange={() => handleToggleCheckboxFecha('fechaReingreso')} className="rounded" />
+                                                                    <label htmlFor="ckFechaReingreso" className="text-sm font-medium">F. Reingreso</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso} value={datosDepdencias[dependenciaSeleccionada].fechaReingreso} onChange={(e) => handleActualizarDatosDependencia('fechaReingreso', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* FILA 6: F. Registro, F. Recoger Dependencia, F. Conclusión, (vacío) */}
+                                                        <div className="grid grid-cols-4 gap-4">
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaRegistro" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro || false} onChange={() => handleToggleCheckboxFecha('fechaRegistro')} className="rounded" />
+                                                                    <label htmlFor="ckFechaRegistro" className="text-sm font-medium">F. Registro</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro} value={datosDepdencias[dependenciaSeleccionada].fechaRegistro} onChange={(e) => handleActualizarDatosDependencia('fechaRegistro', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaRecogerD" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia || false} onChange={() => handleToggleCheckboxFecha('fechaRecogerDependencia')} className="rounded" />
+                                                                    <label htmlFor="ckFechaRecogerD" className="text-sm font-medium">F. Recoger D.</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia} value={datosDepdencias[dependenciaSeleccionada].fechaRecogerDependencia} onChange={(e) => handleActualizarDatosDependencia('fechaRecogerDependencia', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input type="checkbox" id="ckFechaConclusión" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión || false} onChange={() => handleToggleCheckboxFecha('fechaConclusión')} className="rounded" />
+                                                                    <label htmlFor="ckFechaConclusión" className="text-sm font-medium">F. Conclusión</label>
+                                                                </div>
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión} value={datosDepdencias[dependenciaSeleccionada].fechaConclusión} onChange={(e) => handleActualizarDatosDependencia('fechaConclusión', e.target.value)} className="text-sm" />
+                                                            </div>
+                                                            <div />
                                                         </div>
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Declaración PEP</label>
-                                                        <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                            <option value="">Selecciona</option>
-                                                            <option value="SI">Sí es PEP</option>
-                                                            <option value="NO">No es PEP</option>
-                                                        </select>
+
+                                                    {/* Botones de Acción */}
+                                                    <div className="flex gap-3 mt-6">
+                                                        <Button onClick={() => setDependenciaSeleccionada(null)} variant="outline" className="text-sm">Cerrar</Button>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )}
                                         </TabsContent>
                                     </Tabs>
                                 </TabsContent>
@@ -1153,7 +1789,7 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 2: DOCUMENTOS & INMUEBLES */}
                                 <TabsContent value="docs-inmuebles" className="space-y-6">
                                     <Tabs defaultValue="recibo-documentos" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 mb-4">
+                                        <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 mb-3">
                                             <TabsTrigger value="recibo-documentos" className="text-xs sm:text-sm">Recibo Documentos</TabsTrigger>
                                             <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles</TabsTrigger>
                                             <TabsTrigger value="presupuesto" className="text-xs sm:text-sm">Presupuesto</TabsTrigger>
@@ -1161,33 +1797,230 @@ export default function ExpedientesIndex() {
 
                                         {/* SubTab: Recibo de Documentos */}
                                         <TabsContent value="recibo-documentos" className="space-y-4">
-                                            <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">Documentos Recibidos</h3>
-                                                <Button size="sm" className="bg-green-600 hover:bg-green-700">+ Registrar Documento</Button>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Tipo de Documento</label>
-                                                            <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                                <option value="">Selecciona tipo</option>
-                                                                <option value="INE">Credencial INE</option>
-                                                                <option value="PASAPORTE">Pasaporte</option>
-                                                                <option value="LICENCIA">Licencia de Conducir</option>
-                                                            </select>
+                                            <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
+                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Recibo de Documentos</h3>
+
+                                                {/* Dropdown de Otorgante */}
+                                                <div className="mb-6">
+                                                    <label className="text-sm font-medium block mb-2">Otorgante</label>
+                                                    <div className="relative">
+                                                        <div className="relative">
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="Buscar otorgante..."
+                                                                value={busquedaOtorgante}
+                                                                onChange={(e) => setBusquedaOtorgante(e.target.value)}
+                                                                onFocus={() => setMostrarDropdownOtorgante(true)}
+                                                                className="text-sm pr-8"
+                                                            />
+                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Fecha de Recepción</label>
-                                                            <Input type="date" className="text-sm" />
+                                                        {mostrarDropdownOtorgante && (
+                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
+                                                                {cargandoClientes && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
+                                                                {!cargandoClientes && clientesFiltrados.filter(c => {
+                                                                    const busqueda = busquedaOtorgante.toLowerCase();
+                                                                    const nombreCompleto = `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`.toLowerCase();
+                                                                    return nombreCompleto.includes(busqueda);
+                                                                }).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
+                                                                {clientesFiltrados.filter(c => {
+                                                                    const busqueda = busquedaOtorgante.toLowerCase();
+                                                                    const nombreCompleto = `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`.toLowerCase();
+                                                                    return nombreCompleto.includes(busqueda);
+                                                                }).map(cliente => (
+                                                                    <div
+                                                                        key={cliente.id}
+                                                                        onClick={() => {
+                                                                            setOtorganteSeleccionado(cliente);
+                                                                            setBusquedaOtorgante(`${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`);
+                                                                            setMostrarDropdownOtorgante(false);
+                                                                        }}
+                                                                        className="px-3 py-3 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
+                                                                    >
+                                                                        <div className="font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</div>
+                                                                        <div className="text-xs text-muted-foreground mt-1">{cliente.tipo_Cliente} - {cliente.curp} - {cliente.rfc}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {otorganteSeleccionado && (
+                                                        <div className="mt-3 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
+                                                            <span className="text-sm">{otorganteSeleccionado.nombre} {otorganteSeleccionado.apellido_Paterno} {otorganteSeleccionado.apellido_Materno}</span>
+                                                            <button onClick={() => {
+                                                                setOtorganteSeleccionado(null);
+                                                                setBusquedaOtorgante('');
+                                                            }} className="text-red-600 hover:text-red-800 dark:text-red-400">
+                                                                <X className="h-4 w-4" />
+                                                            </button>
                                                         </div>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Observaciones</label>
-                                                        <textarea placeholder="Observaciones del documento..." rows={2} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
+
+                                            {/* Tabla de Documentos */}
+                                            {otorganteSeleccionado && (
+                                                <div className="border rounded-lg overflow-hidden" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                        <table className="w-full text-sm">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                                <tr>
+                                                                    <th className="px-3 py-2 text-left">Descripción</th>
+                                                                    <th className="px-2 py-2 text-center">Entrega</th>
+                                                                    <th className="px-2 py-2 text-center">Usu. Recibe</th>
+                                                                    <th className="px-2 py-2 text-center">Copia</th>
+                                                                    <th className="px-2 py-2 text-center">Original</th>
+                                                                    <th className="px-2 py-2 text-center">Recepción</th>
+                                                                    <th className="px-2 py-2 text-center">Abogado Rec.</th>
+                                                                    <th className="px-3 py-2 text-left">Observaciones</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {/* Filas vacías para ser llenadas */}
+                                                                {Array.from({ length: 12 }).map((_, index) => {
+                                                                    const fila = filasDocumentos[index] || {
+                                                                        descripcion: '',
+                                                                        entregaCheck: false,
+                                                                        entregaFecha: '',
+                                                                        usuRecibe: false,
+                                                                        copia: false,
+                                                                        original: false,
+                                                                        recepcionCheck: false,
+                                                                        recepcionFecha: '',
+                                                                        abogadoRec: false,
+                                                                        observaciones: ''
+                                                                    };
+
+                                                                    const handleEntregaCheck = (checked: boolean) => {
+                                                                        const today = new Date();
+                                                                        const hoy = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+                                                                        setFilasDocumentos(prev => ({
+                                                                            ...prev,
+                                                                            [index]: {
+                                                                                ...fila,
+                                                                                entregaCheck: checked,
+                                                                                entregaFecha: checked ? hoy : ''
+                                                                            }
+                                                                        }));
+                                                                    };
+
+                                                                    const handleRecepcionCheck = (checked: boolean) => {
+                                                                        const today = new Date();
+                                                                        const hoy = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+                                                                        setFilasDocumentos(prev => ({
+                                                                            ...prev,
+                                                                            [index]: {
+                                                                                ...fila,
+                                                                                recepcionCheck: checked,
+                                                                                recepcionFecha: checked ? hoy : ''
+                                                                            }
+                                                                        }));
+                                                                    };
+
+                                                                    return (
+                                                                        <tr key={index} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                                            <td className="px-3 py-2">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Tipo de documento"
+                                                                                    value={fila.descripcion}
+                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
+                                                                                        ...prev,
+                                                                                        [index]: { ...fila, descripcion: e.target.value }
+                                                                                    }))}
+                                                                                    className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-2 py-2 text-center">
+                                                                                {fila.entregaCheck ? (
+                                                                                    <div className="flex items-center justify-center gap-1">
+                                                                                        <input type="checkbox" checked={true} onChange={() => handleEntregaCheck(false)} className="rounded w-5 h-5 cursor-pointer" />
+                                                                                        <span className="text-xs whitespace-nowrap">{fila.entregaFecha}</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <input type="checkbox" checked={false} onChange={(e) => handleEntregaCheck(e.target.checked)} className="rounded w-5 h-5 cursor-pointer" />
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="px-2 py-2 text-center">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={fila.usuRecibe}
+                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
+                                                                                        ...prev,
+                                                                                        [index]: { ...fila, usuRecibe: e.target.checked }
+                                                                                    }))}
+                                                                                    className="rounded w-5 h-5 cursor-pointer"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-2 py-2 text-center">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={fila.copia}
+                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
+                                                                                        ...prev,
+                                                                                        [index]: { ...fila, copia: e.target.checked }
+                                                                                    }))}
+                                                                                    className="rounded w-5 h-5 cursor-pointer"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-2 py-2 text-center">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={fila.original}
+                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
+                                                                                        ...prev,
+                                                                                        [index]: { ...fila, original: e.target.checked }
+                                                                                    }))}
+                                                                                    className="rounded w-5 h-5 cursor-pointer"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-2 py-2 text-center">
+                                                                                {fila.recepcionCheck ? (
+                                                                                    <div className="flex items-center justify-center gap-1">
+                                                                                        <input type="checkbox" checked={true} onChange={() => handleRecepcionCheck(false)} className="rounded w-5 h-5 cursor-pointer" />
+                                                                                        <span className="text-xs whitespace-nowrap">{fila.recepcionFecha}</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <input type="checkbox" checked={false} onChange={(e) => handleRecepcionCheck(e.target.checked)} className="rounded w-5 h-5 cursor-pointer" />
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="px-2 py-2 text-center">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={fila.abogadoRec}
+                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
+                                                                                        ...prev,
+                                                                                        [index]: { ...fila, abogadoRec: e.target.checked }
+                                                                                    }))}
+                                                                                    className="rounded w-5 h-5 cursor-pointer"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-3 py-2">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Observaciones"
+                                                                                    value={fila.observaciones}
+                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
+                                                                                        ...prev,
+                                                                                        [index]: { ...fila, observaciones: e.target.value }
+                                                                                    }))}
+                                                                                    className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                />
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {!otorganteSeleccionado && (
+                                                <div className="text-center py-8 text-muted-foreground">
+                                                    <p>Selecciona un otorgante para ver la tabla de documentos.</p>
+                                                </div>
+                                            )}
                                         </TabsContent>
 
                                         {/* SubTab: Inmuebles */}
@@ -1196,28 +2029,28 @@ export default function ExpedientesIndex() {
                                                 <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Gestión de Inmuebles</h3>
                                                 <Button size="sm" className="bg-purple-600 hover:bg-purple-700">+ Agregar Inmueble</Button>
                                             </div>
-                                            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Tipo de Inmueble</label>
-                                                            <Input type="text" placeholder="Casa, Departamento, etc" className="text-sm" />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Clave Catastral</label>
-                                                            <Input type="text" placeholder="Clave catastral" className="text-sm" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Ubicación</label>
-                                                            <Input type="text" placeholder="Calle y número" className="text-sm" />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Valor Catastral</label>
-                                                            <Input type="number" step="0.01" placeholder="0.00" className="text-sm" />
-                                                        </div>
-                                                    </div>
+                                            {/* Tabla de resultados de inmuebles con mismo estilo que recibo documentos */}
+                                            <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
+                                                <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left">#</th>
+                                                                <th className="px-3 py-2 text-left">Tipo de Inmueble</th>
+                                                                <th className="px-3 py-2 text-left">Clave Catastral</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {/* Ejemplo estático, reemplazar por tu mapeo real */}
+                                                            {[{ numero: 1, tipo: 'Casa', catastral: '123-ABC' }, { numero: 2, tipo: 'Departamento', catastral: '456-DEF' }].map((inmueble, idx) => (
+                                                                <tr key={idx} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                                    <td className="px-3 py-2">{inmueble.numero}</td>
+                                                                    <td className="px-3 py-2">{inmueble.tipo}</td>
+                                                                    <td className="px-3 py-2">{inmueble.catastral}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
                                             </div>
                                         </TabsContent>
