@@ -505,7 +505,7 @@ export default function ControlNotarialAltaCatalogos() {
                         name="descripcion"
                         value={currentState.descripcion}
                         onChange={handleInputChange}
-                        placeholder="Descripción del catálogo"
+                        placeholder="Descripción"
                         rows={6}
                         className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
@@ -623,7 +623,7 @@ export default function ControlNotarialAltaCatalogos() {
                         ) : (
                             <Plus className="h-4 w-4 mr-2" />
                         )}
-                        {isEditing ? 'Actualizar' : 'Guardar'} Catálogo
+                        {isEditing ? 'Actualizar' : 'Guardar'} 
                     </Button>
                 </div>
             </div>
@@ -634,21 +634,21 @@ export default function ControlNotarialAltaCatalogos() {
         <>
             <Head title="Alta de Catálogos - Control Notarial" />
 
-            <div className="space-y-6">
-                <div className="pt-6 pb-2 border-b px-6">
+            <div className="space-y-6 px-6 pt-6">
+                <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="rounded-lg bg-blue-500 p-3 text-white">
-                            <Database className="size-6" />
+                            <Database className="size-5" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Alta de Catálogos</h1>
-                            <p className="text-muted-foreground">Gestión de catálogos del sistema</p>
+                            <h1 className="text-2xl font-bold tracking-tight">Alta de Catálogos</h1>
+                            <p className="text-muted-foreground text-xs">Gestión de catálogos del sistema</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Pestañas principales - Con Scroll - ARRIBA */}
-                <div className="px-6">
+                <div>
                     <div className="border-b mb-4">
                         <div className="overflow-x-auto">
                             <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -684,7 +684,7 @@ export default function ControlNotarialAltaCatalogos() {
                 </div>
 
                 {/* Pestañas de Búsqueda/Crear - ABAJO */}
-                <div className="px-6">
+                <div>
                     <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
                         <TabsList className="grid w-full grid-cols-2 bg-transparent">
                             <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
@@ -694,7 +694,7 @@ export default function ControlNotarialAltaCatalogos() {
                             <TabsTrigger value="formulario" className="gap-2 data-[state=active]:shadow-neutral-800">
                                 <Plus className="size-4" />
                                 <span className="hidden sm:inline">
-                                    {isEditing ? 'Editar Catálogo' : 'Crear Catálogo'}
+                                    {isEditing ? 'Editar Catálogo' : 'Agregar'}
                                 </span>
                             </TabsTrigger>
                         </TabsList>

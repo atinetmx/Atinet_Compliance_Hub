@@ -1,6 +1,21 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
+// Opciones de ejemplo para los dropdowns
+const TIPO_FACTURA_OPCIONES = [
+    { value: 'factura', label: 'Factura' },
+    { value: 'complemento', label: 'Complemento' },
+];
+const TIPO_VULNERABLES_OPCIONES = [
+    { value: 'ninguno', label: 'Ninguno' },
+    { value: 'vulnerable1', label: 'Vulnerable 1' },
+    { value: 'vulnerable2', label: 'Vulnerable 2' },
+];
+const TIPO_DECLARANOT_OPCIONES = [
+    { value: 'casa', label: 'Casa' },
+    { value: 'departamento', label: 'Departamento' },
+    { value: 'terreno', label: 'Terreno' },
+];
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1220,44 +1235,45 @@ export default function ExpedientesIndex() {
                                             <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
                                                 <h4 className="font-semibold text-sm mb-4 text-blue-900 dark:text-blue-100">Gestión de Folios</h4>
                                                 <div className="space-y-4">
-                                                    {/* Folios Requeridos con Botón */}
-                                                    <div className="grid grid-cols-3 gap-4 items-end">
-                                                        <div className="space-y-2">
+                                                    {/* Fila 1: Folios requeridos, botón, vacío */}
+                                                    <div className="grid grid-cols-4 gap-4 items-end">
+                                                        <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folios Requeridos</label>
-                                                            <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm" />
+                                                            <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
                                                         </div>
-                                                        <Button className="bg-blue-600 hover:bg-blue-700 h-10">
-                                                            Asignar
-                                                        </Button>
-                                                        <div></div>
+                                                        <div className="flex items-end w-full pt-5">
+                                                            <Button className="bg-blue-600 hover:bg-blue-700 h-10 w-24 min-w-0">Asignar</Button>
+                                                        </div>
+                                                        <div className="w-full"></div>
                                                     </div>
-
-                                                    {/* Folio Inicial y Final */}
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="space-y-2">
+                                                    {/* Fila 2: Folio inicial, folio final, vacío, vacío */}
+                                                    <div className="grid grid-cols-4 gap-4">
+                                                        <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folio Inicial</label>
-                                                            <Input type="number" name="folioInicial" value={formData.folioInicial} onChange={handleInputChange} placeholder="0" className="text-sm" />
+                                                            <Input type="number" name="folioInicial" value={formData.folioInicial} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
                                                         </div>
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folio Final</label>
-                                                            <Input type="number" name="folioFinal" value={formData.folioFinal} onChange={handleInputChange} placeholder="0" className="text-sm" />
+                                                            <Input type="number" name="folioFinal" value={formData.folioFinal} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
                                                         </div>
+                                                        <div className="w-full"></div>
+                                                        <div className="w-full"></div>
                                                     </div>
-
-                                                    {/* Volumen, Tomo, Folios Inutilizados */}
-                                                    <div className="grid grid-cols-3 gap-4">
-                                                        <div className="space-y-2">
+                                                    {/* Fila 3: Volumen, tomo, folios inutilizados, vacío */}
+                                                    <div className="grid grid-cols-4 gap-4">
+                                                        <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Volumen</label>
-                                                            <Input type="number" name="volumen" value={formData.volumen} onChange={handleInputChange} placeholder="0" className="text-sm" />
+                                                            <Input type="number" name="volumen" value={formData.volumen} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
                                                         </div>
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Tomo</label>
-                                                            <Input type="number" name="tomo" value={formData.tomo} onChange={handleInputChange} placeholder="0" className="text-sm" />
+                                                            <Input type="number" name="tomo" value={formData.tomo} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
                                                         </div>
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folios Inutilizados</label>
-                                                            <Input type="number" name="foliosInutilizados" value={formData.foliosInutilizados} onChange={handleInputChange} placeholder="0" className="text-sm" />
+                                                            <Input type="number" name="foliosInutilizados" value={formData.foliosInutilizados} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
                                                         </div>
+                                                        <div className="w-full"></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1499,7 +1515,7 @@ export default function ExpedientesIndex() {
                                                                 <th className="px-4 py-2 text-left">Fecha Firma</th>
                                                                 <th className="px-4 py-2 text-center">Lista Negra</th>
                                                                 <th className="px-4 py-2 text-center">Lista SAT</th>
-                                                                <th className="px-4 py-2 text-center">Acciones</th>
+                                                                <th className="px-4 py-2 text-center"></th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -2029,30 +2045,121 @@ export default function ExpedientesIndex() {
                                                 <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Gestión de Inmuebles</h3>
                                                 <Button size="sm" className="bg-purple-600 hover:bg-purple-700">+ Agregar Inmueble</Button>
                                             </div>
-                                            {/* Tabla de resultados de inmuebles con mismo estilo que recibo documentos */}
-                                            <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-                                                <div className="overflow-x-auto overflow-y-auto flex-1">
-                                                    <table className="w-full text-sm">
-                                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
-                                                            <tr>
-                                                                <th className="px-3 py-2 text-left">#</th>
-                                                                <th className="px-3 py-2 text-left">Tipo de Inmueble</th>
-                                                                <th className="px-3 py-2 text-left">Clave Catastral</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {/* Ejemplo estático, reemplazar por tu mapeo real */}
-                                                            {[{ numero: 1, tipo: 'Casa', catastral: '123-ABC' }, { numero: 2, tipo: 'Departamento', catastral: '456-DEF' }].map((inmueble, idx) => (
-                                                                <tr key={idx} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                                                    <td className="px-3 py-2">{inmueble.numero}</td>
-                                                                    <td className="px-3 py-2">{inmueble.tipo}</td>
-                                                                    <td className="px-3 py-2">{inmueble.catastral}</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
+                                            {/* Tabla de resultados de inmuebles con selección */}
+                                            {(() => {
+                                                // Estado local para demo, reemplaza por tu estado real
+                                                const inmueblesDemo = [
+                                                    { numero: 1, tipo: 'Casa', catastral: '123-ABC' },
+                                                    { numero: 2, tipo: 'Departamento', catastral: '456-DEF' },
+                                                ];
+                                                const [selectedInmueble, setSelectedInmueble] = React.useState<number | null>(null);
+                                                const [formInmueble, setFormInmueble] = React.useState({
+                                                    tipoFactura: '',
+                                                    tipoVulnerable: '',
+                                                    tipoDeclaranot: '',
+                                                    medidas: '',
+                                                    antecedentes: '',
+                                                    descripcion: '',
+                                                });
+                                                return <>
+                                                    <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
+                                                        <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                            <table className="w-full text-sm">
+                                                                <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                                    <tr>
+                                                                        <th className="px-3 py-2 text-left">#</th>
+                                                                        <th className="px-3 py-2 text-left">Tipo de Inmueble</th>
+                                                                        <th className="px-3 py-2 text-left">Clave Catastral</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {inmueblesDemo.map((inmueble, idx) => (
+                                                                        <tr
+                                                                            key={idx}
+                                                                            className={`border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer ${selectedInmueble === idx ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
+                                                                            onClick={() => setSelectedInmueble(idx)}
+                                                                        >
+                                                                            <td className="px-3 py-2">{inmueble.numero}</td>
+                                                                            <td className="px-3 py-2">{inmueble.tipo}</td>
+                                                                            <td className="px-3 py-2">{inmueble.catastral}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                    {/* Formulario de datos del inmueble seleccionado */}
+                                                    {selectedInmueble !== null && (
+                                                        <div className="border rounded-lg bg-background/50 p-6 mt-4">
+                                                            <h4 className="font-semibold mb-4 text-blue-900 dark:text-blue-100">Datos del Inmueble</h4>
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                                                <div className="space-y-2">
+                                                                    <label className="text-sm font-medium">Tipo (Factura/Complemento)</label>
+                                                                    <select
+                                                                        className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                        value={formInmueble.tipoFactura}
+                                                                        onChange={e => setFormInmueble(f => ({ ...f, tipoFactura: e.target.value }))}
+                                                                    >
+                                                                        <option value="">Selecciona</option>
+                                                                        {TIPO_FACTURA_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <label className="text-sm font-medium">Tipo (Vulnerables)</label>
+                                                                    <select
+                                                                        className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                        value={formInmueble.tipoVulnerable}
+                                                                        onChange={e => setFormInmueble(f => ({ ...f, tipoVulnerable: e.target.value }))}
+                                                                    >
+                                                                        <option value="">Selecciona</option>
+                                                                        {TIPO_VULNERABLES_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <label className="text-sm font-medium">Tipo Inmueble (Declaranot)</label>
+                                                                    <select
+                                                                        className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                        value={formInmueble.tipoDeclaranot}
+                                                                        onChange={e => setFormInmueble(f => ({ ...f, tipoDeclaranot: e.target.value }))}
+                                                                    >
+                                                                        <option value="">Selecciona</option>
+                                                                        {TIPO_DECLARANOT_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mb-6">
+                                                                <label className="text-sm font-medium block mb-2">Medidas y colindancias</label>
+                                                                <textarea
+                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[70px]"
+                                                                    value={formInmueble.medidas}
+                                                                    onChange={e => setFormInmueble(f => ({ ...f, medidas: e.target.value }))}
+                                                                    placeholder="Medidas y colindancias"
+                                                                />
+                                                            </div>
+                                                            <div className="mb-6">
+                                                                <label className="text-sm font-medium block mb-2">Antecedentes</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                    value={formInmueble.antecedentes}
+                                                                    onChange={e => setFormInmueble(f => ({ ...f, antecedentes: e.target.value }))}
+                                                                    placeholder="Antecedentes"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm font-medium block mb-2">Descripción del inmueble</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                    value={formInmueble.descripcion}
+                                                                    onChange={e => setFormInmueble(f => ({ ...f, descripcion: e.target.value }))}
+                                                                    placeholder="Descripción del inmueble"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </>;
+                                            })()}
                                         </TabsContent>
 
                                         {/* SubTab: Presupuesto */}
@@ -2203,11 +2310,10 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 4: PROCESO & TRÁMITES */}
                                 <TabsContent value="proceso-tramites" className="space-y-6">
                                     <Tabs defaultValue="etapas-expediente" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                        <TabsList className="grid w-full grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
                                             <TabsTrigger value="etapas-expediente" className="text-xs">Etapas</TabsTrigger>
                                             <TabsTrigger value="solicitud-seguimiento" className="text-xs">Solicitud</TabsTrigger>
                                             <TabsTrigger value="recibo-general" className="text-xs">Recibo General</TabsTrigger>
-                                            <TabsTrigger value="dependencias" className="text-xs">Dependencias</TabsTrigger>
                                         </TabsList>
 
                                         {/* SubTab: Etapas del Expediente */}
@@ -2307,37 +2413,7 @@ export default function ExpedientesIndex() {
                                             </div>
                                         </TabsContent>
 
-                                        {/* SubTab: Dependencias */}
-                                        <TabsContent value="dependencias" className="space-y-4">
-                                            <div className="space-y-2 mb-6">
-                                                <label className="text-sm font-medium">Dependencia Encargada</label>
-                                                <Input type="text" placeholder="Nombre de la dependencia" className="text-sm" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Responsable</label>
-                                                    <Input type="text" placeholder="Nombre del responsable" className="text-sm" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Correo</label>
-                                                    <Input type="email" placeholder="correo@ejemplo.com" className="text-sm" />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Teléfono</label>
-                                                    <Input type="tel" placeholder="Teléfono" className="text-sm" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Extensión</label>
-                                                    <Input type="text" placeholder="Extensión" className="text-sm" />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Observaciones</label>
-                                                <textarea placeholder="Observaciones de la dependencia..." rows={4} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                            </div>
-                                        </TabsContent>
+
                                     </Tabs>
                                 </TabsContent>
 

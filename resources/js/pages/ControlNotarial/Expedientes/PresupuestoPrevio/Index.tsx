@@ -641,14 +641,14 @@ export default function PresupuestoPrevioIndex() {
             <Head title="Presupuesto Previo - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-6 border-b">
+                <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="rounded-lg bg-green-600 p-3 text-white">
                             <DollarSign className="size-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Presupuesto Previo</h1>
-                            <p className="text-muted-foreground">Gestión de presupuestos previos de expedientes</p>
+                            <h1 className="text-2xl font-bold tracking-tight">Presupuesto Previo</h1>
+                            <p className="text-muted-foreground text-xs">Gestión de presupuestos previos de expedientes</p>
                         </div>
                     </div>
                 </div>

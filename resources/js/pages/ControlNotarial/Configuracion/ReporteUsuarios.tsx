@@ -135,20 +135,20 @@ export default function ControlNotarialReporteUsuarios() {
         <>
             <Head title="Reporte de Bitácora - Control Notarial" />
 
-            <div className="space-y-8">
-                <div className="px-6 pt-8">
+              <div className="space-y-6 px-6 pt-6">
+                <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="rounded-lg bg-orange-500 p-3 text-white">
-                            <BarChart3 className="size-6" />
+                            <BarChart3 className="size-5" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Reporte de Bitácora</h1>
-                            <p className="text-muted-foreground">Análisis de operaciones y actividades del sistema</p>
+                            <h1 className="text-2xl font-bold tracking-tight">Reporte de Bitácora</h1>
+                            <p className="text-muted-foreground text-xs">Análisis de operaciones y actividades del sistema</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="px-6">
+                <div>
                     {/* Sección de Filtros */}
                     <div className="bg-background border rounded-lg p-6 space-y-6 mb-6">
                         <h2 className="text-lg font-semibold">Parámetros del Reporte</h2>

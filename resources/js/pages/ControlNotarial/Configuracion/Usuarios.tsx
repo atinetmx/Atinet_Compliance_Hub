@@ -352,14 +352,14 @@ export default function ControlNotarialUsuarios() {
             <Head title="Usuarios - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-6 border-b">
+                <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Users className="size-6" />
+                            <Users className="size-5" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Usuarios</h1>
-                            <p className="text-muted-foreground">Gestión de usuarios notariales</p>
+                            <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
+                            <p className="text-muted-foreground text-xs">Gestión de usuarios notariales</p>
                         </div>
                     </div>
                 </div>

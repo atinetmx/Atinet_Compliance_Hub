@@ -412,11 +412,10 @@ export default function ControlNotarialConfiguracionIndex() {
         <>
             <Head title="Configuración - Control Notarial" />
 
-            <div className="min-h-screen space-y-6 p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-blue-500 p-3 text-white">
+            <div className="space-y-6 px-6 pt-6">
+                <div className="pb-2 border-b">
+                     <div className="flex items-center gap-3 mb-2">
+                        <div className="rounded-lg bg-blue-600 p-3 text-white">
                             <Settings className="size-6" />
                         </div>
                         <div>
@@ -426,10 +425,11 @@ export default function ControlNotarialConfiguracionIndex() {
                             </p>
                         </div>
                     </div>
-                </div>
+
+ </div>
 
                 {/* Tabs Container */}
-                <div className="rounded-lg border border-sidebar-border bg-background p-6">
+                <div className="border rounded-lg bg-background/50 p-6 mt-4 mb-6">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-6 bg-transparent">
                             <TabsTrigger value="datos" className="gap-2 data-[state=active]:shadow-neutral-800">
@@ -457,9 +457,9 @@ export default function ControlNotarialConfiguracionIndex() {
                                 <span className="hidden sm:inline">Folios</span>
                             </TabsTrigger>
                         </TabsList>
-
+<div className="pb-3 border-b"/>
                         {/* Pestaña 1: Datos de la Notaría */}
-                        <TabsContent value="datos" className="space-y-6">
+                        <TabsContent value="datos" className="space-y-6 ">
                             {isLoading ? (
                                 <div className="flex items-center justify-center py-8">
                                     <div className="text-center">
@@ -470,7 +470,7 @@ export default function ControlNotarialConfiguracionIndex() {
                             ) : (
                             <div className="grid gap-6">
                                 {/* Sección 1: Información Principal */}
-                                <div>
+                                <div >
                                     <h3 className="mb-4 text-lg font-semibold">Información Principal</h3>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
@@ -623,7 +623,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                                 <img
                                                     src={notariaData.imagen}
                                                     alt="Foto de la notaría"
-                                                    className="mt-2 h-110 w-full rounded-lg border border-gray-300 object-cover shadow-lg"
+                                                    className="mt-2 h-110 w-full rounded-lg border border-gray-300 object-contain shadow-lg"
                                                 />
                                             </div>
                                         )}
@@ -1132,11 +1132,11 @@ export default function ControlNotarialConfiguracionIndex() {
                                 </div>
                             </div>
                         </TabsContent>
+
                     </Tabs>
-                </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 justify-end">
+                <div className="pt-3 flex gap-3 justify-end">
                     <Button
                         variant="outline"
                         onClick={handleReset}
@@ -1165,6 +1165,7 @@ export default function ControlNotarialConfiguracionIndex() {
                     </Button>
                 </div>
             </div>
+             </div>
         </>
     );
 }

@@ -441,14 +441,14 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             <Head title="Configuración Operaciones - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-6 border-b">
+                <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Building2 className="size-6" />
+                            <Building2 className="size-5" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Configuración Operaciones</h1>
-                            <p className="text-muted-foreground">Gestión de operaciones y elementos asociados</p>
+                            <h1 className="text-2xl font-bold tracking-tight">Configuración Operaciones</h1>
+                            <p className="text-muted-foreground text-xs">Gestión de operaciones y elementos asociados</p>
                         </div>
                     </div>
                 </div>
