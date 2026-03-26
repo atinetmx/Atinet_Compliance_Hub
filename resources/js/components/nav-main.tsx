@@ -16,10 +16,10 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useCurrentUrl } from '@/hooks/use-current-url';
+import { useCurrentUrl, type IsCurrentUrlFn } from '@/hooks/use-current-url';
 import type { NavItem } from '@/types';
 
-function hasActiveChild(item: NavItem, isCurrentUrl: (url: string) => boolean): boolean {
+function hasActiveChild(item: NavItem, isCurrentUrl: IsCurrentUrlFn): boolean {
     if (!item.items) return false;
     return item.items.some((child) => {
         if (isCurrentUrl(child.href)) return true;
@@ -27,7 +27,7 @@ function hasActiveChild(item: NavItem, isCurrentUrl: (url: string) => boolean): 
     });
 }
 
-function renderMenuItems(items: NavItem[], isCurrentUrl: (url: string) => boolean, level: number = 0): React.ReactNode {
+function renderMenuItems(items: NavItem[], isCurrentUrl: IsCurrentUrlFn, level: number = 0): React.ReactNode {
     return items.map((item) => {
         // Si el item tiene subitems, renderizar como Collapsible
         if (item.items && item.items.length > 0) {
@@ -66,7 +66,6 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: (url: string) => boolea
                         <SidebarMenuSubItem>
                             <CollapsibleTrigger asChild>
                                 <SidebarMenuSubButton
-                                    tooltip={{ children: item.title }}
                                     className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
                                 >
                                     {item.icon && <item.icon className="h-4 w-4" />}
@@ -128,72 +127,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
         <SidebarGroup className="px-2 py-0">
             <SidebarGroupLabel className="text-foreground/70">Platform</SidebarGroupLabel>
             <SidebarMenu>
-<<<<<<< HEAD
-                {items.map((item) => {
-                    // Check if item has sub-items
-                    if (item.items && item.items.length > 0) {
-                        return (
-                            <Collapsible
-                                key={item.title}
-                                asChild
-                                defaultOpen={item.items.some((subItem) =>
-                                    isCurrentUrl(subItem.href)
-                                )}
-                            >
-                                <SidebarMenuItem>
-                                    <CollapsibleTrigger asChild>
-                                        <SidebarMenuButton
-                                            tooltip={{ children: item.title }}
-                                            className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 backdrop-blur-sm transition-all duration-200"
-                                        >
-                                            {item.icon && <item.icon />}
-                                            <span>{item.title}</span>
-                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                        </SidebarMenuButton>
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent>
-                                        <SidebarMenuSub>
-                                            {item.items.map((subItem) => (
-                                                <SidebarMenuSubItem key={subItem.title}>
-                                                    <SidebarMenuSubButton
-                                                        asChild
-                                                        isActive={isCurrentUrl(subItem.href)}
-                                                        className="hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 transition-all duration-200"
-                                                    >
-                                                        <Link href={subItem.href} prefetch>
-                                                            {subItem.icon && <subItem.icon />}
-                                                            <span>{subItem.title}</span>
-                                                        </Link>
-                                                    </SidebarMenuSubButton>
-                                                </SidebarMenuSubItem>
-                                            ))}
-                                        </SidebarMenuSub>
-                                    </CollapsibleContent>
-                                </SidebarMenuItem>
-                            </Collapsible>
-                        );
-                    }
-
-                    // Regular menu item without sub-items
-                    return (
-                        <SidebarMenuItem key={item.title}>
-                            <SidebarMenuButton
-                                asChild
-                                isActive={isCurrentUrl(item.href)}
-                                tooltip={{ children: item.title }}
-                                className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 data-[active=true]:bg-amber-600/90 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
-                            >
-                                <Link href={item.href} prefetch>
-                                    {item.icon && <item.icon />}
-                                    <span>{item.title}</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    );
-                })}
-=======
                 {renderMenuItems(items, isCurrentUrl)}
->>>>>>> origin/dev-alex
             </SidebarMenu>
         </SidebarGroup>
     );
