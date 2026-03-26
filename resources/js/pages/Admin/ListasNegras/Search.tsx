@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
@@ -1160,7 +1160,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="persona-fisica" className="mt-4">
                                 <form onSubmit={handlePersonaFisicaSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre-fisica">Nombre completo</Label>
+                                        <RequiredLabel htmlFor="nombre-fisica">Nombre completo</RequiredLabel>
                                         <Input
                                             id="nombre-fisica"
                                             placeholder="Ej: Juan Pérez García"
@@ -1178,7 +1178,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="persona-moral" className="mt-4">
                                 <form onSubmit={handlePersonaMoralSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="razon-social">Razón social / Denominación</Label>
+                                        <RequiredLabel htmlFor="razon-social">Razón social / Denominación</RequiredLabel>
                                         <Input
                                             id="razon-social"
                                             placeholder="Ej: EMPRESA DEMO SA DE CV"
@@ -1196,7 +1196,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="rfc" className="mt-4">
                                 <form onSubmit={handleRfcSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="rfc">RFC</Label>
+                                        <RequiredLabel htmlFor="rfc">RFC</RequiredLabel>
                                         <Input
                                             id="rfc"
                                             placeholder="Ej: XAXX010101000"
@@ -1219,7 +1219,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="combinada" className="mt-4">
                                 <form onSubmit={handleCombinedSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="tipo-persona">Tipo de persona</Label>
+                                        <RequiredLabel htmlFor="tipo-persona">Tipo de persona</RequiredLabel>
                                         <Select value={combinedForm.tipo_persona} onValueChange={handleTipoPersonaChange}>
                                             <SelectTrigger>
                                                 <SelectValue />
@@ -1231,7 +1231,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="nombre-combinado">Nombre / Razón social</Label>
+                                        <RequiredLabel htmlFor="nombre-combinado">Nombre / Razón social</RequiredLabel>
                                         <Input
                                             id="nombre-combinado"
                                             placeholder={combinedForm.tipo_persona === 'fisica' ? 'Ej: Juan Pérez García' : 'Ej: EMPRESA DEMO SA DE CV'}
@@ -1241,12 +1241,12 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="rfc-combinado">
+                                        <RequiredLabel htmlFor="rfc-combinado">
                                             RFC{' '}
                                             <span className="text-sm text-muted-foreground">
                                                 ({combinedForm.tipo_persona === 'fisica' ? '12' : '13'} caracteres)
                                             </span>
-                                        </Label>
+                                        </RequiredLabel>
                                         <Input
                                             id="rfc-combinado"
                                             placeholder={combinedForm.tipo_persona === 'fisica' ? 'Ej: XAXX010101XX' : 'Ej: XXX010101XXX'}

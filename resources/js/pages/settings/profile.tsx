@@ -6,7 +6,7 @@ import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 // import { edit } from '@/routes/profile';
@@ -53,7 +53,7 @@ export default function Profile({
                         {({ processing, recentlySuccessful, errors }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="name">Name</Label>
+                                    <RequiredLabel htmlFor="name">Name</RequiredLabel>
 
                                     <Input
                                         id="name"
@@ -72,7 +72,7 @@ export default function Profile({
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="email">Email address</Label>
+                                    <RequiredLabel htmlFor="email">Email address</RequiredLabel>
 
                                     <Input
                                         id="email"

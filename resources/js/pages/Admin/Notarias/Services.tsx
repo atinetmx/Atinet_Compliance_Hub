@@ -23,7 +23,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -387,13 +387,13 @@ export default function NotariasServices({
                                         setData('is_enabled', checked)
                                     }
                                 />
-                                <Label htmlFor="is_enabled">Servicio Habilitado</Label>
+                                <RequiredLabel htmlFor="is_enabled">Servicio Habilitado</RequiredLabel>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="custom_limit">
+                                <RequiredLabel htmlFor="custom_limit">
                                     Límite Personalizado (usos/mes)
-                                </Label>
+                                </RequiredLabel>
                                 <Input
                                     id="custom_limit"
                                     type="number"
@@ -411,9 +411,9 @@ export default function NotariasServices({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="custom_price">
+                                <RequiredLabel htmlFor="custom_price">
                                     Precio Personalizado ($)
-                                </Label>
+                                </RequiredLabel>
                                 <Input
                                     id="custom_price"
                                     type="number"
@@ -433,9 +433,9 @@ export default function NotariasServices({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                    <Label htmlFor="activation_date">
+                                    <RequiredLabel htmlFor="activation_date">
                                         Fecha Activación
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="activation_date"
                                         type="date"
@@ -452,9 +452,9 @@ export default function NotariasServices({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="expiration_date">
+                                    <RequiredLabel htmlFor="expiration_date">
                                         Fecha Expiración
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="expiration_date"
                                         type="date"
@@ -472,7 +472,7 @@ export default function NotariasServices({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="notes">Notas</Label>
+                                <RequiredLabel htmlFor="notes">Notas</RequiredLabel>
                                 <Textarea
                                     id="notes"
                                     value={data.notes}

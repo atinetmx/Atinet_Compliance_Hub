@@ -20,7 +20,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -441,9 +441,9 @@ export default function PlanServices({
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="edit-included">
+                            <RequiredLabel htmlFor="edit-included">
                                 Incluido en el plan
-                            </Label>
+                            </RequiredLabel>
                             <Switch
                                 id="edit-included"
                                 checked={formData.is_included}
@@ -457,9 +457,9 @@ export default function PlanServices({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-limit">
+                            <RequiredLabel htmlFor="edit-limit">
                                 Límite de uso (opcional)
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="edit-limit"
                                 type="number"
@@ -478,9 +478,9 @@ export default function PlanServices({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-price">
+                            <RequiredLabel htmlFor="edit-price">
                                 Precio extra por uso (opcional)
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="edit-price"
                                 type="number"
@@ -497,7 +497,7 @@ export default function PlanServices({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-priority">Prioridad</Label>
+                            <RequiredLabel htmlFor="edit-priority">Prioridad</RequiredLabel>
                             <Input
                                 id="edit-priority"
                                 type="number"
@@ -537,9 +537,9 @@ export default function PlanServices({
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <Label htmlFor="add-included">
+                            <RequiredLabel htmlFor="add-included">
                                 Incluido en el plan
-                            </Label>
+                            </RequiredLabel>
                             <Switch
                                 id="add-included"
                                 checked={formData.is_included}
@@ -553,9 +553,9 @@ export default function PlanServices({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="add-limit">
+                            <RequiredLabel htmlFor="add-limit">
                                 Límite de uso (opcional)
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="add-limit"
                                 type="number"
@@ -574,9 +574,9 @@ export default function PlanServices({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="add-price">
+                            <RequiredLabel htmlFor="add-price">
                                 Precio extra por uso (opcional)
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="add-price"
                                 type="number"
@@ -593,7 +593,7 @@ export default function PlanServices({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="add-priority">Prioridad</Label>
+                            <RequiredLabel htmlFor="add-priority">Prioridad</RequiredLabel>
                             <Input
                                 id="add-priority"
                                 type="number"

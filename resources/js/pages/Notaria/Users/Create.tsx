@@ -2,7 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -57,7 +57,7 @@ export default function Create({ notaria }: Props) {
                 <div className="rounded-lg border border-sidebar-border/70 bg-background p-6 max-w-2xl">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Nombre Completo</Label>
+                            <RequiredLabel htmlFor="name">Nombre Completo</RequiredLabel>
                             <Input
                                 id="name"
                                 value={data.name}
@@ -71,7 +71,7 @@ export default function Create({ notaria }: Props) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico</Label>
+                            <RequiredLabel htmlFor="email">Correo Electrónico</RequiredLabel>
                             <Input
                                 id="email"
                                 type="email"
@@ -86,7 +86,7 @@ export default function Create({ notaria }: Props) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="tipo_cuenta">Tipo de Cuenta</Label>
+                            <RequiredLabel htmlFor="tipo_cuenta">Tipo de Cuenta</RequiredLabel>
                             <Select
                                 value={data.tipo_cuenta}
                                 onValueChange={(value: 'admin_notaria' | 'usuario_notaria' | 'invitado') =>
@@ -111,7 +111,7 @@ export default function Create({ notaria }: Props) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="password">Contraseña</Label>
+                            <RequiredLabel htmlFor="password">Contraseña</RequiredLabel>
                             <Input
                                 id="password"
                                 type="password"
@@ -129,7 +129,7 @@ export default function Create({ notaria }: Props) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="password_confirmation">Confirmar Contraseña</Label>
+                            <RequiredLabel htmlFor="password_confirmation">Confirmar Contraseña</RequiredLabel>
                             <Input
                                 id="password_confirmation"
                                 type="password"

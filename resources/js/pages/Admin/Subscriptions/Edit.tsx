@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -146,7 +146,7 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="plan_id">Plan *</Label>
+                                    <RequiredLabel htmlFor="plan_id">Plan *</RequiredLabel>
                                     <Select
                                         value={data.plan_id}
                                         onValueChange={(value) =>
@@ -182,9 +182,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="ciclo_facturacion">
+                                    <RequiredLabel htmlFor="ciclo_facturacion">
                                         Ciclo *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Select
                                         value={data.ciclo_facturacion}
                                         onValueChange={(value) =>
@@ -206,9 +206,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="precio_pagado">
+                                    <RequiredLabel htmlFor="precio_pagado">
                                         Precio *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         type="number"
                                         step="0.01"
@@ -234,9 +234,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="metodo_pago">
+                                    <RequiredLabel htmlFor="metodo_pago">
                                         Método de Pago
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="metodo_pago"
                                         value={data.metodo_pago}
@@ -259,9 +259,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                                         setData('auto_renovacion', checked)
                                     }
                                 />
-                                <Label htmlFor="auto_renovacion">
+                                <RequiredLabel htmlFor="auto_renovacion">
                                     Renovación automática
-                                </Label>
+                                </RequiredLabel>
                             </div>
                         </div>
 
@@ -273,9 +273,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                                 <div className="space-y-2">
-                                    <Label htmlFor="fecha_inicio">
+                                    <RequiredLabel htmlFor="fecha_inicio">
                                         Fecha Inicio *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         type="date"
                                         id="fecha_inicio"
@@ -300,9 +300,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="fecha_vencimiento">
+                                    <RequiredLabel htmlFor="fecha_vencimiento">
                                         Fecha Vencimiento *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         type="date"
                                         id="fecha_vencimiento"
@@ -327,7 +327,7 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="status">Estado *</Label>
+                                    <RequiredLabel htmlFor="status">Estado *</RequiredLabel>
                                     <Select
                                         value={data.status}
                                         onValueChange={(value) =>
@@ -360,9 +360,9 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
 
                             {data.status === 'cancelada' && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="razon_cancelacion">
+                                    <RequiredLabel htmlFor="razon_cancelacion">
                                         Razón de Cancelación
-                                    </Label>
+                                    </RequiredLabel>
                                     <Textarea
                                         id="razon_cancelacion"
                                         value={data.razon_cancelacion}
@@ -381,7 +381,7 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
 
                         {/* Notas */}
                         <div className="space-y-2">
-                            <Label htmlFor="notas">Notas (Opcional)</Label>
+                            <RequiredLabel htmlFor="notas">Notas (Opcional)</RequiredLabel>
                             <Textarea
                                 id="notas"
                                 value={data.notas}

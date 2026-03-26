@@ -6,7 +6,7 @@ import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/user-password';
@@ -62,9 +62,9 @@ export default function Password() {
                         {({ errors, processing, recentlySuccessful }) => (
                             <>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="current_password">
+                                    <RequiredLabel htmlFor="current_password">
                                         Current password
-                                    </Label>
+                                    </RequiredLabel>
 
                                     <Input
                                         id="current_password"
@@ -82,9 +82,9 @@ export default function Password() {
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="password">
+                                    <RequiredLabel htmlFor="password">
                                         New password
-                                    </Label>
+                                    </RequiredLabel>
 
                                     <Input
                                         id="password"
@@ -100,9 +100,9 @@ export default function Password() {
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="password_confirmation">
+                                    <RequiredLabel htmlFor="password_confirmation">
                                         Confirm password
-                                    </Label>
+                                    </RequiredLabel>
 
                                     <Input
                                         id="password_confirmation"

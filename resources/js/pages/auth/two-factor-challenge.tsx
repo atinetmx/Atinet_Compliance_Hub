@@ -82,7 +82,7 @@ export default function TwoFactorChallenge() {
                                             maxLength={OTP_MAX_LENGTH}
                                             value={code}
                                             onChange={(value) => setCode(value)}
-                                            disabled={processing}
+                                            readOnly={processing}
                                             pattern={REGEXP_ONLY_DIGITS}
                                         >
                                             <InputOTPGroup>

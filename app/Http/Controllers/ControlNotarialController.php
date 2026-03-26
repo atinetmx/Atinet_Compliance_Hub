@@ -45,7 +45,33 @@ class ControlNotarialController extends Controller
     public function expedientes(): Response
     {
         return Inertia::render('ControlNotarial/Expedientes/Index', [
-            'message' => 'Disponible en Fase 6 - Expedientes (meses 12-20)',
+            'expedientes' => [],
+            'phase' => 'development',
+            'message' => 'Módulo Expedientes en desarrollo',
+        ]);
+    }
+
+    /**
+     * Display presupuesto previo module within expedientes
+     */
+    public function presupuestoPrevio(): Response
+    {
+        return Inertia::render('ControlNotarial/Expedientes/PresupuestoPrevio/Index', [
+            'presupuestos' => [],
+            'phase' => 'development',
+            'message' => 'Módulo Presupuesto Previo en desarrollo',
+        ]);
+    }
+
+    /**
+     * Display expedientes module within expedientes
+     */
+    public function expedientesExpedientes(): Response
+    {
+        return Inertia::render('ControlNotarial/Expedientes/Expedientes/Index', [
+            'expedientes' => [],
+            'phase' => 'development',
+            'message' => 'Módulo Expedientes en desarrollo',
         ]);
     }
 
@@ -67,5 +93,53 @@ class ControlNotarialController extends Controller
         return Inertia::render('ControlNotarial/Presupuestos/Index', [
             'message' => 'Disponible en Fase 4 - Presupuestos (meses 8-13)',
         ]);
+    }
+
+    /**
+     * Display configuración module
+     */
+    public function configuracion(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Index');
+    }
+
+    /**
+     * Display usuarios module within configuración
+     */
+    public function usuarios(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Usuarios');
+    }
+
+    /**
+     * Display alta catalogos module within configuración
+     */
+    public function altaCatalogos(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/AltaCatalogos');
+    }
+
+    /**
+     * Display reporte de usuarios module within configuración
+     */
+    public function reporteUsuarios(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/ReporteUsuarios');
+    }
+
+    /**
+     * Display configuración de operaciones module
+     */
+    public function configuracionOperaciones(): Response
+    {
+        return Inertia::render('ControlNotarial/ConfiguracionOperaciones/Index');
+    }
+
+    /**
+     * Display clientes module within configuración
+     */
+    public function clientes(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Clientes/Index');
     }
 }

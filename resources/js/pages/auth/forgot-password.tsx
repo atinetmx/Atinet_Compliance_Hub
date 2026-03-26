@@ -5,7 +5,7 @@ import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
@@ -29,7 +29,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <RequiredLabel htmlFor="email">Email address</RequiredLabel>
                                 <Input
                                     id="email"
                                     type="email"

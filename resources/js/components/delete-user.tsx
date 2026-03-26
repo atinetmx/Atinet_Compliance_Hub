@@ -14,7 +14,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 
 export default function DeleteUser() {
     const passwordInput = useRef<HTMLInputElement>(null);
@@ -66,12 +66,12 @@ export default function DeleteUser() {
                             {({ resetAndClearErrors, processing, errors }) => (
                                 <>
                                     <div className="grid gap-2">
-                                        <Label
+                                        <RequiredLabel
                                             htmlFor="password"
                                             className="sr-only"
                                         >
                                             Password
-                                        </Label>
+                                        </RequiredLabel>
 
                                         <Input
                                             id="password"

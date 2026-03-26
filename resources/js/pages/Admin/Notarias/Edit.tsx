@@ -3,7 +3,7 @@ import { Building2, Save, ArrowLeft } from 'lucide-react';
 import LegacyNotariaAutocomplete from '@/components/Admin/LegacyNotariaAutocomplete';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -137,9 +137,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="nombre">
+                                    <RequiredLabel htmlFor="nombre">
                                         Nombre de la Notaría *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="nombre"
                                         value={data.nombre}
@@ -161,9 +161,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="numero_notaria">
+                                    <RequiredLabel htmlFor="numero_notaria">
                                         Número de Notaría *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="numero_notaria"
                                         value={data.numero_notaria}
@@ -188,9 +188,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="plan_id">
+                                    <RequiredLabel htmlFor="plan_id">
                                         Plan de Suscripción *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Select
                                         value={data.plan_id}
                                         onValueChange={(value) =>
@@ -226,7 +226,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label className="flex items-center gap-2">
+                                    <RequiredLabel className="flex items-center gap-2">
                                         <Switch
                                             checked={data.activa}
                                             onCheckedChange={(checked) =>
@@ -234,7 +234,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                             }
                                         />
                                         Notaría Activa
-                                    </Label>
+                                    </RequiredLabel>
                                 </div>
                             </div>
                         </div>
@@ -247,9 +247,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="contacto_principal">
+                                    <RequiredLabel htmlFor="contacto_principal">
                                         Contacto Principal *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="contacto_principal"
                                         value={data.contacto_principal}
@@ -274,9 +274,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="email_contacto">
+                                    <RequiredLabel htmlFor="email_contacto">
                                         Email de Contacto *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="email_contacto"
                                         type="email"
@@ -302,7 +302,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="telefono">Teléfono</Label>
+                                    <RequiredLabel htmlFor="telefono">Teléfono</RequiredLabel>
                                     <Input
                                         id="telefono"
                                         value={data.telefono}
@@ -323,7 +323,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 <div className="grid gap-4 md:grid-cols-2">
                                     {/* Estado */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="estado">Estado</Label>
+                                        <RequiredLabel htmlFor="estado">Estado</RequiredLabel>
                                         <select
                                             id="estado"
                                             value={data.estado}
@@ -357,9 +357,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                                     {/* Municipio */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="municipio">
+                                        <RequiredLabel htmlFor="municipio">
                                             Municipio
-                                        </Label>
+                                        </RequiredLabel>
                                         <Input
                                             id="municipio"
                                             value={data.municipio}
@@ -380,9 +380,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                                     {/* Código Postal */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="codigo_postal">
+                                        <RequiredLabel htmlFor="codigo_postal">
                                             Código Postal
-                                        </Label>
+                                        </RequiredLabel>
                                         <Input
                                             id="codigo_postal"
                                             value={data.codigo_postal}
@@ -404,7 +404,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                                     {/* Colonia */}
                                     <div className="space-y-2">
-                                        <Label htmlFor="colonia">Colonia</Label>
+                                        <RequiredLabel htmlFor="colonia">Colonia</RequiredLabel>
                                         <Input
                                             id="colonia"
                                             value={data.colonia}
@@ -422,9 +422,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                                     {/* Calle (span 2 columns) */}
                                     <div className="space-y-2 md:col-span-2">
-                                        <Label htmlFor="calle">
+                                        <RequiredLabel htmlFor="calle">
                                             Calle y Número
-                                        </Label>
+                                        </RequiredLabel>
                                         <Input
                                             id="calle"
                                             value={data.calle}
@@ -453,9 +453,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                             {/* Notas Internas */}
                             <div className="space-y-2">
-                                <Label htmlFor="notas_internas">
+                                <RequiredLabel htmlFor="notas_internas">
                                     Notas Internas
-                                </Label>
+                                </RequiredLabel>
                                 <Textarea
                                     id="notas_internas"
                                     value={data.notas_internas}
@@ -482,9 +482,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="limite_usuarios_custom">
+                                    <RequiredLabel htmlFor="limite_usuarios_custom">
                                         Límite de Usuarios Personalizado
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="limite_usuarios_custom"
                                         type="number"
@@ -501,9 +501,9 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="limite_busquedas_mes_custom">
+                                    <RequiredLabel htmlFor="limite_busquedas_mes_custom">
                                         Límite de Búsquedas/Mes Personalizado
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="limite_busquedas_mes_custom"
                                         type="number"

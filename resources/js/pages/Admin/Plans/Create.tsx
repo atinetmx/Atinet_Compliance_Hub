@@ -13,7 +13,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -148,9 +148,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="nombre">
+                                    <RequiredLabel htmlFor="nombre">
                                         Nombre del Plan *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="nombre"
                                         value={data.nombre}
@@ -172,7 +172,7 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="slug">Slug *</Label>
+                                    <RequiredLabel htmlFor="slug">Slug *</RequiredLabel>
                                     <Input
                                         id="slug"
                                         value={data.slug}
@@ -196,9 +196,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                 </div>
 
                                 <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="descripcion">
+                                    <RequiredLabel htmlFor="descripcion">
                                         Descripción
-                                    </Label>
+                                    </RequiredLabel>
                                     <Textarea
                                         id="descripcion"
                                         value={data.descripcion}
@@ -233,9 +233,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="precio_mensual">
+                                    <RequiredLabel htmlFor="precio_mensual">
                                         Precio Mensual *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="precio_mensual"
                                         type="number"
@@ -262,9 +262,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="precio_anual">
+                                    <RequiredLabel htmlFor="precio_anual">
                                         Precio Anual *
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="precio_anual"
                                         type="number"
@@ -291,9 +291,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="limite_usuarios">
+                                    <RequiredLabel htmlFor="limite_usuarios">
                                         Límite de Usuarios
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="limite_usuarios"
                                         type="number"
@@ -319,9 +319,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="limite_busquedas_mes">
+                                    <RequiredLabel htmlFor="limite_busquedas_mes">
                                         Límite de Búsquedas/Mes
-                                    </Label>
+                                    </RequiredLabel>
                                     <Input
                                         id="limite_busquedas_mes"
                                         type="number"
@@ -356,12 +356,12 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>
+                                    <RequiredLabel>
                                         Herramientas/Servicios Incluidos
                                         <span className="ml-2 text-xs text-muted-foreground">
                                             (Opcional - Los servicios se gestionan desde "Gestionar Servicios")
                                         </span>
-                                    </Label>
+                                    </RequiredLabel>
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -403,12 +403,12 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>
+                                    <RequiredLabel>
                                         Características del Plan
                                         <span className="ml-2 text-xs text-muted-foreground">
                                             (Se muestran en las tarjetas de planes)
                                         </span>
-                                    </Label>
+                                    </RequiredLabel>
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -455,15 +455,15 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                                                 setData('is_active', checked)
                                             }
                                         />
-                                        <Label htmlFor="is_active">
+                                        <RequiredLabel htmlFor="is_active">
                                             Plan Activo
-                                        </Label>
+                                        </RequiredLabel>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="orden">
+                                        <RequiredLabel htmlFor="orden">
                                             Orden de Visualización
-                                        </Label>
+                                        </RequiredLabel>
                                         <Input
                                             id="orden"
                                             type="number"
@@ -587,9 +587,9 @@ export default function PlansCreate({ availableServices, suggestedOrden }: Plans
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="caracteristica">
+                            <RequiredLabel htmlFor="caracteristica">
                                 Característica
-                            </Label>
+                            </RequiredLabel>
                             <Input
                                 id="caracteristica"
                                 value={newCaracteristica}

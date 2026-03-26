@@ -4,7 +4,7 @@ import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RequiredLabel } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
 import { register } from '@/routes';
@@ -38,7 +38,7 @@ export default function Login({
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <RequiredLabel htmlFor="email">Email address</RequiredLabel>
                                 <Input
                                     id="email"
                                     type="email"
@@ -54,7 +54,7 @@ export default function Login({
 
                             <div className="grid gap-2">
                                 <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
+                                    <RequiredLabel htmlFor="password">Password</RequiredLabel>
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}
@@ -83,7 +83,7 @@ export default function Login({
                                     name="remember"
                                     tabIndex={3}
                                 />
-                                <Label htmlFor="remember">Remember me</Label>
+                                <RequiredLabel htmlFor="remember">Remember me</RequiredLabel>
                             </div>
 
                             <Button
