@@ -819,7 +819,7 @@ export default function ControlNotarialClientes() {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="fisica">Persona Física</SelectItem>
-                                                        <SelectItem value="juridica">Persona Jurídica</SelectItem>
+                                                        <SelectItem value="juridica">Persona Moral</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
