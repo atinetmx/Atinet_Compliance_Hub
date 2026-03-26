@@ -216,11 +216,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return Inertia::render('Admin/ListasNegras/Search');
     })->name('listas-negras');
 
-    // Página de historial de búsquedas
-    Route::get('listas-negras/historial', function () {
-        return Inertia::render('Admin/ListasNegras/History');
-    })->name('listas-negras.historial');
-
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)
     Route::prefix('search')->name('search.')->middleware(['subscription'])->group(function () {
         // Búsquedas que usan OFAC como servicio principal (también pueden incluir SAT)
@@ -245,14 +240,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
-    });
-
-    // Exportación de Excel para resultados de búsqueda
-    // NOTA: Los exports NO consumen límites porque son resultado de búsquedas ya realizadas
-    Route::prefix('export')->name('export.')->middleware(['subscription'])->group(function () {
-        Route::post('ofac', [\App\Http\Controllers\Admin\ExportController::class, 'exportOfac'])->name('ofac');
-        Route::post('sat', [\App\Http\Controllers\Admin\ExportController::class, 'exportSat'])->name('sat');
-        Route::post('combined', [\App\Http\Controllers\Admin\ExportController::class, 'exportCombined'])->name('combined');
     });
 
     // === HISTORIAL DE BÚSQUEDAS EN LISTAS NEGRAS ===

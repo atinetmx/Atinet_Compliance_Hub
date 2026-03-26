@@ -27,7 +27,7 @@ $notariasAplicativos = DB::connection('aplicativos')
 if ($notariasAplicativos->isEmpty()) {
     echo "❌ No se encontraron notarías con búsquedas en aplicativos.busquedas\n";
     echo "Probando con usuarios registrados...\n\n";
-
+    
     // Buscar notarías con usuarios
     $notariasConUsuarios = DB::connection('aplicativos')
         ->table('usuario')
@@ -39,12 +39,12 @@ if ($notariasAplicativos->isEmpty()) {
         ->havingRaw('COUNT(*) > 5')
         ->pluck('notaria')
         ->take(5);
-
+    
     if ($notariasConUsuarios->isEmpty()) {
         echo "❌ No se encontraron notarías candidatas\n";
         exit(1);
     }
-
+    
     $notariasCandidatas = $notariasConUsuarios;
 } else {
     $notariasCandidatas = $notariasAplicativos;
@@ -57,7 +57,7 @@ foreach ($notariasCandidatas as $notaria) {
     echo str_repeat('═', 80) . "\n";
     echo "📋 ANÁLISIS: {$notaria}\n";
     echo str_repeat('═', 80) . "\n\n";
-
+    
     // 1. Contar en aplicativos.busquedas
     try {
         $countAplicativos = DB::connection('aplicativos')
@@ -67,7 +67,7 @@ foreach ($notariasCandidatas as $notaria) {
     } catch (\Exception $e) {
         $countAplicativos = 0;
     }
-
+    
     // 2. Contar en aplicativos.busquedas_escritorio
     try {
         $countEscritorio = DB::connection('aplicativos')
@@ -77,7 +77,7 @@ foreach ($notariasCandidatas as $notaria) {
     } catch (\Exception $e) {
         $countEscritorio = 0;
     }
-
+    
     // 3. Contar en listasofac.consultas
     try {
         $countOfac = DB::connection('ofac')
@@ -87,7 +87,7 @@ foreach ($notariasCandidatas as $notaria) {
     } catch (\Exception $e) {
         $countOfac = 0;
     }
-
+    
     // 4. Contar en listassat.consultas
     try {
         $countSat = DB::connection('sat')
@@ -97,30 +97,30 @@ foreach ($notariasCandidatas as $notaria) {
     } catch (\Exception $e) {
         $countSat = 0;
     }
-
+    
     $totalAplicativos = $countAplicativos + $countEscritorio;
     $totalListas = $countOfac + $countSat;
     $totalUnionAll = $totalAplicativos + $totalListas;
-
+    
     echo "📊 Conteo por tabla:\n";
     echo "  aplicativos.busquedas:       " . number_format($countAplicativos) . "\n";
     echo "  aplicativos.busquedas_escritorio: " . number_format($countEscritorio) . "\n";
     echo "  ─────────────────────────────────────\n";
     echo "  SUBTOTAL aplicativos:        " . number_format($totalAplicativos) . "\n\n";
-
+    
     echo "  listasofac.consultas:        " . number_format($countOfac) . "\n";
     echo "  listassat.consultas:         " . number_format($countSat) . "\n";
     echo "  ─────────────────────────────────────\n";
     echo "  SUBTOTAL listas negras:      " . number_format($totalListas) . "\n\n";
-
+    
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     echo "  TOTAL UNION ALL:             " . number_format($totalUnionAll) . "\n";
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-
+    
     // Análisis de duplicación
     if ($totalAplicativos > 0 && $totalListas > 0) {
         echo "⚠️  ANÁLISIS DE DUPLICACIÓN:\n\n";
-
+        
         // Si aplicativos tiene búsquedas, comparar fechas
         if ($countAplicativos > 0) {
             $rangoAplicativos = DB::connection('aplicativos')
@@ -128,36 +128,36 @@ foreach ($notariasCandidatas as $notaria) {
                 ->where('NOTARIA', $notaria)
                 ->selectRaw('MIN(fecha) as primera, MAX(fecha) as ultima')
                 ->first();
-
+            
             echo "  Aplicativos.busquedas:\n";
             echo "    Primera: {$rangoAplicativos->primera}\n";
             echo "    Última:  {$rangoAplicativos->ultima}\n\n";
         }
-
+        
         if ($countOfac > 0) {
             $rangoOfac = DB::connection('ofac')
                 ->table('consultas')
                 ->where('proyecto', $notaria)
                 ->selectRaw('MIN(fecha) as primera, MAX(fecha) as ultima')
                 ->first();
-
+            
             echo "  Listasofac.consultas:\n";
             echo "    Primera: {$rangoOfac->primera}\n";
             echo "    Última:  {$rangoOfac->ultima}\n\n";
         }
-
+        
         if ($countSat > 0) {
             $rangoSat = DB::connection('sat')
                 ->table('consultas')
                 ->where('proyecto', $notaria)
                 ->selectRaw('MIN(fecha) as primera, MAX(fecha) as ultima')
                 ->first();
-
+            
             echo "  Listassat.consultas:\n";
             echo "    Primera: {$rangoSat->primera}\n";
             echo "    Última:  {$rangoSat->ultima}\n\n";
         }
-
+        
         // Estimación de duplicación
         if ($totalAplicativos > 0 && $totalListas > $totalAplicativos * 0.8) {
             $porcentajeDuplicacion = round(($totalAplicativos / $totalListas) * 100, 1);
@@ -180,7 +180,7 @@ foreach ($notariasCandidatas as $notaria) {
         echo "✅ NO HAY DUPLICACIÓN\n";
         echo "Solo usa app web/moderna (sin listas negras)\n\n";
     }
-
+    
     echo "\n";
 }
 
