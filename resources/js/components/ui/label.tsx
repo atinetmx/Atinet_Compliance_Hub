@@ -20,3 +20,4 @@ function RequiredLabel({
 }
 
 export { RequiredLabel }
+export { RequiredLabel as Label }
