@@ -44,7 +44,7 @@ export default function ControlNotarialReporteUsuarios() {
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
+            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -77,7 +77,7 @@ export default function ControlNotarialReporteUsuarios() {
             };
 
 // Construir URL con parámetros, omitiendo operacion si es 'all'
-            let url = 'http://192.168.1.1:5000/api/Bitacora/GenerateReporteBitacora?';
+            let url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Bitacora/GenerateReporteBitacora?';
             const params = [];
 
             params.push(`userId=${encodeURIComponent(userId && userId !== 'all' ? userId : '0')}`);

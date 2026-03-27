@@ -110,7 +110,7 @@ export default function ControlNotarialUsuarios() {
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetRoles', {
+                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetRoles', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -133,7 +133,7 @@ export default function ControlNotarialUsuarios() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('http://192.168.1.1:5000/api/User/GetUsuarios');
+            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarios');
             url.searchParams.append('filtro', filtroValue);
             const response = await fetch(url.toString(), {
                 method: 'GET',
@@ -175,8 +175,8 @@ export default function ControlNotarialUsuarios() {
 
     const handleAddUsuario = async () => {
         if (!formData.nombre || !formData.apellido_paterno || !formData.apellido_materno ||
-            !formData.usuario || !formData.iniciales || !formData.numero_notaria) {
-            addToast('Completa los campos obligatorios: Nombre, Apellidos, Usuario, Iniciales y Número Notaria', 'error');
+            !formData.usuario || !formData.iniciales ) {
+            addToast('Completa los campos obligatorios: Nombre, Apellidos, Usuario e Iniciales', 'error');
             return;
         }
 
@@ -185,7 +185,7 @@ export default function ControlNotarialUsuarios() {
                 setIsSaving(true);
                 setSaveError(null);
                 const response = await fetch(
-                    `http://192.168.1.1:5000/api/User/UpdateUsuario?usuarioId=${formData.id}`,
+                    `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/UpdateUsuario?usuarioId=${formData.id}`,
                     {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -233,7 +233,7 @@ export default function ControlNotarialUsuarios() {
                 setIsSaving(true);
                 setSaveError(null);
                 const response = await fetch(
-                    'http://192.168.1.1:5000/api/User/CreateUsuario',
+                    'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/CreateUsuario',
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -289,7 +289,7 @@ export default function ControlNotarialUsuarios() {
         setActiveTab('formulario');
         try {
             const response = await fetch(
-                `http://192.168.1.1:5000/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
+                `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
                 { headers: { 'Content-Type': 'application/json' } }
             );
             const data = await response.json();
@@ -656,18 +656,9 @@ export default function ControlNotarialUsuarios() {
                                     </div>
                                 </div>
 
-                                {/* Fila 5: Número Notaria, Adscripción, Tipo, Procedencia */}
-                                <div className="grid grid-cols-4 gap-4">
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="numero_notaria">Número Notaria</RequiredLabel>
-                                        <Input
-                                            id="numero_notaria"
-                                            name="numero_notaria"
-                                            value={formData.numero_notaria}
-                                            onChange={handleInputChange}
-                                            placeholder="Ej. 15"
-                                        />
-                                    </div>
+                                {/* Fila 5: Adscripción, Tipo, Procedencia */}
+                                <div className="grid grid-cols-3 gap-3">
+
                                     <div className="space-y-2">
                                         <label htmlFor="adscripcion" className="text-sm font-medium">Adscripción</label>
                                         <Input
