@@ -193,7 +193,7 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetActividadesVulnerables', {
+            const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetActividadesVulnerables', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -207,7 +207,7 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetDependenciasPublicas', {
+            const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetDependenciasPublicas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -224,7 +224,7 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const response = await fetch(`http://192.168.1.1:5000/api/Catalogos/${endpoint}`, {
+            const response = await fetch(`http://189.171.180.15:5000/api/Catalogos/${endpoint}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -449,7 +449,7 @@ export default function ControlNotarialAltaCatalogos() {
 
             console.log(`[DEBUG] Enviando ${method} a ${endpoint}`, payload);
 
-            const response = await fetch(`http://192.168.1.1:5000/api/Catalogos/${endpoint}`, {
+            const response = await fetch(`http://189.171.180.15:5000/api/Catalogos/${endpoint}`, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -623,7 +623,7 @@ export default function ControlNotarialAltaCatalogos() {
                         ) : (
                             <Plus className="h-4 w-4 mr-2" />
                         )}
-                        {isEditing ? 'Actualizar' : 'Guardar'} 
+                        {isEditing ? 'Actualizar' : 'Guardar'}
                     </Button>
                 </div>
             </div>
