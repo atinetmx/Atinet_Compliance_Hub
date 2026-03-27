@@ -3,8 +3,10 @@
 /**
  * Migración de Agenda Legacy → Sistema Nuevo
  *
- * Traslada eventos desde aplicativos.agenda → agenda_events
- * con mapeo de notarias y usuarios
+ * Traslada eventos desde aplicativos_remote.agenda → agenda_events
+ * con mapeo de notarias y usuarios.
+ * Soporta re-ejecución segura: omite eventos ya migrados (deduplicación
+ * por legacy_notaria + titulo + start_fecha).
  *
  * Ejecutar: php migrate_agenda_to_new_system.php
  *
@@ -66,7 +68,7 @@ echo "  ✓ {$totalNotarias} notarías mapeadas (incluyendo 'atinet' para super_
 echo "  → Eventos legacy (sin id_usuario_creador) se migrarán con user_id=NULL (vista compartida)\n";
 
 // Mapeo: email legacy → user_id nuevo
-$legacyUsuarios = DB::connection('aplicativos')
+$legacyUsuarios = DB::connection('aplicativos_remote')
     ->table('usuario')
     ->select('id', 'USER as email', 'notaria')
     ->get();
@@ -88,9 +90,9 @@ echo "  ✓ {$totalMapped} usuarios legacy mapeados a sistema nuevo\n\n";
 
 // ========== PASO 2: OBTENER EVENTOS LEGACY ==========
 
-echo "📅 Paso 2/4: Obteniendo eventos de aplicativos.agenda...\n";
+echo "📅 Paso 2/4: Obteniendo eventos de aplicativos_remote.agenda...\n";
 
-$query = DB::connection('aplicativos')
+$query = DB::connection('aplicativos_remote')
     ->table('agenda')
     ->whereIn('notaria', array_keys($notariasMap))
     ->orderBy('id');
@@ -102,7 +104,20 @@ if ($limit) {
 $legacyEvents = $query->get();
 
 $totalEvents = count($legacyEvents);
-echo "  ✓ {$totalEvents} eventos obtenidos (filtrados por notarías mapeadas)\n\n";
+echo "  ✓ {$totalEvents} eventos obtenidos (filtrados por notarías mapeadas)\n";
+
+// Construir set de eventos ya existentes para deduplicación (legacy_notaria|titulo|start_fecha)
+echo "  ↳ Construyendo índice de deduplicación...\n";
+$existingKeys = DB::table('agenda_events')
+    ->whereNotNull('legacy_notaria')
+    ->get(['legacy_notaria', 'titulo', 'start_fecha'])
+    ->mapWithKeys(function ($e) {
+        $key = $e->legacy_notaria . '|' . $e->titulo . '|' . $e->start_fecha;
+        return [$key => true];
+    })
+    ->toArray();
+$existingCount = count($existingKeys);
+echo "  ✓ {$existingCount} eventos ya migrados indexados para deduplicación\n\n";
 
 // ========== PASO 3: MAPEAR Y PREPARAR DATOS ==========
 
@@ -115,6 +130,7 @@ $stats = [
     'user_mapped_by_id' => 0,
     'user_legacy_null' => 0,
     'user_not_found' => 0,
+    'already_exists' => 0,
     'skipped' => 0,
 ];
 
@@ -134,6 +150,14 @@ foreach ($legacyEvents as $event) {
 
         $notariaId = $notariasMap[$event->notaria];
         $stats['notaria_mapped']++;
+
+        // Verificar si ya fue migrado (deduplicación)
+        $dedupKey = $event->notaria . '|' . $event->titulo . '|' . $event->start_fecha;
+        if (isset($existingKeys[$dedupKey])) {
+            $stats['already_exists']++;
+            $stats['skipped']++;
+            continue;
+        }
 
         // Mapear usuario
         // LÓGICA IMPORTANTE:
@@ -222,7 +246,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 echo "Eventos procesados:       {$stats['total']}\n";
 echo "  ✓ Migrados:             " . ($stats['total'] - $stats['skipped']) . "\n";
-echo "  ✗ Omitidos:             {$stats['skipped']}\n\n";
+echo "  ✗ Omitidos:             {$stats['skipped']}\n";
+echo "    (ya existían):        {$stats['already_exists']}\n\n";
 
 echo "Mapeo de Notarías:\n";
 echo "  ✓ Mapeadas:             {$stats['notaria_mapped']}\n";

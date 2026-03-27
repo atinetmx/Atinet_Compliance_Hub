@@ -41,3 +41,17 @@ Schedule::command('blacklists:sync')
         Log::error('❌ Error en sincronización vespertina de listas negras (6:15 PM)');
     })
     ->description('Sincroniza OFAC y SAT desde Hostgator - Ejecución vespertina');
+
+// Sincronizar agenda legacy (aplicativos_remote.agenda → agenda_events)
+// Se ejecuta 2 veces al día para mantener la agenda al día con Hostgator
+Schedule::command('agenda:sync-legacy')
+    ->twiceDaily(9, 18) // 9:00 AM y 6:00 PM
+    ->withoutOverlapping(5)
+    ->timezone('America/Mexico_City')
+    ->onSuccess(function () {
+        Log::info('✅ Sincronización de agenda legacy completada');
+    })
+    ->onFailure(function () {
+        Log::error('❌ Error en sincronización de agenda legacy');
+    })
+    ->description('Sincroniza eventos nuevos desde Hostgator (aplicativos_remote.agenda) → agenda_events');
