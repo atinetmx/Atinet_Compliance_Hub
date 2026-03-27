@@ -215,7 +215,7 @@ export default function ControlNotarialClientes() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('http://189.171.180.15:5000/api/Clientes/GetClientes');
+            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes');
             if (filtroValue.trim()) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -281,7 +281,7 @@ export default function ControlNotarialClientes() {
         try {
             // Llamar a la API para obtener los datos completos del cliente
             const response = await fetch(
-                `http://189.171.180.15:5000/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
+                `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
                 {
                     method: 'GET',
                     headers: {
@@ -555,8 +555,8 @@ export default function ControlNotarialClientes() {
             // Determinar URL y método según si es crear o actualizar
             const isUpdating = isEditing && formData.id;
             const url = isUpdating
-                ? `http://189.171.180.15:5000/api/Clientes/UpdateCliente?clienteId=${formData.id}`
-                : 'http://189.171.180.15:5000/api/Clientes/CreateClient';
+                ? `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/UpdateCliente?clienteId=${formData.id}`
+                : 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/CreateClient';
             const method = isUpdating ? 'PUT' : 'POST';
 
             // Llamar a API

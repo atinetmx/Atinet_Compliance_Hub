@@ -109,7 +109,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetOperaciones', {
+            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetOperaciones', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -153,7 +153,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
 
         try {
             // Cargar etapas configuradas
-            const responseEtapasConfiguradasURL = `http://189.171.180.15:5000/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
+            const responseEtapasConfiguradasURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
             const responseEtapasConfiguradas = await fetch(responseEtapasConfiguradasURL, {
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -167,7 +167,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await fetch('http://189.171.180.15:5000/api/Catalogos/GetEtapas', {
+            const responseEtapasDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetEtapas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const dataEtapasDisponibles = await responseEtapasDisponibles.json();
@@ -176,7 +176,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             setEtapasRemovidasOperacion([]);
 
             // Cargar documentos configurados
-            const responseDocumentosConfiguradosURL = `http://189.171.180.15:5000/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
+            const responseDocumentosConfiguradosURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
             const responseDocumentosConfigurados = await fetch(responseDocumentosConfiguradosURL, {
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -188,7 +188,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await fetch('http://189.171.180.15:5000/api/Catalogos/GetDocumentos', {
+            const responseDocumentosDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDocumentos', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const dataDocumentosDisponibles = await responseDocumentosDisponibles.json();
@@ -197,7 +197,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             setDocumentosRemovidosOperacion([]);
 
             // Cargar impuestos configurados
-            const responseImpuestosConfiguradosURL = `http://189.171.180.15:5000/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
+            const responseImpuestosConfiguradosURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
             const responseImpuestosConfigurados = await fetch(responseImpuestosConfiguradosURL, {
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -213,7 +213,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await fetch('http://189.171.180.15:5000/api/Catalogos/GetImpuestosDerechos', {
+            const responseImpuestosDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetImpuestosDerechos', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const dataImpuestosDisponibles = await responseImpuestosDisponibles.json();
@@ -315,7 +315,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'http://189.171.180.15:5000/api/ConfiguracionOperacion/AddEtapasOperacion';
+            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddEtapasOperacion';
         } else if (activeSubTab === 'documentos') {
             const documentosMantenidos = documentosConfiguradosOperacion
                 .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
@@ -330,7 +330,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'http://189.171.180.15:5000/api/ConfiguracionOperacion/AddDocumentoOperacion';
+            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddDocumentoOperacion';
         } else if (activeSubTab === 'impuestos') {
             const impuestosMantenidos = impuestosConfiguradosOperacion
                 .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
@@ -351,7 +351,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'http://189.171.180.15:5000/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
         }
 
         setIsSavingConfig(true);

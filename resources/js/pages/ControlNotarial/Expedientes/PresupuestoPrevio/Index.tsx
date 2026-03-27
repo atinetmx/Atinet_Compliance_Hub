@@ -169,7 +169,7 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const response = await fetch('http://189.171.180.15:5000/api/Clientes/GetClientes', {
+                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -193,7 +193,7 @@ export default function PresupuestoPrevioIndex() {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetOperaciones', {
+                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetOperaciones', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -225,7 +225,7 @@ export default function PresupuestoPrevioIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('http://189.171.180.15:5000/api/Presupuestos/GetPresupuestosPrevios');
+            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/GetPresupuestosPrevios');
             if (filtroValue) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -273,7 +273,7 @@ export default function PresupuestoPrevioIndex() {
             if (operacionSeleccionada) {
                 try {
                     setIsLoadingImpuestos(true);
-                    const url = `http://189.171.180.15:5000/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`;
+                    const url = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`;
                     const response = await fetch(url, {
                         headers: { 'Content-Type': 'application/json' },
                     });
@@ -438,8 +438,8 @@ export default function PresupuestoPrevioIndex() {
             };
 
             const url = isEditing && formData.id
-                ? `http://189.171.180.15:5000/api/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
-                : 'http://189.171.180.15:5000/api/Presupuestos/CreatePresupuestoPrevio';
+                ? `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
+                : 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/CreatePresupuestoPrevio';
 
             const method = isEditing && formData.id ? 'PUT' : 'POST';
 
@@ -478,7 +478,7 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const response = await fetch(`http://189.171.180.15:5000/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
+            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
                 headers: { 'Content-Type': 'application/json' },
             });
 
@@ -554,7 +554,7 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingClientes(true);
         setClienteError(null);
         try {
-            const url = new URL('http://189.171.180.15:5000/api/Clientes/GetClientes');
+            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes');
             if (filtroValue) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -592,7 +592,7 @@ export default function PresupuestoPrevioIndex() {
 
         try {
             setIsLoadingPdf(true);
-            const response = await fetch(`http://189.171.180.15:5000/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
+            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
                 method: 'GET',
             });
 
