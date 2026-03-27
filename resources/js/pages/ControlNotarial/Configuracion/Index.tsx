@@ -175,7 +175,7 @@ export default function ControlNotarialConfiguracionIndex() {
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
-                const response = await fetch('http://192.168.1.1:5000/api/ConfiguracionNotarial/GetConfiguracionNotaria', {
+                const response = await fetch('http://189.171.180.15:5000/api/ConfiguracionNotarial/GetConfiguracionNotaria', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ export default function ControlNotarialConfiguracionIndex() {
     useEffect(() => {
         const fetchConfiguracionControl = async () => {
             try {
-                const response = await fetch('http://192.168.1.1:5000/api/ConfiguracionNotarial/GetConfiguracionControlNotarial', {
+                const response = await fetch('http://189.171.180.15:5000/api/ConfiguracionNotarial/GetConfiguracionControlNotarial', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -315,7 +315,7 @@ export default function ControlNotarialConfiguracionIndex() {
 
             console.log('Enviando FormData con ID:', configId);
 
-            const response = await fetch('http://192.168.1.1:5000/api/ConfiguracionNotarial/UpdateConfiguracionNotaria', {
+            const response = await fetch('http://189.171.180.15:5000/api/ConfiguracionNotarial/UpdateConfiguracionNotaria', {
                 method: 'PUT',
                 body: formData,
                 // NO incluir Content-Type header, el navegador lo establece automáticamente con FormData
@@ -362,7 +362,7 @@ export default function ControlNotarialConfiguracionIndex() {
 
                 console.log('Enviando datos de Control con ID:', controlConfigId);
 
-                const controlResponse = await fetch('http://192.168.1.1:5000/api/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', {
+                const controlResponse = await fetch('http://189.171.180.15:5000/api/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',

@@ -299,7 +299,7 @@ export default function ExpedientesIndex() {
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetOperaciones', {
+            const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetOperaciones', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -319,7 +319,7 @@ export default function ExpedientesIndex() {
     const fetchUsuarios = async () => {
         setCargandoUsuarios(true);
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/User/GetRolesUsuarios', {
+            const response = await fetch('http://189.171.180.15:5000/api/User/GetRolesUsuarios', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -338,7 +338,7 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetDependenciasPublicas', {
+            const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetDependenciasPublicas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -357,7 +357,7 @@ export default function ExpedientesIndex() {
     const fetchClientes = async () => {
         setCargandoClientes(true);
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/Clientes/GetClientes', {
+            const response = await fetch('http://189.171.180.15:5000/api/Clientes/GetClientes', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -375,7 +375,7 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const response = await fetch('http://192.168.1.1:5000/api/Catalogos/GetComparecientes', {
+            const response = await fetch('http://189.171.180.15:5000/api/Catalogos/GetComparecientes', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -509,7 +509,7 @@ export default function ExpedientesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('http://192.168.1.1:5000/api/Expediente/GetExpediente');
+            const url = new URL('http://189.171.180.15:5000/api/Expediente/GetExpediente');
             if (filtroValue) {
                 url.searchParams.append('filtro', filtroValue);
             }
