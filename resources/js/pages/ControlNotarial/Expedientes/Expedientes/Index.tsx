@@ -82,6 +82,7 @@ interface Compareciente {
 
 interface FilaCompareciente {
     id: string;
+    cliente_Id: number;
     nombreCompareciente: string;
     tipoCompareciente: string;
     firmaRequerida: boolean;
@@ -152,6 +153,14 @@ interface ExpedienteFormData {
     nopasoMotivo: string;
 }
 
+// Componente de Label para campos requeridos
+const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
+    <label htmlFor={htmlFor} className="flex items-center gap-1 text-sm font-medium">
+        {children}
+        <span className="text-red-500">*</span>
+    </label>
+);
+
 export default function ExpedientesIndex() {
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -208,6 +217,14 @@ export default function ExpedientesIndex() {
     const [mostrarDropdownOperaciones, setMostrarDropdownOperaciones] = useState(false);
     const [cargandoOperaciones, setCargandoOperaciones] = useState(false);
     const refDropdownOperaciones = useRef<HTMLDivElement>(null);
+
+    // --- Estado Combobox Municipios ---
+    const [municipiosDisponibles, setMunicipiosDisponibles] = useState<Dependencia[]>([]);
+    const [municipiosFiltrados, setMunicipiosFiltrados] = useState<Dependencia[]>([]);
+    const [municipioBusqueda, setMunicipioBusqueda] = useState('');
+    const [mostrarDropdownMunicipios, setMostrarDropdownMunicipios] = useState(false);
+    const [cargandoMunicipios, setCargandoMunicipios] = useState(false);
+    const refDropdownMunicipios = useRef<HTMLDivElement>(null);
 
     // --- Estado Combobox Dependencias ---
     const [dependenciasDisponibles, setDependenciasDisponibles] = useState<Dependencia[]>([]);
@@ -282,6 +299,57 @@ export default function ExpedientesIndex() {
     const refDropdownResponsable = useRef<HTMLDivElement>(null);
     const refDropdownSecretaria = useRef<HTMLDivElement>(null);
     const refDropdownAutorizado = useRef<HTMLDivElement>(null);
+    const initializedUsers = useRef(false);
+
+    // --- Estados para guardar IDs de usuarios ---
+    const [notarioId, setNotarioId] = useState<number | null>(null);
+    const [responsableId, setResponsableId] = useState<number | null>(null);
+    const [secretariaId, setSecretariaId] = useState<number | null>(null);
+    const [autorizadoId, setAutorizadoId] = useState<number | null>(null);
+    const [municipioId, setMunicipioId] = useState<number | null>(null);
+    const [operacionesIds, setOperacionesIds] = useState<number[]>([]);
+
+    // --- Estado para guardar ID del expediente actual ---
+    const [currentExpedienteId, setCurrentExpedienteId] = useState<number | null>(null);
+
+    // --- Estados para Documentos por Cliente (Expediente) ---
+    const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
+        expediente: string;
+        cliente: string;
+        documentos: Array<{
+            id: number;
+            documento: string;
+            fecha_Entrega: string | null;
+            usuario_Recibe: string | null;
+            fecha_Recepcion: string | null;
+            usuario_Recepcion: string | null;
+            observaciones: string | null;
+            copia: boolean;
+            original: boolean;
+        }>;
+    }>>([]);
+    const [cargandoDocumentosExpediente, setCargandoDocumentosExpediente] = useState(false);
+    const [clienteSeleccionadoDocumentos, setClienteSeleccionadoDocumentos] = useState<number | null>(null);
+    const [documentosEditados, setDocumentosEditados] = useState<Record<number, {
+        fecha_Entrega: string | null;
+        usuario_Recibe: string | null;
+        fecha_Recepcion: string | null;
+        usuario_Recepcion: string | null;
+        observaciones: string | null;
+        copia: boolean;
+        original: boolean;
+    }>>({});
+
+    // --- Estados para Inmuebles (Documentos tab) ---
+    const [selectedInmueble, setSelectedInmueble] = useState<number | null>(null);
+    const [formInmueble, setFormInmueble] = useState({
+        tipoFactura: '',
+        tipoVulnerable: '',
+        tipoDeclaranot: '',
+        medidas: '',
+        antecedentes: '',
+        descripcion: '',
+    });
 
     const { addToast } = useToast();
 
@@ -289,6 +357,7 @@ export default function ExpedientesIndex() {
     useEffect(() => {
         fetchExpedientes('');
         fetchOperaciones();
+        fetchMunicipios();
         fetchUsuarios();
         fetchDependencias();
         fetchClientes();
@@ -299,7 +368,7 @@ export default function ExpedientesIndex() {
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetOperaciones', {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetOperaciones', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -315,11 +384,31 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // Cargar municipios disponibles desde API
+    const fetchMunicipios = async () => {
+        setCargandoMunicipios(true);
+        try {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetZonasMunicipios', {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setMunicipiosDisponibles(data.dataResponse);
+                setMunicipiosFiltrados(data.dataResponse);
+            }
+        } catch (error) {
+            console.error('Error cargando municipios:', error);
+        } finally {
+            setCargandoMunicipios(false);
+        }
+    };
+
     // Cargar usuarios disponibles desde API
     const fetchUsuarios = async () => {
         setCargandoUsuarios(true);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetRolesUsuarios', {
+            const response = await fetch('https://localhost:44327/api/User/GetRolesUsuarios', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -338,7 +427,7 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDependenciasPublicas', {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetDependenciasPublicas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -357,7 +446,7 @@ export default function ExpedientesIndex() {
     const fetchClientes = async () => {
         setCargandoClientes(true);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes', {
+            const response = await fetch('https://localhost:44327/api/Clientes/GetClientes', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -375,7 +464,7 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetComparecientes', {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetComparecientes', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -396,11 +485,7 @@ export default function ExpedientesIndex() {
             }
         } catch (error) {
             console.error('Error cargando comparecientes:', error);
-            addToast({
-                type: 'error',
-                title: 'Error',
-                message: 'No se pudieron cargar los comparecientes',
-            });
+            addToast('No se pudieron cargar los comparecientes', 'error');
         }
     };
 
@@ -415,19 +500,45 @@ export default function ExpedientesIndex() {
 
     // Seleccionar automáticamente el primer resultado de cada rol al cargar
     useEffect(() => {
-        if (usuarios.length > 0) {
+        if (usuarios.length > 0 && !initializedUsers.current) {
             const notarios = usuarios.filter(u => u.rol === 'NOTARIOS');
             const responsables = usuarios.filter(u => u.rol === 'RESPONSABLES');
             const secretarias = usuarios.filter(u => u.rol === 'SECRETARIAS');
             const autorizados = usuarios.filter(u => u.rol === 'AUTORIZADOS');
 
-            setFormData(prev => ({
-                ...prev,
-                notario: notarios.length > 0 && !prev.notario ? `${notarios[0].nombre} ${notarios[0].apellido_Paterno} ${notarios[0].apellido_Materno}` : prev.notario,
-                responsable: responsables.length > 0 && !prev.responsable ? `${responsables[0].nombre} ${responsables[0].apellido_Paterno} ${responsables[0].apellido_Materno}` : prev.responsable,
-                secretaria: secretarias.length > 0 && !prev.secretaria ? `${secretarias[0].nombre} ${secretarias[0].apellido_Paterno} ${secretarias[0].apellido_Materno}` : prev.secretaria,
-                autorizado: autorizados.length > 0 && !prev.autorizado ? `${autorizados[0].nombre} ${autorizados[0].apellido_Paterno} ${autorizados[0].apellido_Materno}` : prev.autorizado,
-            }));
+            if (notarios.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    notario: `${notarios[0].nombre} ${notarios[0].apellido_Paterno} ${notarios[0].apellido_Materno}`,
+                }));
+                setNotarioId(notarios[0].id);
+            }
+
+            if (responsables.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    responsable: `${responsables[0].nombre} ${responsables[0].apellido_Paterno} ${responsables[0].apellido_Materno}`,
+                }));
+                setResponsableId(responsables[0].id);
+            }
+
+            if (secretarias.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    secretaria: `${secretarias[0].nombre} ${secretarias[0].apellido_Paterno} ${secretarias[0].apellido_Materno}`,
+                }));
+                setSecretariaId(secretarias[0].id);
+            }
+
+            if (autorizados.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    autorizado: `${autorizados[0].nombre} ${autorizados[0].apellido_Paterno} ${autorizados[0].apellido_Materno}`,
+                }));
+                setAutorizadoId(autorizados[0].id);
+            }
+
+            initializedUsers.current = true;
         }
     }, [usuarios]);
 
@@ -467,6 +578,18 @@ export default function ExpedientesIndex() {
         }
     }, [operacionBusqueda, operacionesDisponibles]);
 
+    // Filtrar municipios mientras se escribe
+    useEffect(() => {
+        if (municipioBusqueda.trim() === '') {
+            setMunicipiosFiltrados(municipiosDisponibles);
+        } else {
+            const filtrados = municipiosDisponibles.filter(mun =>
+                mun.descripcion.toLowerCase().includes(municipioBusqueda.toLowerCase())
+            );
+            setMunicipiosFiltrados(filtrados);
+        }
+    }, [municipioBusqueda, municipiosDisponibles]);
+
     // Filtrar dependencias mientras se escribe
     useEffect(() => {
         if (dependenciaBusqueda.trim() === '') {
@@ -505,11 +628,33 @@ export default function ExpedientesIndex() {
         return () => clearTimeout(debounceTimer);
     }, [filtro]);
 
+    const fetchDocumentosExpediente = async (expedienteId: number) => {
+        setCargandoDocumentosExpediente(true);
+        try {
+            const response = await fetch(`https://localhost:44327/api/Expediente/GetDocumentosClienteXExpediente?expedienteId=${expedienteId}`, {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setDocumentosPorCliente(data.dataResponse);
+            } else {
+                console.error('Error al cargar documentos:', data.message);
+                setDocumentosPorCliente([]);
+            }
+        } catch (error) {
+            console.error('Error cargando documentos:', error);
+            setDocumentosPorCliente([]);
+        } finally {
+            setCargandoDocumentosExpediente(false);
+        }
+    };
+
     const fetchExpedientes = async (filtroValue: string) => {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Expediente/GetExpediente');
+            const url = new URL('https://localhost:44327/api/Expediente/GetExpediente');
             if (filtroValue) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -580,6 +725,8 @@ export default function ExpedientesIndex() {
         });
         setOperacionBusqueda('');
         setMostrarDropdownOperaciones(false);
+        setMunicipioBusqueda('');
+        setMostrarDropdownMunicipios(false);
         setDependenciaBusqueda('');
         setMostrarDropdownDependencias(false);
         setDatosDepdencias({});
@@ -587,6 +734,348 @@ export default function ExpedientesIndex() {
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
+        setNotarioId(null);
+        setResponsableId(null);
+        setSecretariaId(null);
+        setAutorizadoId(null);
+        setOperacionesIds([]);
+    };
+
+    const handleLoadExpediente = async (expedienteId: number) => {
+        try {
+            const response = await fetch(`https://localhost:44327/api/Expediente/GetExpedienteById?expedienteId=${expedienteId}`);
+            const data = await response.json();
+
+            if (!response.ok || !data.dataResponse || data.dataResponse.length === 0) {
+                setSaveError('Error al cargar el expediente');
+                return;
+            }
+
+            const fullData = data.dataResponse[0];
+            const expediente = fullData.expediente;
+
+            // Cargar datos principales del formulario
+            setFormData(prev => ({
+                ...prev,
+                expediente: expediente.expediente || '',
+                referencia: expediente.referencia || '',
+                municipio: expediente.municipio || '',
+                observaciones: expediente.observaciones || '',
+                notario: expediente.notario || '',
+                responsable: expediente.responsable || '',
+                secretaria: expediente.secretaria || '',
+                autorizado: expediente.autorizado || '',
+                estatus: expediente.estatus || '',
+                tipoEscritura: expediente.tipo_Escritura || '',
+                numeroEscritura: expediente.escritura_Numero?.toString() || '',
+                folioInicial: expediente.folio_Inicial || 0,
+                folioFinal: expediente.folio_Final || 0,
+                volumen: expediente.volumen || 0,
+                tomo: expediente.tomo || 0,
+                fechaEscritura: expediente.fecha_Escritura ? expediente.fecha_Escritura.split('T')[0] : '',
+                fechaFirma: expediente.fecha_Firma ? expediente.fecha_Firma.split('T')[0] : '',
+                fechaElaboracion: expediente.fecha_Elaboracion ? expediente.fecha_Elaboracion.split('T')[0] : '',
+                fechaRevision: expediente.fecha_Revision ? expediente.fecha_Revision.split('T')[0] : '',
+                fechaImpresion: expediente.fecha_Impresion ? expediente.fecha_Impresion.split('T')[0] : '',
+                firmarTodos: expediente.fecha_Firma_Todos ? expediente.fecha_Firma_Todos.split('T')[0] : '',
+            }));
+
+            // Buscar y establecer IDs de usuarios
+            const notarioEncontrado = usuarios.find(u => u.nombre + ' ' + u.apellido_Paterno + ' ' + u.apellido_Materno === expediente.notario);
+            if (notarioEncontrado) setNotarioId(notarioEncontrado.id);
+
+            const responsableEncontrado = usuarios.find(u => u.nombre + ' ' + u.apellido_Paterno + ' ' + u.apellido_Materno === expediente.responsable);
+            if (responsableEncontrado) setResponsableId(responsableEncontrado.id);
+
+            const secretariaEncontrada = usuarios.find(u => u.nombre + ' ' + u.apellido_Paterno + ' ' + u.apellido_Materno === expediente.secretaria);
+            if (secretariaEncontrada) setSecretariaId(secretariaEncontrada.id);
+
+            const autorizadoEncontrado = usuarios.find(u => u.nombre + ' ' + u.apellido_Paterno + ' ' + u.apellido_Materno === expediente.autorizado);
+            if (autorizadoEncontrado) setAutorizadoId(autorizadoEncontrado.id);
+
+            // Cargar operaciones
+            if (fullData.operaciones && fullData.operaciones.length > 0) {
+                const operacionesDescripciones = fullData.operaciones.map((op: any) => op.descripcion);
+                setFormData(prev => ({ ...prev, operaciones: operacionesDescripciones }));
+
+                // Obtener IDs de operaciones
+                const opsIds = operacionesDisponibles
+                    .filter(op => operacionesDescripciones.includes(op.descripcion))
+                    .map(op => op.id);
+                setOperacionesIds(opsIds);
+            }
+
+            // Cargar comparecientes (clientes)
+            if (fullData.clientes && fullData.clientes.length > 0) {
+                const comparecientes = fullData.clientes.map((cliente: any, idx: number) => {
+                    // Buscar el cliente en la lista disponible para obtener su ID
+                    const clienteEncontrado = clientesDisponibles.find(c =>
+                        `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`.trim() === cliente.nombre.trim()
+                    );
+                    return {
+                        id: `${Date.now()}-${idx}`,
+                        cliente_Id: clienteEncontrado?.id || 0,
+                        nombreCompareciente: cliente.nombre,
+                        tipoCompareciente: cliente.compareciente,
+                        firmaRequerida: cliente.firma,
+                        fechaFirma: cliente.fecha_Firma ? cliente.fecha_Firma.split('T')[0] : ''
+                    };
+                });
+                setFilasComparecientes(comparecientes);
+
+                // Inicializar busquedaTipo con los tipos de comparecientes cargados
+                const busquedaTipoInicial: Record<string, string> = {};
+                comparecientes.forEach(comp => {
+                    busquedaTipoInicial[comp.id] = comp.tipoCompareciente;
+                });
+                setBusquedaTipo(busquedaTipoInicial);
+            }
+
+            // Cargar dependencias
+            if (fullData.dependencias && fullData.dependencias.length > 0) {
+                const dependenciasDesc = fullData.dependencias.map((dep: any) => dep.descripcion.trim());
+                setFormData(prev => ({ ...prev, dependencias: dependenciasDesc }));
+
+                // Cargar datos detallados de dependencias
+                const datosDepdenciasNuevos: Record<string, DatosDepedencia> = {};
+                fullData.dependencias.forEach((dep: any) => {
+                    datosDepdenciasNuevos[dep.descripcion.trim()] = {
+                        dependencia: dep.descripcion.trim(),
+                        folioReal: dep.folio_Real || '',
+                        volumen: dep.volumen || '',
+                        fojas: dep.fojas || '',
+                        seccion: dep.seccion || '',
+                        libro: dep.libro || '',
+                        observaciones: dep.observaciones || '',
+                        fechaIngreso: dep.fecha_Ingreso ? dep.fecha_Ingreso.split('T')[0] : '',
+                        folio: dep.folio || '',
+                        partida: dep.partida || '',
+                        estatus: dep.estatus || '',
+                        fechaRechazo: dep.fecha_Rechazo ? dep.fecha_Rechazo.split('T')[0] : '',
+                        fechaSubsanado: dep.fecha_Subsanado ? dep.fecha_Subsanado.split('T')[0] : '',
+                        fechaReingreso: dep.fecha_Reingreso ? dep.fecha_Reingreso.split('T')[0] : '',
+                        fechaRegistro: dep.fecha_Registro ? dep.fecha_Registro.split('T')[0] : '',
+                        fechaRecogerDependencia: dep.fecha_Recoger_Dependencia ? dep.fecha_Recoger_Dependencia.split('T')[0] : '',
+                        fechaConclusión: dep.fecha_Conclusion ? dep.fecha_Conclusion.split('T')[0] : ''
+                    };
+                });
+                setDatosDepdencias(datosDepdenciasNuevos);
+            }
+
+            // Activar modo edición y navegación
+            setCurrentExpedienteId(expedienteId);
+            setIsEditing(true);
+            setActiveTab('formulario');
+            setSaveError(null);
+
+            // Cargar documentos del expediente
+            await fetchDocumentosExpediente(expedienteId);
+        } catch (error) {
+            setSaveError('Error al cargar el expediente');
+            console.error('Error:', error);
+        }
+    };
+
+    const handleSaveExpediente = async () => {
+        // Validaciones básicas
+        if (!formData.referencia.trim()) {
+            setSaveError('La referencia es requerida');
+            return;
+        }
+        if (!notarioId) {
+            setSaveError('Debe seleccionar un notario');
+            return;
+        }
+        if (operacionesIds.length === 0) {
+            setSaveError('Debe seleccionar al menos una operación');
+            return;
+        }
+        if (filasComparecientes.length === 0) {
+            setSaveError('Debe agregar al menos un compareciente');
+            return;
+        }
+        if (filasComparecientes.some(comp => !comp.tipoCompareciente.trim())) {
+            setSaveError('Todos los comparecientes deben tener un tipo seleccionado');
+            return;
+        }
+
+        setIsSaving(true);
+        setSaveError(null);
+
+        try {
+            // Construir el payload según la estructura esperada por la API
+            const requestPayload = {
+                expediente: {
+                    tipo_Expediente: 'EXPEDIENTE',
+                    observaciones: formData.observaciones || 'NA',
+                    fecha_Apertura: new Date().toISOString(),
+                    referencia: formData.referencia,
+                    municipio_Id: municipioId || 1,
+                    notario_Id: notarioId,
+                    responsable_Id: responsableId || 0,
+                    secretaria_Id: secretariaId || 0,
+                    autorizado_Id: autorizadoId || 0,
+                    credito: 0,
+                    tipo_Escritura: formData.tipoEscritura || '',
+                    escritura_Numero: parseInt(formData.numeroEscritura) || 0,
+                    folio_Inicial: formData.folioInicial || 0,
+                    folio_Final: formData.folioFinal || 0,
+                    volumen: formData.volumen || 0,
+                    tomo: formData.tomo || 0,
+                    fojas: 0,
+                    monto: 0,
+                    fecha_Escritura: formData.fechaEscritura || new Date().toISOString(),
+                    fecha_Firma: formData.fechaFirma || new Date().toISOString(),
+                    fecha_Elaboracion: formData.fechaElaboracion || new Date().toISOString(),
+                    fecha_Revision: formData.fechaRevision || new Date().toISOString(),
+                    fecha_Impresion: formData.fechaImpresion || new Date().toISOString(),
+                    fecha_Firma_Todos: formData.firmarTodos || new Date().toISOString(),
+                    motivo: formData.motivoCancelacion || 'string'
+                },
+                operacion: operacionesIds.map(opId => ({ operacion_Id: opId })),
+                clientes: filasComparecientes.map(comp => ({
+                    cliente_Id: comp.cliente_Id,
+                    compareciente_Id: comparecientesDisponibles.find(c =>
+                        c.descripcion.toLowerCase() === comp.tipoCompareciente.toLowerCase()
+                    )?.id || 1,
+                    firma: comp.firmaRequerida,
+                    fecha_Firma: comp.fechaFirma || new Date().toISOString()
+                })),
+                dependencia: formData.dependencias.map(depNombre => {
+                    const depEncontrada = dependenciasDisponibles.find(d => d.descripcion.trim() === depNombre);
+                    const datos = datosDepdencias[depNombre] || {};
+                    return {
+                        dependencia_Id: depEncontrada?.id || 0,
+                        folio_Real: datos.folioReal || '',
+                        volumen: datos.volumen || '',
+                        seccion: datos.seccion || '',
+                        libro: datos.libro || '',
+                        folio: datos.folio || '',
+                        fojas: datos.fojas || '',
+                        partida: datos.partida || '',
+                        estatus: datos.estatus || '',
+                        fecha_Ingreso: datos.fechaIngreso || new Date().toISOString(),
+                        fecha_Rechazo: datos.fechaRechazo || new Date().toISOString(),
+                        fecha_Subsanado: datos.fechaSubsanado || new Date().toISOString(),
+                        fecha_Reingreso: datos.fechaReingreso || new Date().toISOString(),
+                        fecha_Registro: datos.fechaRegistro || new Date().toISOString(),
+                        fecha_Recoger_Dependencia: datos.fechaRecogerDependencia || new Date().toISOString(),
+                        fecha_Conclusion: datos.fechaConclusión || new Date().toISOString(),
+                        observaciones: datos.observaciones || ''
+                    };
+                })
+            };
+
+            const response = await fetch('https://localhost:44327/api/Expediente/CreateExpediente', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestPayload),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addToast('Expediente creado exitosamente', 'success');
+
+                // Resetear todo en un paso
+                const nuevoFormData = {
+                    expediente: '',
+                    fecha_creacion: new Date().toISOString().split('T')[0],
+                    referencia: '',
+                    municipio: '',
+                    operaciones: [],
+                    dependencias: [],
+                    observaciones: '',
+                    notario: '',
+                    responsable: '',
+                    secretaria: '',
+                    autorizado: '',
+                    estatus: '',
+                    motivoCancelacion: '',
+                    ultima_etapa: '',
+                    financiamiento_con: false,
+                    financiamiento_monto: 0,
+                    tipoEscritura: '',
+                    numeroEscritura: '',
+                    foliosRequeridos: 0,
+                    folioInicial: 0,
+                    folioFinal: 0,
+                    volumen: 0,
+                    tomo: 0,
+                    foliosInutilizados: 0,
+                    fechaEscritura: '',
+                    fechaFirma: '',
+                    fechaElaboracion: '',
+                    fechaRevision: '',
+                    fechaImpresion: '',
+                    firmarTodos: '',
+                    noPaso: false,
+                    nopasoMotivo: '',
+                };
+
+                // Batch de updates para evitar render issues
+                setFormData(nuevoFormData);
+                setNotarioId(null);
+                setResponsableId(null);
+                setSecretariaId(null);
+                setAutorizadoId(null);
+                setOperacionesIds([]);
+                setFilasComparecientes([]);
+                setDatosDepdencias({});
+                setDependenciaSeleccionada(null);
+                setSaveError(null);
+                setCheckboxesFecha({});
+                setFilasDocumentos({});
+                setClienteSeleccionado(null);
+                setOtorganteSeleccionado(null);
+                setClienteBusqueda('');
+                setBusquedaOtorgante('');
+                setOperacionBusqueda('');
+                setMostrarDropdownOperaciones(false);
+                setMunicipioBusqueda('');
+                setMostrarDropdownMunicipios(false);
+                setDependenciaBusqueda('');
+                setMostrarDropdownDependencias(false);
+                setBusquedaNotario('');
+                setMostrarDropdownNotario(false);
+                setBusquedaResponsable('');
+                setMostrarDropdownResponsable(false);
+                setBusquedaSecretaria('');
+                setMostrarDropdownSecretaria(false);
+                setBusquedaAutorizado('');
+                setMostrarDropdownAutorizado(false);
+                setMostrarDropdownClientes(false);
+                setMostrarDropdownOtorgante(false);
+                setDropdownTipoAbierto({});
+                setBusquedaTipo({});
+                setEnabledDates({
+                    fechaEscritura: false,
+                    fechaFirma: false,
+                    fechaElaboracion: false,
+                    fechaRevision: false,
+                    fechaImpresion: false,
+                    firmarTodos: false,
+                });
+                setActiveTab('busqueda');
+
+                // Recargar expedientes en el siguiente ciclo
+                setTimeout(() => {
+                    fetchExpedientes('');
+                }, 100);
+            } else {
+                setSaveError(data.message || 'Error al crear el expediente');
+                addToast(data.message || 'Error al crear el expediente', 'error');
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            setSaveError(`Error al crear expediente: ${errorMessage}`);
+            addToast(`Error al crear expediente: ${errorMessage}`, 'error');
+            console.error('Error al guardar expediente:', error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleSeleccionarOperacion = (operacion: Operacion) => {
@@ -594,6 +1083,7 @@ export default function ExpedientesIndex() {
             ...prev,
             operaciones: [...prev.operaciones, operacion.descripcion]
         }));
+        setOperacionesIds(prev => [...prev, operacion.id]);
         setOperacionBusqueda('');
         setMostrarDropdownOperaciones(false);
     };
@@ -603,6 +1093,25 @@ export default function ExpedientesIndex() {
             ...prev,
             operaciones: prev.operaciones.filter((_, i) => i !== indice)
         }));
+        setOperacionesIds(prev => prev.filter((_, i) => i !== indice));
+    };
+
+    const handleSeleccionarMunicipio = (municipio: Dependencia) => {
+        setFormData(prev => ({
+            ...prev,
+            municipio: municipio.descripcion
+        }));
+        setMunicipioId(municipio.id);
+        setMunicipioBusqueda('');
+        setMostrarDropdownMunicipios(false);
+    };
+
+    const handleEliminarMunicipio = () => {
+        setFormData(prev => ({
+            ...prev,
+            municipio: ''
+        }));
+        setMunicipioId(null);
     };
 
     const handleSeleccionarDependencia = (dependencia: Dependencia) => {
@@ -713,6 +1222,7 @@ export default function ExpedientesIndex() {
         if (clienteSeleccionado) {
             const nuevoCompareciente: FilaCompareciente = {
                 id: Date.now().toString(),
+                cliente_Id: clienteSeleccionado.id,
                 nombreCompareciente: `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido_Paterno} ${clienteSeleccionado.apellido_Materno}`,
                 tipoCompareciente: '',
                 firmaRequerida: false,
@@ -851,6 +1361,7 @@ export default function ExpedientesIndex() {
                                             <TableRow
                                                 key={item.expediente.id}
                                                 className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
+                                                onClick={() => handleLoadExpediente(item.expediente.id)}
                                             >
                                                 <TableCell className="font-mono text-sm">{item.expediente.id}</TableCell>
                                                 <TableCell className="font-medium">{item.expediente.expediente || '-'}</TableCell>
@@ -893,19 +1404,34 @@ export default function ExpedientesIndex() {
                                     </TabsTrigger>
 
                                     {/* GRUPO 2: DOCUMENTOS & INMUEBLES */}
-                                    <TabsTrigger value="docs-inmuebles" className="gap-1 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger
+                                        value="docs-inmuebles"
+                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        disabled={!isEditing}
+                                        title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
+                                    >
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Documentos</span>
                                     </TabsTrigger>
 
                                     {/* GRUPO 3: FINANCIERO & CONTROL */}
-                                    <TabsTrigger value="financiero-control" className="gap-1 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger
+                                        value="financiero-control"
+                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        disabled={!isEditing}
+                                        title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
+                                    >
                                         <DollarSign className="h-4 w-4" />
                                         <span className="hidden sm:inline">Financiero</span>
                                     </TabsTrigger>
 
                                     {/* GRUPO 4: PROCESO & TRÁMITES */}
-                                    <TabsTrigger value="proceso-tramites" className="gap-1 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger
+                                        value="proceso-tramites"
+                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        disabled={!isEditing}
+                                        title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
+                                    >
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Proceso</span>
                                     </TabsTrigger>
@@ -929,12 +1455,60 @@ export default function ExpedientesIndex() {
                                                     <Input name="expediente" value={formData.expediente} readOnly className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Referencia</label>
-                                                    <Input name="referencia" value={formData.referencia} onChange={handleInputChange} placeholder="Referencia" className="text-sm" />
+                                                    <RequiredLabel htmlFor="referencia">Referencia</RequiredLabel>
+                                                    <Input id="referencia" name="referencia" value={formData.referencia} onChange={handleInputChange} placeholder="Referencia" className="text-sm" />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Municipio</label>
-                                                    <Input name="municipio" value={formData.municipio} onChange={handleInputChange} placeholder="Municipio" className="text-sm" />
+                                                    <RequiredLabel htmlFor="municipio">Municipio</RequiredLabel>
+                                                    <div ref={refDropdownMunicipios} className="relative">
+                                                        <div className="relative">
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="Buscar municipio..."
+                                                                value={formData.municipio || municipioBusqueda}
+                                                                onChange={(e) => {
+                                                                    setMunicipioBusqueda(e.target.value);
+                                                                    if (formData.municipio) setFormData(prev => ({ ...prev, municipio: '' }));
+                                                                }}
+                                                                onFocus={() => setMostrarDropdownMunicipios(true)}
+                                                                className="text-sm pr-12"
+                                                            />
+                                                            {(formData.municipio || municipioBusqueda).length > 0 && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setMunicipioBusqueda('');
+                                                                        setFormData(prev => ({ ...prev, municipio: '' }));
+                                                                        setMunicipioId(null);
+                                                                    }}
+                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
+                                                                    aria-label="Limpiar"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            )}
+                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
+                                                        </div>
+                                                        {mostrarDropdownMunicipios && (
+                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
+                                                                {cargandoMunicipios && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
+                                                                {!cargandoMunicipios && municipiosFiltrados.filter(mun => mun.descripcion !== formData.municipio).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
+                                                                {municipiosFiltrados.filter(mun => mun.descripcion !== formData.municipio).map(mun => (
+                                                                    <div
+                                                                        key={mun.id}
+                                                                        onClick={() => {
+                                                                            setFormData(prev => ({ ...prev, municipio: mun.descripcion }));
+                                                                            setMunicipioId(mun.id);
+                                                                            setMunicipioBusqueda('');
+                                                                            setMostrarDropdownMunicipios(false);
+                                                                        }}
+                                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
+                                                                    >
+                                                                        {mun.descripcion}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Estatus</label>
@@ -957,12 +1531,12 @@ export default function ExpedientesIndex() {
                                             {isEditing && (
                                                 <div className="mb-6">
                                                     <label className="text-sm font-medium">Primer Otorgante</label>
-                                                    <Input type="text" readOnly className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
+                                                    <Input type="text" readOnly value={filasComparecientes[0]?.nombreCompareciente || ''} className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
                                                 </div>
                                             )}
 
                                             <div className="mb-6">
-                                                <label className="text-sm font-medium block mb-2">Operaciones</label>
+                                                <RequiredLabel htmlFor="operaciones" className="block mb-2">Operaciones</RequiredLabel>
                                                 <div ref={refDropdownOperaciones} className="relative">
                                                     <div className="relative">
                                                         <Input type="text" placeholder="Buscar operación..." value={operacionBusqueda} onChange={(e) => setOperacionBusqueda(e.target.value)} onFocus={() => setMostrarDropdownOperaciones(true)} className="text-sm pr-8" />
@@ -997,38 +1571,46 @@ export default function ExpedientesIndex() {
                                                 <textarea name="observaciones" value={formData.observaciones} onChange={handleInputChange} placeholder="Observaciones..." rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                            <div className="grid grid-cols-4 gap-4 mb-6">
                                                 <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Notario</label>
+                                                    <RequiredLabel htmlFor="notario">Notario</RequiredLabel>
                                                     <div ref={refDropdownNotario} className="relative">
                                                         <div className="relative">
                                                             <Input
                                                                 type="text"
                                                                 placeholder={notariosFiltrados.length === 0 ? 'Sin notarios disponibles' : 'Buscar notario...'}
-                                                                value={busquedaNotario}
-                                                                onChange={(e) => setBusquedaNotario(e.target.value)}
+                                                                value={formData.notario || busquedaNotario}
+                                                                onChange={(e) => {
+                                                                    setBusquedaNotario(e.target.value);
+                                                                    if (formData.notario) setFormData(prev => ({ ...prev, notario: '' }));
+                                                                }}
                                                                 onFocus={() => setMostrarDropdownNotario(true)}
-                                                                className={`text-sm pr-16 ${notariosFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                className={`text-sm pr-12 ${notariosFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 readOnly={notariosFiltrados.length === 0}
                                                             />
-                                                            {busquedaNotario && (
+                                                            {(formData.notario || busquedaNotario).length > 0 && (
                                                                 <button
-                                                                    type="button"
-                                                                    onClick={() => setBusquedaNotario('')}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground h-4 w-4 cursor-pointer"
+                                                                    onClick={() => {
+                                                                        setBusquedaNotario('');
+                                                                        setFormData(prev => ({ ...prev, notario: '' }));
+                                                                        setNotarioId(null);
+                                                                    }}
+                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
+                                                                    aria-label="Limpiar"
                                                                 >
-                                                                    <X className="h-4 w-4" />
+                                                                    ×
                                                                 </button>
                                                             )}
                                                             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
                                                         </div>
                                                         {mostrarDropdownNotario && notariosFiltrados.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
                                                                 {notariosFiltrados.map(u => (
                                                                     <div
                                                                         key={u.id}
                                                                         onClick={() => {
                                                                             setFormData(prev => ({ ...prev, notario: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
+                                                                            setNotarioId(u.id);
                                                                             setBusquedaNotario('');
                                                                             setMostrarDropdownNotario(false);
                                                                         }}
@@ -1040,46 +1622,46 @@ export default function ExpedientesIndex() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {formData.notario && (
-                                                        <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                            <span className="text-sm">{formData.notario}</span>
-                                                            <button onClick={() => setFormData(prev => ({ ...prev, notario: '' }))} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Responsable</label>
+                                                    <RequiredLabel htmlFor="responsable">Responsable</RequiredLabel>
                                                     <div ref={refDropdownResponsable} className="relative">
                                                         <div className="relative">
                                                             <Input
                                                                 type="text"
                                                                 placeholder={responsablesFiltrados.length === 0 ? 'Sin responsables disponibles' : 'Buscar responsable...'}
-                                                                value={busquedaResponsable}
-                                                                onChange={(e) => setBusquedaResponsable(e.target.value)}
+                                                                value={formData.responsable || busquedaResponsable}
+                                                                onChange={(e) => {
+                                                                    setBusquedaResponsable(e.target.value);
+                                                                    if (formData.responsable) setFormData(prev => ({ ...prev, responsable: '' }));
+                                                                }}
                                                                 onFocus={() => setMostrarDropdownResponsable(true)}
-                                                                className={`text-sm pr-16 ${responsablesFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                className={`text-sm pr-12 ${responsablesFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 readOnly={responsablesFiltrados.length === 0}
                                                             />
-                                                            {busquedaResponsable && (
+                                                            {(formData.responsable || busquedaResponsable).length > 0 && (
                                                                 <button
-                                                                    type="button"
-                                                                    onClick={() => setBusquedaResponsable('')}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground h-4 w-4 cursor-pointer"
+                                                                    onClick={() => {
+                                                                        setBusquedaResponsable('');
+                                                                        setFormData(prev => ({ ...prev, responsable: '' }));
+                                                                        setResponsableId(null);
+                                                                    }}
+                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
+                                                                    aria-label="Limpiar"
                                                                 >
-                                                                    <X className="h-4 w-4" />
+                                                                    ×
                                                                 </button>
                                                             )}
                                                             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
                                                         </div>
                                                         {mostrarDropdownResponsable && responsablesFiltrados.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
                                                                 {responsablesFiltrados.map(u => (
                                                                     <div
                                                                         key={u.id}
                                                                         onClick={() => {
                                                                             setFormData(prev => ({ ...prev, responsable: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
+                                                                            setResponsableId(u.id);
                                                                             setBusquedaResponsable('');
                                                                             setMostrarDropdownResponsable(false);
                                                                         }}
@@ -1091,49 +1673,46 @@ export default function ExpedientesIndex() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {formData.responsable && (
-                                                        <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                            <span className="text-sm">{formData.responsable}</span>
-                                                            <button onClick={() => setFormData(prev => ({ ...prev, responsable: '' }))} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-4 mb-6">
                                                 <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Secretaria</label>
+                                                    <RequiredLabel htmlFor="secretaria">Secretaria</RequiredLabel>
                                                     <div ref={refDropdownSecretaria} className="relative">
                                                         <div className="relative">
                                                             <Input
                                                                 type="text"
                                                                 placeholder={secretariasFiltradas.length === 0 ? 'Sin secretarias disponibles' : 'Buscar secretaria...'}
-                                                                value={busquedaSecretaria}
-                                                                onChange={(e) => setBusquedaSecretaria(e.target.value)}
+                                                                value={formData.secretaria || busquedaSecretaria}
+                                                                onChange={(e) => {
+                                                                    setBusquedaSecretaria(e.target.value);
+                                                                    if (formData.secretaria) setFormData(prev => ({ ...prev, secretaria: '' }));
+                                                                }}
                                                                 onFocus={() => setMostrarDropdownSecretaria(true)}
-                                                                className={`text-sm pr-16 ${secretariasFiltradas.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                className={`text-sm pr-12 ${secretariasFiltradas.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 readOnly={secretariasFiltradas.length === 0}
                                                             />
-                                                            {busquedaSecretaria && (
+                                                            {(formData.secretaria || busquedaSecretaria).length > 0 && (
                                                                 <button
-                                                                    type="button"
-                                                                    onClick={() => setBusquedaSecretaria('')}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground h-4 w-4 cursor-pointer"
+                                                                    onClick={() => {
+                                                                        setBusquedaSecretaria('');
+                                                                        setFormData(prev => ({ ...prev, secretaria: '' }));
+                                                                        setSecretariaId(null);
+                                                                    }}
+                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
+                                                                    aria-label="Limpiar"
                                                                 >
-                                                                    <X className="h-4 w-4" />
+                                                                    ×
                                                                 </button>
                                                             )}
                                                             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
                                                         </div>
                                                         {mostrarDropdownSecretaria && secretariasFiltradas.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
                                                                 {secretariasFiltradas.map(u => (
                                                                     <div
                                                                         key={u.id}
                                                                         onClick={() => {
                                                                             setFormData(prev => ({ ...prev, secretaria: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
+                                                                            setSecretariaId(u.id);
                                                                             setBusquedaSecretaria('');
                                                                             setMostrarDropdownSecretaria(false);
                                                                         }}
@@ -1145,14 +1724,6 @@ export default function ExpedientesIndex() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {formData.secretaria && (
-                                                        <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                            <span className="text-sm">{formData.secretaria}</span>
-                                                            <button onClick={() => setFormData(prev => ({ ...prev, secretaria: '' }))} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Autorizado</label>
@@ -1161,30 +1732,38 @@ export default function ExpedientesIndex() {
                                                             <Input
                                                                 type="text"
                                                                 placeholder={autorizadosFiltrados.length === 0 ? 'Sin autorizados disponibles' : 'Buscar autorizado...'}
-                                                                value={busquedaAutorizado}
-                                                                onChange={(e) => setBusquedaAutorizado(e.target.value)}
+                                                                value={formData.autorizado || busquedaAutorizado}
+                                                                onChange={(e) => {
+                                                                    setBusquedaAutorizado(e.target.value);
+                                                                    if (formData.autorizado) setFormData(prev => ({ ...prev, autorizado: '' }));
+                                                                }}
                                                                 onFocus={() => setMostrarDropdownAutorizado(true)}
-                                                                className={`text-sm pr-16 ${autorizadosFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                className={`text-sm pr-12 ${autorizadosFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 readOnly={autorizadosFiltrados.length === 0}
                                                             />
-                                                            {busquedaAutorizado && (
+                                                            {(formData.autorizado || busquedaAutorizado).length > 0 && (
                                                                 <button
-                                                                    type="button"
-                                                                    onClick={() => setBusquedaAutorizado('')}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground h-4 w-4 cursor-pointer"
+                                                                    onClick={() => {
+                                                                        setBusquedaAutorizado('');
+                                                                        setFormData(prev => ({ ...prev, autorizado: '' }));
+                                                                        setAutorizadoId(null);
+                                                                    }}
+                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
+                                                                    aria-label="Limpiar"
                                                                 >
-                                                                    <X className="h-4 w-4" />
+                                                                    ×
                                                                 </button>
                                                             )}
                                                             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
                                                         </div>
                                                         {mostrarDropdownAutorizado && autorizadosFiltrados.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
                                                                 {autorizadosFiltrados.map(u => (
                                                                     <div
                                                                         key={u.id}
                                                                         onClick={() => {
                                                                             setFormData(prev => ({ ...prev, autorizado: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
+                                                                            setAutorizadoId(u.id);
                                                                             setBusquedaAutorizado('');
                                                                             setMostrarDropdownAutorizado(false);
                                                                         }}
@@ -1196,14 +1775,6 @@ export default function ExpedientesIndex() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {formData.autorizado && (
-                                                        <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                            <span className="text-sm">{formData.autorizado}</span>
-                                                            <button onClick={() => setFormData(prev => ({ ...prev, autorizado: '' }))} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
 
@@ -1482,6 +2053,7 @@ export default function ExpedientesIndex() {
                                                                         // Agregar directamente a la tabla
                                                                         const nuevoCompareciente: FilaCompareciente = {
                                                                             id: Date.now().toString(),
+                                                                            cliente_Id: cliente.id,
                                                                             nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
                                                                             tipoCompareciente: '',
                                                                             firmaRequerida: false,
@@ -1504,17 +2076,16 @@ export default function ExpedientesIndex() {
 
                                             {/* Tabla de Comparecientes Agregados */}
                                             {filasComparecientes.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
+                                                <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
                                                     <div className="overflow-x-auto overflow-y-auto flex-1">
                                                         <table className="w-full text-sm">
                                                         <thead className="bg-slate-200 dark:bg-slate-700 border-b">
                                                             <tr>
                                                                 <th className="px-4 py-2 text-left">Nombre Compareciente</th>
-                                                                <th className="px-4 py-2 text-left">Tipo Compareciente</th>
+                                                                <th className="px-4 py-2 text-left flex items-center gap-1">Tipo Compareciente <span className="text-red-500">*</span></th>
                                                                 <th className="px-4 py-2 text-center">Firma Requerida</th>
                                                                 <th className="px-4 py-2 text-left">Fecha Firma</th>
-                                                                <th className="px-4 py-2 text-center">Lista Negra</th>
-                                                                <th className="px-4 py-2 text-center">Lista SAT</th>
+                                                                <th className="px-4 py-2 text-center">LISTAS SAT/NEGRAS/OFAC</th>
                                                                 <th className="px-4 py-2 text-center"></th>
                                                             </tr>
                                                         </thead>
@@ -1537,8 +2108,20 @@ export default function ExpedientesIndex() {
                                                                                     ...prev,
                                                                                     [fila.id]: true
                                                                                 }))}
-                                                                                className="text-sm pr-8"
+                                                                                className="text-sm pr-12"
                                                                             />
+                                                                            {(busquedaTipo[fila.id] || '').length > 0 && (
+                                                                                <button
+                                                                                    onClick={() => setBusquedaTipo(prev => ({
+                                                                                        ...prev,
+                                                                                        [fila.id]: ''
+                                                                                    }))}
+                                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
+                                                                                    aria-label="Limpiar"
+                                                                                >
+                                                                                    ×
+                                                                                </button>
+                                                                            )}
                                                                             <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
 
                                                                             {dropdownTipoAbierto[fila.id] && (
@@ -1603,17 +2186,7 @@ export default function ExpedientesIndex() {
                                                                             className="text-sm font-medium gap-2"
                                                                         >
                                                                             <Search className="h-4 w-4" />
-                                                                            Lista Negra
-                                                                        </Button>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-center">
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            className="text-sm font-medium gap-2"
-                                                                        >
-                                                                            <Search className="h-4 w-4" />
-                                                                            Lista SAT
+                                                                            BUSQUEDA
                                                                         </Button>
                                                                     </td>
                                                                     <td className="px-4 py-3 text-center flex items-center justify-center">
@@ -1677,7 +2250,7 @@ export default function ExpedientesIndex() {
 
                                             {/* Formulario de Datos de la Dependencia */}
                                             {dependenciaSeleccionada && datosDepdencias[dependenciaSeleccionada] && (
-                                                <div className="border rounded-lg p-6 bg-slate-50 dark:bg-slate-900/30 mt-8">
+                                                <div className="border rounded-lg p-6 bg-slate-50 dark:bg-slate-900/30 mt-2">
                                                     <h3 className="text-lg font-semibold mb-6">Datos de la Dependencia</h3>
 
                                                     <div className="space-y-4">
@@ -1802,7 +2375,9 @@ export default function ExpedientesIndex() {
                                     </Tabs>
                                 </TabsContent>
 
-                                {/* GRUPO 2: DOCUMENTOS & INMUEBLES */}
+
+                                {/* GRUPO 2: DOCUMENTOS & INMUEBLES - Solo disponible al editar */}
+                                {isEditing && (
                                 <TabsContent value="docs-inmuebles" className="space-y-6">
                                     <Tabs defaultValue="recibo-documentos" className="w-full">
                                         <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 mb-3">
@@ -1814,227 +2389,183 @@ export default function ExpedientesIndex() {
                                         {/* SubTab: Recibo de Documentos */}
                                         <TabsContent value="recibo-documentos" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Recibo de Documentos</h3>
+                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Documentos del Expediente</h3>
 
-                                                {/* Dropdown de Otorgante */}
-                                                <div className="mb-6">
-                                                    <label className="text-sm font-medium block mb-2">Otorgante</label>
-                                                    <div className="relative">
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="Buscar otorgante..."
-                                                                value={busquedaOtorgante}
-                                                                onChange={(e) => setBusquedaOtorgante(e.target.value)}
-                                                                onFocus={() => setMostrarDropdownOtorgante(true)}
-                                                                className="text-sm pr-8"
-                                                            />
-                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                        </div>
-                                                        {mostrarDropdownOtorgante && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                                                                {cargandoClientes && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
-                                                                {!cargandoClientes && clientesFiltrados.filter(c => {
-                                                                    const busqueda = busquedaOtorgante.toLowerCase();
-                                                                    const nombreCompleto = `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`.toLowerCase();
-                                                                    return nombreCompleto.includes(busqueda);
-                                                                }).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
-                                                                {clientesFiltrados.filter(c => {
-                                                                    const busqueda = busquedaOtorgante.toLowerCase();
-                                                                    const nombreCompleto = `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`.toLowerCase();
-                                                                    return nombreCompleto.includes(busqueda);
-                                                                }).map(cliente => (
-                                                                    <div
-                                                                        key={cliente.id}
-                                                                        onClick={() => {
-                                                                            setOtorganteSeleccionado(cliente);
-                                                                            setBusquedaOtorgante(`${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`);
-                                                                            setMostrarDropdownOtorgante(false);
-                                                                        }}
-                                                                        className="px-3 py-3 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                    >
-                                                                        <div className="font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</div>
-                                                                        <div className="text-xs text-muted-foreground mt-1">{cliente.tipo_Cliente} - {cliente.curp} - {cliente.rfc}</div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                {/* Dropdown de Clientes */}
+                                                {!cargandoDocumentosExpediente && documentosPorCliente.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <label className="text-sm font-medium block mb-2">Selecciona un Compareciente/Cliente</label>
+                                                        <select
+                                                            value={clienteSeleccionadoDocumentos ?? ''}
+                                                            onChange={(e) => setClienteSeleccionadoDocumentos(e.target.value === '' ? null : parseInt(e.target.value))}
+                                                            className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                        >
+                                                            <option value="">-- Selecciona un cliente --</option>
+                                                            {documentosPorCliente.map((grupo, idx) => (
+                                                                <option key={idx} value={idx}>
+                                                                    {grupo.cliente}
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                     </div>
-                                                    {otorganteSeleccionado && (
-                                                        <div className="mt-3 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                            <span className="text-sm">{otorganteSeleccionado.nombre} {otorganteSeleccionado.apellido_Paterno} {otorganteSeleccionado.apellido_Materno}</span>
-                                                            <button onClick={() => {
-                                                                setOtorganteSeleccionado(null);
-                                                                setBusquedaOtorgante('');
-                                                            }} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                )}
                                             </div>
 
-                                            {/* Tabla de Documentos */}
-                                            {otorganteSeleccionado && (
-                                                <div className="border rounded-lg overflow-hidden" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
-                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
-                                                        <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
-                                                                <tr>
-                                                                    <th className="px-3 py-2 text-left">Descripción</th>
-                                                                    <th className="px-2 py-2 text-center">Entrega</th>
-                                                                    <th className="px-2 py-2 text-center">Usu. Recibe</th>
-                                                                    <th className="px-2 py-2 text-center">Copia</th>
-                                                                    <th className="px-2 py-2 text-center">Original</th>
-                                                                    <th className="px-2 py-2 text-center">Recepción</th>
-                                                                    <th className="px-2 py-2 text-center">Abogado Rec.</th>
-                                                                    <th className="px-3 py-2 text-left">Observaciones</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {/* Filas vacías para ser llenadas */}
-                                                                {Array.from({ length: 12 }).map((_, index) => {
-                                                                    const fila = filasDocumentos[index] || {
-                                                                        descripcion: '',
-                                                                        entregaCheck: false,
-                                                                        entregaFecha: '',
-                                                                        usuRecibe: false,
-                                                                        copia: false,
-                                                                        original: false,
-                                                                        recepcionCheck: false,
-                                                                        recepcionFecha: '',
-                                                                        abogadoRec: false,
-                                                                        observaciones: ''
-                                                                    };
-
-                                                                    const handleEntregaCheck = (checked: boolean) => {
-                                                                        const today = new Date();
-                                                                        const hoy = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-                                                                        setFilasDocumentos(prev => ({
-                                                                            ...prev,
-                                                                            [index]: {
-                                                                                ...fila,
-                                                                                entregaCheck: checked,
-                                                                                entregaFecha: checked ? hoy : ''
-                                                                            }
-                                                                        }));
-                                                                    };
-
-                                                                    const handleRecepcionCheck = (checked: boolean) => {
-                                                                        const today = new Date();
-                                                                        const hoy = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-                                                                        setFilasDocumentos(prev => ({
-                                                                            ...prev,
-                                                                            [index]: {
-                                                                                ...fila,
-                                                                                recepcionCheck: checked,
-                                                                                recepcionFecha: checked ? hoy : ''
-                                                                            }
-                                                                        }));
-                                                                    };
-
-                                                                    return (
-                                                                        <tr key={index} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                                                            <td className="px-3 py-2">
-                                                                                <input
-                                                                                    type="text"
-                                                                                    placeholder="Tipo de documento"
-                                                                                    value={fila.descripcion}
-                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
-                                                                                        ...prev,
-                                                                                        [index]: { ...fila, descripcion: e.target.value }
-                                                                                    }))}
-                                                                                    className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                />
-                                                                            </td>
-                                                                            <td className="px-2 py-2 text-center">
-                                                                                {fila.entregaCheck ? (
-                                                                                    <div className="flex items-center justify-center gap-1">
-                                                                                        <input type="checkbox" checked={true} onChange={() => handleEntregaCheck(false)} className="rounded w-5 h-5 cursor-pointer" />
-                                                                                        <span className="text-xs whitespace-nowrap">{fila.entregaFecha}</span>
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <input type="checkbox" checked={false} onChange={(e) => handleEntregaCheck(e.target.checked)} className="rounded w-5 h-5 cursor-pointer" />
-                                                                                )}
-                                                                            </td>
-                                                                            <td className="px-2 py-2 text-center">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={fila.usuRecibe}
-                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
-                                                                                        ...prev,
-                                                                                        [index]: { ...fila, usuRecibe: e.target.checked }
-                                                                                    }))}
-                                                                                    className="rounded w-5 h-5 cursor-pointer"
-                                                                                />
-                                                                            </td>
-                                                                            <td className="px-2 py-2 text-center">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={fila.copia}
-                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
-                                                                                        ...prev,
-                                                                                        [index]: { ...fila, copia: e.target.checked }
-                                                                                    }))}
-                                                                                    className="rounded w-5 h-5 cursor-pointer"
-                                                                                />
-                                                                            </td>
-                                                                            <td className="px-2 py-2 text-center">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={fila.original}
-                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
-                                                                                        ...prev,
-                                                                                        [index]: { ...fila, original: e.target.checked }
-                                                                                    }))}
-                                                                                    className="rounded w-5 h-5 cursor-pointer"
-                                                                                />
-                                                                            </td>
-                                                                            <td className="px-2 py-2 text-center">
-                                                                                {fila.recepcionCheck ? (
-                                                                                    <div className="flex items-center justify-center gap-1">
-                                                                                        <input type="checkbox" checked={true} onChange={() => handleRecepcionCheck(false)} className="rounded w-5 h-5 cursor-pointer" />
-                                                                                        <span className="text-xs whitespace-nowrap">{fila.recepcionFecha}</span>
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <input type="checkbox" checked={false} onChange={(e) => handleRecepcionCheck(e.target.checked)} className="rounded w-5 h-5 cursor-pointer" />
-                                                                                )}
-                                                                            </td>
-                                                                            <td className="px-2 py-2 text-center">
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={fila.abogadoRec}
-                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
-                                                                                        ...prev,
-                                                                                        [index]: { ...fila, abogadoRec: e.target.checked }
-                                                                                    }))}
-                                                                                    className="rounded w-5 h-5 cursor-pointer"
-                                                                                />
-                                                                            </td>
-                                                                            <td className="px-3 py-2">
-                                                                                <input
-                                                                                    type="text"
-                                                                                    placeholder="Observaciones"
-                                                                                    value={fila.observaciones}
-                                                                                    onChange={(e) => setFilasDocumentos(prev => ({
-                                                                                        ...prev,
-                                                                                        [index]: { ...fila, observaciones: e.target.value }
-                                                                                    }))}
-                                                                                    className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                />
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
+                                            {cargandoDocumentosExpediente && (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <div className="flex items-center gap-2">
+                                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                                        <span className="text-sm text-muted-foreground">Cargando documentos...</span>
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {!otorganteSeleccionado && (
+                                            {!cargandoDocumentosExpediente && documentosPorCliente.length === 0 && (
                                                 <div className="text-center py-8 text-muted-foreground">
-                                                    <p>Selecciona un otorgante para ver la tabla de documentos.</p>
+                                                    <p>No hay documentos disponibles para este expediente.</p>
+                                                </div>
+                                            )}
+
+                                            {!cargandoDocumentosExpediente && documentosPorCliente.length > 0 && clienteSeleccionadoDocumentos !== null && (
+                                                <div className="space-y-6">
+                                                    {documentosPorCliente.map((grupoCliente, clienteIdx) =>
+                                                        clienteIdx === clienteSeleccionadoDocumentos && (
+                                                            <div key={clienteIdx} className="border rounded-lg overflow-hidden">
+                                                                <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 border-b">
+                                                                    <h4 className="font-semibold text-sm">
+                                                                        {grupoCliente.cliente} - Expediente: {grupoCliente.expediente}
+                                                                    </h4>
+                                                                </div>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="w-full text-sm">
+                                                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                                                            <tr>
+                                                                                <th className="px-3 py-2 text-left">Documento</th>
+                                                                                <th className="px-2 py-2 text-center">Copia</th>
+                                                                                <th className="px-2 py-2 text-center">Original</th>
+                                                                                <th className="px-2 py-2 text-center">Fecha Entrega</th>
+                                                                                <th className="px-2 py-2 text-center">Usuario Recibe</th>
+                                                                                <th className="px-2 py-2 text-center">Fecha Recepción</th>
+                                                                                <th className="px-2 py-2 text-center">Usuario Recepción</th>
+                                                                                <th className="px-3 py-2 text-left">Observaciones</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {grupoCliente.documentos.map((doc, docIdx) => {
+                                                                                const docEditado = documentosEditados[doc.id] || {
+                                                                                    fecha_Entrega: doc.fecha_Entrega,
+                                                                                    usuario_Recibe: doc.usuario_Recibe,
+                                                                                    fecha_Recepcion: doc.fecha_Recepcion,
+                                                                                    usuario_Recepcion: doc.usuario_Recepcion,
+                                                                                    observaciones: doc.observaciones,
+                                                                                    copia: doc.copia,
+                                                                                    original: doc.original,
+                                                                                };
+                                                                                return (
+                                                                                    <tr key={docIdx} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                                                        <td className="px-3 py-2">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={doc.documento}
+                                                                                                readOnly
+                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-2 py-2 text-center">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={docEditado.copia}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, copia: e.target.checked }
+                                                                                                }))}
+                                                                                                className="rounded w-5 h-5 cursor-pointer"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-2 py-2 text-center">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={docEditado.original}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, original: e.target.checked }
+                                                                                                }))}
+                                                                                                className="rounded w-5 h-5 cursor-pointer"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-2 py-2 text-center">
+                                                                                            <input
+                                                                                                type="date"
+                                                                                                value={docEditado.fecha_Entrega || ''}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, fecha_Entrega: e.target.value || null }
+                                                                                                }))}
+                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-2 py-2 text-center">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={docEditado.usuario_Recibe || ''}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, usuario_Recibe: e.target.value || null }
+                                                                                                }))}
+                                                                                                placeholder="-"
+                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-2 py-2 text-center">
+                                                                                            <input
+                                                                                                type="date"
+                                                                                                value={docEditado.fecha_Recepcion || ''}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, fecha_Recepcion: e.target.value || null }
+                                                                                                }))}
+                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-2 py-2 text-center">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={docEditado.usuario_Recepcion || ''}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, usuario_Recepcion: e.target.value || null }
+                                                                                                }))}
+                                                                                                placeholder="-"
+                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                            />
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2">
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={docEditado.observaciones || ''}
+                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                    ...prev,
+                                                                                                    [doc.id]: { ...docEditado, observaciones: e.target.value || null }
+                                                                                                }))}
+                                                                                                placeholder="-"
+                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                            />
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                );
+                                                                            })}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {!cargandoDocumentosExpediente && documentosPorCliente.length > 0 && clienteSeleccionadoDocumentos === null && (
+                                                <div className="text-center py-8 text-muted-foreground">
+                                                    <p>Selecciona un compareciente/cliente para ver sus documentos.</p>
                                                 </div>
                                             )}
                                         </TabsContent>
@@ -2052,15 +2583,6 @@ export default function ExpedientesIndex() {
                                                     { numero: 1, tipo: 'Casa', catastral: '123-ABC' },
                                                     { numero: 2, tipo: 'Departamento', catastral: '456-DEF' },
                                                 ];
-                                                const [selectedInmueble, setSelectedInmueble] = React.useState<number | null>(null);
-                                                const [formInmueble, setFormInmueble] = React.useState({
-                                                    tipoFactura: '',
-                                                    tipoVulnerable: '',
-                                                    tipoDeclaranot: '',
-                                                    medidas: '',
-                                                    antecedentes: '',
-                                                    descripcion: '',
-                                                });
                                                 return <>
                                                     <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
                                                         <div className="overflow-x-auto overflow-y-auto flex-1">
@@ -2190,8 +2712,10 @@ export default function ExpedientesIndex() {
                                         </TabsContent>
                                     </Tabs>
                                 </TabsContent>
+                                )}
 
-                                {/* GRUPO 3: FINANCIERO & CONTROL */}
+                                {/* GRUPO 3: FINANCIERO & CONTROL - Solo disponible al editar */}
+                                {isEditing && (
                                 <TabsContent value="financiero-control" className="space-y-6">
                                     <Tabs defaultValue="estado-cuenta" className="w-full">
                                         <TabsList className="grid w-full grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
@@ -2306,8 +2830,10 @@ export default function ExpedientesIndex() {
                                         </TabsContent>
                                     </Tabs>
                                 </TabsContent>
+                                )}
 
-                                {/* GRUPO 4: PROCESO & TRÁMITES */}
+                                {/* GRUPO 4: PROCESO & TRÁMITES - Solo disponible al editar */}
+                                {isEditing && (
                                 <TabsContent value="proceso-tramites" className="space-y-6">
                                     <Tabs defaultValue="etapas-expediente" className="w-full">
                                         <TabsList className="grid w-full grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
@@ -2416,6 +2942,7 @@ export default function ExpedientesIndex() {
 
                                     </Tabs>
                                 </TabsContent>
+                                )}
 
                             </Tabs>
 
@@ -2426,9 +2953,7 @@ export default function ExpedientesIndex() {
                                 Cancelar
                             </Button>
                             <Button
-                                onClick={() => {
-                                    addToast('Funcionalidad en desarrollo', 'info');
-                                }}
+                                onClick={handleSaveExpediente}
                                 disabled={isSaving}
                                 className="bg-blue-600 hover:bg-blue-700"
                             >

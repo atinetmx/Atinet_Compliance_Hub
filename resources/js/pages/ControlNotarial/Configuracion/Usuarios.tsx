@@ -110,7 +110,7 @@ export default function ControlNotarialUsuarios() {
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetRoles', {
+                const response = await fetch('https://localhost:44327/api/Catalogos/GetRoles', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -133,7 +133,7 @@ export default function ControlNotarialUsuarios() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarios');
+            const url = new URL('https://localhost:44327/api/User/GetUsuarios');
             url.searchParams.append('filtro', filtroValue);
             const response = await fetch(url.toString(), {
                 method: 'GET',
@@ -185,7 +185,7 @@ export default function ControlNotarialUsuarios() {
                 setIsSaving(true);
                 setSaveError(null);
                 const response = await fetch(
-                    `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/UpdateUsuario?usuarioId=${formData.id}`,
+                    `https://localhost:44327/api/User/UpdateUsuario?usuarioId=${formData.id}`,
                     {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -233,7 +233,7 @@ export default function ControlNotarialUsuarios() {
                 setIsSaving(true);
                 setSaveError(null);
                 const response = await fetch(
-                    'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/CreateUsuario',
+                    'https://localhost:44327/api/User/CreateUsuario',
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -289,7 +289,7 @@ export default function ControlNotarialUsuarios() {
         setActiveTab('formulario');
         try {
             const response = await fetch(
-                `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
+                `https://localhost:44327/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
                 { headers: { 'Content-Type': 'application/json' } }
             );
             const data = await response.json();

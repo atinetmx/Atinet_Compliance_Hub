@@ -193,7 +193,7 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetActividadesVulnerables', {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetActividadesVulnerables', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -207,7 +207,7 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDependenciasPublicas', {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetDependenciasPublicas', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -224,7 +224,7 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/${endpoint}`, {
+            const response = await fetch(`https://localhost:44327/api/Catalogos/${endpoint}`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -449,7 +449,7 @@ export default function ControlNotarialAltaCatalogos() {
 
             console.log(`[DEBUG] Enviando ${method} a ${endpoint}`, payload);
 
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/${endpoint}`, {
+            const response = await fetch(`https://localhost:44327/api/Catalogos/${endpoint}`, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
