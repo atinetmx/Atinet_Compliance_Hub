@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Activitylog\Models\Activity;
 
 class AgendaController extends Controller
 {
@@ -75,7 +76,7 @@ class AgendaController extends Controller
     }
 
     /**
-     * Bitácora de actividad desde la BD legacy (atinet65_aplicativos.log).
+     * Bitácora de actividad desde la BD legacy y nueva tabla activity_log.
      */
     public function log(Request $request): JsonResponse
     {
@@ -90,6 +91,37 @@ class AgendaController extends Controller
 
         $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
 
+        // === 1. ACTIVIDADES DE LA NUEVA TABLA (activity_log) ===
+        $newActivities = Activity::query()
+            ->where('log_name', 'agenda')
+            ->whereDate('created_at', $fecha)
+            ->orderBy('created_at', 'desc');
+
+        // Filtrar por notaría
+        if ($user->notaria_id) {
+            $newActivities->whereHasMorph('subject', [AgendaEvent::class], function ($q) use ($user) {
+                $q->where('notaria_id', $user->notaria_id);
+            });
+        } elseif ($user->tipo_cuenta === 'super_admin') {
+            // Super admin sin notaría: ve eventos de 'atinet' (eventos sin notaria_id)
+            $newActivities->whereHasMorph('subject', [AgendaEvent::class], function ($q) {
+                $q->whereNull('notaria_id');
+            });
+        }
+
+        // Filtrar por usuario si no es admin
+        if (! $esAdmin) {
+            $newActivities->where('causer_id', $user->id);
+        }
+
+        $newLogs = $newActivities->get()->map(fn ($activity) => [
+            'fecha' => $activity->created_at->format('Y-m-d'),
+            'hora' => $activity->created_at->format('H:i'),
+            'mail' => $activity->causer?->name ?? 'Sistema',
+            'accion' => $activity->description,
+        ]);
+
+        // === 2. ACTIVIDADES LEGACY (atinet65_aplicativos.log) ===
         // Super admins sin notaría asignada se mapean a 'atinet' legacy
         if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
             $legacySlug = 'atinet';
@@ -98,25 +130,30 @@ class AgendaController extends Controller
             $legacySlug = DB::table('notarias')
                 ->where('id', $user->notaria_id)
                 ->value('legacy_identifier');
+        }
 
-            if (! $legacySlug) {
-                return response()->json([]);
+        $legacyLogs = collect([]);
+        if ($legacySlug) {
+            $query = DB::connection('aplicativos')
+                ->table('log')
+                ->where('notaria', $legacySlug)
+                ->where('fecha', $fecha)
+                ->orderBy('hora', 'desc');
+
+            if (! $esAdmin) {
+                $query->where('mail', $user->name);
             }
+
+            $legacyLogs = $query->limit($limit)->get();
         }
 
-        $query = DB::connection('aplicativos')
-            ->table('log')
-            ->where('notaria', $legacySlug)
-            ->where('fecha', $fecha)
-            ->orderBy('hora');
+        // === 3. COMBINAR Y ORDENAR POR HORA (DESC) ===
+        $combinedLogs = $newLogs->merge($legacyLogs)
+            ->sortByDesc('hora')
+            ->take($limit)
+            ->values();
 
-        if (! $esAdmin) {
-            $query->where('mail', $user->name);
-        }
-
-        return response()->json(
-            $query->limit($limit)->get()
-        );
+        return response()->json($combinedLogs);
     }
 
     public function store(Request $request): JsonResponse
@@ -193,4 +230,3 @@ class AgendaController extends Controller
         );
     }
 }
-
