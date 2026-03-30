@@ -91,6 +91,11 @@ export function AppSidebar() {
                       icon: CalendarDays,
                   },
                   {
+                      title: 'Registro Web',
+                      href: '/admin/Reg_web',
+                      icon: BarChart3,
+                  },
+                  {
                       title: 'Control Notarial',
                       href: '/admin/control-notarial',
                       icon: Scale,
