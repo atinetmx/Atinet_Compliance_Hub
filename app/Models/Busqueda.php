@@ -6,11 +6,13 @@ use App\Models\Concerns\BelongsToNotaria;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Busqueda extends Model
 {
     /** @use HasFactory<\Database\Factories\BusquedaFactory> */
-    use BelongsToNotaria, HasFactory;
+    use BelongsToNotaria, HasFactory, LogsActivity;
 
     protected $fillable = [
         'notaria_id',
@@ -29,6 +31,23 @@ class Busqueda extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Configuración para el registro de actividad
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['tipo_busqueda', 'termino_busqueda', 'resultados'])
+            ->dontSubmitEmptyLogs()
+            ->useLogName('listas_negras')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => "Realizó búsqueda {$this->tipo_busqueda}: {$this->termino_busqueda}",
+                'updated' => "Actualizó búsqueda: {$this->termino_busqueda}",
+                'deleted' => "Eliminó búsqueda: {$this->termino_busqueda}",
+                default => "Modificó búsqueda: {$this->termino_busqueda}",
+            });
     }
 
     /**

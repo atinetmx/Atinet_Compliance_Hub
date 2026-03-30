@@ -8,11 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Notaria extends Model
 {
     /** @use HasFactory<\Database\Factories\NotariaFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'nombre',
@@ -76,6 +78,24 @@ class Notaria extends Model
 
         // Fallback al campo direccion antiguo si existe
         return $this->direccion ?? 'No especificada';
+    }
+
+    /**
+     * Configuración para el registro de actividad
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['nombre', 'numero_notaria', 'plan_id', 'activa', 'email_contacto', 'telefono'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('notarias')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => "Creó notaría: {$this->nombre} (#{$this->numero_notaria})",
+                'updated' => "Actualizó notaría: {$this->nombre}",
+                'deleted' => "Eliminó notaría: {$this->nombre}",
+                default => "Modificó notaría: {$this->nombre}",
+            });
     }
 
     /**
