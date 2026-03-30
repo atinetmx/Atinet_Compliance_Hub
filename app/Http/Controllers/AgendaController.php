@@ -119,7 +119,7 @@ class AgendaController extends Controller
             'hora' => $activity->created_at->format('H:i'),
             'mail' => $activity->causer?->name ?? 'Sistema',
             'accion' => $activity->description,
-        ]);
+        ])->values()->all(); // Convertir a array plano
 
         // === 2. ACTIVIDADES LEGACY (atinet65_aplicativos.log) ===
         // Super admins sin notaría asignada se mapean a 'atinet' legacy
@@ -132,7 +132,7 @@ class AgendaController extends Controller
                 ->value('legacy_identifier');
         }
 
-        $legacyLogs = collect([]);
+        $legacyLogs = [];
         if ($legacySlug) {
             $query = DB::connection('aplicativos')
                 ->table('log')
@@ -144,11 +144,17 @@ class AgendaController extends Controller
                 $query->where('mail', $user->name);
             }
 
-            $legacyLogs = $query->limit($limit)->get();
+            // Convertir datos legacy a mismo formato que activity_log
+            $legacyLogs = $query->limit($limit)->get()->map(fn ($log) => [
+                'fecha' => $log->fecha,
+                'hora' => $log->hora,
+                'mail' => $log->mail,
+                'accion' => $log->accion,
+            ])->all();
         }
 
         // === 3. COMBINAR Y ORDENAR POR HORA (DESC) ===
-        $combinedLogs = $newLogs->merge($legacyLogs)
+        $combinedLogs = collect(array_merge($newLogs, $legacyLogs))
             ->sortByDesc('hora')
             ->take($limit)
             ->values();
