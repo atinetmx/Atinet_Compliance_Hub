@@ -956,6 +956,13 @@ export default function ExpedientesIndex() {
         return () => clearTimeout(debounceTimer);
     }, [filtro]);
 
+    // Auto-seleccionar el primer cliente cuando se cargan los documentos
+    useEffect(() => {
+        if (documentosPorCliente && documentosPorCliente.length > 0 && !clienteSeleccionadoDocumentos) {
+            setClienteSeleccionadoDocumentos(documentosPorCliente[0].id_Cliente);
+        }
+    }, [documentosPorCliente]);
+
     const fetchDocumentosExpediente = async (expedienteId: number) => {
         setCargandoDocumentosExpediente(true);
         try {
@@ -2825,14 +2832,26 @@ export default function ExpedientesIndex() {
                                             )}
 
                                             {!cargandoDocumentosExpediente && documentosPorCliente && documentosPorCliente.length > 0 && (
-                                                <div className="space-y-6">
-                                                    {documentosPorCliente.map((grupoCliente, clienteIdx) => (
-                                                        <div key={clienteIdx} className="border rounded-lg overflow-hidden">
-                                                            <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 border-b">
-                                                                <h4 className="font-semibold text-sm">
+                                                <div className="space-y-4">
+                                                    {/* Dropdown para seleccionar cliente */}
+                                                    <div className="flex items-center gap-3">
+                                                        <label className="text-sm font-medium">Cliente:</label>
+                                                        <select
+                                                            value={String(clienteSeleccionadoDocumentos || '')}
+                                                            onChange={(e) => setClienteSeleccionadoDocumentos(parseInt(e.target.value))}
+                                                            className="px-3 py-2 border rounded-md bg-background text-foreground text-sm"
+                                                        >
+                                                            {documentosPorCliente.map((grupoCliente) => (
+                                                                <option key={grupoCliente.id_Cliente} value={String(grupoCliente.id_Cliente)}>
                                                                     {grupoCliente.cliente}
-                                                                </h4>
-                                                            </div>
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    {/* Mostrar tabla del cliente seleccionado */}
+                                                    {clienteSeleccionadoDocumentos && (
+                                                        <div className="border rounded-lg overflow-hidden">
                                                             <div className="overflow-x-auto">
                                                                 <table className="w-full text-sm">
                                                                     <thead className="bg-slate-200 dark:bg-slate-700 border-b">
@@ -2849,7 +2868,9 @@ export default function ExpedientesIndex() {
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                        {grupoCliente.documentos.map((doc, docIdx) => {
+                                                                        {documentosPorCliente
+                                                                            .find(gc => gc.id_Cliente === clienteSeleccionadoDocumentos)
+                                                                            ?.documentos.map((doc, docIdx) => {
                                                                             const docEditado = documentosEditados[doc.id] || {
                                                                                 cliente_Id: doc.cliente_Id,
                                                                                 documento_Id: doc.documento_Id,
@@ -2946,7 +2967,7 @@ export default function ExpedientesIndex() {
                                                                 </table>
                                                             </div>
                                                         </div>
-                                                    ))}
+                                                    )}
                                                 </div>
                                             )}
                                         </TabsContent>
