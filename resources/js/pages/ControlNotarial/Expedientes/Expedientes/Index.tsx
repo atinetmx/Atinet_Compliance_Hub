@@ -364,6 +364,9 @@ export default function ExpedientesIndex() {
     const [documentoSeleccionadoParaAgregar, setDocumentoSeleccionadoParaAgregar] = useState<Documento | null>(null);
     const [documentosSeleccionados, setDocumentosSeleccionados] = useState<Record<number, boolean>>({});
 
+    // Ref para debounce de actualización de documentos individuales
+    const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
+
     const { addToast } = useToast();
 
     // Cargar expedientes al montar (filtro vacío = todos)
@@ -375,6 +378,11 @@ export default function ExpedientesIndex() {
         fetchDependencias();
         fetchClientes();
         fetchComparecientes();
+
+        // Cleanup de timers al desmontar
+        return () => {
+            Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
+        };
     }, []);
 
     // Cargar operaciones disponibles desde API
@@ -561,7 +569,7 @@ export default function ExpedientesIndex() {
     };
 
     // Agregar múltiples documentos seleccionados
-    const handleAgregarDocumentosSeleccionados = () => {
+    const handleAgregarDocumentosSeleccionados = async () => {
         const documentosAgregar = documentosDisponibles.filter(doc => documentosSeleccionados[doc.id]);
 
         if (documentosAgregar.length === 0) {
@@ -576,6 +584,200 @@ export default function ExpedientesIndex() {
         // Limpiar selección y cerrar modal
         setDocumentosSeleccionados({});
         setMostrarModalAgregarDocumento(false);
+
+        // Si existe un expedienteId, actualizar en la API con los documentos ya agregados
+        if (currentExpedienteId) {
+            // Esperar un poco para que el state se actualice
+            setTimeout(async () => {
+                await handleActualizarDocumentosExpediente(currentExpedienteId);
+            }, 300);
+        }
+    };
+
+    // Eliminar un documento de todas las tablas de clientes
+    const handleEliminarDocumentoDeAll = async (nombreDocumento: string) => {
+        // Crear los nuevos documentos filtrados
+        const nuevosDocs = documentosPorCliente.map(grupoCliente => ({
+            ...grupoCliente,
+            documentos: grupoCliente.documentos.filter(doc => doc.documento !== nombreDocumento)
+        }));
+
+        // Actualizar el estado
+        setDocumentosPorCliente(nuevosDocs);
+        addToast(`Documento "${nombreDocumento}" eliminado de todas las tablas`, 'success');
+
+        // Si existe un expedienteId, actualizar en la API con los documentos ya filtrados
+        if (currentExpedienteId) {
+            await handleActualizarDocumentosExpediente(currentExpedienteId, nuevosDocs);
+        }
+    };
+
+    // Actualizar documentos del expediente en la API
+    const handleActualizarDocumentosExpediente = async (
+        expedienteId: number,
+        docsOverride?: typeof documentosPorCliente
+    ) => {
+        try {
+            // Usar los documentos pasados como parámetro o los del state
+            const docsToUse = docsOverride || documentosPorCliente;
+
+            // Construir el payload con todos los documentos de todas las tablas
+            const documentosPayload: Array<{
+                cliente_Id: number;
+                documento_Id: number;
+                fecha_Entrega: string | null;
+                usuario_Recibe_Id: number | null;
+                fecha_Recepcion: string | null;
+                usuario_Recepcion_Id: number | null;
+                observaciones: string | null;
+                copia: boolean;
+                original: boolean;
+            }> = [];
+
+            docsToUse.forEach(grupoCliente => {
+                // Buscar el cliente_Id basado en el nombre del cliente
+                const clienteEncontrado = filasComparecientes.find(comp =>
+                    `${clientesDisponibles.find(c => c.id === comp.cliente_Id)?.nombre || ''} ${clientesDisponibles.find(c => c.id === comp.cliente_Id)?.apellido_Paterno || ''} ${clientesDisponibles.find(c => c.id === comp.cliente_Id)?.apellido_Materno || ''}`.trim() === grupoCliente.cliente.trim()
+                );
+                const cliente_Id = clienteEncontrado?.cliente_Id || 0;
+
+                grupoCliente.documentos.forEach(doc => {
+                    const docEditado = documentosEditados[doc.id] || {
+                        fecha_Entrega: doc.fecha_Entrega,
+                        usuario_Recibe: doc.usuario_Recibe,
+                        fecha_Recepcion: doc.fecha_Recepcion,
+                        usuario_Recepcion: doc.usuario_Recepcion,
+                        observaciones: doc.observaciones,
+                        copia: doc.copia,
+                        original: doc.original,
+                    };
+
+                    // Buscar el documento_Id basado en el nombre
+                    const docCatalogo = documentosDisponibles.find(d => d.descripcion === doc.documento);
+
+                    documentosPayload.push({
+                        cliente_Id: cliente_Id,
+                        documento_Id: docCatalogo?.id || 0,
+                        fecha_Entrega: docEditado.fecha_Entrega || null,
+                        usuario_Recibe_Id: docEditado.usuario_Recibe ? parseInt(docEditado.usuario_Recibe) || 0 : null,
+                        fecha_Recepcion: docEditado.fecha_Recepcion || null,
+                        usuario_Recepcion_Id: docEditado.usuario_Recepcion ? parseInt(docEditado.usuario_Recepcion) || 0 : null,
+                        observaciones: docEditado.observaciones || null,
+                        copia: docEditado.copia,
+                        original: docEditado.original,
+                    });
+                });
+            });
+
+            const response = await fetch(
+                `https://localhost:44327/api/Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(documentosPayload),
+                }
+            );
+
+            if (response.ok) {
+                addToast('Documentos actualizados exitosamente', 'success');
+            } else {
+                const errorData = await response.json();
+                console.error('Error al actualizar documentos:', errorData);
+                addToast('Error al actualizar documentos: ' + (errorData.message || 'Error desconocido'), 'error');
+            }
+        } catch (error) {
+            console.error('Error actualizando documentos:', error);
+            addToast('Error actualizando documentos', 'error');
+        }
+    };
+
+    // Actualizar un documento individual
+    const handleActualizarDocumentoIndividual = async (
+        docsId: number,
+        cambios: {
+            fecha_Entrega: string | null;
+            usuario_Recibe: string | null;
+            fecha_Recepcion: string | null;
+            usuario_Recepcion: string | null;
+            observaciones: string | null;
+            copia: boolean;
+            original: boolean;
+        }
+    ) => {
+        try {
+            const payload = {
+                fecha_Entrega: cambios.fecha_Entrega || null,
+                usuario_Recibe_Id: cambios.usuario_Recibe ? parseInt(cambios.usuario_Recibe) || 0 : 0,
+                fecha_Recepcion: cambios.fecha_Recepcion || null,
+                usuario_Recepcion_Id: cambios.usuario_Recepcion ? parseInt(cambios.usuario_Recepcion) || 0 : 0,
+                observaciones: cambios.observaciones || null,
+                copia: cambios.copia,
+                original: cambios.original,
+            };
+
+            const response = await fetch(
+                `https://localhost:44327/api/Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                }
+            );
+
+            if (response.ok) {
+                console.log(`Documento ${docsId} actualizado exitosamente`);
+            } else {
+                const errorData = await response.json();
+                console.error(`Error al actualizar documento ${docsId}:`, errorData);
+            }
+        } catch (error) {
+            console.error(`Error actualizando documento ${docsId}:`, error);
+        }
+    };
+
+    // Handler para cambios de documento con debounce por documento específico
+    const handleDocumentoChange = (docId: number, field: string, value: any) => {
+        // Actualizar el estado local
+        setDocumentosEditados(prev => ({
+            ...prev,
+            [docId]: {
+                ...prev[docId],
+                [field]: value
+            }
+        }));
+
+        // Si no hay expediente ID aún, no ejecutar API
+        if (!currentExpedienteId) return;
+
+        // Limpiar timer anterior para este documento específico
+        if (debounceTimersRef.current[docId]) {
+            clearTimeout(debounceTimersRef.current[docId]);
+        }
+
+        // Crear nuevo timer para este documento
+        debounceTimersRef.current[docId] = setTimeout(() => {
+            const docEditado = documentosEditados[docId] || {
+                fecha_Entrega: null,
+                usuario_Recibe: null,
+                fecha_Recepcion: null,
+                usuario_Recepcion: null,
+                observaciones: null,
+                copia: false,
+                original: false,
+            };
+
+            handleActualizarDocumentoIndividual(docId, {
+                ...docEditado,
+                [field]: value
+            });
+
+            // Limpiar timer del registro
+            delete debounceTimersRef.current[docId];
+        }, 1000);
     };
 
     // Filtrar usuarios por búsqueda
@@ -1067,6 +1269,14 @@ export default function ExpedientesIndex() {
 
             if (response.ok) {
                 addToast('Expediente creado exitosamente', 'success');
+
+                // Obtener el ID del expediente creado
+                const expedienteId = data.dataResponse?.id || currentExpedienteId;
+
+                // Actualizar documentos si hay
+                if (expedienteId && documentosPorCliente.length > 0) {
+                    await handleActualizarDocumentosExpediente(expedienteId);
+                }
 
                 // Resetear todo en un paso
                 const nuevoFormData = {
@@ -2598,6 +2808,7 @@ export default function ExpedientesIndex() {
                                                                             <th className="px-2 py-2 text-center">Fecha Recepción</th>
                                                                             <th className="px-2 py-2 text-center">Usuario Recepción</th>
                                                                             <th className="px-3 py-2 text-left">Observaciones</th>
+                                                                            <th className="px-2 py-2 text-center">Acciones</th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -2625,10 +2836,7 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={docEditado.copia}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, copia: e.target.checked }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'copia', e.target.checked)}
                                                                                             className="rounded w-5 h-5 cursor-pointer"
                                                                                         />
                                                                                     </td>
@@ -2636,10 +2844,7 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             checked={docEditado.original}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, original: e.target.checked }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'original', e.target.checked)}
                                                                                             className="rounded w-5 h-5 cursor-pointer"
                                                                                         />
                                                                                     </td>
@@ -2647,10 +2852,7 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="date"
                                                                                             value={docEditado.fecha_Entrega || ''}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, fecha_Entrega: e.target.value || null }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'fecha_Entrega', e.target.value || null)}
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
                                                                                     </td>
@@ -2658,10 +2860,7 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="text"
                                                                                             value={docEditado.usuario_Recibe || ''}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, usuario_Recibe: e.target.value || null }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'usuario_Recibe', e.target.value || null)}
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
@@ -2670,10 +2869,7 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="date"
                                                                                             value={docEditado.fecha_Recepcion || ''}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, fecha_Recepcion: e.target.value || null }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'fecha_Recepcion', e.target.value || null)}
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
                                                                                     </td>
@@ -2681,10 +2877,7 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="text"
                                                                                             value={docEditado.usuario_Recepcion || ''}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, usuario_Recepcion: e.target.value || null }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'usuario_Recepcion', e.target.value || null)}
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
@@ -2693,13 +2886,19 @@ export default function ExpedientesIndex() {
                                                                                         <input
                                                                                             type="text"
                                                                                             value={docEditado.observaciones || ''}
-                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                ...prev,
-                                                                                                [doc.id]: { ...docEditado, observaciones: e.target.value || null }
-                                                                                            }))}
+                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'observaciones', e.target.value || null)}
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <button
+                                                                                            onClick={() => handleEliminarDocumentoDeAll(doc.documento)}
+                                                                                            className="inline-flex items-center justify-center px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs transition-colors"
+                                                                                            title="Eliminar documento de todas las tablas"
+                                                                                        >
+                                                                                            <X className="h-4 w-4" />
+                                                                                        </button>
                                                                                     </td>
                                                                                 </tr>
                                                                             );
