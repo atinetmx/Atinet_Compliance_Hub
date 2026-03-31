@@ -80,6 +80,12 @@ interface Compareciente {
     activo: boolean;
 }
 
+interface Documento {
+    id: number;
+    descripcion: string;
+    activo: boolean;
+}
+
 interface FilaCompareciente {
     id: string;
     cliente_Id: number;
@@ -351,6 +357,13 @@ export default function ExpedientesIndex() {
         descripcion: '',
     });
 
+    // --- Estados para Documentos Disponibles ---
+    const [documentosDisponibles, setDocumentosDisponibles] = useState<Documento[]>([]);
+    const [cargandoDocumentosDisponibles, setCargandoDocumentosDisponibles] = useState(false);
+    const [mostrarModalAgregarDocumento, setMostrarModalAgregarDocumento] = useState(false);
+    const [documentoSeleccionadoParaAgregar, setDocumentoSeleccionadoParaAgregar] = useState<Documento | null>(null);
+    const [documentosSeleccionados, setDocumentosSeleccionados] = useState<Record<number, boolean>>({});
+
     const { addToast } = useToast();
 
     // Cargar expedientes al montar (filtro vacío = todos)
@@ -487,6 +500,82 @@ export default function ExpedientesIndex() {
             console.error('Error cargando comparecientes:', error);
             addToast('No se pudieron cargar los comparecientes', 'error');
         }
+    };
+
+    // Cargar documentos disponibles desde API
+    const fetchDocumentosDisponibles = async () => {
+        setCargandoDocumentosDisponibles(true);
+        try {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetDocumentos', {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setDocumentosDisponibles(data.dataResponse);
+                setMostrarModalAgregarDocumento(true);
+            } else {
+                addToast('No se pudieron cargar los documentos disponibles', 'error');
+            }
+        } catch (error) {
+            console.error('Error cargando documentos disponibles:', error);
+            addToast('Error cargando documentos', 'error');
+        } finally {
+            setCargandoDocumentosDisponibles(false);
+        }
+    };
+
+    // Obtener nombres de documentos ya agregados en todas las tablas
+    const obtenerDocumentosAgregados = (): Set<string> => {
+        const documentosAgregados = new Set<string>();
+        documentosPorCliente.forEach(grupoCliente => {
+            grupoCliente.documentos.forEach(doc => {
+                documentosAgregados.add(doc.documento);
+            });
+        });
+        return documentosAgregados;
+    };
+
+    // Agregar un documento a todas las tablas de clientes
+    const handleAgregarDocumentoATodas = (documento: Documento) => {
+        setDocumentosPorCliente(prevDocumentos =>
+            prevDocumentos.map(grupoCliente => ({
+                ...grupoCliente,
+                documentos: [
+                    ...grupoCliente.documentos,
+                    {
+                        id: Date.now() + Math.random(),
+                        documento: documento.descripcion,
+                        fecha_Entrega: null,
+                        usuario_Recibe: null,
+                        fecha_Recepcion: null,
+                        usuario_Recepcion: null,
+                        observaciones: null,
+                        copia: false,
+                        original: false,
+                    }
+                ]
+            }))
+        );
+        addToast(`Documento "${documento.descripcion}" agregado a todas las tablas`, 'success');
+    };
+
+    // Agregar múltiples documentos seleccionados
+    const handleAgregarDocumentosSeleccionados = () => {
+        const documentosAgregar = documentosDisponibles.filter(doc => documentosSeleccionados[doc.id]);
+
+        if (documentosAgregar.length === 0) {
+            addToast('Selecciona al menos un documento', 'warning');
+            return;
+        }
+
+        documentosAgregar.forEach(doc => {
+            handleAgregarDocumentoATodas(doc);
+        });
+
+        // Limpiar selección y cerrar modal
+        setDocumentosSeleccionados({});
+        setMostrarModalAgregarDocumento(false);
     };
 
     // Filtrar usuarios por búsqueda
@@ -2389,27 +2478,89 @@ export default function ExpedientesIndex() {
                                         {/* SubTab: Recibo de Documentos */}
                                         <TabsContent value="recibo-documentos" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Documentos del Expediente</h3>
-
-                                                {/* Dropdown de Clientes */}
-                                                {!cargandoDocumentosExpediente && documentosPorCliente.length > 0 && (
-                                                    <div className="mb-4">
-                                                        <label className="text-sm font-medium block mb-2">Selecciona un Compareciente/Cliente</label>
-                                                        <select
-                                                            value={clienteSeleccionadoDocumentos ?? ''}
-                                                            onChange={(e) => setClienteSeleccionadoDocumentos(e.target.value === '' ? null : parseInt(e.target.value))}
-                                                            className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                        >
-                                                            <option value="">-- Selecciona un cliente --</option>
-                                                            {documentosPorCliente.map((grupo, idx) => (
-                                                                <option key={idx} value={idx}>
-                                                                    {grupo.cliente}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                )}
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">Documentos del Expediente</h3>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-blue-600 hover:bg-blue-700"
+                                                        onClick={fetchDocumentosDisponibles}
+                                                        disabled={cargandoDocumentosDisponibles}
+                                                    >
+                                                        {cargandoDocumentosDisponibles ? (
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        ) : (
+                                                            <Plus className="h-4 w-4 mr-2" />
+                                                        )}
+                                                        Agregar Documento
+                                                    </Button>
+                                                </div>
                                             </div>
+
+                                            {mostrarModalAgregarDocumento && (
+                                                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+                                                    <div className="bg-background rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+                                                        <h3 className="text-lg font-semibold mb-4">Selecciona Documentos para Agregar</h3>
+                                                        <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+                                                            {(() => {
+                                                                const documentosAgregados = obtenerDocumentosAgregados();
+                                                                const documentosFiltrados = documentosDisponibles.filter(
+                                                                    d => d.activo && !documentosAgregados.has(d.descripcion)
+                                                                );
+
+                                                                if (documentosFiltrados.length === 0) {
+                                                                    return (
+                                                                        <p className="text-sm text-muted-foreground text-center py-4">
+                                                                            Todos los documentos disponibles ya han sido agregados.
+                                                                        </p>
+                                                                    );
+                                                                }
+
+                                                                return documentosFiltrados.map((doc) => (
+                                                                    <div
+                                                                        key={doc.id}
+                                                                        className="flex items-center gap-2 px-4 py-2 rounded border border-input hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            id={`doc-${doc.id}`}
+                                                                            checked={documentosSeleccionados[doc.id] || false}
+                                                                            onChange={(e) => setDocumentosSeleccionados(prev => ({
+                                                                                ...prev,
+                                                                                [doc.id]: e.target.checked
+                                                                            }))}
+                                                                            className="w-4 h-4 cursor-pointer"
+                                                                        />
+                                                                        <label
+                                                                            htmlFor={`doc-${doc.id}`}
+                                                                            className="text-sm cursor-pointer flex-1"
+                                                                        >
+                                                                            {doc.descripcion}
+                                                                        </label>
+                                                                    </div>
+                                                                ));
+                                                            })()}
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                onClick={() => {
+                                                                    setMostrarModalAgregarDocumento(false);
+                                                                    setDocumentosSeleccionados({});
+                                                                }}
+                                                                className="flex-1"
+                                                            >
+                                                                Cancelar
+                                                            </Button>
+                                                            <Button
+                                                                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                                                onClick={handleAgregarDocumentosSeleccionados}
+                                                            >
+                                                                Agregar Seleccionados
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {cargandoDocumentosExpediente && (
                                                 <div className="flex items-center justify-center py-8">
@@ -2420,152 +2571,144 @@ export default function ExpedientesIndex() {
                                                 </div>
                                             )}
 
-                                            {!cargandoDocumentosExpediente && documentosPorCliente.length === 0 && (
+                                            {!cargandoDocumentosExpediente && documentosPorCliente && documentosPorCliente.length === 0 && (
                                                 <div className="text-center py-8 text-muted-foreground">
                                                     <p>No hay documentos disponibles para este expediente.</p>
                                                 </div>
                                             )}
 
-                                            {!cargandoDocumentosExpediente && documentosPorCliente.length > 0 && clienteSeleccionadoDocumentos !== null && (
+                                            {!cargandoDocumentosExpediente && documentosPorCliente && documentosPorCliente.length > 0 && (
                                                 <div className="space-y-6">
-                                                    {documentosPorCliente.map((grupoCliente, clienteIdx) =>
-                                                        clienteIdx === clienteSeleccionadoDocumentos && (
-                                                            <div key={clienteIdx} className="border rounded-lg overflow-hidden">
-                                                                <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 border-b">
-                                                                    <h4 className="font-semibold text-sm">
-                                                                        {grupoCliente.cliente} - Expediente: {grupoCliente.expediente}
-                                                                    </h4>
-                                                                </div>
-                                                                <div className="overflow-x-auto">
-                                                                    <table className="w-full text-sm">
-                                                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                                                            <tr>
-                                                                                <th className="px-3 py-2 text-left">Documento</th>
-                                                                                <th className="px-2 py-2 text-center">Copia</th>
-                                                                                <th className="px-2 py-2 text-center">Original</th>
-                                                                                <th className="px-2 py-2 text-center">Fecha Entrega</th>
-                                                                                <th className="px-2 py-2 text-center">Usuario Recibe</th>
-                                                                                <th className="px-2 py-2 text-center">Fecha Recepción</th>
-                                                                                <th className="px-2 py-2 text-center">Usuario Recepción</th>
-                                                                                <th className="px-3 py-2 text-left">Observaciones</th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody>
-                                                                            {grupoCliente.documentos.map((doc, docIdx) => {
-                                                                                const docEditado = documentosEditados[doc.id] || {
-                                                                                    fecha_Entrega: doc.fecha_Entrega,
-                                                                                    usuario_Recibe: doc.usuario_Recibe,
-                                                                                    fecha_Recepcion: doc.fecha_Recepcion,
-                                                                                    usuario_Recepcion: doc.usuario_Recepcion,
-                                                                                    observaciones: doc.observaciones,
-                                                                                    copia: doc.copia,
-                                                                                    original: doc.original,
-                                                                                };
-                                                                                return (
-                                                                                    <tr key={docIdx} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                                                                        <td className="px-3 py-2">
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={doc.documento}
-                                                                                                readOnly
-                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2 text-center">
-                                                                                            <input
-                                                                                                type="checkbox"
-                                                                                                checked={docEditado.copia}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, copia: e.target.checked }
-                                                                                                }))}
-                                                                                                className="rounded w-5 h-5 cursor-pointer"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2 text-center">
-                                                                                            <input
-                                                                                                type="checkbox"
-                                                                                                checked={docEditado.original}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, original: e.target.checked }
-                                                                                                }))}
-                                                                                                className="rounded w-5 h-5 cursor-pointer"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2 text-center">
-                                                                                            <input
-                                                                                                type="date"
-                                                                                                value={docEditado.fecha_Entrega || ''}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, fecha_Entrega: e.target.value || null }
-                                                                                                }))}
-                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2 text-center">
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={docEditado.usuario_Recibe || ''}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, usuario_Recibe: e.target.value || null }
-                                                                                                }))}
-                                                                                                placeholder="-"
-                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2 text-center">
-                                                                                            <input
-                                                                                                type="date"
-                                                                                                value={docEditado.fecha_Recepcion || ''}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, fecha_Recepcion: e.target.value || null }
-                                                                                                }))}
-                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-2 py-2 text-center">
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={docEditado.usuario_Recepcion || ''}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, usuario_Recepcion: e.target.value || null }
-                                                                                                }))}
-                                                                                                placeholder="-"
-                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                            />
-                                                                                        </td>
-                                                                                        <td className="px-3 py-2">
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                value={docEditado.observaciones || ''}
-                                                                                                onChange={(e) => setDocumentosEditados(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [doc.id]: { ...docEditado, observaciones: e.target.value || null }
-                                                                                                }))}
-                                                                                                placeholder="-"
-                                                                                                className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                            />
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                );
-                                                                            })}
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
+                                                    {documentosPorCliente.map((grupoCliente, clienteIdx) => (
+                                                        <div key={clienteIdx} className="border rounded-lg overflow-hidden">
+                                                            <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 border-b">
+                                                                <h4 className="font-semibold text-sm">
+                                                                    {grupoCliente.cliente}
+                                                                </h4>
                                                             </div>
-                                                        )
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {!cargandoDocumentosExpediente && documentosPorCliente.length > 0 && clienteSeleccionadoDocumentos === null && (
-                                                <div className="text-center py-8 text-muted-foreground">
-                                                    <p>Selecciona un compareciente/cliente para ver sus documentos.</p>
+                                                            <div className="overflow-x-auto">
+                                                                <table className="w-full text-sm">
+                                                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                                                        <tr>
+                                                                            <th className="px-3 py-2 text-left">Documento</th>
+                                                                            <th className="px-2 py-2 text-center">Copia</th>
+                                                                            <th className="px-2 py-2 text-center">Original</th>
+                                                                            <th className="px-2 py-2 text-center">Fecha Entrega</th>
+                                                                            <th className="px-2 py-2 text-center">Usuario Recibe</th>
+                                                                            <th className="px-2 py-2 text-center">Fecha Recepción</th>
+                                                                            <th className="px-2 py-2 text-center">Usuario Recepción</th>
+                                                                            <th className="px-3 py-2 text-left">Observaciones</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {grupoCliente.documentos.map((doc, docIdx) => {
+                                                                            const docEditado = documentosEditados[doc.id] || {
+                                                                                fecha_Entrega: doc.fecha_Entrega,
+                                                                                usuario_Recibe: doc.usuario_Recibe,
+                                                                                fecha_Recepcion: doc.fecha_Recepcion,
+                                                                                usuario_Recepcion: doc.usuario_Recepcion,
+                                                                                observaciones: doc.observaciones,
+                                                                                copia: doc.copia,
+                                                                                original: doc.original,
+                                                                            };
+                                                                            return (
+                                                                                <tr key={docIdx} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                                                    <td className="px-3 py-2">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={doc.documento}
+                                                                                            readOnly
+                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={docEditado.copia}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, copia: e.target.checked }
+                                                                                            }))}
+                                                                                            className="rounded w-5 h-5 cursor-pointer"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            checked={docEditado.original}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, original: e.target.checked }
+                                                                                            }))}
+                                                                                            className="rounded w-5 h-5 cursor-pointer"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <input
+                                                                                            type="date"
+                                                                                            value={docEditado.fecha_Entrega || ''}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, fecha_Entrega: e.target.value || null }
+                                                                                            }))}
+                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={docEditado.usuario_Recibe || ''}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, usuario_Recibe: e.target.value || null }
+                                                                                            }))}
+                                                                                            placeholder="-"
+                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <input
+                                                                                            type="date"
+                                                                                            value={docEditado.fecha_Recepcion || ''}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, fecha_Recepcion: e.target.value || null }
+                                                                                            }))}
+                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-2 py-2 text-center">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={docEditado.usuario_Recepcion || ''}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, usuario_Recepcion: e.target.value || null }
+                                                                                            }))}
+                                                                                            placeholder="-"
+                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                        />
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={docEditado.observaciones || ''}
+                                                                                            onChange={(e) => setDocumentosEditados(prev => ({
+                                                                                                ...prev,
+                                                                                                [doc.id]: { ...docEditado, observaciones: e.target.value || null }
+                                                                                            }))}
+                                                                                            placeholder="-"
+                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
+                                                                                        />
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </TabsContent>
