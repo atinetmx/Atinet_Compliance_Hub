@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users } from 'lucide-react';
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -93,7 +93,7 @@ export function AppSidebar() {
                   {
                       title: 'Registro Web',
                       href: '/admin/Reg_web',
-                      icon: BarChart3,
+                      icon: QrCode,
                   },
                   {
                       title: 'Control Notarial',

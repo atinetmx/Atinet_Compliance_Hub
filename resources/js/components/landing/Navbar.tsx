@@ -61,14 +61,14 @@ const Navbar = ({ isAuthenticated, canRegister }: NavbarProps) => {
                         {isAuthenticated ? (
                             <Link
                                 href="/dashboard"
-                                className="px-6 py-2 text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                                className="px-6 py-2 text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
                             >
                                 Dashboard
                             </Link>
                         ) : (
                             <Link
                                 href={login()}
-                                className="px-6 py-2 text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                                className="px-6 py-2 text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
                             >
                                 Iniciar Sesión
                             </Link>
@@ -124,14 +124,14 @@ const Navbar = ({ isAuthenticated, canRegister }: NavbarProps) => {
                                 {isAuthenticated ? (
                                     <Link
                                         href="/dashboard"
-                                        className="px-6 py-3 text-center text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                                        className="px-6 py-3 text-center text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
                                     >
                                         Dashboard
                                     </Link>
                                 ) : (
                                     <Link
                                         href={login()}
-                                        className="px-6 py-3 text-center text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                                        className="px-6 py-3 text-center text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
                                     >
                                         Iniciar Sesión
                                     </Link>

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import Spline from '@splinetool/react-spline';
 import { login, register } from '@/routes';
 
 interface HeroProps {
@@ -10,7 +11,7 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
     return (
         <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
             {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900" />
+            <div className="absolute inset-0 bg-linear-to-br from-gray-900 via-black to-gray-900" />
 
             {/* Animated background pattern */}
             <div className="absolute inset-0 opacity-20">
@@ -27,7 +28,7 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
                         <div className="space-y-4">
                             <h1 className="text-4xl md:text-6xl xl:text-7xl font-bold text-white leading-tight">
                                 Atinet
-                                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                                <span className="block text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-cyan-400">
                                     Compliance Hub
                                 </span>
                             </h1>
@@ -45,14 +46,14 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
                             {isAuthenticated ? (
                                 <Link
                                     href="/dashboard"
-                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
+                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
                                 >
                                     Ir al Dashboard
                                 </Link>
                             ) : (
                                 <Link
                                     href={login()}
-                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
+                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
                                 >
                                     Iniciar Sesión
                                 </Link>
@@ -80,29 +81,21 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
                         </div>
                     </div>
 
-                    {/* RIGHT: Visual Element */}
+                    {/* RIGHT: 3D Visual Element */}
                     <div className="hidden xl:flex items-center justify-center">
-                        <div className="relative w-full h-[600px]">
-                            {/* Placeholder for dashboard screenshot or illustration */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded-2xl backdrop-blur-sm border border-gray-700 flex items-center justify-center">
-                                <div className="text-center space-y-4 p-8">
-                                    <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
-                                        <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white">
-                                        Sistema Seguro y Confiable
-                                    </h3>
-                                    <p className="text-gray-400">
-                                        Cumplimiento normativo garantizado
-                                    </p>
+                        <div className="relative w-full h-175">
+                            {/* Spline 3D Scene */}
+                            <div className="absolute inset-0 rounded-2xl overflow-hidden border border-gray-700/50">
+                                <div className="w-full h-full" style={{ transform: 'scale(0.75)', transformOrigin: 'center' }}>
+                                    <Spline
+                                        scene="https://prod.spline.design/KnXF8coogW5Xomx4/scene.splinecode"
+                                    />
                                 </div>
                             </div>
 
                             {/* Floating elements */}
-                            <div className="absolute -top-4 -right-4 w-32 h-32 bg-blue-500/30 rounded-full blur-3xl animate-pulse" />
-                            <div className="absolute -bottom-4 -left-4 w-40 h-40 bg-cyan-500/30 rounded-full blur-3xl animate-pulse delay-1000" />
+                            <div className="absolute -top-4 -right-4 w-32 h-32 bg-blue-500/30 rounded-full blur-3xl animate-pulse pointer-events-none" />
+                            <div className="absolute -bottom-4 -left-4 w-40 h-40 bg-cyan-500/30 rounded-full blur-3xl animate-pulse delay-1000 pointer-events-none" />
                         </div>
                     </div>
                 </div>
