@@ -321,9 +321,12 @@ export default function ExpedientesIndex() {
     // --- Estados para Documentos por Cliente (Expediente) ---
     const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
         expediente: string;
+        id_Cliente: number;
         cliente: string;
         documentos: Array<{
             id: number;
+            cliente_Id: number;
+            documento_Id: number;
             documento: string;
             fecha_Entrega: string | null;
             usuario_Recibe: string | null;
@@ -337,6 +340,8 @@ export default function ExpedientesIndex() {
     const [cargandoDocumentosExpediente, setCargandoDocumentosExpediente] = useState(false);
     const [clienteSeleccionadoDocumentos, setClienteSeleccionadoDocumentos] = useState<number | null>(null);
     const [documentosEditados, setDocumentosEditados] = useState<Record<number, {
+        cliente_Id: number;
+        documento_Id: number;
         fecha_Entrega: string | null;
         usuario_Recibe: string | null;
         fecha_Recepcion: string | null;
@@ -344,7 +349,7 @@ export default function ExpedientesIndex() {
         observaciones: string | null;
         copia: boolean;
         original: boolean;
-    }>>({});
+    }>>({})
 
     // --- Estados para Inmuebles (Documentos tab) ---
     const [selectedInmueble, setSelectedInmueble] = useState<number | null>(null);
@@ -552,7 +557,9 @@ export default function ExpedientesIndex() {
                 documentos: [
                     ...grupoCliente.documentos,
                     {
-                        id: Date.now() + Math.random(),
+                        id: Date.now() + Math.floor(Math.random() * 1000000),
+                        cliente_Id: grupoCliente.id_Cliente,
+                        documento_Id: documento.id,
                         documento: documento.descripcion,
                         fecha_Entrega: null,
                         usuario_Recibe: null,
@@ -577,9 +584,37 @@ export default function ExpedientesIndex() {
             return;
         }
 
+        // Calcular el nuevo estado con los documentos agregados
+        let nuevoEstadoDocumentos = documentosPorCliente.map(grupoCliente => ({
+            ...grupoCliente,
+            documentos: [...grupoCliente.documentos]
+        }));
+
+        // Agregar cada documento a todos los grupos de клиentes
         documentosAgregar.forEach(doc => {
-            handleAgregarDocumentoATodas(doc);
+            nuevoEstadoDocumentos = nuevoEstadoDocumentos.map(grupoCliente => ({
+                ...grupoCliente,
+                documentos: [
+                    ...grupoCliente.documentos,
+                    {
+                        id: Date.now() + Math.floor(Math.random() * 1000000),
+                        cliente_Id: grupoCliente.id_Cliente,
+                        documento_Id: doc.id,
+                        documento: doc.descripcion,
+                        fecha_Entrega: null,
+                        usuario_Recibe: null,
+                        fecha_Recepcion: null,
+                        usuario_Recepcion: null,
+                        observaciones: null,
+                        copia: false,
+                        original: false,
+                    }
+                ]
+            }));
         });
+
+        // Actualizar el state
+        setDocumentosPorCliente(nuevoEstadoDocumentos);
 
         // Limpiar selección y cerrar modal
         setDocumentosSeleccionados({});
@@ -587,10 +622,12 @@ export default function ExpedientesIndex() {
 
         // Si existe un expedienteId, actualizar en la API con los documentos ya agregados
         if (currentExpedienteId) {
-            // Esperar un poco para que el state se actualice
+            // Pasar el nuevo estado directamente como override
             setTimeout(async () => {
-                await handleActualizarDocumentosExpediente(currentExpedienteId);
-            }, 300);
+                await handleActualizarDocumentosExpediente(currentExpedienteId, nuevoEstadoDocumentos);
+                // Recargar los documentos desde la API para obtener los IDs correctos
+                await fetchDocumentosExpediente(currentExpedienteId);
+            }, 100);
         }
     };
 
@@ -604,7 +641,7 @@ export default function ExpedientesIndex() {
 
         // Actualizar el estado
         setDocumentosPorCliente(nuevosDocs);
-        addToast(`Documento "${nombreDocumento}" eliminado de todas las tablas`, 'success');
+        // addToast(`Documento "${nombreDocumento}" eliminado de todas las tablas`, 'success');
 
         // Si existe un expedienteId, actualizar en la API con los documentos ya filtrados
         if (currentExpedienteId) {
@@ -2808,12 +2845,14 @@ export default function ExpedientesIndex() {
                                                                             <th className="px-2 py-2 text-center">Fecha Recepción</th>
                                                                             <th className="px-2 py-2 text-center">Usuario Recepción</th>
                                                                             <th className="px-3 py-2 text-left">Observaciones</th>
-                                                                            <th className="px-2 py-2 text-center">Acciones</th>
+                                                                            <th className="px-2 py-2 text-center"></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody>
                                                                         {grupoCliente.documentos.map((doc, docIdx) => {
                                                                             const docEditado = documentosEditados[doc.id] || {
+                                                                                cliente_Id: doc.cliente_Id,
+                                                                                documento_Id: doc.documento_Id,
                                                                                 fecha_Entrega: doc.fecha_Entrega,
                                                                                 usuario_Recibe: doc.usuario_Recibe,
                                                                                 fecha_Recepcion: doc.fecha_Recepcion,
