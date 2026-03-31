@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Activitylog\Models\Activity;
 
 class AgendaController extends Controller
 {
@@ -75,7 +76,7 @@ class AgendaController extends Controller
     }
 
     /**
-     * Bitácora de actividad desde la BD legacy (atinet65_aplicativos.log).
+     * Bitácora de actividad desde la BD legacy y nueva tabla activity_log.
      */
     public function log(Request $request): JsonResponse
     {
@@ -90,6 +91,42 @@ class AgendaController extends Controller
 
         $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
 
+        // === 1. ACTIVIDADES DE LA NUEVA TABLA (activity_log) ===
+        $newActivities = Activity::query()
+            ->where('log_name', 'agenda')
+            ->whereDate('created_at', $fecha)
+            ->orderBy('created_at', 'desc');
+
+        // Filtrar por notaría (incluyendo eventos eliminados)
+        if ($user->notaria_id) {
+            // Filtrar por notaría usando una subconsulta más flexible
+            $newActivities->where(function ($query) use ($user) {
+                // Eventos que aún existen y pertenecen a la notaría
+                $query->whereHasMorph('subject', [AgendaEvent::class], function ($q) use ($user) {
+                    $q->where('notaria_id', $user->notaria_id);
+                })
+                // O eventos que fueron eliminados pero el log contiene la notaria_id en properties
+                    ->orWhereRaw("JSON_EXTRACT(properties, '$.attributes.notaria_id') = ?", [$user->notaria_id])
+                    ->orWhereRaw("JSON_EXTRACT(properties, '$.old.notaria_id') = ?", [$user->notaria_id]);
+            });
+        } elseif ($user->tipo_cuenta === 'super_admin') {
+            // Super admin sin notaría: ve TODOS los logs de agenda
+            // No aplicar filtro adicional - ya está filtrado por log_name='agenda'
+        }
+
+        // Filtrar por usuario si no es admin
+        if (! $esAdmin) {
+            $newActivities->where('causer_id', $user->id);
+        }
+
+        $newLogs = $newActivities->get()->map(fn ($activity) => [
+            'fecha' => $activity->created_at->format('Y-m-d'),
+            'hora' => $activity->created_at->format('H:i'),
+            'mail' => $activity->causer?->name ?? 'Sistema',
+            'accion' => $activity->description,
+        ])->values()->all(); // Convertir a array plano
+
+        // === 2. ACTIVIDADES LEGACY (atinet65_aplicativos.log) ===
         // Super admins sin notaría asignada se mapean a 'atinet' legacy
         if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
             $legacySlug = 'atinet';
@@ -98,25 +135,36 @@ class AgendaController extends Controller
             $legacySlug = DB::table('notarias')
                 ->where('id', $user->notaria_id)
                 ->value('legacy_identifier');
+        }
 
-            if (! $legacySlug) {
-                return response()->json([]);
+        $legacyLogs = [];
+        if ($legacySlug) {
+            $query = DB::connection('aplicativos')
+                ->table('log')
+                ->where('notaria', $legacySlug)
+                ->where('fecha', $fecha)
+                ->orderBy('hora', 'desc');
+
+            if (! $esAdmin) {
+                $query->where('mail', $user->name);
             }
+
+            // Convertir datos legacy a mismo formato que activity_log
+            $legacyLogs = $query->limit($limit)->get()->map(fn ($log) => [
+                'fecha' => $log->fecha,
+                'hora' => $log->hora,
+                'mail' => $log->mail,
+                'accion' => $log->accion,
+            ])->all();
         }
 
-        $query = DB::connection('aplicativos')
-            ->table('log')
-            ->where('notaria', $legacySlug)
-            ->where('fecha', $fecha)
-            ->orderBy('hora');
+        // === 3. COMBINAR Y ORDENAR POR HORA (DESC) ===
+        $combinedLogs = collect(array_merge($newLogs, $legacyLogs))
+            ->sortByDesc('hora')
+            ->take($limit)
+            ->values();
 
-        if (! $esAdmin) {
-            $query->where('mail', $user->name);
-        }
-
-        return response()->json(
-            $query->limit($limit)->get()
-        );
+        return response()->json($combinedLogs);
     }
 
     public function store(Request $request): JsonResponse
@@ -193,4 +241,3 @@ class AgendaController extends Controller
         );
     }
 }
-

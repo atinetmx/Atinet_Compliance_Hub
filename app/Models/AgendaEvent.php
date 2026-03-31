@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class AgendaEvent extends Model
 {
+    use LogsActivity;
+
     protected $table = 'agenda_events';
 
     protected $fillable = [
@@ -28,9 +32,9 @@ class AgendaEvent extends Model
     {
         return [
             'start_fecha' => 'datetime',
-            'end_fecha'   => 'datetime',
-            'rrule'       => 'array',
-            'all_day'     => 'boolean',
+            'end_fecha' => 'datetime',
+            'rrule' => 'array',
+            'all_day' => 'boolean',
         ];
     }
 
@@ -45,6 +49,24 @@ class AgendaEvent extends Model
     }
 
     /**
+     * Configuración para el registro de actividad
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['titulo', 'start_fecha', 'end_fecha', 'comentarios', 'tipo', 'color', 'all_day'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('agenda')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => "Creó evento de agenda: {$this->titulo}",
+                'updated' => "Actualizó evento de agenda: {$this->titulo}",
+                'deleted' => "Eliminó evento de agenda: {$this->titulo}",
+                default => "Modificó evento de agenda: {$this->titulo}",
+            });
+    }
+
+    /**
      * Scope: eventos visibles para el usuario
      *
      * LÓGICA:
@@ -54,7 +76,7 @@ class AgendaEvent extends Model
      * - Super admin con vista "todos": todos los eventos de atinet
      * - Super admin con vista "propio": solo sus eventos + eventos legacy
      *
-     * @param string $vista 'propio' o 'todos' (default: 'todos')
+     * @param  string  $vista  'propio' o 'todos' (default: 'todos')
      */
     public function scopeVisiblePara($query, User $user, string $vista = 'todos'): void
     {
@@ -65,19 +87,20 @@ class AgendaEvent extends Model
                 $q->where('user_id', $user->id)
 
                 // Eventos legacy compartidos (user_id IS NULL)
-                ->orWhere(function ($q2) use ($user) {
-                    $q2->whereNull('user_id');
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->whereNull('user_id');
 
-                    // Super admin: eventos legacy de 'atinet'
-                    if ($user->tipo_cuenta === 'super_admin' && !$user->notaria_id) {
-                        $q2->where('legacy_notaria', 'atinet');
-                    }
-                    // Usuarios de notaría: eventos legacy de su notaría
-                    elseif ($user->notaria_id) {
-                        $q2->where('notaria_id', $user->notaria_id);
-                    }
-                });
+                        // Super admin: eventos legacy de 'atinet'
+                        if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
+                            $q2->where('legacy_notaria', 'atinet');
+                        }
+                        // Usuarios de notaría: eventos legacy de su notaría
+                        elseif ($user->notaria_id) {
+                            $q2->where('notaria_id', $user->notaria_id);
+                        }
+                    });
             });
+
             return;
         }
 
@@ -87,18 +110,18 @@ class AgendaEvent extends Model
             $q->where('user_id', $user->id)
 
             // Eventos legacy compartidos (user_id IS NULL)
-            ->orWhere(function ($q2) use ($user) {
-                $q2->whereNull('user_id');
+                ->orWhere(function ($q2) use ($user) {
+                    $q2->whereNull('user_id');
 
-                // Super admin: eventos legacy de 'atinet'
-                if ($user->tipo_cuenta === 'super_admin' && !$user->notaria_id) {
-                    $q2->where('legacy_notaria', 'atinet');
-                }
-                // Usuarios de notaría: eventos legacy de su notaría
-                elseif ($user->notaria_id) {
-                    $q2->where('notaria_id', $user->notaria_id);
-                }
-            });
+                    // Super admin: eventos legacy de 'atinet'
+                    if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
+                        $q2->where('legacy_notaria', 'atinet');
+                    }
+                    // Usuarios de notaría: eventos legacy de su notaría
+                    elseif ($user->notaria_id) {
+                        $q2->where('notaria_id', $user->notaria_id);
+                    }
+                });
 
             // Admin de notaría: también ve eventos de otros usuarios de su notaría
             if ($user->tipo_cuenta === 'admin_notaria' && $user->notaria_id) {
@@ -110,7 +133,7 @@ class AgendaEvent extends Model
             }
 
             // Super admin: también ve eventos de otros super admins
-            if ($user->tipo_cuenta === 'super_admin' && !$user->notaria_id) {
+            if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
                 $q->orWhere(function ($q3) use ($user) {
                     $q3->whereNotNull('user_id')
                         ->where('user_id', '!=', $user->id)
@@ -134,26 +157,26 @@ class AgendaEvent extends Model
     public function toFullCalendar(): array
     {
         $data = [
-            'id'            => $this->id,
-            'title'         => $this->titulo,
-            'color'         => $this->color,
-            'allDay'        => $this->all_day,
+            'id' => $this->id,
+            'title' => $this->titulo,
+            'color' => $this->color,
+            'allDay' => $this->all_day,
             'extendedProps' => [
                 'comentarios' => $this->comentarios,
-                'tipo'        => $this->tipo,
-                'user_id'     => $this->user_id,
+                'tipo' => $this->tipo,
+                'user_id' => $this->user_id,
             ],
         ];
 
         // Evento recurrente: rrule + duration en lugar de start/end fijos
         if ($this->rrule) {
-            $data['rrule']    = array_merge($this->rrule, [
+            $data['rrule'] = array_merge($this->rrule, [
                 'dtstart' => $this->start_fecha?->toIso8601String(),
             ]);
             $data['duration'] = $this->duration;
         } else {
             $data['start'] = $this->start_fecha?->toIso8601String();
-            $data['end']   = $this->end_fecha?->toIso8601String();
+            $data['end'] = $this->end_fecha?->toIso8601String();
         }
 
         return $data;

@@ -61,6 +61,17 @@ Este documento sirve como índice central de toda la documentación del proyecto
   - ✅ 4 tipos de eventos (General, Cita, Recordatorio, Festivo)
   - ✅ Integración con React/TypeScript + Inertia.js v2
 
+#### Activity Logging System 📋 Completado (Marzo 2026)
+- [`ACTIVITY_LOGGING_IMPLEMENTACION.md`](docs/ACTIVITY_LOGGING_IMPLEMENTACION.md) - **Sistema de registro de actividades**
+  - ✅ Spatie Laravel Activity Log v4.12.3 instalado y configurado
+  - ✅ 5 modelos con logging automático (Agenda, Búsquedas, Suscripciones, Usuarios, Notarías)
+  - ✅ Bitácora mejorada que combina activity_log + datos legacy
+  - ✅ Seguimiento de operaciones create, update, delete con properties JSON
+  - ✅ Filtros inteligentes por notaría y usuario
+  - ✅ Causer automático en peticiones HTTP
+  - ✅ Visualización en pestaña Bitácora del módulo Agenda
+  - ✅ Issues resueltos: Error 500 (Collection merge) + whereHasMorph filter
+
 ### 📘 Documentos de Referencia Rápida
 
 | Documento | Descripción | Ubicación |
@@ -115,6 +126,23 @@ Este documento sirve como índice central de toda la documentación del proyecto
 - ✅ Modal read-only para eventos legacy compartidos
 - ✅ Sistema de permisos multi-nivel (Super Admin, Admin Notaría, Usuario)
 - ✅ Integración con sistema legacy para bitácora de actividades
+
+### Sistema de Activity Logging (Auditoría)
+- ✅ **Spatie Activity Log v4.12.3** instalado y configurado
+- ✅ **5 modelos con logging automático:**
+  - AgendaEvent (log_name: 'agenda')
+  - Busqueda (log_name: 'listas_negras')
+  - Subscription (log_name: 'suscripciones')
+  - User (log_name: 'usuarios')
+  - Notaria (log_name: 'notarias')
+- ✅ **Tabla activity_log:** Estructura completa con subject/causer polymorphic
+- ✅ **Properties JSON:** Before/after data en cada operación
+- ✅ **Bitácora mejorada:** Combina logs nuevos + legacy (atinet65_aplicativos.log)
+- ✅ **Filtros inteligentes:** Por notaría, usuario, fecha
+- ✅ **Causer automático:** Detecta usuario autenticado en peticiones HTTP
+- ✅ **Eventos tracked:** created, updated, deleted con descripciones personalizadas
+- ✅ **Visualización:** Pestaña Bitácora en módulo Agenda
+- ✅ **Issues resueltos:** Error 500 + filtro whereHasMorph para eventos eliminados
 - ✅ CRUD de servicios con categorías
 - ✅ CRUD de planes con auto-sincronización
 - ✅ Asignación de servicios a planes
