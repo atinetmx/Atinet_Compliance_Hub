@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign,Eye } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 // Opciones de ejemplo para los dropdowns
 const TIPO_FACTURA_OPCIONES = [
@@ -351,16 +351,90 @@ export default function ExpedientesIndex() {
         original: boolean;
     }>>({})
 
+    // --- Estados para Inmuebles del Expediente ---
+    const [inmueblesExpediente, setInmueblesExpediente] = useState<Array<{
+        numero_Inmueble: number;
+        descripcion: string;
+        clave_Catastral: string;
+    }>>([]);
+    const [cargandoInmueblesExpediente, setCargandoInmueblesExpediente] = useState(false);
+
     // --- Estados para Inmuebles (Documentos tab) ---
     const [selectedInmueble, setSelectedInmueble] = useState<number | null>(null);
+    const [mostrarFormInmueble, setMostrarFormInmueble] = useState(false);
+    const [cargandoGuardarInmueble, setCargandoGuardarInmueble] = useState(false);
     const [formInmueble, setFormInmueble] = useState({
+        // Datos del Inmueble
         tipoFactura: '',
         tipoVulnerable: '',
         tipoDeclaranot: '',
         medidas: '',
         antecedentes: '',
         descripcion: '',
+        // Especificaciones
+        claveCatastral: '',
+        valorAvaluo: '',
+        valorCatastral: '',
+        valorOperacion: '',
+        superficieTerreno: '',
+        superficieConstruida: '',
+        ctaAgua: '',
+        ctaPredial: '',
+        // Domicilio
+        calle: '',
+        numeroExt: '',
+        numeroInt: '',
+        manzana: '',
+        lote: '',
+        pais: '',
+        estado: '',
+        municipio: '',
+        colonia: '',
+        cp: '',
+        // Antecedentes
+        inscripcion: '',
+        folioReal: '',
+        folioInicial: '',
+        folioFinal: '',
+        folioElectronico: '',
+        partida: '',
+        volumen: '',
+        seccion: '',
+        fechaRegistro: '',
+        fechaEscritura: '',
+        // Pagos Inmueble
+        montoTotal: '',
+        formaPago: '',
+        fechaPago: '',
+        referenciaPago: '',
+        observacionesPago: '',
     });
+
+    // Estado para controlar si está editando
+    const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState(null);
+    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState(null);
+
+    // --- Estados para Antecedentes (Checkboxes) ---
+    const [checkboxesAntecedentes, setCheckboxesAntecedentes] = useState({
+        fechaRegistro: false,
+        fechaEscritura: false,
+    });
+    const [fechasAntecedentes, setFechasAntecedentes] = useState({
+        fechaRegistro: '',
+        fechaEscritura: '',
+    });
+
+    // --- Estados para Tipos de Inmuebles (API) ---
+    const [tiposInmuebles, setTiposInmuebles] = useState<Array<{
+        id: number;
+        descripcion: string;
+        categoria: string;
+        activo: boolean;
+    }>>([]);
+    const [cargandoTiposInmuebles, setCargandoTiposInmuebles] = useState(false);
+    const [tiposFactura, setTiposFactura] = useState<Array<{ id: number; descripcion: string }>>([]);
+    const [tiposInmuebleFiltrados, setTiposInmuebleFiltrados] = useState<Array<{ id: number; descripcion: string }>>([]);
+    const [tiposDeclaranot, setTiposDeclaranot] = useState<Array<{ id: number; descripcion: string }>>([]);
 
     // --- Estados para Documentos Disponibles ---
     const [documentosDisponibles, setDocumentosDisponibles] = useState<Documento[]>([]);
@@ -388,6 +462,7 @@ export default function ExpedientesIndex() {
         fetchDependencias();
         fetchClientes();
         fetchComparecientes();
+        fetchTiposInmuebles();
 
         // Cleanup de timers al desmontar
         return () => {
@@ -517,6 +592,248 @@ export default function ExpedientesIndex() {
         } catch (error) {
             console.error('Error cargando comparecientes:', error);
             addToast('No se pudieron cargar los comparecientes', 'error');
+        }
+    };
+
+    // Cargar Tipos de Inmuebles desde API
+    const fetchTiposInmuebles = async () => {
+        setCargandoTiposInmuebles(true);
+        try {
+            const response = await fetch('https://localhost:44327/api/Catalogos/GetTipoInmueble', {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setTiposInmuebles(data.dataResponse);
+
+                // Filtrar por categoría
+                const factura = data.dataResponse.filter((item: any) => item.categoria === 'FACTURA');
+                const inmueble = data.dataResponse.filter((item: any) => item.categoria === 'INMUEBLE');
+                const declaranot = data.dataResponse.filter((item: any) => item.categoria === 'DECLARANOT');
+
+                setTiposFactura(factura.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
+                setTiposInmuebleFiltrados(inmueble.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
+                setTiposDeclaranot(declaranot.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
+
+                console.log('Tipos de Inmuebles cargados:', { factura, inmueble, declaranot });
+            }
+        } catch (error) {
+            console.error('Error cargando tipos de inmuebles:', error);
+            addToast('No se pudieron cargar los tipos de inmuebles', 'error');
+        } finally {
+            setCargandoTiposInmuebles(false);
+        }
+    };
+
+    // Editar Inmueble - Obtener datos y llenar formulario
+    const handleEditarInmueble = async (inmuebleId) => {
+        setCargandoGuardarInmueble(true);
+        try {
+            const response = await fetch(`https://localhost:44327/api/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse && data.dataResponse.length > 0) {
+                const inmueblesData = data.dataResponse[0];
+                const datosData = inmueblesData.datos || {};
+                const especificacionesData = inmueblesData.especificaciones || {};
+                const domicilioData = inmueblesData.domicilio || {};
+                const antecedentesData = inmueblesData.antecedentes || {};
+
+                // Llenar el formulario con los datos obtenidos
+                setFormInmueble({
+                    // Datos del Inmueble
+                    tipoFactura: datosData.tipo_Factura_Id?.toString() || '',
+                    tipoVulnerable: datosData.tipo_Inmueble_Id?.toString() || '',
+                    tipoDeclaranot: datosData.tipo_Inmueble_DeclaraNot_Id?.toString() || '',
+                    medidas: datosData.medidas_Colindancias || '',
+                    antecedentes: datosData.antecedentes || '',
+                    descripcion: datosData.descripcion || '',
+                    // Especificaciones
+                    claveCatastral: especificacionesData.clave_Catastral || '',
+                    valorAvaluo: especificacionesData.valor_Avaluo?.toString() || '',
+                    valorCatastral: especificacionesData.valor_Catastral?.toString() || '',
+                    valorOperacion: especificacionesData.valor_Operacion?.toString() || '',
+                    superficieTerreno: especificacionesData.superficie_Terreno?.toString() || '',
+                    superficieConstruida: especificacionesData.superficie_Construccion?.toString() || '',
+                    ctaAgua: especificacionesData.cuenta_Agua?.toString() || '',
+                    ctaPredial: especificacionesData.cuenta_Predial?.toString() || '',
+                    // Domicilio
+                    calle: domicilioData.calle || '',
+                    numeroExt: domicilioData.numero_Exterior || '',
+                    numeroInt: domicilioData.numero_Interior || '',
+                    manzana: domicilioData.manzana || '',
+                    lote: domicilioData.lote || '',
+                    pais: domicilioData.pais || '',
+                    estado: domicilioData.estado || '',
+                    municipio: domicilioData.municipio || '',
+                    colonia: domicilioData.colonia || '',
+                    cp: domicilioData.codigo_Postal || '',
+                    // Antecedentes
+                    inscripcion: antecedentesData.inscripcion || '',
+                    folioReal: antecedentesData.folio_Real || '',
+                    folioInicial: antecedentesData.folio_Inicial?.toString() || '',
+                    folioFinal: antecedentesData.folio_Final?.toString() || '',
+                    folioElectronico: antecedentesData.folio_Electronico?.toString() || '',
+                    partida: antecedentesData.partida?.toString() || '',
+                    volumen: antecedentesData.volumen?.toString() || '',
+                    seccion: antecedentesData.seccion?.toString() || '',
+                    fechaRegistro: antecedentesData.fecha_Registro ? antecedentesData.fecha_Registro.split('T')[0] : '',
+                    fechaEscritura: '',
+                    // Pagos Inmueble
+                    montoTotal: '',
+                    formaPago: '',
+                    fechaPago: '',
+                    referenciaPago: '',
+                    observacionesPago: '',
+                });
+
+                // Guardar el ID del inmueble en edición
+                setInmuebleEnEdicion(inmueblesData.inmueble?.numero_Inmueble || inmuebleId);
+                setInmuebleIdEnEdicion(inmuebleId);
+
+                // Mostrar el formulario
+                setMostrarFormInmueble(true);
+                addToast('Inmueble cargado para editar', 'success');
+            } else {
+                addToast('No se pudieron cargar los datos del inmueble', 'error');
+            }
+        } catch (error) {
+            console.error('Error cargando inmueble:', error);
+            addToast('Error al cargar los datos del inmueble', 'error');
+        } finally {
+            setCargandoGuardarInmueble(false);
+        }
+    };
+
+    // Guardar Inmueble
+    const handleGuardarInmueble = async () => {
+        if (!currentExpedienteId) {
+            addToast('No hay expediente seleccionado', 'error');
+            return;
+        }
+
+        setCargandoGuardarInmueble(true);
+        try {
+            // Payload común para crear y actualizar
+            const payload = {
+                tipo_Factura_Id: parseInt(formInmueble.tipoFactura) || 0,
+                tipo_Inmueble_Id: parseInt(formInmueble.tipoVulnerable) || 0,
+                tipo_Inmueble_DeclaraNot_Id: parseInt(formInmueble.tipoDeclaranot) || 0,
+                medidas_Colindancias: formInmueble.medidas,
+                antecedentes: formInmueble.antecedentes,
+                descripcion: formInmueble.descripcion,
+                calle: formInmueble.calle,
+                numero_Exterior: formInmueble.numeroExt,
+                numero_Interior: formInmueble.numeroInt,
+                manzana: formInmueble.manzana,
+                lote: formInmueble.lote,
+                colonia: formInmueble.colonia,
+                municipio: formInmueble.municipio,
+                codigo_Postal: formInmueble.cp,
+                estado: formInmueble.estado,
+                pais: formInmueble.pais,
+                valor_Avaluo: parseFloat(formInmueble.valorAvaluo) || 0,
+                valor_Operacion: parseFloat(formInmueble.valorOperacion) || 0,
+                valor_Catastral: parseFloat(formInmueble.valorCatastral) || 0,
+                clave_Catastral: formInmueble.claveCatastral,
+                superficie_Terreno: parseFloat(formInmueble.superficieTerreno) || 0,
+                superficie_Construccion: parseFloat(formInmueble.superficieConstruida) || 0,
+                cuenta_Agua: parseFloat(formInmueble.ctaAgua) || 0,
+                cuenta_Predial: parseFloat(formInmueble.ctaPredial) || 0,
+                fecha_Registro: formInmueble.fechaRegistro ? new Date(formInmueble.fechaRegistro).toISOString() : new Date().toISOString(),
+                folio_Real: formInmueble.folioReal,
+                inscripcion: formInmueble.inscripcion,
+                folio_Inicial: parseInt(formInmueble.folioInicial) || 0,
+                folio_Final: parseInt(formInmueble.folioFinal) || 0,
+                folio_Electronico: parseInt(formInmueble.folioElectronico) || 0,
+                partida: parseInt(formInmueble.partida) || 0,
+                volumen: parseInt(formInmueble.volumen) || 0,
+                seccion: parseInt(formInmueble.seccion) || 0,
+            };
+
+            // Determinar si es creación o actualización
+            const isEditing = inmuebleIdEnEdicion !== null;
+            const endpoint = isEditing
+                ? `https://localhost:44327/api/Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
+                : 'https://localhost:44327/api/Expediente/CreateInmuebleExpediente';
+            const httpMethod = isEditing ? 'PUT' : 'POST';
+
+            // Agregar expediente_Id solo para crear
+            if (!isEditing) {
+                payload.expediente_Id = currentExpedienteId;
+            }
+
+            const response = await fetch(endpoint, {
+                method: httpMethod,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
+                setMostrarFormInmueble(false);
+                // Limpiar formulario
+                setFormInmueble({
+                    tipoFactura: '',
+                    tipoVulnerable: '',
+                    tipoDeclaranot: '',
+                    medidas: '',
+                    antecedentes: '',
+                    descripcion: '',
+                    claveCatastral: '',
+                    valorAvaluo: '',
+                    valorCatastral: '',
+                    valorOperacion: '',
+                    superficieTerreno: '',
+                    superficieConstruida: '',
+                    ctaAgua: '',
+                    ctaPredial: '',
+                    calle: '',
+                    numeroExt: '',
+                    numeroInt: '',
+                    manzana: '',
+                    lote: '',
+                    pais: '',
+                    estado: '',
+                    municipio: '',
+                    colonia: '',
+                    cp: '',
+                    inscripcion: '',
+                    folioReal: '',
+                    folioInicial: '',
+                    folioFinal: '',
+                    folioElectronico: '',
+                    partida: '',
+                    volumen: '',
+                    seccion: '',
+                    fechaRegistro: '',
+                    fechaEscritura: '',
+                    montoTotal: '',
+                    formaPago: '',
+                    fechaPago: '',
+                    referenciaPago: '',
+                    observacionesPago: '',
+                });
+                // Limpiar estado de edición
+                setInmuebleEnEdicion(null);
+                setInmuebleIdEnEdicion(null);
+                // Recargar inmuebles
+                await fetchInmueblesExpediente(currentExpedienteId);
+            } else {
+                addToast(data.message || 'Error al guardar el inmueble', 'error');
+            }
+        } catch (error) {
+            console.error('Error guardando inmueble:', error);
+            addToast('No se pudo guardar el inmueble', 'error');
+        } finally {
+            setCargandoGuardarInmueble(false);
         }
     };
 
@@ -1050,6 +1367,28 @@ export default function ExpedientesIndex() {
         }
     };
 
+    const fetchInmueblesExpediente = async (expedienteId: number) => {
+        setCargandoInmueblesExpediente(true);
+        try {
+            const response = await fetch(`https://localhost:44327/api/Expediente/GetInmueblesXExpedienteById?expedienteId=${expedienteId}`, {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setInmueblesExpediente(data.dataResponse);
+            } else {
+                console.error('Error al cargar inmuebles:', data.message);
+                setInmueblesExpediente([]);
+            }
+        } catch (error) {
+            console.error('Error cargando inmuebles:', error);
+            setInmueblesExpediente([]);
+        } finally {
+            setCargandoInmueblesExpediente(false);
+        }
+    };
+
     const fetchExpedientes = async (filtroValue: string) => {
         setIsSearching(true);
         setSearchError(null);
@@ -1268,8 +1607,9 @@ export default function ExpedientesIndex() {
             setActiveTab('formulario');
             setSaveError(null);
 
-            // Cargar documentos del expediente
+            // Cargar documentos e inmuebles del expediente
             await fetchDocumentosExpediente(expedienteId);
+            await fetchInmueblesExpediente(expedienteId);
         } catch (error) {
             setSaveError('Error al cargar el expediente');
             console.error('Error:', error);
@@ -1738,7 +2078,6 @@ export default function ExpedientesIndex() {
                                 <span>{searchError}</span>
                             </div>
                         )}
-
                         <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
                             <Table>
                                 <TableHeader>
@@ -1804,16 +2143,16 @@ export default function ExpedientesIndex() {
 
                             {/* TABS INTERNOS: 4 CATEGORÍAS TEMÁTICAS */}
                             <Tabs defaultValue="info-general" className="w-full">
-                                <TabsList className="grid w-full grid-cols-4 gap-2 bg-transparent mb-4 p-0">
+                                <TabsList className="grid w-full grid-cols-5 gap-2 bg-transparent mb-4 p-0">
                                     {/* GRUPO 1: INFORMACIÓN GENERAL */}
                                     <TabsTrigger value="info-general" className="gap-1 data-[state=active]:shadow-neutral-800">
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Info General</span>
                                     </TabsTrigger>
 
-                                    {/* GRUPO 2: DOCUMENTOS & INMUEBLES */}
+                                    {/* GRUPO 2: DOCUMENTOS */}
                                     <TabsTrigger
-                                        value="docs-inmuebles"
+                                        value="documentos"
                                         className="gap-1 data-[state=active]:shadow-neutral-800"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
@@ -1822,7 +2161,18 @@ export default function ExpedientesIndex() {
                                         <span className="hidden sm:inline">Documentos</span>
                                     </TabsTrigger>
 
-                                    {/* GRUPO 3: FINANCIERO & CONTROL */}
+                                    {/* GRUPO 3: INMUEBLES */}
+                                    <TabsTrigger
+                                        value="inmuebles"
+                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        disabled={!isEditing}
+                                        title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
+                                    >
+                                        <Building className="h-4 w-4" />
+                                        <span className="hidden sm:inline">Inmuebles</span>
+                                    </TabsTrigger>
+
+                                    {/* GRUPO 4: FINANCIERO & CONTROL */}
                                     <TabsTrigger
                                         value="financiero-control"
                                         className="gap-1 data-[state=active]:shadow-neutral-800"
@@ -1833,7 +2183,7 @@ export default function ExpedientesIndex() {
                                         <span className="hidden sm:inline">Financiero</span>
                                     </TabsTrigger>
 
-                                    {/* GRUPO 4: PROCESO & TRÁMITES */}
+                                    {/* GRUPO 5: PROCESO & TRÁMITES */}
                                     <TabsTrigger
                                         value="proceso-tramites"
                                         className="gap-1 data-[state=active]:shadow-neutral-800"
@@ -2784,18 +3134,11 @@ export default function ExpedientesIndex() {
                                 </TabsContent>
 
 
-                                {/* GRUPO 2: DOCUMENTOS & INMUEBLES - Solo disponible al editar */}
+                                {/* GRUPO 2: DOCUMENTOS - Solo disponible al editar */}
                                 {isEditing && (
-                                <TabsContent value="docs-inmuebles" className="space-y-6">
+                                <TabsContent value="documentos" className="space-y-6">
                                     <Tabs defaultValue="recibo-documentos" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 mb-3">
-                                            <TabsTrigger value="recibo-documentos" className="text-xs sm:text-sm">Recibo Documentos</TabsTrigger>
-                                            <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles</TabsTrigger>
-                                            <TabsTrigger value="presupuesto" className="text-xs sm:text-sm">Presupuesto</TabsTrigger>
-                                        </TabsList>
 
-                                        {/* SubTab: Recibo de Documentos */}
-                                        <TabsContent value="recibo-documentos" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h3 className="font-semibold text-blue-900 dark:text-blue-100">Documentos del Expediente</h3>
@@ -3049,153 +3392,685 @@ export default function ExpedientesIndex() {
                                                     )}
                                                 </div>
                                             )}
-                                        </TabsContent>
 
-                                        {/* SubTab: Inmuebles */}
-                                        <TabsContent value="inmuebles" className="space-y-4">
-                                            <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">Gestión de Inmuebles</h3>
-                                                <Button size="sm" className="bg-purple-600 hover:bg-purple-700">+ Agregar Inmueble</Button>
-                                            </div>
-                                            {/* Tabla de resultados de inmuebles con selección */}
-                                            {(() => {
-                                                // Estado local para demo, reemplaza por tu estado real
-                                                const inmueblesDemo = [
-                                                    { numero: 1, tipo: 'Casa', catastral: '123-ABC' },
-                                                    { numero: 2, tipo: 'Departamento', catastral: '456-DEF' },
-                                                ];
-                                                return <>
-                                                    <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-                                                        <div className="overflow-x-auto overflow-y-auto flex-1">
-                                                            <table className="w-full text-sm">
-                                                                <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
-                                                                    <tr>
-                                                                        <th className="px-3 py-2 text-left">#</th>
-                                                                        <th className="px-3 py-2 text-left">Tipo de Inmueble</th>
-                                                                        <th className="px-3 py-2 text-left">Clave Catastral</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {inmueblesDemo.map((inmueble, idx) => (
-                                                                        <tr
-                                                                            key={idx}
-                                                                            className={`border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer ${selectedInmueble === idx ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
-                                                                            onClick={() => setSelectedInmueble(idx)}
-                                                                        >
-                                                                            <td className="px-3 py-2">{inmueble.numero}</td>
-                                                                            <td className="px-3 py-2">{inmueble.tipo}</td>
-                                                                            <td className="px-3 py-2">{inmueble.catastral}</td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                    {/* Formulario de datos del inmueble seleccionado */}
-                                                    {selectedInmueble !== null && (
-                                                        <div className="border rounded-lg bg-background/50 p-6 mt-4">
-                                                            <h4 className="font-semibold mb-4 text-blue-900 dark:text-blue-100">Datos del Inmueble</h4>
-                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                                                <div className="space-y-2">
-                                                                    <label className="text-sm font-medium">Tipo (Factura/Complemento)</label>
-                                                                    <select
-                                                                        className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                        value={formInmueble.tipoFactura}
-                                                                        onChange={e => setFormInmueble(f => ({ ...f, tipoFactura: e.target.value }))}
-                                                                    >
-                                                                        <option value="">Selecciona</option>
-                                                                        {TIPO_FACTURA_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                                                    </select>
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <label className="text-sm font-medium">Tipo (Vulnerables)</label>
-                                                                    <select
-                                                                        className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                        value={formInmueble.tipoVulnerable}
-                                                                        onChange={e => setFormInmueble(f => ({ ...f, tipoVulnerable: e.target.value }))}
-                                                                    >
-                                                                        <option value="">Selecciona</option>
-                                                                        {TIPO_VULNERABLES_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                                                    </select>
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <label className="text-sm font-medium">Tipo Inmueble (Declaranot)</label>
-                                                                    <select
-                                                                        className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                        value={formInmueble.tipoDeclaranot}
-                                                                        onChange={e => setFormInmueble(f => ({ ...f, tipoDeclaranot: e.target.value }))}
-                                                                    >
-                                                                        <option value="">Selecciona</option>
-                                                                        {TIPO_DECLARANOT_OPCIONES.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                                                    </select>
-                                                                </div>
-                                                            </div>
-                                                            <div className="mb-6">
-                                                                <label className="text-sm font-medium block mb-2">Medidas y colindancias</label>
-                                                                <textarea
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[70px]"
-                                                                    value={formInmueble.medidas}
-                                                                    onChange={e => setFormInmueble(f => ({ ...f, medidas: e.target.value }))}
-                                                                    placeholder="Medidas y colindancias"
-                                                                />
-                                                            </div>
-                                                            <div className="mb-6">
-                                                                <label className="text-sm font-medium block mb-2">Antecedentes</label>
-                                                                <input
-                                                                    type="text"
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                    value={formInmueble.antecedentes}
-                                                                    onChange={e => setFormInmueble(f => ({ ...f, antecedentes: e.target.value }))}
-                                                                    placeholder="Antecedentes"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-2">Descripción del inmueble</label>
-                                                                <input
-                                                                    type="text"
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                    value={formInmueble.descripcion}
-                                                                    onChange={e => setFormInmueble(f => ({ ...f, descripcion: e.target.value }))}
-                                                                    placeholder="Descripción del inmueble"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </>;
-                                            })()}
-                                        </TabsContent>
 
-                                        {/* SubTab: Presupuesto */}
-                                        <TabsContent value="presupuesto" className="space-y-4">
-                                            <div className="bg-indigo-50 dark:bg-indigo-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-indigo-900 dark:text-indigo-100 mb-2">Presupuesto de la Operación</h3>
+                                    </Tabs>
+                                </TabsContent>
+                                )}
+
+                                {/* GRUPO 3: INMUEBLES - Solo disponible al editar */}
+                                {isEditing && (
+                                <TabsContent value="inmuebles" className="space-y-6">
+                                    <Tabs defaultValue="datos-inmueble" className="w-full">
+                                        {/* <TabsList className="grid w-full grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                            <TabsTrigger value="datos-inmueble" className="text-sm">Datos del Inmueble</TabsTrigger>
+                                            <TabsTrigger value="especificaciones" className="text-sm">Especificaciones</TabsTrigger>
+                                        </TabsList> */}
+
+                                        {/* SubTab: Datos del Inmueble */}
+                                        <TabsContent value="datos-inmueble" className="space-y-2">
+                                            <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                                                <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-0">Información General del Inmueble</h3>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-purple-600 hover:bg-purple-700"
+                                                    onClick={() => {
+                                                        setMostrarFormInmueble(true);
+                                                        setInmuebleEnEdicion(null);
+                                                        setInmuebleIdEnEdicion(null);
+                                                        // Limpiar formulario para nuevo inmueble
+                                                        setFormInmueble({
+                                                            tipoFactura: '',
+                                                            tipoVulnerable: '',
+                                                            tipoDeclaranot: '',
+                                                            medidas: '',
+                                                            antecedentes: '',
+                                                            descripcion: '',
+                                                            claveCatastral: '',
+                                                            valorAvaluo: '',
+                                                            valorCatastral: '',
+                                                            valorOperacion: '',
+                                                            superficieTerreno: '',
+                                                            superficieConstruida: '',
+                                                            ctaAgua: '',
+                                                            ctaPredial: '',
+                                                            calle: '',
+                                                            numeroExt: '',
+                                                            numeroInt: '',
+                                                            manzana: '',
+                                                            lote: '',
+                                                            pais: '',
+                                                            estado: '',
+                                                            municipio: '',
+                                                            colonia: '',
+                                                            cp: '',
+                                                            inscripcion: '',
+                                                            folioReal: '',
+                                                            folioInicial: '',
+                                                            folioFinal: '',
+                                                            folioElectronico: '',
+                                                            partida: '',
+                                                            volumen: '',
+                                                            seccion: '',
+                                                            fechaRegistro: '',
+                                                            fechaEscritura: '',
+                                                            montoTotal: '',
+                                                            formaPago: '',
+                                                            fechaPago: '',
+                                                            referenciaPago: '',
+                                                            observacionesPago: '',
+                                                        });
+                                                    }}
+                                                >
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Agregar Inmueble
+                                                </Button>
                                             </div>
-                                            <div className="border rounded-lg p-6 bg-background/50 mb-6">
-                                                <div className="space-y-4">
-                                                    <div className="flex justify-between items-center p-3 border-b">
-                                                        <span className="text-sm font-medium">Arancel Notarial</span>
-                                                        <Input type="number" step="0.01" placeholder="0.00" className="text-sm w-32" />
-                                                    </div>
-                                                    <div className="flex justify-between items-center p-3 border-b">
-                                                        <span className="text-sm font-medium">Impuestos Municipales</span>
-                                                        <Input type="number" step="0.01" placeholder="0.00" className="text-sm w-32" />
-                                                    </div>
-                                                    <div className="flex justify-between items-center p-3 border-b">
-                                                        <span className="text-sm font-medium">Derechos Federales</span>
-                                                        <Input type="number" step="0.01" placeholder="0.00" className="text-sm w-32" />
-                                                    </div>
-                                                    <div className="flex justify-between items-center p-3 bg-blue-100 dark:bg-blue-900/30 rounded font-semibold">
-                                                        <span className="text-sm">TOTAL PRESUPUESTO</span>
-                                                        <span className="text-lg">$0.00</span>
+
+                                            {cargandoInmueblesExpediente && (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <div className="flex items-center gap-2">
+                                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                                        <span className="text-sm text-muted-foreground">Cargando inmuebles...</span>
                                                     </div>
                                                 </div>
+                                            )}
+
+                                            {!cargandoInmueblesExpediente && inmueblesExpediente.length === 0 && (
+                                                <div className="border rounded-lg p-4">
+                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay inmuebles disponibles</p>
+                                                </div>
+                                            )}
+
+                                            {!cargandoInmueblesExpediente && inmueblesExpediente.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden" style={{ maxHeight: '150px', display: 'flex', flexDirection: 'column' }}>
+                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                        <table className="w-full text-sm">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                                <tr>
+                                                                    <th className="px-3 py-2 text-left">#</th>
+                                                                    <th className="px-3 py-2 text-left">Descripción</th>
+                                                                    <th className="px-3 py-2 text-left">Clave Catastral</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {inmueblesExpediente.map((inmueble, idx) => (
+                                                                    <tr
+                                                                        key={idx}
+                                                                        onClick={() => handleEditarInmueble(inmueble.id)}
+                                                                        className="border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer transition-colors"
+                                                                    >
+                                                                        <td className="px-3 py-2">
+                                                                            <span className="font-semibold">{inmueble.numero_Inmueble}</span>
+                                                                        </td>
+                                                                        <td className="px-3 py-2 text-sm">
+                                                                            {inmueble.descripcion}
+                                                                        </td>
+                                                                        <td className="px-3 py-2 text-sm">
+                                                                            {inmueble.clave_Catastral}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Formulario para agregar/editar inmueble con pestañas */}
+                                            {mostrarFormInmueble && (
+                                            <div className={`border rounded-lg p-6 mt-6 ${inmuebleEnEdicion ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300' : 'bg-purple-50 dark:bg-purple-950/20'}`}>
+                                                <div className="flex items-center justify-between mb-4">
+
+                                                        <h4 className={`font-semibold text-lg ${inmuebleEnEdicion ? 'text-blue-900 dark:text-blue-100' : 'text-purple-900 dark:text-purple-100'}`}>
+                                                            {inmuebleEnEdicion ? `Inmueble #${inmuebleEnEdicion}` : 'Nuevo Inmueble'}
+                                                        </h4>
+
+
+                                                </div>
+
+                                                <Tabs defaultValue="datos-inmueble" className="w-full">
+                                                    <TabsList className="grid w-full grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                                        <TabsTrigger value="datos-inmueble" className="text-xs sm:text-sm">Datos del Inmueble</TabsTrigger>
+                                                        <TabsTrigger value="especificaciones" className="text-xs sm:text-sm">Especificaciones</TabsTrigger>
+                                                        <TabsTrigger value="domicilio" className="text-xs sm:text-sm">Domicilio</TabsTrigger>
+                                                        <TabsTrigger value="antecedentes" className="text-xs sm:text-sm">Antecedentes</TabsTrigger>
+                                                        <TabsTrigger value="pagos-inmueble" className="text-xs sm:text-sm">Pagos Inmueble</TabsTrigger>
+                                                    </TabsList>
+
+                                                    {/* SubTab: Datos del Inmueble */}
+                                                    <TabsContent value="datos-inmueble" className="space-y-4">
+                                                        {/* Row 1: 3 Dropdowns */}
+                                                        <div className="grid grid-cols-3 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Tipo Factura</label>
+                                                                <select
+                                                                    value={formInmueble.tipoFactura}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, tipoFactura: e.target.value})}
+                                                                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                >
+                                                                    <option value="">Selecciona tipo de factura</option>
+                                                                    {tiposFactura.map((tipo) => (
+                                                                        <option key={tipo.id} value={tipo.id}>{tipo.descripcion}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Tipo Inmueble</label>
+                                                                <select
+                                                                    value={formInmueble.tipoVulnerable}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, tipoVulnerable: e.target.value})}
+                                                                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                >
+                                                                    <option value="">Selecciona tipo de inmueble</option>
+                                                                    {tiposInmuebleFiltrados.map((tipo) => (
+                                                                        <option key={tipo.id} value={tipo.id}>{tipo.descripcion}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Tipo Declaranot</label>
+                                                                <select
+                                                                    value={formInmueble.tipoDeclaranot}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, tipoDeclaranot: e.target.value})}
+                                                                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                >
+                                                                    <option value="">Selecciona tipo declaranot</option>
+                                                                    {tiposDeclaranot.map((tipo) => (
+                                                                        <option key={tipo.id} value={tipo.id}>{tipo.descripcion}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 2: Medidas y Colindancias */}
+                                                        <div className="space-y-2 mb-6">
+                                                            <label className="text-sm font-medium">Medidas y Colindancias</label>
+                                                            <textarea
+                                                                placeholder="Ingresa las medidas y colindancias del inmueble..."
+                                                                rows={3}
+                                                                value={formInmueble.medidas}
+                                                                onChange={(e) => setFormInmueble({...formInmueble, medidas: e.target.value})}
+                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            />
+                                                        </div>
+
+                                                        {/* Row 3: Antecedentes */}
+                                                        <div className="space-y-2 mb-6">
+                                                            <label className="text-sm font-medium">Antecedentes</label>
+                                                            <textarea
+                                                                placeholder="Ingresa los antecedentes del inmueble..."
+                                                                rows={3}
+                                                                value={formInmueble.antecedentes}
+                                                                onChange={(e) => setFormInmueble({...formInmueble, antecedentes: e.target.value})}
+                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            />
+                                                        </div>
+
+                                                        {/* Row 4: Descripción */}
+                                                        <div className="space-y-2 mb-6">
+                                                            <label className="text-sm font-medium">Descripción del Inmueble</label>
+                                                            <textarea
+                                                                placeholder="Ingresa la descripción completa del inmueble..."
+                                                                rows={3}
+                                                                value={formInmueble.descripcion}
+                                                                onChange={(e) => setFormInmueble({...formInmueble, descripcion: e.target.value})}
+                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            />
+                                                        </div>
+
+                                                    </TabsContent>
+
+                                                    {/* SubTab: Especificaciones */}
+                                                    <TabsContent value="especificaciones" className="space-y-4">
+                                                        {/* Row 1: Clave Catastral */}
+                                                        <div className="space-y-2 mb-6">
+                                                            <label className="text-sm font-medium">Clave Catastral</label>
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="Ingresa la clave catastral..."
+                                                                value={formInmueble.claveCatastral}
+                                                                onChange={(e) => setFormInmueble({...formInmueble, claveCatastral: e.target.value})}
+                                                                className="w-full text-sm bg-white"
+                                                            />
+                                                        </div>
+
+                                                        {/* Row 2: Valores */}
+                                                        <div className="grid grid-cols-3 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Valor Avalúo</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Valor avalúo..."
+                                                                    value={formInmueble.valorAvaluo}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, valorAvaluo: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Valor Catastral</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Valor catastral..."
+                                                                    value={formInmueble.valorCatastral}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, valorCatastral: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Valor Operación</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Valor operación..."
+                                                                    value={formInmueble.valorOperacion}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, valorOperacion: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 3: Superficies */}
+                                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Superficie del Terreno</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Superficie del terreno..."
+                                                                    value={formInmueble.superficieTerreno}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, superficieTerreno: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Superficie Construida</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Superficie construida..."
+                                                                    value={formInmueble.superficieConstruida}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, superficieConstruida: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 4: Cuentas */}
+                                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Cta Agua</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Número de cuenta agua..."
+                                                                    value={formInmueble.ctaAgua}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, ctaAgua: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Cta Predial</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Número de cuenta predial..."
+                                                                    value={formInmueble.ctaPredial}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, ctaPredial: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                    </TabsContent>
+
+                                                    {/* SubTab: Domicilio */}
+                                                    <TabsContent value="domicilio" className="space-y-4">
+                                                        {/* Row 1: Calle y CP */}
+                                                        <div className="grid grid-cols-4 gap-4 mb-6">
+                                                            <div className="space-y-2 col-span-3">
+                                                                <label className="text-sm font-medium">Calle</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Ingresa la calle..."
+                                                                    value={formInmueble.calle}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, calle: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">CP</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Código postal..."
+                                                                    value={formInmueble.cp}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, cp: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 2: Números y referencias */}
+                                                        <div className="grid grid-cols-4 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Número Ext</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Número exterior..."
+                                                                    value={formInmueble.numeroExt}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, numeroExt: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Número Int</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Número interior..."
+                                                                    value={formInmueble.numeroInt}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, numeroInt: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Manzana</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Manzana..."
+                                                                    value={formInmueble.manzana}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, manzana: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Lote</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Lote..."
+                                                                    value={formInmueble.lote}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, lote: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 3: Ubicación */}
+                                                        <div className="grid grid-cols-4 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">País</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="País..."
+                                                                    value={formInmueble.pais}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, pais: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Estado</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Estado..."
+                                                                    value={formInmueble.estado}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, estado: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Municipio</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Municipio..."
+                                                                    value={formInmueble.municipio}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, municipio: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Colonia</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Colonia..."
+                                                                    value={formInmueble.colonia}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, colonia: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                    </TabsContent>
+
+                                                    {/* SubTab: Antecedentes */}
+                                                    <TabsContent value="antecedentes" className="space-y-4">
+                                                        {/* Row 1: Fecha Registro y Fecha Escritura con Checkboxes */}
+                                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id="fecha-registro-check"
+                                                                        className="w-4 h-4 cursor-pointer"
+                                                                        checked={checkboxesAntecedentes.fechaRegistro}
+                                                                        onChange={(e) => setCheckboxesAntecedentes({...checkboxesAntecedentes, fechaRegistro: e.target.checked})}
+                                                                    />
+                                                                    <label htmlFor="fecha-registro-check" className="text-sm font-medium cursor-pointer">Fecha Registro</label>
+                                                                </div>
+                                                                <Input
+                                                                    type="date"
+                                                                    disabled={!checkboxesAntecedentes.fechaRegistro}
+                                                                    value={formInmueble.fechaRegistro}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, fechaRegistro: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id="fecha-escritura-check"
+                                                                        className="w-4 h-4 cursor-pointer"
+                                                                        checked={checkboxesAntecedentes.fechaEscritura}
+                                                                        onChange={(e) => setCheckboxesAntecedentes({...checkboxesAntecedentes, fechaEscritura: e.target.checked})}
+                                                                    />
+                                                                    <label htmlFor="fecha-escritura-check" className="text-sm font-medium cursor-pointer">Fecha Escritura</label>
+                                                                </div>
+                                                                <Input
+                                                                    type="date"
+                                                                    disabled={!checkboxesAntecedentes.fechaEscritura}
+                                                                    value={formInmueble.fechaEscritura}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, fechaEscritura: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 2: Inscripción */}
+                                                        <div className="space-y-2 mb-6">
+                                                            <label className="text-sm font-medium">Inscripción</label>
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="Número de inscripción..."
+                                                                value={formInmueble.inscripcion}
+                                                                onChange={(e) => setFormInmueble({...formInmueble, inscripcion: e.target.value})}
+                                                                className="w-full text-sm bg-white"
+                                                            />
+                                                        </div>
+
+                                                        {/* Row 3: Folios */}
+                                                        <div className="grid grid-cols-4 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Folio Real</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Folio real..."
+                                                                    value={formInmueble.folioReal}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioReal: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Folio Inicial</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Folio inicial..."
+                                                                    value={formInmueble.folioInicial}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioInicial: e.target.value})}
+                                                                    className="w-full text-m bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Folio Final</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Folio final..."
+                                                                    value={formInmueble.folioFinal}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioFinal: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Folio Electrónico</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Folio electrónico..."
+                                                                    value={formInmueble.folioElectronico}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioElectronico: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Row 4: Partida, Volumen, Sección */}
+                                                        <div className="grid grid-cols-4 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Partida</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Partida..."
+                                                                    value={formInmueble.partida}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, partida: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Volumen</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Volumen..."
+                                                                    value={formInmueble.volumen}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, volumen: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Sección</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Sección..."
+                                                                    value={formInmueble.seccion}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, seccion: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div />
+                                                        </div>
+
+                                                    </TabsContent>
+
+                                                    {/* SubTab: Pagos Inmueble Declaranot */}
+                                                    <TabsContent value="pagos-inmueble" className="space-y-4">
+                                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Monto Total</label>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Monto total destacado..."
+                                                                    value={formInmueble.montoTotal}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, montoTotal: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Forma de Pago</label>
+                                                                <select
+                                                                    value={formInmueble.formaPago}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, formaPago: e.target.value})}
+                                                                    className="w-full px-3 py-2 border rounded-md bg-white text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                >
+                                                                    <option value="">Selecciona forma de pago</option>
+                                                                    <option value="efectivo">Efectivo</option>
+                                                                    <option value="cheque">Cheque</option>
+                                                                    <option value="transferencia">Transferencia</option>
+                                                                    <option value="tarjeta">Tarjeta</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Fecha de Pago</label>
+                                                                <Input
+                                                                    type="date"
+                                                                    value={formInmueble.fechaPago}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, fechaPago: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Referencia Pago</label>
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Número de referencia o comprobante..."
+                                                                    value={formInmueble.referenciaPago}
+                                                                    onChange={(e) => setFormInmueble({...formInmueble, referenciaPago: e.target.value})}
+                                                                    className="w-full text-sm bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-2 mb-6">
+                                                            <label className="text-sm font-medium">Observaciones de Pago</label>
+                                                            <textarea
+                                                                placeholder="Ingresa observaciones sobre el pago..."
+                                                                rows={3}
+                                                                value={formInmueble.observacionesPago}
+                                                                onChange={(e) => setFormInmueble({...formInmueble, observacionesPago: e.target.value})}
+                                                                className="w-full px-3 py-2 border rounded-md bg-white border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            />
+                                                        </div>
+
+                                                    </TabsContent>
+                                                </Tabs>
+
+                                                {/* Unified Save Button with Cancelar - outside all tabs */}
+                                                <div className="flex gap-2 justify-end mt-6">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="text-sm"
+                                                        onClick={() => {
+                                                            setMostrarFormInmueble(false);
+                                                            setInmuebleEnEdicion(null);
+                                                            setInmuebleIdEnEdicion(null);
+                                                        }}
+                                                    >
+                                                        Cancelar
+                                                    </Button>
+                                                    <Button
+                                                        className="bg-green-600 hover:bg-green-700 text-sm"
+                                                        onClick={handleGuardarInmueble}
+                                                        disabled={cargandoGuardarInmueble}
+                                                    >
+                                                        {cargandoGuardarInmueble && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                                        {cargandoGuardarInmueble
+                                                            ? (inmuebleIdEnEdicion ? 'Actualizando...' : 'Guardando...')
+                                                            : (inmuebleIdEnEdicion ? 'Actualizar Inmueble' : 'Guardar Inmueble')
+                                                        }
+                                                    </Button>
+                                                </div>
                                             </div>
+                                            )}
+
                                         </TabsContent>
                                     </Tabs>
                                 </TabsContent>
                                 )}
 
-                                {/* GRUPO 3: FINANCIERO & CONTROL - Solo disponible al editar */}
+                                {/* GRUPO 4: FINANCIERO & CONTROL - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="financiero-control" className="space-y-6">
                                     <Tabs defaultValue="estado-cuenta" className="w-full">
@@ -3313,7 +4188,7 @@ export default function ExpedientesIndex() {
                                 </TabsContent>
                                 )}
 
-                                {/* GRUPO 4: PROCESO & TRÁMITES - Solo disponible al editar */}
+                                {/* GRUPO 5: PROCESO & TRÁMITES - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="proceso-tramites" className="space-y-6">
                                     <Tabs defaultValue="etapas-expediente" className="w-full">
