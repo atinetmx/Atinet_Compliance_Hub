@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign,Eye } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 // Opciones de ejemplo para los dropdowns
 const TIPO_FACTURA_OPCIONES = [
@@ -369,6 +369,11 @@ export default function ExpedientesIndex() {
     const [documentoSeleccionadoParaAgregar, setDocumentoSeleccionadoParaAgregar] = useState<Documento | null>(null);
     const [documentosSeleccionados, setDocumentosSeleccionados] = useState<Record<number, boolean>>({});
 
+    // Estado para modal de recibo de documentos
+    const [showReciboModal, setShowReciboModal] = useState(false);
+    const [reciboUrl, setReciboUrl] = useState<string | null>(null);
+    const [isLoadingRecibo, setIsLoadingRecibo] = useState(false);
+
     // Ref para debounce de actualización de documentos individuales
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
 
@@ -646,6 +651,47 @@ export default function ExpedientesIndex() {
         // Si existe un expedienteId, actualizar en la API con los documentos ya filtrados
         if (currentExpedienteId) {
             await handleActualizarDocumentosExpediente(currentExpedienteId, nuevosDocs);
+        }
+    };
+
+    // Abrir modal y cargar recibo de documentos
+    const handleAbrirReciboDocumentos = async () => {
+        if (!currentExpedienteId || !clienteSeleccionadoDocumentos) {
+            addToast('Selecciona un cliente para visualizar el recibo', 'warning');
+            return;
+        }
+
+        try {
+            setIsLoadingRecibo(true);
+            const response = await fetch(
+                `https://localhost:44327/api/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
+                { method: 'GET' }
+            );
+
+            if (!response.ok) {
+                throw new Error('Error al generar el recibo');
+            }
+
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            setReciboUrl(url);
+            setShowReciboModal(true);
+            addToast('Recibo cargado correctamente', 'success');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al generar el recibo';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setIsLoadingRecibo(false);
+        }
+    };
+
+    // Cerrar modal de recibo
+    const closeReciboModal = () => {
+        setShowReciboModal(false);
+        if (reciboUrl) {
+            URL.revokeObjectURL(reciboUrl);
+            setReciboUrl(null);
         }
     };
 
@@ -2732,21 +2778,35 @@ export default function ExpedientesIndex() {
                                         {/* SubTab: Recibo de Documentos */}
                                         <TabsContent value="recibo-documentos" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <div className="flex items-center justify-between">
+                                                <div className="flex items-center justify-between gap-2">
                                                     <h3 className="font-semibold text-blue-900 dark:text-blue-100">Documentos del Expediente</h3>
-                                                    <Button
-                                                        size="sm"
-                                                        className="bg-blue-600 hover:bg-blue-700"
-                                                        onClick={fetchDocumentosDisponibles}
-                                                        disabled={cargandoDocumentosDisponibles}
-                                                    >
-                                                        {cargandoDocumentosDisponibles ? (
-                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        ) : (
-                                                            <Plus className="h-4 w-4 mr-2" />
-                                                        )}
-                                                        Agregar Documento
-                                                    </Button>
+                                                    <div className="flex gap-2">
+                                                       <Button
+                                                variant="outline"
+                                                onClick={handleAbrirReciboDocumentos}
+                                                 disabled={isLoadingRecibo || !currentExpedienteId || !clienteSeleccionadoDocumentos}
+                                            >
+                                                {isLoadingRecibo ? (
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                )}
+                                                Ver Recibo
+                                            </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-blue-600 hover:bg-blue-700"
+                                                            onClick={fetchDocumentosDisponibles}
+                                                            disabled={cargandoDocumentosDisponibles}
+                                                        >
+                                                            {cargandoDocumentosDisponibles ? (
+                                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                            ) : (
+                                                                <Plus className="h-4 w-4 mr-2" />
+                                                            )}
+                                                            Agregar Documento
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -3371,6 +3431,47 @@ export default function ExpedientesIndex() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* MODAL DE RECIBO DE DOCUMENTOS */}
+            {showReciboModal && reciboUrl && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+                    <div className="bg-white rounded-lg shadow-lg w-[95vw] h-[95vh] flex flex-col">
+                        <div className="flex justify-between items-center p-3 border-b bg-gray-50">
+                            <h2 className="text-lg font-bold">Recibo de Documentos</h2>
+                            <button
+                                onClick={closeReciboModal}
+                                className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <iframe
+                                src={reciboUrl}
+                                width="100%"
+                                height="100%"
+                                style={{ border: 'none' }}
+                                title="PDF Recibo"
+                            />
+                        </div>
+                        <div className="flex gap-2 justify-end p-3 border-t bg-gray-50">
+                            <a
+                                href={reciboUrl}
+                                download={`Recibo_Documentos_${currentExpedienteId}_${clienteSeleccionadoDocumentos}.pdf`}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                            >
+                                Descargar PDF
+                            </a>
+                            <button
+                                onClick={closeReciboModal}
+                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
