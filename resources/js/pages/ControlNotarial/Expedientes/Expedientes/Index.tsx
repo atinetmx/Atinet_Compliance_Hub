@@ -651,6 +651,8 @@ export default function ExpedientesIndex() {
         // Si existe un expedienteId, actualizar en la API con los documentos ya filtrados
         if (currentExpedienteId) {
             await handleActualizarDocumentosExpediente(currentExpedienteId, nuevosDocs);
+            // Recargar la lista de documentos desde la API
+            await fetchDocumentosExpediente(currentExpedienteId);
         }
     };
 
@@ -718,12 +720,6 @@ export default function ExpedientesIndex() {
             }> = [];
 
             docsToUse.forEach(grupoCliente => {
-                // Buscar el cliente_Id basado en el nombre del cliente
-                const clienteEncontrado = filasComparecientes.find(comp =>
-                    `${clientesDisponibles.find(c => c.id === comp.cliente_Id)?.nombre || ''} ${clientesDisponibles.find(c => c.id === comp.cliente_Id)?.apellido_Paterno || ''} ${clientesDisponibles.find(c => c.id === comp.cliente_Id)?.apellido_Materno || ''}`.trim() === grupoCliente.cliente.trim()
-                );
-                const cliente_Id = clienteEncontrado?.cliente_Id || 0;
-
                 grupoCliente.documentos.forEach(doc => {
                     const docEditado = documentosEditados[doc.id] || {
                         fecha_Entrega: doc.fecha_Entrega,
@@ -735,12 +731,9 @@ export default function ExpedientesIndex() {
                         original: doc.original,
                     };
 
-                    // Buscar el documento_Id basado en el nombre
-                    const docCatalogo = documentosDisponibles.find(d => d.descripcion === doc.documento);
-
                     documentosPayload.push({
-                        cliente_Id: cliente_Id,
-                        documento_Id: docCatalogo?.id || 0,
+                        cliente_Id: doc.cliente_Id,
+                        documento_Id: doc.documento_Id,
                         fecha_Entrega: docEditado.fecha_Entrega || null,
                         usuario_Recibe_Id: docEditado.usuario_Recibe ? parseInt(docEditado.usuario_Recibe) || 0 : null,
                         fecha_Recepcion: docEditado.fecha_Recepcion || null,
@@ -812,6 +805,7 @@ export default function ExpedientesIndex() {
             );
 
             if (response.ok) {
+                  addToast('Documento actualizado exitosamente', 'success');
                 console.log(`Documento ${docsId} actualizado exitosamente`);
             } else {
                 const errorData = await response.json();
@@ -1006,6 +1000,31 @@ export default function ExpedientesIndex() {
     useEffect(() => {
         if (documentosPorCliente && documentosPorCliente.length > 0 && !clienteSeleccionadoDocumentos) {
             setClienteSeleccionadoDocumentos(documentosPorCliente[0].id_Cliente);
+        }
+    }, [documentosPorCliente]);
+
+    // Inicializar documentosEditados con valores del documento cuando se cargan
+    useEffect(() => {
+        const nuevosEditados: Record<number, any> = {};
+        documentosPorCliente.forEach(grupoCliente => {
+            grupoCliente.documentos.forEach(doc => {
+                if (!documentosEditados[doc.id]) {
+                    nuevosEditados[doc.id] = {
+                        cliente_Id: doc.cliente_Id,
+                        documento_Id: doc.documento_Id,
+                        fecha_Entrega: doc.fecha_Entrega,
+                        usuario_Recibe: doc.usuario_Recibe,
+                        fecha_Recepcion: doc.fecha_Recepcion,
+                        usuario_Recepcion: doc.usuario_Recepcion,
+                        observaciones: doc.observaciones,
+                        copia: doc.copia,
+                        original: doc.original,
+                    };
+                }
+            });
+        });
+        if (Object.keys(nuevosEditados).length > 0) {
+            setDocumentosEditados(prev => ({ ...prev, ...nuevosEditados }));
         }
     }, [documentosPorCliente]);
 
@@ -1651,7 +1670,7 @@ export default function ExpedientesIndex() {
             <Head title="Expedientes - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
+                {/* <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="rounded-lg bg-blue-600 p-3 text-white">
                             <FileText className="size-5" />
@@ -1661,7 +1680,7 @@ export default function ExpedientesIndex() {
                             <p className="text-muted-foreground text-xs">Gestión de expedientes</p>
                         </div>
                     </div>
-                </div>
+                </div> */}
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
