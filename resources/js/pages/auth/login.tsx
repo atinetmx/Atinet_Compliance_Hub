@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { RequiredLabel } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
-import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
@@ -24,10 +23,10 @@ export default function Login({
 }: Props) {
     return (
         <AuthLayout
-            title="Log in to your account"
-            description="Enter your email and password below to log in"
+            title="Iniciar Sesión"
+            description="Ingresa tu correo y contraseña para acceder"
         >
-            <Head title="Log in" />
+            <Head title="Iniciar Sesión" />
 
             <Form
                 {...store.form()}
@@ -38,7 +37,7 @@ export default function Login({
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <RequiredLabel htmlFor="email">Email address</RequiredLabel>
+                                <RequiredLabel htmlFor="email" className="text-white">Correo electrónico</RequiredLabel>
                                 <Input
                                     id="email"
                                     type="email"
@@ -47,21 +46,22 @@ export default function Login({
                                     autoFocus
                                     tabIndex={1}
                                     autoComplete="email"
-                                    placeholder="email@example.com"
+                                    placeholder="correo@ejemplo.com"
+                                    className="text-white bg-gray-800/50 border-gray-700 placeholder:text-gray-500"
                                 />
                                 <InputError message={errors.email} />
                             </div>
 
                             <div className="grid gap-2">
                                 <div className="flex items-center">
-                                    <RequiredLabel htmlFor="password">Password</RequiredLabel>
+                                    <RequiredLabel htmlFor="password" className="text-white">Contraseña</RequiredLabel>
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}
-                                            className="ml-auto text-sm"
+                                            className="ml-auto text-sm text-blue-400 hover:text-blue-300"
                                             tabIndex={5}
                                         >
-                                            Forgot password?
+                                            ¿Olvidaste tu contraseña?
                                         </TextLink>
                                     )}
                                 </div>
@@ -72,7 +72,8 @@ export default function Login({
                                     required
                                     tabIndex={2}
                                     autoComplete="current-password"
-                                    placeholder="Password"
+                                    placeholder="Contraseña"
+                                    className="text-white bg-gray-800/50 border-gray-700 placeholder:text-gray-500"
                                 />
                                 <InputError message={errors.password} />
                             </div>
@@ -83,29 +84,20 @@ export default function Login({
                                     name="remember"
                                     tabIndex={3}
                                 />
-                                <RequiredLabel htmlFor="remember">Remember me</RequiredLabel>
+                                <RequiredLabel htmlFor="remember" className="text-white">Recordarme</RequiredLabel>
                             </div>
 
                             <Button
                                 type="submit"
-                                className="mt-4 w-full"
+                                className="mt-4 w-full bg-linear-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold shadow-lg shadow-blue-500/50 transition-all duration-300"
                                 tabIndex={4}
                                 disabled={processing}
                                 data-test="login-button"
                             >
                                 {processing && <Spinner />}
-                                Log in
+                                Iniciar Sesión
                             </Button>
                         </div>
-
-                        {canRegister && (
-                            <div className="text-center text-sm text-muted-foreground">
-                                Don't have an account?{' '}
-                                <TextLink href={register()} tabIndex={5}>
-                                    Sign up
-                                </TextLink>
-                            </div>
-                        )}
                     </>
                 )}
             </Form>

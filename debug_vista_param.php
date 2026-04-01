@@ -1,12 +1,11 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
@@ -17,7 +16,7 @@ $superAdmin = User::where('tipo_cuenta', 'super_admin')
     ->whereNull('notaria_id')
     ->first();
 
-if (!$superAdmin) {
+if (! $superAdmin) {
     echo "❌ No se encontró super_admin\n";
     exit(1);
 }
@@ -30,7 +29,7 @@ echo "Tipo: {$superAdmin->tipo_cuenta}\n\n";
 $eventosPropios = AgendaEvent::where('user_id', $superAdmin->id)->get();
 echo "Eventos propios (user_id={$superAdmin->id}): {$eventosPropios->count()}\n";
 foreach ($eventosPropios as $evento) {
-    echo "  - ID: {$evento->id}, Título: {$evento->titulo}, legacy_notaria: " . ($evento->legacy_notaria ?? 'NULL') . "\n";
+    echo "  - ID: {$evento->id}, Título: {$evento->titulo}, legacy_notaria: ".($evento->legacy_notaria ?? 'NULL')."\n";
 }
 echo "\n";
 
@@ -57,8 +56,8 @@ $queryPropio = AgendaEvent::visiblePara($superAdmin, 'propio');
 $resultPropio = $queryPropio->get();
 
 echo "Eventos visibles: {$resultPropio->count()}\n";
-echo "SQL: " . $queryPropio->toSql() . "\n";
-echo "Bindings: " . json_encode($queryPropio->getBindings()) . "\n\n";
+echo 'SQL: '.$queryPropio->toSql()."\n";
+echo 'Bindings: '.json_encode($queryPropio->getBindings())."\n\n";
 
 $propios = $resultPropio->where('user_id', $superAdmin->id)->count();
 $legacy = $resultPropio->whereNull('user_id')->count();
@@ -101,4 +100,4 @@ if ($otrosTodos === $eventosOtros->count()) {
 }
 
 echo "\n=== TOTAL EVENTOS EN DB ===\n";
-echo "Total agenda_events: " . AgendaEvent::count() . "\n";
+echo 'Total agenda_events: '.AgendaEvent::count()."\n";

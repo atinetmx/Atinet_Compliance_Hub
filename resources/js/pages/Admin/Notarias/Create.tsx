@@ -45,8 +45,9 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/admin/notarias',
     },
     {
-        title: 'Crear Nueva',
+        title: 'Crear Nueva Notaría',
         href: '/admin/notarias/create',
+        icon: Building2,
     },
 ];
 
@@ -83,8 +84,8 @@ export default function NotariaCreate({ planes }: NotariaCreateProps) {
             <Head title="Crear Nueva Notaría" />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                {/* Header */}
-                <div className="mb-6 flex items-center gap-4">
+                {/* Header con botón Volver */}
+                <div className="mb-2 flex items-center gap-4">
                     <Button
                         variant="outline"
                         size="sm"
@@ -93,8 +94,6 @@ export default function NotariaCreate({ planes }: NotariaCreateProps) {
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver
                     </Button>
-                    <Building2 className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">Crear Nueva Notaría</h1>
                 </div>
 
                 {/* Form */}

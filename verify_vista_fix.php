@@ -1,12 +1,11 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
@@ -17,14 +16,14 @@ $superAdmin = User::where('tipo_cuenta', 'super_admin')
     ->whereNull('notaria_id')
     ->first();
 
-if (!$superAdmin) {
+if (! $superAdmin) {
     echo "❌ No se encontró super_admin\n";
     exit(1);
 }
 
 echo "Usuario: {$superAdmin->nombre} ({$superAdmin->email})\n";
 echo "Tipo: {$superAdmin->tipo_cuenta}\n";
-echo "Notaría ID: " . ($superAdmin->notaria_id ?? 'NULL') . "\n\n";
+echo 'Notaría ID: '.($superAdmin->notaria_id ?? 'NULL')."\n\n";
 
 // Contar eventos propios del super_admin
 $eventosPropios = AgendaEvent::where('user_id', $superAdmin->id)->count();

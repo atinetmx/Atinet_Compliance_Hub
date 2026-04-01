@@ -76,4 +76,3 @@ class SearchHistory extends Model
         return $query->orderBy('created_at', 'desc')->limit($limit);
     }
 }
-

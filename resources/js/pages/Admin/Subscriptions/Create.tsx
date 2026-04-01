@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Save, CalendarPlus, AlertTriangle } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,29 @@ interface Notaria {
     id: number;
     nombre: string;
     numero_notaria: string;
+    has_active_subscription: boolean;
+    has_trial_subscriptions: boolean;
+    active_subscription?: {
+        id: number;
+        plan_id: number;
+        plan?: {
+            id: number;
+            nombre: string;
+        };
+        status: string;
+        fecha_vencimiento: string;
+    };
+    trial_subscriptions: Array<{
+        id: number;
+        plan_id: number;
+        plan?: {
+            id: number;
+            nombre: string;
+        };
+        status: string;
+        fecha_vencimiento: string;
+    }>;
+    total_subscriptions: number;
 }
 
 interface Plan {
@@ -47,8 +70,9 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/admin/subscriptions',
     },
     {
-        title: 'Crear',
+        title: 'Crear Nueva Suscripción',
         href: '#',
+        icon: CalendarPlus,
     },
 ];
 
@@ -70,6 +94,11 @@ export default function Create({
         auto_renovacion: true,
         notas: '',
     });
+
+    // Notaría seleccionada
+    const selectedNotaria = notarias.find(
+        (n) => n.id.toString() === data.notaria_id,
+    );
 
     // Auto-calcular fecha de vencimiento cuando cambia ciclo o fecha inicio
     useEffect(() => {
@@ -121,10 +150,6 @@ export default function Create({
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver
                     </Button>
-                    <Plus className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">
-                        Crear Nueva Suscripción
-                    </h1>
                 </div>
 
                 <div className="rounded-xl border border-sidebar-border/70 bg-background p-6">
@@ -161,8 +186,17 @@ export default function Create({
                                                     key={notaria.id}
                                                     value={notaria.id.toString()}
                                                 >
-                                                    {notaria.nombre} (Notaría #
-                                                    {notaria.numero_notaria})
+                                                    <div className="flex items-center gap-2">
+                                                        <span>
+                                                            {notaria.nombre} (Notaría #
+                                                            {notaria.numero_notaria})
+                                                        </span>
+                                                        {notaria.has_active_subscription && (
+                                                            <span className="text-xs text-orange-600 dark:text-orange-400">
+                                                                ⚠️ Ya tiene suscripción
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -171,6 +205,67 @@ export default function Create({
                                         <p className="text-sm text-red-500">
                                             {errors.notaria_id}
                                         </p>
+                                    )}
+                                    {selectedNotaria && selectedNotaria.total_subscriptions > 0 && (
+                                        <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+                                            <div className="flex items-start gap-2">
+                                                <AlertTriangle className="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                                <div className="flex-1 space-y-3 text-sm">
+                                                    <p className="font-semibold text-blue-900 dark:text-blue-100">
+                                                        Suscripciones actuales de esta notaría:
+                                                    </p>
+
+                                                    {/* Suscripción Activa */}
+                                                    {selectedNotaria.has_active_subscription && (
+                                                        <div className="rounded border border-orange-300 bg-orange-100 p-2 dark:border-orange-700 dark:bg-orange-900/30">
+                                                            <p className="font-medium text-orange-900 dark:text-orange-200">
+                                                                🔴 Suscripción ACTIVA (Principal)
+                                                            </p>
+                                                            <p className="text-xs text-orange-800 dark:text-orange-300">
+                                                                Plan: {selectedNotaria.active_subscription?.plan?.nombre || 'Sin plan'}
+                                                            </p>
+                                                            <p className="text-xs text-orange-700 dark:text-orange-400">
+                                                                Vence: {new Date(
+                                                                    selectedNotaria.active_subscription?.fecha_vencimiento || '',
+                                                                ).toLocaleDateString('es-MX')}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Suscripciones Trial */}
+                                                    {selectedNotaria.has_trial_subscriptions && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-xs font-medium text-blue-800 dark:text-blue-300">
+                                                                🔵 Suscripciones TRIAL ({selectedNotaria.trial_subscriptions.length}):
+                                                            </p>
+                                                            {selectedNotaria.trial_subscriptions.map((trial, idx) => (
+                                                                <div key={idx} className="rounded border border-blue-300 bg-blue-100 p-2 dark:border-blue-700 dark:bg-blue-900/30">
+                                                                    <p className="text-xs text-blue-800 dark:text-blue-300">
+                                                                        Plan: {trial.plan?.nombre || 'Sin plan'}
+                                                                    </p>
+                                                                    <p className="text-xs text-blue-700 dark:text-blue-400">
+                                                                        Vence: {new Date(trial.fecha_vencimiento).toLocaleDateString('es-MX')}
+                                                                    </p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Reglas */}
+                                                    <div className="border-t border-blue-300 pt-2 dark:border-blue-700">
+                                                        <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
+                                                            📋 Reglas:
+                                                        </p>
+                                                        <ul className="mt-1 space-y-1 text-xs text-blue-800 dark:text-blue-300">
+                                                            <li>• Solo puede tener <strong>UNA</strong> suscripción ACTIVA (principal)</li>
+                                                            <li>• Puede tener <strong>MÚLTIPLES</strong> suscripciones TRIAL (para probar servicios)</li>
+                                                            <li className="text-orange-700 dark:text-orange-400">• Si crea una nueva ACTIVA, debe cancelar la actual primero</li>
+                                                            <li className="text-green-700 dark:text-green-400">• Las suscripciones TRIAL son independientes</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
 

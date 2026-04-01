@@ -79,7 +79,7 @@ export default function ControlNotarialIndex({
 
             <div className="min-h-screen space-y-6 p-6">
                 {/* Hero Section */}
-                <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 dark:border-amber-800 dark:from-amber-950/50 dark:via-yellow-950/30 dark:to-orange-950/20">
+                <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-linear-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 dark:border-amber-800 dark:from-amber-950/50 dark:via-yellow-950/30 dark:to-orange-950/20">
                     <div className="relative z-10">
                         <div className="mb-4 flex items-center gap-3">
                             <div className="rounded-lg bg-amber-500 p-3 text-white shadow-lg">

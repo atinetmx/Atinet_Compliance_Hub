@@ -125,20 +125,30 @@ class SubscriptionController extends Controller
             abort(403, 'Acceso denegado');
         }
 
-        // Notarías sin suscripción activa
-        $notarias = Notaria::whereDoesntHave('subscriptions', function ($query) {
-            $query->whereIn('status', ['activa', 'trial']);
-        })
+        // Obtener TODAS las notarías con información de suscripciones activas
+        $notarias = Notaria::with(['subscripciones' => function ($query) {
+            $query->whereIn('status', ['activa', 'trial'])
+                ->with('plan:id,nombre')
+                ->select('id', 'notaria_id', 'plan_id', 'status', 'fecha_vencimiento');
+        }])
             ->orderBy('nombre')
-            ->get(['id', 'nombre', 'numero_notaria']);
+            ->get(['id', 'nombre', 'numero_notaria'])
+            ->map(function ($notaria) {
+                $suscripciones = $notaria->subscripciones;
+                $suscripcionActiva = $suscripciones->where('status', 'activa')->first();
+                $suscripcionesTrial = $suscripciones->where('status', 'trial');
 
-        // Si se especifica notaria_id, incluirla aunque tenga suscripción
-        if ($request->filled('notaria_id')) {
-            $notariaSpecific = Notaria::find($request->notaria_id);
-            if ($notariaSpecific && ! $notarias->contains('id', $notariaSpecific->id)) {
-                $notarias->prepend($notariaSpecific);
-            }
-        }
+                return [
+                    'id' => $notaria->id,
+                    'nombre' => $notaria->nombre,
+                    'numero_notaria' => $notaria->numero_notaria,
+                    'has_active_subscription' => $suscripcionActiva !== null,
+                    'has_trial_subscriptions' => $suscripcionesTrial->isNotEmpty(),
+                    'active_subscription' => $suscripcionActiva,
+                    'trial_subscriptions' => $suscripcionesTrial->values(),
+                    'total_subscriptions' => $suscripciones->count(),
+                ];
+            });
 
         $plans = Plan::where('is_active', true)
             ->orderBy('orden')

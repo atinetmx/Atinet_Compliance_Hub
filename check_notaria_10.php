@@ -1,8 +1,8 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "==================================================\n";
@@ -11,13 +11,13 @@ echo "==================================================\n\n";
 
 // Buscar notaría
 $notaria = App\Models\Notaria::where('numero_notaria', '10')
-    ->where(function($q) {
+    ->where(function ($q) {
         $q->where('nombre', 'like', '%Cuernavaca%')
-          ->orWhere('municipio', 'like', '%Cuernavaca%');
+            ->orWhere('municipio', 'like', '%Cuernavaca%');
     })
     ->first();
 
-if (!$notaria) {
+if (! $notaria) {
     echo "❌ Notaría 10 Cuernavaca no encontrada\n";
     echo "\nBuscando todas las notarías con número 10:\n";
     $notarias = App\Models\Notaria::where('numero_notaria', '10')->get();
@@ -34,9 +34,9 @@ echo "Número: {$notaria->numero_notaria}\n";
 echo "Estado: {$notaria->estado}\n";
 echo "Municipio: {$notaria->municipio}\n";
 echo "CP: {$notaria->codigo_postal}\n";
-echo "Legacy Identifier: " . ($notaria->legacy_identifier ?? '❌ NULL') . "\n\n";
+echo 'Legacy Identifier: '.($notaria->legacy_identifier ?? '❌ NULL')."\n\n";
 
-if (!$notaria->legacy_identifier) {
+if (! $notaria->legacy_identifier) {
     echo "⚠️  ADVERTENCIA: legacy_identifier está vacío\n";
     echo "No se mostrará el historial legacy en la UI\n\n";
 } else {
@@ -57,15 +57,15 @@ if (!$notaria->legacy_identifier) {
             ->first();
 
         echo "\n--- Estadísticas Legacy ---\n";
-        echo "Total búsquedas: " . number_format($stats->total) . "\n";
-        echo "  - OFAC: " . number_format($stats->ofac) . "\n";
-        echo "  - SAT: " . number_format($stats->sat) . "\n";
+        echo 'Total búsquedas: '.number_format($stats->total)."\n";
+        echo '  - OFAC: '.number_format($stats->ofac)."\n";
+        echo '  - SAT: '.number_format($stats->sat)."\n";
         echo "Primera búsqueda: {$stats->primera_busqueda}\n";
         echo "Última búsqueda: {$stats->ultima_busqueda}\n";
 
     } catch (Exception $e) {
         echo "\n❌ Error al consultar datos legacy:\n";
-        echo $e->getMessage() . "\n";
+        echo $e->getMessage()."\n";
     }
 }
 

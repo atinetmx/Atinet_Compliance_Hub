@@ -6,6 +6,7 @@ import {
     Shield,
     UserCheck,
     Calendar,
+    FileBarChart,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Administración', href: '/admin' },
     { title: 'Usuarios', href: '/admin/users' },
-    { title: 'Reportes', href: '/admin/users/reports' },
+    { title: 'Reportes de Usuarios', href: '/admin/users/reports', icon: FileBarChart },
 ];
 
 const tiposCuentaLabels: Record<string, string> = {
@@ -42,22 +43,14 @@ export default function Reports({ stats }: Props) {
             <Head title="Reportes de Usuarios" />
 
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/admin/users">
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver
-                            </Button>
-                        </Link>
-                        <div className="flex items-center gap-2">
-                            <Users className="h-6 w-6 text-primary" />
-                            <h1 className="text-2xl font-bold">
-                                Reportes de Usuarios
-                            </h1>
-                        </div>
-                    </div>
+                {/* Header con botón Volver */}
+                <div className="flex items-center gap-4">
+                    <Link href="/admin/users">
+                        <Button variant="outline" size="sm">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                    </Link>
                 </div>
 
                 {/* Stats Overview */}

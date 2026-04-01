@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
-import { login, register } from '@/routes';
+import { login } from '@/routes';
 
 interface NavbarProps {
     isAuthenticated: boolean;
-    canRegister: boolean;
 }
 
 const navLinks = [
@@ -13,7 +12,7 @@ const navLinks = [
     { name: 'Contacto', href: '#contact' },
 ];
 
-const Navbar = ({ isAuthenticated, canRegister }: NavbarProps) => {
+const Navbar = ({ isAuthenticated }: NavbarProps) => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -28,18 +27,25 @@ const Navbar = ({ isAuthenticated, canRegister }: NavbarProps) => {
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-400 ease-out ${
                 scrolled ? 'bg-black/95 backdrop-blur-sm shadow-lg' : 'bg-transparent'
             }`}
         >
-            <nav className="max-w-7xl mx-auto px-5 md:px-20 py-5">
+            <nav className="max-w-7xl mx-auto px-5 md:px-20 py-7">
                 <div className="flex items-center justify-between">
                     {/* Logo */}
                     <a
                         href="#hero"
-                        className="text-xl md:text-2xl font-bold text-white hover:text-blue-400 transition-colors"
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                     >
-                        Atinet <span className="text-blue-400">Compliance</span>
+                        <img
+                            src="/images/LogoAtinetSinFondo.png"
+                            alt="Atinet Logo"
+                            className="h-20 md:h-24 w-auto"
+                        />
+                        <span className="text-xl md:text-2xl font-bold text-white">
+                            Compliance <span className="text-cyan-400">Hub</span>
+                        </span>
                     </a>
 
                     {/* Desktop Navigation */}
@@ -51,7 +57,7 @@ const Navbar = ({ isAuthenticated, canRegister }: NavbarProps) => {
                                 className="text-gray-300 hover:text-white transition-colors relative group"
                             >
                                 {link.name}
-                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-400 transition-all duration-300 group-hover:w-full" />
+                                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-cyan-400 transition-all duration-300 group-hover:w-full" />
                             </a>
                         ))}
                     </div>
@@ -61,14 +67,14 @@ const Navbar = ({ isAuthenticated, canRegister }: NavbarProps) => {
                         {isAuthenticated ? (
                             <Link
                                 href="/dashboard"
-                                className="px-6 py-2 text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                                className="px-6 py-2 text-gray-900 bg-cyan-400 rounded-lg hover:bg-cyan-500 transition-all"
                             >
                                 Dashboard
                             </Link>
                         ) : (
                             <Link
                                 href={login()}
-                                className="px-6 py-2 text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all"
+                                className="px-6 py-2 text-gray-900 bg-cyan-400 rounded-lg hover:bg-cyan-500 transition-all"
                             >
                                 Iniciar Sesión
                             </Link>

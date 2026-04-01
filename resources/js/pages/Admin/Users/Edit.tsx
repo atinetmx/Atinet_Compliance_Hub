@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -39,7 +39,7 @@ export default function Edit({ user, notarias, tiposCuenta }: Props) {
         { title: 'Administración', href: '/admin' },
         { title: 'Usuarios', href: '/admin/users' },
         { title: user.name, href: `/admin/users/${user.id}` },
-        { title: 'Editar', href: `/admin/users/${user.id}/edit` },
+        { title: 'Editar Usuario', href: `/admin/users/${user.id}/edit`, icon: UserCog },
     ];
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -56,17 +56,14 @@ export default function Edit({ user, notarias, tiposCuenta }: Props) {
             <Head title={`Editar - ${user.name}`} />
 
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href={`/admin/users/${user.id}`}>
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver
-                            </Button>
-                        </Link>
-                        <h1 className="text-3xl font-bold">Editar Usuario</h1>
-                    </div>
+                {/* Header con botón Volver */}
+                <div className="flex items-center gap-4">
+                    <Link href={`/admin/users/${user.id}`}>
+                        <Button variant="outline" size="sm">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                    </Link>
                 </div>
 
                 {/* Form */}

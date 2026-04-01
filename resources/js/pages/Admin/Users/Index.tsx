@@ -60,7 +60,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Administración', href: '/admin' },
-    { title: 'Usuarios', href: '/admin/users' },
+    { title: 'Gestión de Usuarios', href: '/admin/users', icon: Users },
 ];
 
 export default function Index({
@@ -131,26 +131,7 @@ export default function Index({
             <Head title="Gestión de Usuarios" />
 
             <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Users className="h-6 w-6 text-primary" />
-                        <h1 className="text-2xl font-bold">
-                            Gestión de Usuarios
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Link href="/admin/users/reports">
-                            <Button variant="outline">Ver Reportes</Button>
-                        </Link>
-                        <Link href="/admin/users/create">
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Nuevo Usuario
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
+                
 
                 {/* Filters */}
                 <div className="space-y-4">
@@ -174,6 +155,18 @@ export default function Index({
                             <Filter className="mr-2 h-4 w-4" />
                             Filtros
                         </Button>
+                        {/* Header con botones de acción */}
+                        <div className="flex items-center justify-end gap-2">
+                            <Link href="/admin/users/reports">
+                                <Button variant="outline">Ver Reportes</Button>
+                            </Link>
+                            <Link href="/admin/users/create">
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Nuevo Usuario
+                                </Button>
+                            </Link>
+                        </div>
                         {(filters.search ||
                             filters.tipo_cuenta ||
                             filters.notaria_id) && (

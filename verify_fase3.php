@@ -40,7 +40,7 @@ if (Storage::disk('local')->exists($filename)) {
     $json = Storage::disk('local')->get($filename);
     $catalog = json_decode($json, true);
     echo "   ✅ Catálogo existe\n";
-    echo "   📊 Total notarías legacy: ".count($catalog['notarias'])."\n";
+    echo '   📊 Total notarías legacy: '.count($catalog['notarias'])."\n";
 
     // Mostrar algunas notarías con sus estadísticas
     echo "\n   🔝 Top 5 notarías con más búsquedas:\n";
@@ -83,7 +83,7 @@ if ($notariasConLegacy->count() > 0) {
     foreach ($notariasConLegacy as $notaria) {
         echo "      • {$notaria->nombre} → {$notaria->legacy_identifier}\n";
         if ($notaria->legacy_busquedas_count) {
-            echo "        📊 ".number_format($notaria->legacy_busquedas_count)." búsquedas legacy\n";
+            echo '        📊 '.number_format($notaria->legacy_busquedas_count)." búsquedas legacy\n";
         }
     }
 } else {
@@ -116,7 +116,7 @@ echo "6️⃣ Probando búsqueda en catálogo legacy...\n";
 use App\Http\Controllers\Admin\LegacyController;
 
 try {
-    $controller = new LegacyController();
+    $controller = new LegacyController;
     $request = new \Illuminate\Http\Request(['query' => '10']);
     $response = $controller->searchNotarias($request);
     $results = json_decode($response->getContent(), true);
@@ -132,7 +132,7 @@ try {
         }
     }
 } catch (Exception $e) {
-    echo "   ❌ Error en búsqueda: ".$e->getMessage()."\n";
+    echo '   ❌ Error en búsqueda: '.$e->getMessage()."\n";
 }
 
 echo "\n";
@@ -170,7 +170,7 @@ if (in_array('legacy_busquedas_count', $columns)) {
 
 // Check 6: API funcional
 try {
-    $controller = new LegacyController();
+    $controller = new LegacyController;
     $request = new \Illuminate\Http\Request(['query' => 'test']);
     $response = $controller->searchNotarias($request);
     $checksPassed++;

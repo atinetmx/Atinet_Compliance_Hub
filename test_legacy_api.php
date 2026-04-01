@@ -15,11 +15,11 @@ echo "=== TESTING LEGACY API ===\n\n";
 echo "1️⃣ Verificando catálogo guardado...\n";
 $filename = 'catalogo_notarias_legacy.json';
 if (Storage::disk('local')->exists($filename)) {
-    echo "   ✅ Catálogo existe: ".Storage::disk('local')->path($filename)."\n";
+    echo '   ✅ Catálogo existe: '.Storage::disk('local')->path($filename)."\n";
     $json = Storage::disk('local')->get($filename);
     $catalog = json_decode($json, true);
-    echo "   📊 Total notarías: ".count($catalog['notarias'])."\n";
-    echo "   🕐 Generado: ".$catalog['generated_at']."\n";
+    echo '   📊 Total notarías: '.count($catalog['notarias'])."\n";
+    echo '   🕐 Generado: '.$catalog['generated_at']."\n";
 } else {
     echo "   ❌ Catálogo NO existe\n";
 }
@@ -33,9 +33,9 @@ if (Cache::has('catalogo-notarias-legacy')) {
     $cached = Cache::get('catalogo-notarias-legacy');
     // Handle both array formats
     if (is_array($cached) && isset($cached['notarias'])) {
-        echo "   📊 Notarías en caché: ".count($cached['notarias'])."\n";
+        echo '   📊 Notarías en caché: '.count($cached['notarias'])."\n";
     } elseif (is_array($cached)) {
-        echo "   📊 Notarías en caché: ".count($cached)."\n";
+        echo '   📊 Notarías en caché: '.count($cached)."\n";
     }
 } else {
     echo "   ⚠️  Caché vacío (se creará en primera petición)\n";
@@ -49,15 +49,15 @@ echo "3️⃣ Probando métodos del controlador...\n";
 use App\Http\Controllers\Admin\LegacyController;
 
 try {
-    $controller = new LegacyController();
+    $controller = new LegacyController;
 
     // Test catalog retrieval
     echo "   🔍 GET /admin/legacy/notarias/catalog...\n";
-    $request = new \Illuminate\Http\Request();
+    $request = new \Illuminate\Http\Request;
     $response = $controller->getNotariasCatalog($request);
     $data = json_decode($response->getContent(), true);
-    echo "   ✅ Total notarías: ".$data['total_notarias']."\n";
-    echo "   📅 Generado: ".$data['generated_at']."\n";
+    echo '   ✅ Total notarías: '.$data['total_notarias']."\n";
+    echo '   📅 Generado: '.$data['generated_at']."\n";
 
     echo "\n";
 
@@ -65,11 +65,11 @@ try {
     echo "   📊 GET /admin/legacy/notarias/statistics...\n";
     $response = $controller->getStatistics();
     $stats = json_decode($response->getContent(), true);
-    echo "   ✅ Total notarías: ".$stats['total_notarias']."\n";
-    echo "   🟢 Activas: ".$stats['notarias_activas']."\n";
-    echo "   🔴 Inactivas: ".$stats['notarias_inactivas']."\n";
-    echo "   🔢 Total búsquedas: ".number_format($stats['total_busquedas'])."\n";
-    echo "   📈 Promedio búsquedas: ".number_format($stats['promedio_busquedas'], 2)."\n";
+    echo '   ✅ Total notarías: '.$stats['total_notarias']."\n";
+    echo '   🟢 Activas: '.$stats['notarias_activas']."\n";
+    echo '   🔴 Inactivas: '.$stats['notarias_inactivas']."\n";
+    echo '   🔢 Total búsquedas: '.number_format($stats['total_busquedas'])."\n";
+    echo '   📈 Promedio búsquedas: '.number_format($stats['promedio_busquedas'], 2)."\n";
 
     echo "\n   🔝 Top 5 notarías:\n";
     foreach (array_slice($stats['top_notarias'], 0, 5) as $notaria) {
@@ -89,7 +89,7 @@ try {
     $searchRequest = new \Illuminate\Http\Request(['query' => '142']);
     $response = $controller->searchNotarias($searchRequest);
     $results = json_decode($response->getContent(), true);
-    echo "   ✅ Resultados encontrados: ".$results['total_results']."\n";
+    echo '   ✅ Resultados encontrados: '.$results['total_results']."\n";
 
     if ($results['total_results'] > 0) {
         echo "   📋 Notarías encontradas:\n";
@@ -103,6 +103,6 @@ try {
     echo "✅ TODAS LAS PRUEBAS PASARON\n";
 
 } catch (Exception $e) {
-    echo "   ❌ Error: ".$e->getMessage()."\n";
-    echo "   📍 ".$e->getFile().":".$e->getLine()."\n";
+    echo '   ❌ Error: '.$e->getMessage()."\n";
+    echo '   📍 '.$e->getFile().':'.$e->getLine()."\n";
 }

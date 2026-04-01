@@ -12,7 +12,6 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "🧪 PRUEBA: Crear evento y verificar visibilidad\n";
@@ -25,15 +24,19 @@ $admin2 = User::where('tipo_cuenta', 'admin_notaria')->where('notaria_id', 2)->f
 
 echo "📋 Usuarios de prueba:\n";
 echo "  1. Super Admin: {$superAdmin->name} (ID: {$superAdmin->id})\n";
-if ($admin1) echo "  2. Admin Notaría 1: {$admin1->name} (ID: {$admin1->id})\n";
-if ($admin2) echo "  3. Admin Notaría 2: {$admin2->name} (ID: {$admin2->id})\n";
+if ($admin1) {
+    echo "  2. Admin Notaría 1: {$admin1->name} (ID: {$admin1->id})\n";
+}
+if ($admin2) {
+    echo "  3. Admin Notaría 2: {$admin2->name} (ID: {$admin2->id})\n";
+}
 echo "\n";
 
 // Crear un evento de prueba con el super admin
 echo "➕ Creando evento de prueba con Super Admin...\n";
 
 $nuevoEvento = AgendaEvent::create([
-    'titulo' => 'PRUEBA DE VISIBILIDAD - ' . now()->format('H:i:s'),
+    'titulo' => 'PRUEBA DE VISIBILIDAD - '.now()->format('H:i:s'),
     'start_fecha' => now()->addDays(1),
     'end_fecha' => now()->addDays(1)->addHour(),
     'comentarios' => 'Este evento fue creado por el super admin para pruebas',
@@ -47,7 +50,7 @@ $nuevoEvento = AgendaEvent::create([
 echo "  ✓ Evento #{$nuevoEvento->id} creado exitosamente\n";
 echo "    - Título: {$nuevoEvento->titulo}\n";
 echo "    - Creado por: user_id = {$nuevoEvento->user_id}\n";
-echo "    - Notaría: " . ($nuevoEvento->notaria_id ?: 'NULL (super_admin)') . "\n\n";
+echo '    - Notaría: '.($nuevoEvento->notaria_id ?: 'NULL (super_admin)')."\n\n";
 
 // Verificar visibilidad por cada usuario
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
@@ -55,13 +58,17 @@ echo "👁️  VERIFICACIÓN DE VISIBILIDAD\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
 $usuarios = [$superAdmin];
-if ($admin1) $usuarios[] = $admin1;
-if ($admin2) $usuarios[] = $admin2;
+if ($admin1) {
+    $usuarios[] = $admin1;
+}
+if ($admin2) {
+    $usuarios[] = $admin2;
+}
 
 foreach ($usuarios as $usuario) {
     echo "Usuario: {$usuario->name} (ID: {$usuario->id})\n";
     echo "  Tipo: {$usuario->tipo_cuenta}\n";
-    echo "  Notaría ID: " . ($usuario->notaria_id ?: 'NULL') . "\n";
+    echo '  Notaría ID: '.($usuario->notaria_id ?: 'NULL')."\n";
 
     // Buscar el evento usando el scope
     $puedeVer = AgendaEvent::where('id', $nuevoEvento->id)
@@ -77,7 +84,7 @@ foreach ($usuarios as $usuario) {
         echo "  ❌ NO PUEDE ver el evento #{$nuevoEvento->id}\n";
     }
 
-    echo "  Esperado: " . ($debePoder ? 'PUEDE ver' : 'NO PUEDE ver') . "\n";
+    echo '  Esperado: '.($debePoder ? 'PUEDE ver' : 'NO PUEDE ver')."\n";
 
     if ($puedeVer === $debePoder) {
         echo "  ✅ Correcto\n";

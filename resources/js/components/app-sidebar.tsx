@@ -92,7 +92,7 @@ export function AppSidebar() {
                   },
                   {
                       title: 'Registro Web',
-                      href: '/admin/Reg_web',
+                      href: '/admin/registro-web',
                       icon: QrCode,
                   },
                   {
@@ -252,8 +252,8 @@ export function AppSidebar() {
             icon: Folder,
         },
         {
-            title: 'Documentation',
-            href: 'https://laravel.com/docs/starter-kits#react',
+            title: 'Documentación',
+            href: '/admin/documentacion',
             icon: BookOpen,
         },
     ];

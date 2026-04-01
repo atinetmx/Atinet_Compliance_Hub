@@ -23,8 +23,8 @@ $sinUsuario = DB::connection('aplicativos_remote')
 $total = $conUsuario + $sinUsuario;
 
 echo "→ Distribución de id_usuario_creador:\n";
-echo "  CON usuario:  {$conUsuario} eventos (" . round(($conUsuario/$total)*100, 1) . "%)\n";
-echo "  SIN usuario:  {$sinUsuario} eventos (" . round(($sinUsuario/$total)*100, 1) . "%)\n";
+echo "  CON usuario:  {$conUsuario} eventos (".round(($conUsuario / $total) * 100, 1)."%)\n";
+echo "  SIN usuario:  {$sinUsuario} eventos (".round(($sinUsuario / $total) * 100, 1)."%)\n";
 echo "  Total:        {$total}\n\n";
 
 // 2. Si hay eventos con usuario, mostrar distribución

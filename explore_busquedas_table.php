@@ -1,8 +1,8 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "==================================================\n";
@@ -12,14 +12,14 @@ echo "==================================================\n\n";
 try {
     // Obtener estructura de la tabla
     $columns = DB::connection('aplicativos')
-        ->select("DESCRIBE busquedas");
+        ->select('DESCRIBE busquedas');
 
     echo "📋 Columnas de la tabla 'busquedas':\n";
     foreach ($columns as $col) {
         echo "   - {$col->Field} ({$col->Type}) "
-            . ($col->Null === 'NO' ? 'NOT NULL' : 'NULL')
-            . ($col->Key ? " [{$col->Key}]" : '')
-            . "\n";
+            .($col->Null === 'NO' ? 'NOT NULL' : 'NULL')
+            .($col->Key ? " [{$col->Key}]" : '')
+            ."\n";
     }
 
     // Contar registros totales
@@ -27,7 +27,7 @@ try {
         ->table('busquedas')
         ->count();
 
-    echo "\n📊 Total de registros: " . number_format($total) . "\n";
+    echo "\n📊 Total de registros: ".number_format($total)."\n";
 
     // Verificar valores únicos en columna 'notaria'
     echo "\n📋 Primeros 10 valores de 'notaria':\n";
@@ -43,7 +43,7 @@ try {
             ->table('busquedas')
             ->where('notaria', $n->notaria)
             ->count();
-        echo "   - '{$n->notaria}' → " . number_format($count) . " búsquedas\n";
+        echo "   - '{$n->notaria}' → ".number_format($count)." búsquedas\n";
     }
 
     // Mostrar 3 registros de ejemplo
@@ -54,14 +54,14 @@ try {
         ->get();
 
     foreach ($ejemplos as $i => $ej) {
-        echo "\n   Registro " . ($i+1) . ":\n";
-        foreach ((array)$ej as $key => $value) {
-            echo "      {$key}: " . (is_null($value) ? 'NULL' : $value) . "\n";
+        echo "\n   Registro ".($i + 1).":\n";
+        foreach ((array) $ej as $key => $value) {
+            echo "      {$key}: ".(is_null($value) ? 'NULL' : $value)."\n";
         }
     }
 
 } catch (Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo '❌ Error: '.$e->getMessage()."\n";
     exit(1);
 }
 

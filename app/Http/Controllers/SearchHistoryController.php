@@ -208,4 +208,3 @@ class SearchHistoryController extends Controller
         ]);
     }
 }
-

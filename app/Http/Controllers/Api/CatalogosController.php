@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Controlador para acceder a los catálogos de SEPOMEX
@@ -56,7 +56,6 @@ class CatalogosController extends Controller
     /**
      * Obtener municipios filtrados por estado
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function getMunicipios(Request $request)
@@ -69,7 +68,7 @@ class CatalogosController extends Controller
             $estado = $request->input('estado');
 
             // Cache por estado (24 horas)
-            $cacheKey = 'catalogos:municipios:' . md5($estado);
+            $cacheKey = 'catalogos:municipios:'.md5($estado);
 
             $municipios = Cache::remember($cacheKey, 86400, function () use ($estado) {
                 return DB::connection('catalogos')
@@ -106,7 +105,6 @@ class CatalogosController extends Controller
      * Buscar información por código postal
      * Permite auto-completar estado, municipio, colonias
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function buscarCodigoPostal(Request $request)
@@ -119,7 +117,7 @@ class CatalogosController extends Controller
             $cp = $request->input('cp');
 
             // Cache por CP (24 horas)
-            $cacheKey = 'catalogos:cp:' . $cp;
+            $cacheKey = 'catalogos:cp:'.$cp;
 
             $resultado = Cache::remember($cacheKey, 86400, function () use ($cp) {
                 // Buscar todas las colonias/asentamientos para este CP
@@ -157,7 +155,7 @@ class CatalogosController extends Controller
                 ];
             });
 
-            if (!$resultado) {
+            if (! $resultado) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Código postal no encontrado',
@@ -180,7 +178,6 @@ class CatalogosController extends Controller
     /**
      * Buscar colonias/asentamientos por estado y municipio
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function getColonias(Request $request)
@@ -195,7 +192,7 @@ class CatalogosController extends Controller
             $municipio = $request->input('municipio');
 
             // Cache por combinación (24 horas)
-            $cacheKey = 'catalogos:colonias:' . md5($estado . $municipio);
+            $cacheKey = 'catalogos:colonias:'.md5($estado.$municipio);
 
             $colonias = Cache::remember($cacheKey, 86400, function () use ($estado, $municipio) {
                 return DB::connection('catalogos')

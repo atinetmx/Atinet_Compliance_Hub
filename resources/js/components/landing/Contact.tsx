@@ -30,7 +30,7 @@ const Contact = () => {
     };
 
     return (
-        <section id="contact" className="relative py-20 md:py-32 px-5 md:px-20 bg-gradient-to-b from-black to-gray-900">
+        <section id="contact" className="relative py-20 md:py-32 px-5 md:px-20 bg-linear-to-b from-black to-gray-900">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">
@@ -55,7 +55,7 @@ const Contact = () => {
                                     id="name"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
                                     placeholder="Tu nombre"
                                     required
                                 />
@@ -73,7 +73,7 @@ const Contact = () => {
                                     id="email"
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
                                     placeholder="tu@email.com"
                                     required
                                 />
@@ -91,7 +91,7 @@ const Contact = () => {
                                     value={data.message}
                                     onChange={(e) => setData('message', e.target.value)}
                                     rows={5}
-                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all resize-none"
                                     placeholder="¿En qué podemos ayudarte?"
                                     required
                                 />
@@ -111,7 +111,7 @@ const Contact = () => {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="w-full px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-8 py-4 text-lg font-semibold text-gray-900 bg-cyan-400 rounded-lg hover:bg-cyan-500 transition-all duration-300 shadow-lg hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {processing ? 'Enviando...' : 'Enviar Mensaje'}
                             </button>
@@ -139,7 +139,7 @@ const Contact = () => {
                                 </div>
                                 <div>
                                     <h4 className="text-white font-semibold mb-1">Email</h4>
-                                    <a href="mailto:contacto@atinet.com.mx" className="text-blue-400 hover:text-blue-300 transition-colors">
+                                    <a href="mailto:contacto@atinet.com.mx" className="text-cyan-400 hover:text-cyan-300 transition-colors">
                                         contacto@atinet.com.mx
                                     </a>
                                 </div>
@@ -154,7 +154,7 @@ const Contact = () => {
                                 </div>
                                 <div>
                                     <h4 className="text-white font-semibold mb-1">Teléfono</h4>
-                                    <a href="tel:+525512345678" className="text-blue-400 hover:text-blue-300 transition-colors">
+                                    <a href="tel:+525512345678" className="text-cyan-400 hover:text-cyan-300 transition-colors">
                                         +52 (55) 1234-5678
                                     </a>
                                 </div>

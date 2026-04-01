@@ -1,14 +1,19 @@
-import AppLogoIcon from './app-logo-icon';
-
 export default function AppLogo() {
     return (
         <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
+            <div className="flex aspect-square size-12 items-center justify-center">
+                <img
+                    src="/images/logo-atinet.png"
+                    alt="Atinet"
+                    className="h-12 w-auto object-contain"
+                />
             </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
+            <div className="ml-2 grid flex-1 text-left text-sm">
                 <span className="mb-0.5 truncate leading-tight font-semibold">
-                    Laravel Starter Kit
+                    Atinet Compliance Hub
+                </span>
+                <span className="text-xs text-muted-foreground hidden group-data-[collapsible=icon]:hidden">
+                    Soluciones Notariales
                 </span>
             </div>
         </>
