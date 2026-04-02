@@ -170,6 +170,9 @@ class UserController extends Controller
             $updateData['plain_password'] = $validated['password'];
         }
 
+        // Guardar la notaría anterior antes de actualizar
+        $notariaAnterior = $user->notaria_id;
+
         $user->update($updateData);
 
         return redirect()->route('admin.users.index')
@@ -186,6 +189,7 @@ class UserController extends Controller
             return back()->withErrors(['error' => 'No se puede eliminar un Super Administrador.']);
         }
 
+        // Guardar notaria_id antes de eliminar (el Observer necesita el valor al dispararse)
         $user->delete();
 
         return redirect()->route('admin.users.index')

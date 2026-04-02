@@ -1,14 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Package,
     Edit,
-    ArrowLeft,
+    Eye,
     Power,
     PowerOff,
     TrendingUp,
     Users,
     DollarSign,
     BarChart3,
+    Package,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +88,7 @@ export default function ServicesShow({
         {
             title: service.name,
             href: '#',
+            icon: Eye,
         },
     ];
 
@@ -123,38 +124,16 @@ export default function ServicesShow({
             <Head title={`Servicio - ${service.name}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                {/* Header */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.history.back()}
-                        >
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver
-                        </Button>
-                        <Package className="h-6 w-6 text-primary" />
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-2xl font-bold">
-                                    {service.name}
-                                </h1>
-                                <Badge
-                                    variant={
-                                        service.is_active
-                                            ? 'default'
-                                            : 'secondary'
-                                    }
-                                >
-                                    {service.is_active ? 'Activo' : 'Inactivo'}
-                                </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                                Código: {service.code}
-                            </p>
-                        </div>
-                    </div>
+                    <Badge
+                        variant={
+                            service.is_active
+                                ? 'default'
+                                : 'secondary'
+                        }
+                    >
+                        {service.is_active ? 'Activo' : 'Inactivo'}
+                    </Badge>
 
                     <div className="flex gap-2">
                         <Button

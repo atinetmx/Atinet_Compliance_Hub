@@ -151,10 +151,17 @@ class ReportsController extends Controller
             ->orderBy('service_usages_count', 'desc')
             ->get();
 
-        return response()->json([
+        $services = Service::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'category']);
+
+        return Inertia::render('Admin/Reports/NotariasComparison', [
             'notarias' => $notarias,
-            'period' => $period,
-            'service_code' => $serviceCode,
+            'services' => $services,
+            'filters' => [
+                'period' => $period,
+                'service_code' => $serviceCode,
+            ],
         ]);
     }
 

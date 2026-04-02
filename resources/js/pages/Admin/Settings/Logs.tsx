@@ -29,7 +29,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Administración', href: '/admin' },
     { title: 'Configuración', href: '/admin/settings' },
-    { title: 'Logs', href: '/admin/settings/logs' },
+    { title: 'Logs', href: '/admin/settings/logs', icon: FileText },
 ];
 
 export default function Logs({ logs, currentFile, availableLogs }: Props) {
@@ -96,20 +96,12 @@ export default function Logs({ logs, currentFile, availableLogs }: Props) {
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/admin/settings">
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver
-                            </Button>
-                        </Link>
-                        <div className="flex items-center gap-2">
-                            <FileText className="h-6 w-6 text-primary" />
-                            <h1 className="text-2xl font-bold">
-                                Logs del Sistema
-                            </h1>
-                        </div>
-                    </div>
+                    <Link href="/admin/settings">
+                        <Button variant="outline" size="sm">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver a Configuración
+                        </Button>
+                    </Link>
                     <Button
                         variant="outline"
                         onClick={() => window.location.reload()}
@@ -204,7 +196,7 @@ export default function Logs({ logs, currentFile, availableLogs }: Props) {
                         </div>
                     </div>
 
-                    <div className="max-h-[600px] overflow-y-auto">
+                    <div className="max-h-150 overflow-y-auto">
                         {filteredLogs.length > 0 ? (
                             <div className="divide-y divide-border">
                                 {filteredLogs.map((line, index) => {

@@ -102,6 +102,7 @@ export default function PlanServices({
         {
             title: 'Servicios',
             href: `/admin/plans/${plan.id}/services`,
+            icon: Package,
         },
     ];
 
@@ -233,26 +234,6 @@ export default function PlanServices({
             <Head title={`Servicios - ${plan.nombre}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/admin/plans">
-                            <Button variant="outline" size="icon">
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                Servicios - {plan.nombre}
-                            </h1>
-                            <p className="text-sm text-muted-foreground">
-                                {assignedServices.length} servicios asignados •{' '}
-                                {availableServices.length} disponibles
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Servicios Asignados */}
                 <div className="rounded-xl border border-sidebar-border/70 bg-background">
                     <div className="border-b p-4">

@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Package, Save, ArrowLeft, Plus, X } from 'lucide-react';
+import { Edit, Save, ArrowLeft, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { RequiredLabel } from '@/components/ui/label';
+import { Label, RequiredLabel } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -61,6 +61,7 @@ export default function PlansEdit({ plan }: PlansEditProps) {
         {
             title: 'Editar',
             href: '#',
+            icon: Edit,
         },
     ];
 
@@ -106,20 +107,6 @@ export default function PlansEdit({ plan }: PlansEditProps) {
             <Head title={`Editar Plan - ${plan.nombre}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.history.back()}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
-                    </Button>
-                    <Package className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">
-                        Editar Plan: {plan.nombre}
-                    </h1>
-                </div>
 
                 <div className="rounded-xl border border-sidebar-border/70 bg-background p-6">
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -298,9 +285,12 @@ export default function PlansEdit({ plan }: PlansEditProps) {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <RequiredLabel htmlFor="limite_busquedas_mes">
+                                    <Label htmlFor="limite_busquedas_mes">
                                         Límite de Búsquedas/Mes
-                                    </RequiredLabel>
+                                        <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                                            (Solo para categoría: Consultas/Búsquedas)
+                                        </span>
+                                    </Label>
                                     <Input
                                         id="limite_busquedas_mes"
                                         type="number"
@@ -318,6 +308,9 @@ export default function PlansEdit({ plan }: PlansEditProps) {
                                                 : ''
                                         }
                                     />
+                                    <p className="text-xs text-muted-foreground">
+                                        💡 Este límite aplica únicamente para servicios de búsqueda y verificación en bases de datos externas (OFAC, SAT, etc.)
+                                    </p>
                                     {errors.limite_busquedas_mes && (
                                         <p className="text-sm text-red-500">
                                             {errors.limite_busquedas_mes}

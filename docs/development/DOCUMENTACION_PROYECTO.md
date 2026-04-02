@@ -1,13 +1,82 @@
 # 📋 Sistema de Listas Negras V2 - Documentación Técnica Completa
 
-## 📅 Fecha de Última Actualización: 29 de Enero, 2026
+## 📅 Fecha de Última Actualización: 2 de Abril, 2026
 
 > **📌 PROPÓSITO DE ESTE DOCUMENTO:**  
 > Esta es la documentación **master** del proyecto. Contiene TODA la información necesaria para que cualquier desarrollador (nuevo o existente) pueda entender, desarrollar y mantener el sistema sin necesidad de contexto adicional. Se actualiza constantemente durante el desarrollo.
 
 ---
 
-## 🎯 **Estado Actual del Proyecto - ACTUALIZADO**
+## � **Cambios Recientes - 2 de Abril, 2026**
+
+### 🗑️ Flujo de Eliminación de Notarías
+
+**Componente: `DeleteNotariaDialog.tsx`**
+- Modal inteligente con dos opciones: Inhabilitar (recomendado) vs Eliminar Permanentemente
+- Bloqueo automático de eliminación si la notaría tiene usuarios activos
+- Alerta ámbar con número de usuarios y botón directo a "Gestionar Usuarios" filtrado
+- Opción "Eliminar Permanentemente" se deshabilita visualmente cuando hay usuarios
+- Requiere contraseña de super_admin y razón mínima de 10 caracteres
+- Toda eliminación se registra en logs (Log::critical)
+
+**Backend: `NotariaController::destroy()`**
+- Validación de contraseña con `Hash::check()`
+- Bloqueo de eliminación si `$notaria->users()->count() > 0`
+- Logging completo: IP, usuario responsable, razón, timestamp
+
+### 👥 Eliminación de Usuarios (nueva funcionalidad)
+
+**Frontend: `Users/Index.tsx`**
+- Botón Trash2 ahora tiene `onClick` con confirmación nativa del navegador
+- Usa method spoofing: `router.post(url, { _method: 'DELETE' })`
+
+**Backend: `UserController::destroy()`**
+- Bloquea eliminación de `super_admin`
+- Redirige con mensaje de éxito
+
+### 🔄 Sincronización Automática de `total_usuarios`
+
+**Problema resuelto:** La columna `notarias.total_usuarios` se desincronizaba al crear/eliminar/reasignar usuarios porque era un dato estático.
+
+**Solución: `UserObserver`** (`app/Observers/UserObserver.php`)
+```php
+// Se registra en AppServiceProvider::boot()
+User::observe(UserObserver::class);
+
+// Eventos que disparan la actualización:
+// - created  → actualiza la notaría del nuevo usuario
+// - updated  → si cambió notaria_id, actualiza ambas notarías
+// - deleted  → recuenta usuarios de la notaría del usuario eliminado
+```
+
+**Migración de resincronización:** `2026_04_02_195256_ensure_total_usuarios_column_in_notarias_table`
+- Verifica si la columna existe, si no la crea
+- Recalcula `total_usuarios` para todas las notarías existentes con el conteo real
+
+**Factory actualizado:** `NotariaFactory` ahora incluye `total_usuarios: 0` para que los tests arranquen con estado consistente.
+
+### 🧪 Tests Añadidos
+
+**`tests/Feature/UserDestroyTest.php`** — 5 tests, 23 assertions:
+- `super_admin_puede_eliminar_usuarios_regulares`
+- `no_se_puede_eliminar_super_admin`
+- `puede_eliminar_admin_de_notaria` + verifica decremento de contador
+- `actualiza_contador_al_crear_usuario`
+- `actualiza_contador_al_cambiar_usuario_de_notaria`
+
+### 📚 Manual de Usuario Actualizado
+
+Agregada subsección **"Eliminar / Inhabilitar Notaría"** en `Documentation/Index.tsx`:
+- Explica las dos opciones y cuándo usar cada una
+- Documenta el sistema de bloqueo inteligente por usuarios activos
+- Flujo completo paso a paso (12 pasos)
+- Sección sobre base de datos tenant y auditoría de logs
+
+Corregida **entrada duplicada** de "Gestión de Notarías" en la navegación del manual.
+
+---
+
+## �🎯 **Estado Actual del Proyecto - ACTUALIZADO**
 
 ### ✅ **Funcionalidades Implementadas**
 

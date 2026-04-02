@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Package, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,25 +32,26 @@ interface ServicesCreateProps {
     billingModels: BillingModel[];
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-    {
-        title: 'Servicios',
-        href: '/admin/services',
-    },
-    {
-        title: 'Crear Servicio',
-        href: '#',
-    },
-];
-
 export default function ServicesCreate({
     categories,
     billingModels,
 }: ServicesCreateProps) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Dashboard',
+            href: '/dashboard',
+        },
+        {
+            title: 'Servicios',
+            href: '/admin/services',
+        },
+        {
+            title: 'Crear Servicio',
+            href: '#',
+            icon: Plus,
+        },
+    ];
+
     const { data, setData, post, processing, errors } = useForm({
         code: '',
         name: '',
@@ -60,6 +61,40 @@ export default function ServicesCreate({
         unit_price: '',
         is_active: true,
     });
+
+    // Descripciones de las categorías
+    const categoryDescriptions: Record<string, string> = {
+        consulta: 'Servicios de búsqueda y verificación en bases de datos externas (OFAC, SAT, etc.)',
+        api: 'Servicios de integración mediante API con sistemas externos y proveedores de datos',
+        sistema: 'Servicios internos del sistema como gestión de usuarios, notificaciones y configuración',
+        analisis: 'Servicios de análisis de datos, generación de reportes y estadísticas de uso',
+        storage: 'Servicios de almacenamiento de documentos, imágenes y archivos',
+        integration: 'Servicios de integración con software de terceros y sistemas legacy',
+    };
+
+    // Descripciones de los modelos de facturación
+    const billingModelDescriptions: Record<string, string> = {
+        included: 'Incluido en el plan sin costo adicional. La notaría puede usar este servicio libremente.',
+        limited: 'Con un límite mensual de uso incluido. Al superar el límite, puede aplicar cargo adicional.',
+        per_use: 'Se cobra por cada uso individual. Cada consulta genera un cargo según el precio unitario.',
+        unlimited: 'Uso ilimitado sin restricciones ni cargos adicionales incluido en el plan.',
+    };
+
+    // Función para generar código automáticamente desde el nombre
+    const generateCode = (name: string): string => {
+        return name
+            .toUpperCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+            .replace(/[^A-Z0-9\s]/g, '') // Solo letras, números y espacios
+            .trim()
+            .replace(/\s+/g, '_'); // Reemplazar espacios con guiones bajos
+    };
+
+    const handleNameChange = (name: string) => {
+        setData('name', name);
+        setData('code', generateCode(name));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -71,19 +106,6 @@ export default function ServicesCreate({
             <Head title="Crear Servicio" />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.history.back()}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
-                    </Button>
-                    <Package className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">Crear Nuevo Servicio</h1>
-                </div>
-
                 <div className="rounded-xl border border-sidebar-border/70 bg-background p-6">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Información Básica */}
@@ -94,31 +116,6 @@ export default function ServicesCreate({
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <RequiredLabel htmlFor="code">
-                                        Código del Servicio *
-                                    </RequiredLabel>
-                                    <Input
-                                        id="code"
-                                        value={data.code}
-                                        onChange={(e) =>
-                                            setData('code', e.target.value)
-                                        }
-                                        placeholder="Ej: BLACKLIST_SAT"
-                                        className={
-                                            errors.code ? 'border-red-500' : ''
-                                        }
-                                    />
-                                    {errors.code && (
-                                        <p className="text-sm text-red-500">
-                                            {errors.code}
-                                        </p>
-                                    )}
-                                    <p className="text-sm text-muted-foreground">
-                                        Solo mayúsculas y guiones bajos
-                                    </p>
-                                </div>
-
-                                <div className="space-y-2">
                                     <RequiredLabel htmlFor="name">
                                         Nombre del Servicio *
                                     </RequiredLabel>
@@ -126,7 +123,7 @@ export default function ServicesCreate({
                                         id="name"
                                         value={data.name}
                                         onChange={(e) =>
-                                            setData('name', e.target.value)
+                                            handleNameChange(e.target.value)
                                         }
                                         placeholder="Ej: Lista Negra SAT"
                                         className={
@@ -138,6 +135,30 @@ export default function ServicesCreate({
                                             {errors.name}
                                         </p>
                                     )}
+                                    <p className="text-sm text-muted-foreground">
+                                        El código se generará automáticamente
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <RequiredLabel htmlFor="code">
+                                        Código del Servicio *
+                                    </RequiredLabel>
+                                    <Input
+                                        id="code"
+                                        value={data.code}
+                                        disabled
+                                        placeholder="Se genera automáticamente"
+                                        className="bg-muted"
+                                    />
+                                    {errors.code && (
+                                        <p className="text-sm text-red-500">
+                                            {errors.code}
+                                        </p>
+                                    )}
+                                    <p className="text-sm text-muted-foreground">
+                                        Generado automáticamente del nombre
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2 md:col-span-2">
@@ -212,6 +233,11 @@ export default function ServicesCreate({
                                             {errors.category}
                                         </p>
                                     )}
+                                    {data.category && categoryDescriptions[data.category] && (
+                                        <p className="text-sm text-muted-foreground italic">
+                                            {categoryDescriptions[data.category]}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
@@ -247,6 +273,11 @@ export default function ServicesCreate({
                                     {errors.billing_model && (
                                         <p className="text-sm text-red-500">
                                             {errors.billing_model}
+                                        </p>
+                                    )}
+                                    {data.billing_model && billingModelDescriptions[data.billing_model] && (
+                                        <p className="text-sm text-muted-foreground italic">
+                                            {billingModelDescriptions[data.billing_model]}
                                         </p>
                                     )}
                                 </div>

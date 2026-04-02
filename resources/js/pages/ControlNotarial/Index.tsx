@@ -80,6 +80,15 @@ export default function ControlNotarialIndex({
             <Head title="Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
+                {/* Hero Section */}
+                <div className="relative overflow-hidden rounded-xl border border-sidebar-border/70 bg-linear-to-br from-amber-500/10 to-orange-500/10 p-8 dark:border-sidebar-border">
+                    <div>
+                        <h1 className="text-3xl font-bold text-foreground">
+                            Control Notarial
+                        </h1>
+                        <p className="mt-2 text-lg text-muted-foreground">
+                            Sistema de gestión y control para operaciones notariales
+                        </p>
 
                         <div className="mt-6 flex items-center gap-4">
                             <div className="inline-flex items-center gap-2 rounded-full border border-orange-300 bg-orange-100 px-4 py-2 text-sm font-medium text-orange-900 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200">
@@ -151,7 +160,7 @@ export default function ControlNotarialIndex({
                             {/* Progress bar */}
                             <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
                                 <div
-                                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500"
+                                    className="h-full bg-linear-to-r from-amber-500 to-orange-500 transition-all duration-500"
                                     style={{ width: `${progressPercentage}%` }}
                                 />
                             </div>

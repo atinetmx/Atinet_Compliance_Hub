@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Package,
+    Layers,
     Plus,
     Search,
     Edit,
@@ -82,6 +82,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Planes',
         href: '/admin/plans',
+        icon: Layers,
     },
 ];
 
@@ -141,19 +142,8 @@ export default function PlansIndex({ plans, filters }: PlansIndexProps) {
             <Head title="Gestión de Planes" />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Package className="h-6 w-6 text-primary" />
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                Gestión de Planes
-                            </h1>
-                            <p className="text-sm text-muted-foreground">
-                                {plans.total} planes disponibles
-                            </p>
-                        </div>
-                    </div>
+                {/* Actions */}
+                <div className="flex items-center justify-end mb-4">
                     <Link href="/admin/plans/create">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />

@@ -91,7 +91,7 @@ interface ServiceUsageProps {
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: '/admin/dashboard',
+        href: '/dashboard',
     },
     {
         title: 'Reportes',
@@ -100,6 +100,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Uso de Servicios',
         href: ReportsController.serviceUsage.url(),
+        icon: TrendingUp,
     },
 ];
 
@@ -202,10 +203,7 @@ export default function ServiceUsage({
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                                Uso de Servicios
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground">
                                 Historial detallado de consumo de servicios por notaría
                             </p>
                         </div>

@@ -15,7 +15,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection('aplicativos')->table('agenda', function (Blueprint $table) {
-            $table->unsignedInteger('id_usuario_creador')->nullable()->after('notaria')->index();
+            if (! Schema::connection('aplicativos')->hasColumn('agenda', 'id_usuario_creador')) {
+                $table->unsignedInteger('id_usuario_creador')->nullable()->after('notaria')->index();
+            }
         });
     }
 
@@ -25,7 +27,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::connection('aplicativos')->table('agenda', function (Blueprint $table) {
-            $table->dropColumn('id_usuario_creador');
+            if (Schema::connection('aplicativos')->hasColumn('agenda', 'id_usuario_creador')) {
+                $table->dropColumn('id_usuario_creador');
+            }
         });
     }
 };

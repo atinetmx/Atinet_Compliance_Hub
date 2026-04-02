@@ -126,12 +126,33 @@ export default function Index({
         }
     };
 
+    const handleDelete = (user: User) => {
+        if (
+            confirm(
+                `¿Estás seguro de eliminar al usuario "${user.name}" (${user.email})? Esta acción no se puede deshacer.`,
+            )
+        ) {
+            router.post(
+                `/admin/users/${user.id}`,
+                {
+                    _method: 'DELETE',
+                },
+                {
+                    onSuccess: () => {
+                        // El mensaje de éxito lo maneja el backend
+                    },
+                    preserveScroll: true,
+                },
+            );
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Gestión de Usuarios" />
 
             <div className="space-y-4">
-                
+
 
                 {/* Filters */}
                 <div className="space-y-4">
@@ -346,6 +367,9 @@ export default function Index({
                                                     size="sm"
                                                     variant="ghost"
                                                     className="text-red-600 hover:text-red-700"
+                                                    onClick={() =>
+                                                        handleDelete(user)
+                                                    }
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Building2, Save, ArrowLeft } from 'lucide-react';
+import { Building2, Save, ArrowLeft, Edit } from 'lucide-react';
 import LegacyNotariaAutocomplete from '@/components/Admin/LegacyNotariaAutocomplete';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,6 +97,7 @@ export default function NotariaEdit({ notaria, planes }: NotariaEditProps) {
         {
             title: 'Editar',
             href: `/admin/notarias/${notaria.id}/edit`,
+            icon: Edit,
         },
     ];
 
