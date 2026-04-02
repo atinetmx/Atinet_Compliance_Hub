@@ -6,6 +6,7 @@ import {
     Building2,
     Calendar,
     Shield,
+    UserCircle2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -64,7 +65,7 @@ export default function Show({ user, stats }: Props) {
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Administración', href: '/admin' },
         { title: 'Usuarios', href: '/admin/users' },
-        { title: user.name, href: `/admin/users/${user.id}` },
+        { title: user.name, href: `/admin/users/${user.id}`, icon: UserCircle2 },
     ];
 
     const formatDate = (date: string) => {
@@ -82,20 +83,14 @@ export default function Show({ user, stats }: Props) {
             <Head title={`${user.name} - Usuario`} />
 
             <div className="space-y-6">
-                {/* Header */}
+                {/* Header con botones de acción */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/admin/users">
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver
-                            </Button>
-                        </Link>
-                        <div>
-                            <h1 className="text-3xl font-bold">{user.name}</h1>
-                            <p className="text-gray-500">ID: {user.id}</p>
-                        </div>
-                    </div>
+                    <Link href="/admin/users">
+                        <Button variant="outline" size="sm">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                    </Link>
                     <Link href={`/admin/users/${user.id}/edit`}>
                         <Button>Editar Usuario</Button>
                     </Link>

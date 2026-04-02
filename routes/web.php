@@ -129,14 +129,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('plans/{plan}/services/bulk-assign', [\App\Http\Controllers\Admin\PlanServiceController::class, 'bulkAssign'])->name('plans.services.bulk-assign');
 
     // Gestión de usuarios del sistema
-    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
     Route::get('users/reports', [\App\Http\Controllers\Admin\UserController::class, 'reports'])->name('users.reports');
+    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
 
     // Configuración del sistema
     Route::resource('settings', \App\Http\Controllers\Admin\SettingsController::class);
     Route::get('settings/logs', [\App\Http\Controllers\Admin\SettingsController::class, 'logs'])->name('settings.logs');
     Route::post('settings/cache/clear', [\App\Http\Controllers\Admin\SettingsController::class, 'clearCache'])->name('settings.cache.clear');
     Route::post('settings/optimize', [\App\Http\Controllers\Admin\SettingsController::class, 'optimize'])->name('settings.optimize');
+
+    // Documentación del sistema
+    Route::get('documentacion', [\App\Http\Controllers\Admin\DocumentationController::class, 'index'])->name('documentation.index');
 
     // Reportes y estadísticas de uso de servicios
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -196,6 +199,26 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('reporte-usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'reporteUsuarios'])->name('reporte-usuarios');
     });
 
+    // === MÓDULO REGISTRO WEB ===
+    // Sistema de registro de personas con OCR/QR (réplica del sistema PHP)
+    Route::prefix('registro-web')->name('registro-web.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\RegistroWebController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\RegistroWebController::class, 'store'])->name('store');
+        Route::get('search-curp', [\App\Http\Controllers\Admin\RegistroWebController::class, 'searchCurp'])->name('search-curp');
+        Route::get('search-rfc', [\App\Http\Controllers\Admin\RegistroWebController::class, 'searchRfc'])->name('search-rfc');
+        Route::get('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'show'])->name('show');
+        Route::put('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'update'])->name('update');
+        Route::delete('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'destroy'])->name('destroy');
+    });
+
+    // === APIs para OCR y Scanners ===
+    Route::prefix('ocr')->name('ocr.')->group(function () {
+        Route::post('ine', [\App\Http\Controllers\Admin\OCRController::class, 'processINE'])->name('ine');
+        Route::post('curp', [\App\Http\Controllers\Admin\OCRController::class, 'processCURP'])->name('curp');
+        Route::post('acta', [\App\Http\Controllers\Admin\OCRController::class, 'processActa'])->name('acta');
+        Route::post('qr', [\App\Http\Controllers\Admin\OCRController::class, 'processQR'])->name('qr');
+    });
+
     // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===
     // API para acceder a los catálogos de ubicación del sistema legacy
     // BD: atinet65_catalogos (usada por "registro web" legacy)
@@ -214,6 +237,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Página de búsqueda
     Route::get('listas-negras', function () {
         return Inertia::render('Admin/ListasNegras/Search');
+        
     })->name('listas-negras');
 
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)

@@ -1,13 +1,12 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
@@ -18,7 +17,7 @@ echo "========================================\n\n";
 // Crear o buscar segundo super_admin
 $superAdmin2 = User::where('email', 'admin2@atinet.mx')->first();
 
-if (!$superAdmin2) {
+if (! $superAdmin2) {
     echo "Creando segundo super_admin...\n";
     $superAdmin2 = User::create([
         'name' => 'Super Admin 2',
@@ -36,7 +35,7 @@ if (!$superAdmin2) {
 // Crear un evento para super_admin 2
 $eventoTest = AgendaEvent::where('user_id', $superAdmin2->id)->first();
 
-if (!$eventoTest) {
+if (! $eventoTest) {
     echo "Creando evento de prueba para super_admin 2...\n";
     $eventoTest = AgendaEvent::create([
         'titulo' => 'Evento de Super Admin 2',
@@ -66,9 +65,9 @@ echo "Usuario: {$superAdmin1->name} (ID: {$superAdmin1->id})\n\n";
 
 // Vista "Ver todo"
 $eventosTodos = AgendaEvent::visiblePara($superAdmin1, 'todos')->get();
-$propiosTodos = $eventosTodos->filter(fn($e) => $e->user_id === $superAdmin1->id)->count();
-$legacyTodos = $eventosTodos->filter(fn($e) => $e->user_id === null)->count();
-$otrosTodos = $eventosTodos->filter(fn($e) => $e->user_id !== null && $e->user_id !== $superAdmin1->id)->count();
+$propiosTodos = $eventosTodos->filter(fn ($e) => $e->user_id === $superAdmin1->id)->count();
+$legacyTodos = $eventosTodos->filter(fn ($e) => $e->user_id === null)->count();
+$otrosTodos = $eventosTodos->filter(fn ($e) => $e->user_id !== null && $e->user_id !== $superAdmin1->id)->count();
 
 echo "🔍 Vista 'Ver todo' (todos):\n";
 echo "   Total: {$eventosTodos->count()} eventos\n";
@@ -78,7 +77,7 @@ echo "   - Otros super_admins: {$otrosTodos}\n";
 
 if ($otrosTodos > 0) {
     echo "   Eventos de otros:\n";
-    foreach ($eventosTodos->filter(fn($e) => $e->user_id !== null && $e->user_id !== $superAdmin1->id) as $evento) {
+    foreach ($eventosTodos->filter(fn ($e) => $e->user_id !== null && $e->user_id !== $superAdmin1->id) as $evento) {
         echo "     - [{$evento->id}] {$evento->titulo} (user_id: {$evento->user_id})\n";
     }
 }
@@ -86,9 +85,9 @@ echo "\n";
 
 // Vista "Solo míos"
 $eventosPropio = AgendaEvent::visiblePara($superAdmin1, 'propio')->get();
-$propiosPropio = $eventosPropio->filter(fn($e) => $e->user_id === $superAdmin1->id)->count();
-$legacyPropio = $eventosPropio->filter(fn($e) => $e->user_id === null)->count();
-$otrosPropio = $eventosPropio->filter(fn($e) => $e->user_id !== null && $e->user_id !== $superAdmin1->id)->count();
+$propiosPropio = $eventosPropio->filter(fn ($e) => $e->user_id === $superAdmin1->id)->count();
+$legacyPropio = $eventosPropio->filter(fn ($e) => $e->user_id === null)->count();
+$otrosPropio = $eventosPropio->filter(fn ($e) => $e->user_id !== null && $e->user_id !== $superAdmin1->id)->count();
 
 echo "🔍 Vista 'Solo míos' (propio):\n";
 echo "   Total: {$eventosPropio->count()} eventos\n";

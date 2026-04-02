@@ -139,12 +139,13 @@ $eventsToInsert = [];
 foreach ($legacyEvents as $event) {
     try {
         // Mapear notaria
-        if (!array_key_exists($event->notaria, $notariasMap)) {
+        if (! array_key_exists($event->notaria, $notariasMap)) {
             if ($verbose) {
                 echo "  ⚠️  Evento #{$event->id}: Notaría '{$event->notaria}' no encontrada, omitiendo\n";
             }
             $stats['notaria_unmapped']++;
             $stats['skipped']++;
+
             continue;
         }
 
@@ -222,7 +223,7 @@ echo "💾 Paso 4/4: Insertando eventos en agenda_events...\n";
 
 $totalToInsert = count($eventsToInsert);
 
-if (!$dryRun && count($eventsToInsert) > 0) {
+if (! $dryRun && count($eventsToInsert) > 0) {
     // Insertar en chunks de 500 para evitar errores de memoria
     $chunks = array_chunk($eventsToInsert, 500);
     $inserted = 0;
@@ -264,7 +265,7 @@ if ($dryRun) {
 }
 
 // Verificación final
-if (!$dryRun) {
+if (! $dryRun) {
     $finalCount = DB::table('agenda_events')->count();
     echo "Registros en agenda_events: {$finalCount}\n\n";
 }

@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Edit as EditIcon } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,7 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
         {
             title: 'Editar',
             href: '#',
+            icon: EditIcon,
         },
     ];
 
@@ -106,7 +107,7 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
             <Head title={`Editar Suscripción - ${subscription.notaria.nombre}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                <div className="flex items-center gap-4">
+                <div className="flex justify-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -115,9 +116,6 @@ export default function Edit({ subscription, plans }: SubscriptionEditProps) {
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver
                     </Button>
-                    <h1 className="text-2xl font-bold">
-                        Editar Suscripción: {subscription.notaria.nombre}
-                    </h1>
                 </div>
 
                 <div className="rounded-xl border border-sidebar-border/70 bg-background p-6">

@@ -11,7 +11,6 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "🔍 Verificación de Visibilidad de Eventos\n";
@@ -36,12 +35,12 @@ foreach ($usuarios as $user) {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
     echo "👤 Usuario: {$user->name} (ID: {$user->id})\n";
     echo "   Tipo: {$user->tipo_cuenta}\n";
-    echo "   Notaría ID: " . ($user->notaria_id ?: 'NULL (super_admin)') . "\n\n";
+    echo '   Notaría ID: '.($user->notaria_id ?: 'NULL (super_admin)')."\n\n";
 
     // Obtener eventos visibles usando el scope
     $eventosVisibles = AgendaEvent::visiblePara($user)->get();
 
-    echo "   📅 Eventos visibles: " . $eventosVisibles->count() . "\n";
+    echo '   📅 Eventos visibles: '.$eventosVisibles->count()."\n";
 
     // Desglosar por tipo
     $personales = $eventosVisibles->whereNotNull('user_id')->where('user_id', $user->id)->count();
@@ -61,7 +60,7 @@ foreach ($usuarios as $user) {
         $muestraLegacy = $eventosVisibles->whereNull('user_id')->take(3);
         foreach ($muestraLegacy as $evento) {
             $notaria = $evento->legacy_notaria ?: "ID:{$evento->notaria_id}";
-            echo "     - {$evento->titulo} (Notaría: {$notaria}, Fecha: " . $evento->start_fecha->format('Y-m-d') . ")\n";
+            echo "     - {$evento->titulo} (Notaría: {$notaria}, Fecha: ".$evento->start_fecha->format('Y-m-d').")\n";
         }
     }
 

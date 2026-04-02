@@ -58,7 +58,7 @@ echo str_repeat('=', 90)."\n\n";
 
 // Verify expected notarías
 $expected = ['81tulum', '99nogales', 'Corr13Quintanaroo', 'registro'];
-$found = $soloOtrosServicios->pluck('notaria_id')->map(fn($id) => strtolower($id));
+$found = $soloOtrosServicios->pluck('notaria_id')->map(fn ($id) => strtolower($id));
 
 echo "✓ Verificando notarías esperadas:\n";
 foreach ($expected as $notaria) {
@@ -69,8 +69,8 @@ foreach ($expected as $notaria) {
 
 // Summary
 echo "\n📈 Resumen:\n";
-echo "  • Total en catálogo: ".number_format($notarias->count())."\n";
-echo "  • Con búsquedas en listas negras: ".number_format($notarias->where('tiene_busquedas_listas_negras', true)->count())."\n";
-echo "  • Solo otros servicios: ".number_format($soloOtrosServicios->count())."\n";
-echo "  • Con acceso web: ".number_format($notarias->where('tiene_acceso_web', true)->count())."\n";
-echo "  • Total usuarios: ".number_format($notarias->sum('total_usuarios'))."\n";
+echo '  • Total en catálogo: '.number_format($notarias->count())."\n";
+echo '  • Con búsquedas en listas negras: '.number_format($notarias->where('tiene_busquedas_listas_negras', true)->count())."\n";
+echo '  • Solo otros servicios: '.number_format($soloOtrosServicios->count())."\n";
+echo '  • Con acceso web: '.number_format($notarias->where('tiene_acceso_web', true)->count())."\n";
+echo '  • Total usuarios: '.number_format($notarias->sum('total_usuarios'))."\n";

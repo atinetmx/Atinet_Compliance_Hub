@@ -13,13 +13,17 @@ $aplicativos = DB::table('atinet65_aplicativos')
     ->where('notaria', 'LIKE', '%142%')
     ->orWhere('notaria', '142')
     ->get();
-echo "Total registros: " . $aplicativos->count() . "\n";
+echo 'Total registros: '.$aplicativos->count()."\n";
 if ($aplicativos->count() > 0) {
     echo "Primeros 5 registros:\n";
     foreach ($aplicativos->take(5) as $reg) {
         echo "  - ID: {$reg->id} | Notaria: {$reg->notaria}";
-        if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
-        if (isset($reg->nombre)) echo " | Nombre: {$reg->nombre}";
+        if (isset($reg->fecha)) {
+            echo " | Fecha: {$reg->fecha}";
+        }
+        if (isset($reg->nombre)) {
+            echo " | Nombre: {$reg->nombre}";
+        }
         echo "\n";
     }
 }
@@ -31,13 +35,17 @@ $ofac = DB::table('atinet65_listasofac')
     ->where('notaria', 'LIKE', '%142%')
     ->orWhere('notaria', '142')
     ->get();
-echo "Total registros: " . $ofac->count() . "\n";
+echo 'Total registros: '.$ofac->count()."\n";
 if ($ofac->count() > 0) {
     echo "Primeros 5 registros:\n";
     foreach ($ofac->take(5) as $reg) {
         echo "  - ID: {$reg->id} | Notaria: {$reg->notaria}";
-        if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
-        if (isset($reg->nombre)) echo " | Nombre: {$reg->nombre}";
+        if (isset($reg->fecha)) {
+            echo " | Fecha: {$reg->fecha}";
+        }
+        if (isset($reg->nombre)) {
+            echo " | Nombre: {$reg->nombre}";
+        }
         echo "\n";
     }
 }
@@ -49,13 +57,17 @@ $sat = DB::table('atinet65_listassat')
     ->where('notaria', 'LIKE', '%142%')
     ->orWhere('notaria', '142')
     ->get();
-echo "Total registros: " . $sat->count() . "\n";
+echo 'Total registros: '.$sat->count()."\n";
 if ($sat->count() > 0) {
     echo "Primeros 5 registros:\n";
     foreach ($sat->take(5) as $reg) {
         echo "  - ID: {$reg->id} | Notaria: {$reg->notaria}";
-        if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
-        if (isset($reg->rfc)) echo " | RFC: {$reg->rfc}";
+        if (isset($reg->fecha)) {
+            echo " | Fecha: {$reg->fecha}";
+        }
+        if (isset($reg->rfc)) {
+            echo " | RFC: {$reg->rfc}";
+        }
         echo "\n";
     }
 }

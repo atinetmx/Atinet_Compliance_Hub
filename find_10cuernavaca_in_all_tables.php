@@ -1,7 +1,7 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
-$app = require_once __DIR__ . '/bootstrap/app.php';
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "==================================================\n";
@@ -28,8 +28,9 @@ foreach ($tables as $table) {
         $cols = DB::connection('aplicativos')->select("SHOW COLUMNS FROM `{$tableName}`");
 
         // Buscar columnas que puedan contener el identificador de notaría
-        $possibleCols = array_filter($cols, function($col) {
+        $possibleCols = array_filter($cols, function ($col) {
             $field = strtolower($col->Field);
+
             return str_contains($field, 'notaria') ||
                    str_contains($field, 'proyecto') ||
                    str_contains($field, 'client');
@@ -44,7 +45,7 @@ foreach ($tables as $table) {
 
             if ($count > 0) {
                 echo "\n✅ Encontrado en: {$tableName}.{$colName}\n";
-                echo "   Total registros: " . number_format($count) . "\n";
+                echo '   Total registros: '.number_format($count)."\n";
             }
         }
     } catch (Exception $e) {

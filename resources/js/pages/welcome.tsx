@@ -8,11 +8,7 @@ import Features from '@/components/landing/Features';
 import Contact from '@/components/landing/Contact';
 import Footer from '@/components/landing/Footer';
 
-export default function Welcome({
-    canRegister = true,
-}: {
-    canRegister?: boolean;
-}) {
+export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
     const isAuthenticated = !!auth.user;
 
@@ -22,17 +18,15 @@ export default function Welcome({
                 <meta name="description" content="Sistema integral de gestión y cumplimiento normativo para notarías. Búsqueda en listas negras OFAC y SAT, gestión de agenda, control documental y más." />
             </Head>
 
-            <div className="min-h-screen bg-black text-white">
+            <div className="min-h-screen bg-[#00040f] text-white">
                 {/* Navbar */}
                 <Navbar
                     isAuthenticated={isAuthenticated}
-                    canRegister={canRegister}
                 />
 
                 {/* Hero Section */}
                 <Hero
                     isAuthenticated={isAuthenticated}
-                    canRegister={canRegister}
                 />
 
                 {/* Features Section */}

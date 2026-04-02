@@ -21,7 +21,7 @@ try {
 // 2. Verificar estructura de tabla log
 echo "--- Estructura de tabla 'log' ---\n";
 $columns = DB::connection('aplicativos')
-    ->select("SHOW COLUMNS FROM log");
+    ->select('SHOW COLUMNS FROM log');
 foreach ($columns as $col) {
     echo "  {$col->Field} ({$col->Type})\n";
 }
@@ -67,7 +67,7 @@ $notariasConLegacy = DB::table('notarias')
     ->select('id', 'nombre', 'legacy_identifier')
     ->get();
 
-echo "Total notarías con legacy_identifier: " . $notariasConLegacy->count() . "\n";
+echo 'Total notarías con legacy_identifier: '.$notariasConLegacy->count()."\n";
 foreach ($notariasConLegacy as $n) {
     echo "  ID {$n->id}: {$n->nombre} → legacy: '{$n->legacy_identifier}'\n";
 }
@@ -86,7 +86,7 @@ if ($ejemplos->isEmpty()) {
     echo "  (Sin registros para esta fecha)\n";
 } else {
     foreach ($ejemplos as $e) {
-        echo "  {$e->hora} | {$e->mail} | {$e->notaria} | " . substr($e->accion, 0, 50) . "...\n";
+        echo "  {$e->hora} | {$e->mail} | {$e->notaria} | ".substr($e->accion, 0, 50)."...\n";
     }
 }
 echo "\n";

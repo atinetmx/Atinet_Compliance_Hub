@@ -9,9 +9,9 @@
  * - Datos de una notaría con historial legacy
  */
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "\n";
@@ -22,7 +22,7 @@ echo "\n";
 
 use App\Services\BusquedasLegacyService;
 
-$service = new BusquedasLegacyService();
+$service = new BusquedasLegacyService;
 
 // Test con 10Cuernavaca (47,551 búsquedas)
 $legacyIdentifier = '10Cuernavaca';
@@ -34,17 +34,17 @@ echo "────────────────────────�
 try {
     $estadisticas = $service->getEstadisticas($legacyIdentifier);
 
-    echo "✓ Total búsquedas: " . number_format($estadisticas['total']) . "\n";
+    echo '✓ Total búsquedas: '.number_format($estadisticas['total'])."\n";
     echo "✓ Por fuente:\n";
-    echo "  - Web: " . number_format($estadisticas['por_fuente']['web']) . "\n";
-    echo "  - Desktop: " . number_format($estadisticas['por_fuente']['desktop']) . "\n";
-    echo "  - OFAC: " . number_format($estadisticas['por_fuente']['ofac']) . "\n";
-    echo "  - SAT: " . number_format($estadisticas['por_fuente']['sat']) . "\n";
-    echo "✓ Primera búsqueda: " . ($estadisticas['primera_busqueda'] ?? 'N/A') . "\n";
-    echo "✓ Última búsqueda: " . ($estadisticas['ultima_busqueda'] ?? 'N/A') . "\n";
+    echo '  - Web: '.number_format($estadisticas['por_fuente']['web'])."\n";
+    echo '  - Desktop: '.number_format($estadisticas['por_fuente']['desktop'])."\n";
+    echo '  - OFAC: '.number_format($estadisticas['por_fuente']['ofac'])."\n";
+    echo '  - SAT: '.number_format($estadisticas['por_fuente']['sat'])."\n";
+    echo '✓ Primera búsqueda: '.($estadisticas['primera_busqueda'] ?? 'N/A')."\n";
+    echo '✓ Última búsqueda: '.($estadisticas['ultima_busqueda'] ?? 'N/A')."\n";
     echo "\n";
 } catch (\Exception $e) {
-    echo "✗ ERROR: " . $e->getMessage() . "\n\n";
+    echo '✗ ERROR: '.$e->getMessage()."\n\n";
     exit(1);
 }
 
@@ -55,9 +55,9 @@ echo "────────────────────────�
 try {
     $resultado = $service->getBusquedasConsolidadas($legacyIdentifier, ['limit' => 10]);
 
-    echo "✓ Total en BD: " . number_format($resultado['total']) . "\n";
-    echo "✓ Retornadas: " . count($resultado['busquedas']) . "\n";
-    echo "✓ Tiene más: " . ($resultado['has_more'] ? 'Sí' : 'No') . "\n";
+    echo '✓ Total en BD: '.number_format($resultado['total'])."\n";
+    echo '✓ Retornadas: '.count($resultado['busquedas'])."\n";
+    echo '✓ Tiene más: '.($resultado['has_more'] ? 'Sí' : 'No')."\n";
     echo "\n";
 
     if (count($resultado['busquedas']) > 0) {
@@ -75,7 +75,7 @@ try {
         echo "\n";
     }
 } catch (\Exception $e) {
-    echo "✗ ERROR: " . $e->getMessage() . "\n\n";
+    echo '✗ ERROR: '.$e->getMessage()."\n\n";
     exit(1);
 }
 
@@ -86,24 +86,24 @@ echo "────────────────────────�
 try {
     $resultado = $service->getBusquedasConsolidadas($legacyIdentifier, [
         'limit' => 5,
-        'fuente' => 'ofac'
+        'fuente' => 'ofac',
     ]);
 
-    echo "✓ Búsquedas OFAC: " . number_format($resultado['total']) . "\n";
-    echo "✓ Retornadas: " . count($resultado['busquedas']) . "\n";
+    echo '✓ Búsquedas OFAC: '.number_format($resultado['total'])."\n";
+    echo '✓ Retornadas: '.count($resultado['busquedas'])."\n";
 
     if (count($resultado['busquedas']) > 0) {
         echo "\nEjemplo de búsqueda OFAC:\n";
         $busqueda = $resultado['busquedas'][0];
-        echo "  Fecha: " . $busqueda['fecha'] . "\n";
-        echo "  Tipo: " . $busqueda['tipo_busqueda'] . "\n";
-        echo "  Término: " . $busqueda['termino_busqueda'] . "\n";
-        echo "  Usuario: " . $busqueda['usuario'] . "\n";
-        echo "  Fuente: " . $busqueda['fuente'] . "\n";
+        echo '  Fecha: '.$busqueda['fecha']."\n";
+        echo '  Tipo: '.$busqueda['tipo_busqueda']."\n";
+        echo '  Término: '.$busqueda['termino_busqueda']."\n";
+        echo '  Usuario: '.$busqueda['usuario']."\n";
+        echo '  Fuente: '.$busqueda['fuente']."\n";
     }
     echo "\n";
 } catch (\Exception $e) {
-    echo "✗ ERROR: " . $e->getMessage() . "\n\n";
+    echo '✗ ERROR: '.$e->getMessage()."\n\n";
     exit(1);
 }
 
@@ -114,27 +114,27 @@ echo "────────────────────────�
 try {
     $resultado = $service->getBusquedasConsolidadas($legacyIdentifier, [
         'limit' => 5,
-        'fuente' => 'sat'
+        'fuente' => 'sat',
     ]);
 
-    echo "✓ Búsquedas SAT: " . number_format($resultado['total']) . "\n";
-    echo "✓ Retornadas: " . count($resultado['busquedas']) . "\n";
+    echo '✓ Búsquedas SAT: '.number_format($resultado['total'])."\n";
+    echo '✓ Retornadas: '.count($resultado['busquedas'])."\n";
 
     if (count($resultado['busquedas']) > 0) {
         echo "\nEjemplo de búsqueda SAT:\n";
         $busqueda = $resultado['busquedas'][0];
-        echo "  Fecha: " . $busqueda['fecha'] . "\n";
-        echo "  Tipo: " . $busqueda['tipo_busqueda'] . "\n";
-        echo "  Término: " . $busqueda['termino_busqueda'] . "\n";
+        echo '  Fecha: '.$busqueda['fecha']."\n";
+        echo '  Tipo: '.$busqueda['tipo_busqueda']."\n";
+        echo '  Término: '.$busqueda['termino_busqueda']."\n";
         if ($busqueda['rfc']) {
-            echo "  RFC: " . $busqueda['rfc'] . "\n";
+            echo '  RFC: '.$busqueda['rfc']."\n";
         }
-        echo "  Usuario: " . $busqueda['usuario'] . "\n";
-        echo "  Fuente: " . $busqueda['fuente'] . "\n";
+        echo '  Usuario: '.$busqueda['usuario']."\n";
+        echo '  Fuente: '.$busqueda['fuente']."\n";
     }
     echo "\n";
 } catch (\Exception $e) {
-    echo "✗ ERROR: " . $e->getMessage() . "\n\n";
+    echo '✗ ERROR: '.$e->getMessage()."\n\n";
     exit(1);
 }
 
@@ -146,11 +146,11 @@ try {
     $legacyIdentifierInvalido = 'notaria_inexistente';
     $resultado = $service->getBusquedasConsolidadas($legacyIdentifierInvalido);
 
-    echo "✓ Total búsquedas: " . $resultado['total'] . "\n";
+    echo '✓ Total búsquedas: '.$resultado['total']."\n";
     echo "✓ El servicio maneja correctamente notarías sin historial\n";
     echo "\n";
 } catch (\Exception $e) {
-    echo "✗ ERROR: " . $e->getMessage() . "\n\n";
+    echo '✗ ERROR: '.$e->getMessage()."\n\n";
     exit(1);
 }
 

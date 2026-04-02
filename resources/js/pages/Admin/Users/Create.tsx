@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -29,7 +29,7 @@ export default function Create({ notarias, tiposCuenta }: Props) {
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Administración', href: '/admin' },
         { title: 'Usuarios', href: '/admin/users' },
-        { title: 'Nuevo Usuario', href: '/admin/users/create' },
+        { title: 'Crear Nuevo Usuario', href: '/admin/users/create', icon: UserPlus },
     ];
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -46,17 +46,14 @@ export default function Create({ notarias, tiposCuenta }: Props) {
             <Head title="Nuevo Usuario" />
 
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/admin/users">
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver
-                            </Button>
-                        </Link>
-                        <h1 className="text-3xl font-bold">Crear Nuevo Usuario</h1>
-                    </div>
+                {/* Header con botón Volver */}
+                <div className="flex items-center gap-4">
+                    <Link href="/admin/users">
+                        <Button variant="outline" size="sm">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                    </Link>
                 </div>
 
                 {/* Form */}

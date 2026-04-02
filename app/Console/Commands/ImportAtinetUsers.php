@@ -4,9 +4,9 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 
 class ImportAtinetUsers extends Command
@@ -61,16 +61,18 @@ class ImportAtinetUsers extends Command
 
             $this->info("   ✓ Encontrados: {$usuariosLegacy->count()} usuarios de Atinet");
             if (count($excluidos) > 0) {
-                $this->info("   ℹ️  Usuarios excluidos: " . implode(', ', $excluidos));
+                $this->info('   ℹ️  Usuarios excluidos: '.implode(', ', $excluidos));
             }
             $this->newLine();
         } catch (\Exception $e) {
             $this->error("   ✗ Error al conectar con BD legacy: {$e->getMessage()}");
+
             return Command::FAILURE;
         }
 
         if ($usuariosLegacy->isEmpty()) {
             $this->warn('⚠️  No se encontraron usuarios de Atinet en la BD legacy');
+
             return Command::SUCCESS;
         }
 
@@ -86,7 +88,7 @@ class ImportAtinetUsers extends Command
             $table[] = [
                 'ID' => $usuario->id,
                 'Usuario' => $usuario->USER,
-                'Nombre' => trim(($usuario->NOMBRE ?? '') . ' ' . ($usuario->APELLIDO ?? '')),
+                'Nombre' => trim(($usuario->NOMBRE ?? '').' '.($usuario->APELLIDO ?? '')),
                 'Email' => $email,
                 'Fecha Registro' => $usuario->FECHA ?? 'N/A',
                 'Estado' => $exists ? '⚠️  Ya existe' : '✅ Nuevo',
@@ -104,20 +106,22 @@ class ImportAtinetUsers extends Command
         $nuevosUsuarios = collect($table)->where('Estado', '✅ Nuevo')->count();
         $existentes = collect($table)->where('Estado', '⚠️  Ya existe')->count();
 
-        $this->info("   Resumen:");
+        $this->info('   Resumen:');
         $this->info("   • Nuevos usuarios a importar: {$nuevosUsuarios}");
         $this->info("   • Usuarios ya existentes (se omitirán): {$existentes}");
         $this->newLine();
 
         if ($nuevosUsuarios === 0) {
             $this->warn('⚠️  No hay usuarios nuevos para importar');
+
             return Command::SUCCESS;
         }
 
         // Paso 3: Confirmación
-        if (!$isForce && !$isDryRun) {
-            if (!$this->confirm("¿Desea continuar con la importación de {$nuevosUsuarios} usuario(s)?", true)) {
+        if (! $isForce && ! $isDryRun) {
+            if (! $this->confirm("¿Desea continuar con la importación de {$nuevosUsuarios} usuario(s)?", true)) {
                 $this->warn('❌ Importación cancelada por el usuario');
+
                 return Command::SUCCESS;
             }
             $this->newLine();
@@ -142,12 +146,13 @@ class ImportAtinetUsers extends Command
                 if (User::where('email', $email)->exists()) {
                     $omitidos++;
                     $progressBar->advance();
+
                     continue;
                 }
 
                 // Preparar datos del usuario
                 $userData = [
-                    'name' => trim(($usuario->NOMBRE ?? 'Usuario') . ' ' . ($usuario->APELLIDO ?? 'Atinet')),
+                    'name' => trim(($usuario->NOMBRE ?? 'Usuario').' '.($usuario->APELLIDO ?? 'Atinet')),
                     'email' => $email,
                     'password' => Hash::make($usuario->PASSWORD ?? Str::random(16)),
                     'notaria_id' => null, // SuperAdmins no tienen notaría asignada
@@ -157,7 +162,7 @@ class ImportAtinetUsers extends Command
                 ];
 
                 // Crear usuario (solo si NO es dry-run)
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     User::create($userData);
                 }
 
@@ -196,7 +201,7 @@ class ImportAtinetUsers extends Command
         $this->newLine();
         $this->info('═══════════════════════════════════════════════════════');
 
-        if (!$isDryRun && $importados > 0) {
+        if (! $isDryRun && $importados > 0) {
             $this->newLine();
             $this->info('📧 IMPORTANTE: Los usuarios importados deben:');
             $this->info('   1. Verificar su email (se marcó como verificado)');
@@ -230,7 +235,7 @@ class ImportAtinetUsers extends Command
      */
     private function encryptPassword(?string $password): ?string
     {
-        if (!$password) {
+        if (! $password) {
             return null;
         }
 

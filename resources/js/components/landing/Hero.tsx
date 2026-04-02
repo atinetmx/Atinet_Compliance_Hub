@@ -1,13 +1,12 @@
 import { Link } from '@inertiajs/react';
 import Spline from '@splinetool/react-spline';
-import { login, register } from '@/routes';
+import { login } from '@/routes';
 
 interface HeroProps {
     isAuthenticated: boolean;
-    canRegister: boolean;
 }
 
-const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
+const Hero = ({ isAuthenticated }: HeroProps) => {
     return (
         <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
             {/* Background gradient */}
@@ -21,14 +20,14 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
                 }} />
             </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-20 py-20">
+            <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-20 pt-32 md:pt-40 pb-20">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 items-center">
                     {/* LEFT: Hero Content */}
                     <div className="flex flex-col gap-8">
                         <div className="space-y-4">
                             <h1 className="text-4xl md:text-6xl xl:text-7xl font-bold text-white leading-tight">
                                 Atinet
-                                <span className="block text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-cyan-400">
+                                <span className="block text-cyan-400">
                                     Compliance Hub
                                 </span>
                             </h1>
@@ -46,14 +45,14 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
                             {isAuthenticated ? (
                                 <Link
                                     href="/dashboard"
-                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
+                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-cyan-400 rounded-lg hover:bg-cyan-500 transition-all duration-300 shadow-lg hover:shadow-cyan-500/50"
                                 >
                                     Ir al Dashboard
                                 </Link>
                             ) : (
                                 <Link
                                     href={login()}
-                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
+                                    className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-cyan-400 rounded-lg hover:bg-cyan-500 transition-all duration-300 shadow-lg hover:shadow-cyan-500/50"
                                 >
                                     Iniciar Sesión
                                 </Link>
@@ -63,19 +62,19 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
                         {/* Stats */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8">
                             <div className="text-center">
-                                <div className="text-3xl md:text-4xl font-bold text-white">50+</div>
+                                <div className="text-3xl md:text-4xl font-bold text-cyan-400">50+</div>
                                 <div className="text-sm text-gray-400 mt-1">Notarías</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-3xl md:text-4xl font-bold text-white">10k+</div>
+                                <div className="text-3xl md:text-4xl font-bold text-cyan-400">10k+</div>
                                 <div className="text-sm text-gray-400 mt-1">Búsquedas</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-3xl md:text-4xl font-bold text-white">99%</div>
+                                <div className="text-3xl md:text-4xl font-bold text-cyan-400">99%</div>
                                 <div className="text-sm text-gray-400 mt-1">Disponibilidad</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-3xl md:text-4xl font-bold text-white">24/7</div>
+                                <div className="text-3xl md:text-4xl font-bold text-cyan-400">24/7</div>
                                 <div className="text-sm text-gray-400 mt-1">Soporte</div>
                             </div>
                         </div>
@@ -83,14 +82,12 @@ const Hero = ({ isAuthenticated, canRegister }: HeroProps) => {
 
                     {/* RIGHT: 3D Visual Element */}
                     <div className="hidden xl:flex items-center justify-center">
-                        <div className="relative w-full h-175">
+                        <div className="relative w-full h-150">
                             {/* Spline 3D Scene */}
                             <div className="absolute inset-0 rounded-2xl overflow-hidden border border-gray-700/50">
-                                <div className="w-full h-full" style={{ transform: 'scale(0.75)', transformOrigin: 'center' }}>
-                                    <Spline
-                                        scene="https://prod.spline.design/KnXF8coogW5Xomx4/scene.splinecode"
-                                    />
-                                </div>
+                                <Spline
+                                    scene="https://prod.spline.design/KnXF8coogW5Xomx4/scene.splinecode"
+                                />
                             </div>
 
                             {/* Floating elements */}

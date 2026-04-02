@@ -266,4 +266,75 @@ class Notaria extends Model
     {
         $this->update(['busquedas_mes_actual' => 0]);
     }
+
+    /**
+     * Obtener todas las suscripciones activas y trial
+     */
+    public function suscripcionesActivas()
+    {
+        return $this->subscripciones()
+            ->whereIn('status', ['activa', 'trial'])
+            ->where('fecha_vencimiento', '>=', now());
+    }
+
+    /**
+     * Obtener TODOS los servicios disponibles (combinación de todas las suscripciones activas + trial)
+     * REGLA: Unión (OR) de servicios de todas las suscripciones
+     */
+    public function getAllAvailableServices()
+    {
+        $suscripciones = $this->suscripcionesActivas()->with('plan.services')->get();
+
+        if ($suscripciones->isEmpty()) {
+            return collect();
+        }
+
+        // Combinar servicios de todas las suscripciones (sin duplicar)
+        $servicios = collect();
+
+        foreach ($suscripciones as $subscription) {
+            if ($subscription->plan && $subscription->plan->services) {
+                $servicios = $servicios->merge($subscription->plan->services);
+            }
+        }
+
+        // Eliminar duplicados por ID
+        return $servicios->unique('id');
+    }
+
+    /**
+     * Verificar si tiene acceso a un servicio específico
+     * Busca en TODAS las suscripciones activas (activa + trial)
+     */
+    public function tieneAccesoServicio(string $serviceCode): bool
+    {
+        $servicios = $this->getAllAvailableServices();
+
+        return $servicios->contains('code', $serviceCode);
+    }
+
+    /**
+     * Obtener límites de la suscripción PRINCIPAL (solo 'activa')
+     * REGLA: Los límites se toman SOLO de la suscripción 'activa', no de las 'trial'
+     */
+    public function getLimitesFromMainSubscription(): array
+    {
+        $suscripcionPrincipal = $this->subscripciones()
+            ->where('status', 'activa')
+            ->where('fecha_vencimiento', '>=', now())
+            ->with('plan')
+            ->first();
+
+        if (! $suscripcionPrincipal || ! $suscripcionPrincipal->plan) {
+            return [
+                'limite_usuarios' => 0,
+                'limite_busquedas_mes' => 0,
+            ];
+        }
+
+        return [
+            'limite_usuarios' => $suscripcionPrincipal->plan->limite_usuarios,
+            'limite_busquedas_mes' => $suscripcionPrincipal->plan->limite_busquedas_mes,
+        ];
+    }
 }

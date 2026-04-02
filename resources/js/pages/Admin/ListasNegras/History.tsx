@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { AlertCircle, History as HistoryIcon, Search, Trash2, RefreshCw, Download, Calendar, Filter, X } from 'lucide-react';
+import { AlertCircle, History as HistoryIcon, Search, Trash2, RefreshCw, Download, Calendar, Filter, X, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,6 +20,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 interface SearchHistoryItem {
     id: number;
@@ -52,6 +53,22 @@ interface PaginatedHistory {
 }
 
 export default function ListasNegrasHistory() {
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Dashboard',
+            href: '/dashboard',
+        },
+        {
+            title: 'Listas Negras',
+            href: '/admin/listas-negras',
+        },
+        {
+            title: 'Historial de Búsquedas',
+            href: '/admin/search-history',
+            icon: HistoryIcon,
+        },
+    ];
+
     const [history, setHistory] = useState<PaginatedHistory | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -82,7 +99,9 @@ export default function ListasNegrasHistory() {
             const res = await fetch(`/admin/search-history?${params}`, {
                 credentials: 'same-origin',
                 headers: {
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
             });
 
@@ -109,7 +128,10 @@ export default function ListasNegrasHistory() {
                 method: 'DELETE',
                 credentials: 'same-origin',
                 headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
             });
 
@@ -162,21 +184,12 @@ export default function ListasNegrasHistory() {
     };
 
     return (
-        <AppLayout>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Historial de Búsquedas - Listas Negras" />
 
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                            <HistoryIcon className="w-8 h-8" />
-                            Historial de Búsquedas
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Todas tus búsquedas en Listas Negras (OFAC y SAT)
-                        </p>
-                    </div>
+                {/* Botón de acción */}
+                <div className="flex justify-end">
                     <Button
                         onClick={() => router.visit('/admin/listas-negras')}
                         variant="outline"

@@ -12,7 +12,7 @@ $cols = DB::connection('aplicativos_remote')->select('SHOW COLUMNS FROM usuario'
 
 foreach ($cols as $c) {
     $null = $c->Null === 'YES' ? 'NULL' : 'NOT NULL';
-    $key = $c->Key ? " [{$c->Key}]" : "";
+    $key = $c->Key ? " [{$c->Key}]" : '';
     echo sprintf("  %-20s %-20s %-10s%s\n", $c->Field, $c->Type, $null, $key);
 }
 
@@ -22,7 +22,7 @@ $users = DB::connection('aplicativos_remote')->table('usuario')->limit(3)->get()
 foreach ($users as $u) {
     echo "Usuario ID {$u->id}:\n";
     foreach (get_object_vars($u) as $k => $v) {
-        $display = is_null($v) ? '(NULL)' : (strlen($v) > 60 ? substr($v, 0, 60) . '...' : $v);
+        $display = is_null($v) ? '(NULL)' : (strlen($v) > 60 ? substr($v, 0, 60).'...' : $v);
         echo "  {$k}: {$display}\n";
     }
     echo "\n";

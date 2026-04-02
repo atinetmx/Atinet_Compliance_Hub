@@ -368,7 +368,7 @@ export default function UsageTrends({
                 </Card>
 
                 {/* Control de Granularidad */}
-                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+                <Card className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                             {/* Botones de granularidad */}

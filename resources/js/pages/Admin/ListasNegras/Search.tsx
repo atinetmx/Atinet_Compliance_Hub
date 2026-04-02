@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock, FileSpreadsheet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock, FileSpreadsheet, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -12,6 +12,7 @@ import { RequiredLabel } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 interface SearchResult {
     id: string;
@@ -49,6 +50,18 @@ interface SearchResponse {
 }
 
 export default function ListasNegrasSearch() {
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Dashboard',
+            href: '/dashboard',
+        },
+        {
+            title: 'Listas Negras OFAC/SAT',
+            href: '/admin/listas-negras',
+            icon: Shield,
+        },
+    ];
+
     const [activeTab, setActiveTab] = useState('persona-fisica');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -895,17 +908,13 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
     };
 
     return (
-        <AppLayout>
-            <Head title="Búsqueda en Listas Negras - SuperAdmin" />
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Búsqueda en Listas Negras" />
 
             <div className="space-y-6">
-                {/* ── Header ── */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Listas Negras</h1>
-                        <p className="text-muted-foreground">Búsqueda en listas OFAC y SAT - Acceso SuperAdmin</p>
-                    </div>
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                {/* Badge de datos sensibles */}
+                <div className="flex justify-end">
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900">
                         <AlertCircle className="w-4 h-4 mr-1" />
                         Datos Sensibles
                     </Badge>

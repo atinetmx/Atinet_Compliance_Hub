@@ -6,14 +6,13 @@
  * Verifica que todos los endpoints de la API de catálogos funcionen correctamente
  */
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Api\CatalogosController;
+use Illuminate\Http\Request;
 
 echo "\n";
 echo "╔═══════════════════════════════════════════════════════════════╗\n";
@@ -21,7 +20,7 @@ echo "║     PRUEBA DE ENDPOINTS - API CATÁLOGOS SEPOMEX              ║\n";
 echo "╚═══════════════════════════════════════════════════════════════╝\n";
 echo "\n";
 
-$controller = new CatalogosController();
+$controller = new CatalogosController;
 $testsPassed = 0;
 $testsFailed = 0;
 
@@ -48,11 +47,11 @@ try {
         $testsPassed++;
     } else {
         echo "❌ FALLÓ: Respuesta inesperada\n";
-        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
         $testsFailed++;
     }
 } catch (\Exception $e) {
-    echo "❌ FALLÓ: " . $e->getMessage() . "\n";
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
     $testsFailed++;
 }
 
@@ -82,11 +81,11 @@ try {
         $testsPassed++;
     } else {
         echo "❌ FALLÓ: Respuesta inesperada\n";
-        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
         $testsFailed++;
     }
 } catch (\Exception $e) {
-    echo "❌ FALLÓ: " . $e->getMessage() . "\n";
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
     $testsFailed++;
 }
 
@@ -119,11 +118,11 @@ try {
         $testsPassed++;
     } else {
         echo "❌ FALLÓ: Respuesta inesperada\n";
-        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
         $testsFailed++;
     }
 } catch (\Exception $e) {
-    echo "❌ FALLÓ: " . $e->getMessage() . "\n";
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
     $testsFailed++;
 }
 
@@ -143,17 +142,17 @@ try {
     $response = $controller->buscarCodigoPostal($request);
     $data = json_decode($response->getContent(), true);
 
-    if (!$data['success'] && $response->getStatusCode() === 404) {
+    if (! $data['success'] && $response->getStatusCode() === 404) {
         echo "✅ PASÓ: Correctamente retorna 404 para CP inexistente\n";
         echo sprintf("   Mensaje: %s\n", $data['message']);
         $testsPassed++;
     } else {
         echo "❌ FALLÓ: Debería retornar 404\n";
-        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
         $testsFailed++;
     }
 } catch (\Exception $e) {
-    echo "❌ FALLÓ: " . $e->getMessage() . "\n";
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
     $testsFailed++;
 }
 
@@ -182,11 +181,11 @@ try {
         $testsPassed++;
     } else {
         echo "❌ FALLÓ: Respuesta inesperada\n";
-        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
         $testsFailed++;
     }
 } catch (\Exception $e) {
-    echo "❌ FALLÓ: " . $e->getMessage() . "\n";
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
     $testsFailed++;
 }
 

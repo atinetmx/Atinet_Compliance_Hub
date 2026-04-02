@@ -80,7 +80,7 @@ export function AppSidebar() {
                           },
                           {
                               title: 'Historial',
-                              href: '/admin/listas-negras/historial',
+                              href: '/admin/search-history',
                               icon: History,
                           },
                       ],
@@ -92,7 +92,7 @@ export function AppSidebar() {
                   },
                   {
                       title: 'Registro Web',
-                      href: '/admin/Reg_web',
+                      href: '/admin/registro-web',
                       icon: QrCode,
                   },
                   {
@@ -172,7 +172,7 @@ export function AppSidebar() {
                           },
                           {
                               title: 'Historial',
-                              href: '/admin/listas-negras/historial',
+                              href: '/admin/search-history',
                               icon: History,
                           },
                       ],
@@ -246,14 +246,14 @@ export function AppSidebar() {
     ];
 
     const footerNavItems: NavItem[] = [
+        // {
+        //     title: 'Repository',
+        //     href: 'https://github.com/laravel/react-starter-kit',
+        //     icon: Folder,
+        // },
         {
-            title: 'Repository',
-            href: 'https://github.com/laravel/react-starter-kit',
-            icon: Folder,
-        },
-        {
-            title: 'Documentation',
-            href: 'https://laravel.com/docs/starter-kits#react',
+            title: 'Documentación',
+            href: '/admin/documentacion',
             icon: BookOpen,
         },
     ];

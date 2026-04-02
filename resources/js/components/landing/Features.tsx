@@ -73,7 +73,7 @@ const features = [
 
 const Features = () => {
     return (
-        <section id="features" className="relative py-20 md:py-32 px-5 md:px-20 bg-black">
+        <section id="features" className="relative py-20 md:py-32 px-5 md:px-20 bg-black/50">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">
@@ -108,7 +108,7 @@ const Features = () => {
                                 </div>
 
                                 {/* Content */}
-                                <h3 className="text-xl font-semibold text-white mb-3 group-hover:text-blue-400 transition-colors">
+                                <h3 className="text-xl font-semibold text-white mb-3 group-hover:text-cyan-400 transition-colors">
                                     {feature.title}
                                 </h3>
                                 <p className="text-gray-400 leading-relaxed">
@@ -126,7 +126,7 @@ const Features = () => {
                     </p>
                     <a
                         href="#contact"
-                        className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-linear-to-r from-blue-600 to-cyan-600 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/50"
+                        className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-cyan-400 rounded-lg hover:bg-cyan-500 transition-all duration-300 shadow-lg hover:shadow-cyan-500/50"
                     >
                         Solicitar Demo
                     </a>

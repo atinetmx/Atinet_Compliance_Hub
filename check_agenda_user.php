@@ -5,8 +5,8 @@ require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use App\Models\User;
 use App\Models\AgendaEvent;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 echo "=== Diagnóstico Agenda Usuario Legacy ===\n\n";
@@ -15,7 +15,7 @@ echo "=== Diagnóstico Agenda Usuario Legacy ===\n\n";
 $email = 'admin@atinet.com.mx';
 $user = User::where('email', $email)->first();
 
-if (!$user) {
+if (! $user) {
     echo "✗ Usuario '{$email}' no encontrado\n";
     exit(1);
 }
@@ -25,7 +25,7 @@ echo "  ID: {$user->id}\n";
 echo "  Nombre: {$user->name}\n";
 echo "  Email: {$user->email}\n";
 echo "  Tipo: {$user->tipo_cuenta}\n";
-echo "  Notaría ID: " . ($user->notaria_id ?? 'NULL') . "\n\n";
+echo '  Notaría ID: '.($user->notaria_id ?? 'NULL')."\n\n";
 
 // 2. Verificar notaría
 if ($user->notaria_id) {
@@ -34,7 +34,7 @@ if ($user->notaria_id) {
         echo "✓ Notaría:\n";
         echo "  ID: {$notaria->id}\n";
         echo "  Nombre: {$notaria->nombre}\n";
-        echo "  Legacy ID: " . ($notaria->legacy_identifier ?? 'NULL') . "\n\n";
+        echo '  Legacy ID: '.($notaria->legacy_identifier ?? 'NULL')."\n\n";
     }
 }
 
@@ -65,7 +65,7 @@ if ($user->notaria_id) {
             echo "  ID {$e->id}: {$e->titulo} | User {$e->user_id} | {$e->start_fecha}\n";
         }
         if ($eventosNotaria->count() > 5) {
-            echo "  ... y " . ($eventosNotaria->count() - 5) . " más\n";
+            echo '  ... y '.($eventosNotaria->count() - 5)." más\n";
         }
     } else {
         echo "  (Sin eventos)\n";
@@ -76,13 +76,13 @@ if ($user->notaria_id) {
 // 6. Verificar query que usaría el controller
 echo "--- Query simulada del controller ---\n";
 $esAdmin = in_array($user->tipo_cuenta, ['super_admin', 'admin_notaria']);
-echo "Es admin: " . ($esAdmin ? 'Sí' : 'No') . "\n";
+echo 'Es admin: '.($esAdmin ? 'Sí' : 'No')."\n";
 
 $query = AgendaEvent::query();
 
 if ($esAdmin && $user->notaria_id) {
     $query->where('notaria_id', $user->notaria_id);
-} elseif (!$esAdmin) {
+} elseif (! $esAdmin) {
     $query->where('user_id', $user->id);
 }
 

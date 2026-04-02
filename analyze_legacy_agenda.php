@@ -12,12 +12,12 @@ echo "=== Análisis de atinet65_aplicativos.agenda ===\n\n";
 // 1. Estructura de la tabla
 echo "--- ESTRUCTURA DE LA TABLA ---\n";
 $columns = DB::connection('aplicativos')
-    ->select("SHOW COLUMNS FROM agenda");
+    ->select('SHOW COLUMNS FROM agenda');
 
 foreach ($columns as $col) {
-    $key = $col->Key ? " [{$col->Key}]" : "";
+    $key = $col->Key ? " [{$col->Key}]" : '';
     $null = $col->Null === 'YES' ? 'NULL' : 'NOT NULL';
-    $default = $col->Default ? " DEFAULT {$col->Default}" : "";
+    $default = $col->Default ? " DEFAULT {$col->Default}" : '';
     echo sprintf("  %-20s %-15s %-10s%s%s\n",
         $col->Field,
         $col->Type,
@@ -46,7 +46,7 @@ if ($sample->isEmpty()) {
     foreach ($sample as $row) {
         echo "\n  Registro ID: {$row->id}\n";
         foreach (get_object_vars($row) as $key => $value) {
-            $displayValue = is_null($value) ? '(NULL)' : (strlen($value) > 50 ? substr($value, 0, 50) . '...' : $value);
+            $displayValue = is_null($value) ? '(NULL)' : (strlen($value) > 50 ? substr($value, 0, 50).'...' : $value);
             echo "    {$key}: {$displayValue}\n";
         }
     }

@@ -7,20 +7,19 @@
  * ADVERTENCIA: Esto es para pruebas. En producción usa la UI.
  */
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
+use App\EstadoMexico;
 use App\Models\Notaria;
-use App\Models\User;
 use App\Models\Plan;
 use App\Models\Subscription;
-use App\EstadoMexico;
+use App\Models\User;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Crypt;
 
 echo "\n";
 echo "═════════════════════════════════════════════════════════════════════════\n";
@@ -59,7 +58,7 @@ echo "\n";
 
 // Verificar que el plan existe
 $plan = Plan::find($config['plan_id']);
-if (!$plan) {
+if (! $plan) {
     echo "❌ ERROR: El plan ID {$config['plan_id']} no existe.\n";
     echo "   Crea un plan primero o ajusta el plan_id.\n\n";
     exit(1);
@@ -154,7 +153,7 @@ try {
         ]);
         echo "   ✓ Migraciones ejecutadas\n";
     } catch (\Exception $e) {
-        echo "   ⚠️  Error en migraciones (se continuará): " . $e->getMessage() . "\n";
+        echo '   ⚠️  Error en migraciones (se continuará): '.$e->getMessage()."\n";
     }
 
     echo "\n";
@@ -177,7 +176,7 @@ try {
     ]);
 
     echo "   ✓ Suscripción creada (trial por 1 mes)\n";
-    echo "   ✓ Vencimiento: " . $subscription->fecha_vencimiento->format('d/m/Y') . "\n\n";
+    echo '   ✓ Vencimiento: '.$subscription->fecha_vencimiento->format('d/m/Y')."\n\n";
 
     // ═══════════════════════════════════════════════════════════════════
     // PASO 5: ACTUALIZAR CONTADOR DE USUARIOS
@@ -187,13 +186,13 @@ try {
     // Obtener estadísticas del historial legacy
     echo "📊 PASO 5: Verificando historial legacy vinculado...\n";
 
-    $service = new \App\Services\BusquedasLegacyService();
+    $service = new \App\Services\BusquedasLegacyService;
     $stats = $service->getEstadisticas($config['legacy_identifier']);
 
     echo "   ✓ Legacy ID: {$config['legacy_identifier']}\n";
-    echo "   ✓ Total búsquedas: " . number_format($stats['total']) . "\n";
-    echo "   ✓ OFAC: " . number_format($stats['por_fuente']['ofac']) . "\n";
-    echo "   ✓ SAT: " . number_format($stats['por_fuente']['sat']) . "\n";
+    echo '   ✓ Total búsquedas: '.number_format($stats['total'])."\n";
+    echo '   ✓ OFAC: '.number_format($stats['por_fuente']['ofac'])."\n";
+    echo '   ✓ SAT: '.number_format($stats['por_fuente']['sat'])."\n";
 
     // Actualizar campos legacy en la notaría
     $notaria->update([
@@ -222,12 +221,12 @@ try {
     echo "\n";
     echo "  Plan: {$plan->nombre}\n";
     echo "  Suscripción: Trial (1 mes)\n";
-    echo "  Vence: " . $subscription->fecha_vencimiento->format('d/m/Y') . "\n";
+    echo '  Vence: '.$subscription->fecha_vencimiento->format('d/m/Y')."\n";
     echo "\n";
     echo "🔗 SIGUIENTE PASO:\n";
     echo "────────────────────────────────────────────────────────────────────────\n";
     echo "  Accede a: /admin/notarias/{$notaria->id}\n";
-    echo "  Verás la sección 'Historial Sistema Legacy' con " . number_format($stats['total']) . " búsquedas\n";
+    echo "  Verás la sección 'Historial Sistema Legacy' con ".number_format($stats['total'])." búsquedas\n";
     echo "\n";
 
 } catch (\Exception $e) {
@@ -238,7 +237,7 @@ try {
     echo "   ❌ ERROR AL CREAR NOTARÍA                                              \n";
     echo "═════════════════════════════════════════════════════════════════════════\n";
     echo "\n";
-    echo "Error: " . $e->getMessage() . "\n";
-    echo "\nStack trace:\n" . $e->getTraceAsString() . "\n\n";
+    echo 'Error: '.$e->getMessage()."\n";
+    echo "\nStack trace:\n".$e->getTraceAsString()."\n\n";
     exit(1);
 }

@@ -1,12 +1,11 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
@@ -19,7 +18,7 @@ $superAdmin = User::where('tipo_cuenta', 'super_admin')
     ->whereNull('notaria_id')
     ->first();
 
-if (!$superAdmin) {
+if (! $superAdmin) {
     echo "❌ No se encontró super_admin\n";
     exit(1);
 }
@@ -27,14 +26,14 @@ if (!$superAdmin) {
 echo "👤 USUARIO: {$superAdmin->nombre} (ID: {$superAdmin->id})\n";
 echo "   Email: {$superAdmin->email}\n";
 echo "   Tipo: {$superAdmin->tipo_cuenta}\n";
-echo "   Notaría: " . ($superAdmin->notaria_id ?? 'NULL (super admin)') . "\n\n";
+echo '   Notaría: '.($superAdmin->notaria_id ?? 'NULL (super admin)')."\n\n";
 
 // Resumen de eventos en BD
 echo "📊 RESUMEN BASE DE DATOS:\n";
-echo "   Total eventos: " . AgendaEvent::count() . "\n";
-echo "   Eventos propios (user_id={$superAdmin->id}): " . AgendaEvent::where('user_id', $superAdmin->id)->count() . "\n";
-echo "   Eventos legacy atinet (user_id=NULL): " . AgendaEvent::whereNull('user_id')->where('legacy_notaria', 'atinet')->count() . "\n";
-echo "   Eventos otros super_admins: " . AgendaEvent::whereNotNull('user_id')->where('user_id', '!=', $superAdmin->id)->whereNull('notaria_id')->count() . "\n\n";
+echo '   Total eventos: '.AgendaEvent::count()."\n";
+echo "   Eventos propios (user_id={$superAdmin->id}): ".AgendaEvent::where('user_id', $superAdmin->id)->count()."\n";
+echo '   Eventos legacy atinet (user_id=NULL): '.AgendaEvent::whereNull('user_id')->where('legacy_notaria', 'atinet')->count()."\n";
+echo '   Eventos otros super_admins: '.AgendaEvent::whereNotNull('user_id')->where('user_id', '!=', $superAdmin->id)->whereNull('notaria_id')->count()."\n\n";
 
 echo "========================================\n\n";
 
@@ -47,9 +46,9 @@ $eventosTodos = AgendaEvent::visiblePara($superAdmin, 'todos')->get();
 echo "Total eventos visibles: {$eventosTodos->count()}\n\n";
 
 // Desglose por tipo
-$propiosTodos = $eventosTodos->filter(fn($e) => $e->user_id === $superAdmin->id);
-$legacyTodos = $eventosTodos->filter(fn($e) => $e->user_id === null);
-$otrosTodos = $eventosTodos->filter(fn($e) => $e->user_id !== null && $e->user_id !== $superAdmin->id);
+$propiosTodos = $eventosTodos->filter(fn ($e) => $e->user_id === $superAdmin->id);
+$legacyTodos = $eventosTodos->filter(fn ($e) => $e->user_id === null);
+$otrosTodos = $eventosTodos->filter(fn ($e) => $e->user_id !== null && $e->user_id !== $superAdmin->id);
 
 echo "Desglose:\n";
 echo "  • Propios: {$propiosTodos->count()}\n";
@@ -87,9 +86,9 @@ $eventosPropio = AgendaEvent::visiblePara($superAdmin, 'propio')->get();
 echo "Total eventos visibles: {$eventosPropio->count()}\n\n";
 
 // Desglose por tipo
-$propiosPropio = $eventosPropio->filter(fn($e) => $e->user_id === $superAdmin->id);
-$legacyPropio = $eventosPropio->filter(fn($e) => $e->user_id === null);
-$otrosPropio = $eventosPropio->filter(fn($e) => $e->user_id !== null && $e->user_id !== $superAdmin->id);
+$propiosPropio = $eventosPropio->filter(fn ($e) => $e->user_id === $superAdmin->id);
+$legacyPropio = $eventosPropio->filter(fn ($e) => $e->user_id === null);
+$otrosPropio = $eventosPropio->filter(fn ($e) => $e->user_id !== null && $e->user_id !== $superAdmin->id);
 
 echo "Desglose:\n";
 echo "  • Propios: {$propiosPropio->count()}\n";
@@ -180,13 +179,13 @@ echo "────────────────────────�
 
 echo "Vista 'todos':\n";
 $queryTodos = AgendaEvent::visiblePara($superAdmin, 'todos');
-echo $queryTodos->toSql() . "\n";
-echo "Bindings: " . json_encode($queryTodos->getBindings()) . "\n\n";
+echo $queryTodos->toSql()."\n";
+echo 'Bindings: '.json_encode($queryTodos->getBindings())."\n\n";
 
 echo "Vista 'propio':\n";
 $queryPropio = AgendaEvent::visiblePara($superAdmin, 'propio');
-echo $queryPropio->toSql() . "\n";
-echo "Bindings: " . json_encode($queryPropio->getBindings()) . "\n";
+echo $queryPropio->toSql()."\n";
+echo 'Bindings: '.json_encode($queryPropio->getBindings())."\n";
 
 echo "\n========================================\n";
 echo "Test completado.\n";

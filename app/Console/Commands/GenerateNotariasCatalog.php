@@ -57,6 +57,7 @@ class GenerateNotariasCatalog extends Command
             if ($this->option('dry-run')) {
                 $this->warn('🔸 Modo DRY-RUN: No se guardará el catálogo');
                 $this->displaySample($catalog);
+
                 return 0;
             }
 
@@ -64,6 +65,7 @@ class GenerateNotariasCatalog extends Command
             if (! $this->option('force')) {
                 if (! $this->confirm('¿Deseas guardar este catálogo?', true)) {
                     $this->warn('❌ Operación cancelada');
+
                     return 1;
                 }
             }
@@ -213,6 +215,7 @@ class GenerateNotariasCatalog extends Command
                         $item['total_usuarios'] = (int) $usuario->total_usuarios;
                         $item['primer_registro'] = $usuario->primer_registro;
                     }
+
                     return $item;
                 });
             } else {

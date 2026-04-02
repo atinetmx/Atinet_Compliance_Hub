@@ -12,7 +12,7 @@ try {
     $startDate = now()->subMonths($months)->startOfMonth();
 
     echo "Start Date: {$startDate->format('Y-m-d')}\n";
-    echo "End Date: " . now()->format('Y-m-d') . "\n\n";
+    echo 'End Date: '.now()->format('Y-m-d')."\n\n";
 
     // Test the main query
     $rawTrends = \App\Models\ServiceUsage::selectRaw('
@@ -28,7 +28,7 @@ try {
         ->with('service:id,code,name,category')
         ->get();
 
-    echo "Raw trends count: " . $rawTrends->count() . "\n";
+    echo 'Raw trends count: '.$rawTrends->count()."\n";
 
     if ($rawTrends->isEmpty()) {
         echo "No usage data found in database!\n";
@@ -50,12 +50,12 @@ try {
         ];
     });
 
-    echo "\nServices count: " . $services->count() . "\n";
+    echo "\nServices count: ".$services->count()."\n";
 
     echo "\n✅ Query executed successfully!\n";
 
 } catch (\Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
-    echo "File: " . $e->getFile() . " Line: " . $e->getLine() . "\n";
-    echo "\nStack trace:\n" . $e->getTraceAsString() . "\n";
+    echo '❌ Error: '.$e->getMessage()."\n";
+    echo 'File: '.$e->getFile().' Line: '.$e->getLine()."\n";
+    echo "\nStack trace:\n".$e->getTraceAsString()."\n";
 }

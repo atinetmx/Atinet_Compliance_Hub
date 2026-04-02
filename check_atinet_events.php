@@ -19,7 +19,7 @@ foreach ($events as $event) {
     echo "ID: {$event->id}\n";
     echo "  Título: {$event->titulo}\n";
     echo "  Notaría: {$event->notaria}\n";
-    echo "  Usuario creador: " . ($event->id_usuario_creador ?: '(NULL)') . "\n";
+    echo '  Usuario creador: '.($event->id_usuario_creador ?: '(NULL)')."\n";
     echo "  Start: {$event->start_fecha}\n";
     echo "  End: {$event->end_fecha}\n";
     echo "\n";

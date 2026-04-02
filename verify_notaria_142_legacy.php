@@ -24,16 +24,22 @@ try {
         ->orWhere('NOTARIA', 'LIKE', '%2tlatlauquitepec%')
         ->get();
 
-    echo "      Total registros: " . $busquedasApp->count() . "\n";
+    echo '      Total registros: '.$busquedasApp->count()."\n";
 
     if ($busquedasApp->count() > 0) {
         echo "      Primeros 5 registros:\n";
         foreach ($busquedasApp->take(5) as $reg) {
-            echo "      - ID: " . ($reg->id ?? 'N/A');
-            echo " | NOTARIA: " . ($reg->NOTARIA ?? 'N/A');
-            if (isset($reg->RFC)) echo " | RFC: {$reg->RFC}";
-            if (isset($reg->NOMBRE)) echo " | NOMBRE: {$reg->NOMBRE}";
-            if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
+            echo '      - ID: '.($reg->id ?? 'N/A');
+            echo ' | NOTARIA: '.($reg->NOTARIA ?? 'N/A');
+            if (isset($reg->RFC)) {
+                echo " | RFC: {$reg->RFC}";
+            }
+            if (isset($reg->NOMBRE)) {
+                echo " | NOMBRE: {$reg->NOMBRE}";
+            }
+            if (isset($reg->fecha)) {
+                echo " | Fecha: {$reg->fecha}";
+            }
             echo "\n";
         }
     } else {
@@ -48,16 +54,22 @@ try {
         ->orWhere('NOTARIA', 'LIKE', '%2tlatlauquitepec%')
         ->get();
 
-    echo "      Total registros: " . $busquedasEscritorio->count() . "\n";
+    echo '      Total registros: '.$busquedasEscritorio->count()."\n";
 
     if ($busquedasEscritorio->count() > 0) {
         echo "      Primeros 5 registros:\n";
         foreach ($busquedasEscritorio->take(5) as $reg) {
-            echo "      - ID: " . ($reg->id ?? 'N/A');
-            echo " | NOTARIA: " . ($reg->NOTARIA ?? 'N/A');
-            if (isset($reg->RFC)) echo " | RFC: {$reg->RFC}";
-            if (isset($reg->NOMBRE)) echo " | NOMBRE: {$reg->NOMBRE}";
-            if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
+            echo '      - ID: '.($reg->id ?? 'N/A');
+            echo ' | NOTARIA: '.($reg->NOTARIA ?? 'N/A');
+            if (isset($reg->RFC)) {
+                echo " | RFC: {$reg->RFC}";
+            }
+            if (isset($reg->NOMBRE)) {
+                echo " | NOMBRE: {$reg->NOMBRE}";
+            }
+            if (isset($reg->fecha)) {
+                echo " | Fecha: {$reg->fecha}";
+            }
             echo "\n";
         }
     } else {
@@ -68,7 +80,7 @@ try {
     echo "\n   TOTAL EN APLICATIVOS: {$totalAplicativos} registros\n";
 
 } catch (Exception $e) {
-    echo "   ❌ ERROR: " . $e->getMessage() . "\n";
+    echo '   ❌ ERROR: '.$e->getMessage()."\n";
 }
 
 echo "\n";
@@ -88,26 +100,32 @@ try {
         ->orWhere('proyecto', 'LIKE', '%2tlatlauquitepec%')
         ->get();
 
-    echo "   Total registros: " . $consultasSat->count() . "\n";
+    echo '   Total registros: '.$consultasSat->count()."\n";
 
     if ($consultasSat->count() > 0) {
         echo "   Primeros 5 registros:\n";
         foreach ($consultasSat->take(5) as $reg) {
-            echo "   - ID: " . ($reg->id ?? 'N/A');
-            echo " | proyecto: " . ($reg->proyecto ?? 'N/A');
-            if (isset($reg->rfc)) echo " | RFC: {$reg->rfc}";
-            if (isset($reg->nombre)) echo " | Nombre: {$reg->nombre}";
-            if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
+            echo '   - ID: '.($reg->id ?? 'N/A');
+            echo ' | proyecto: '.($reg->proyecto ?? 'N/A');
+            if (isset($reg->rfc)) {
+                echo " | RFC: {$reg->rfc}";
+            }
+            if (isset($reg->nombre)) {
+                echo " | Nombre: {$reg->nombre}";
+            }
+            if (isset($reg->fecha)) {
+                echo " | Fecha: {$reg->fecha}";
+            }
             echo "\n";
         }
     } else {
         echo "   ❌ No se encontraron consultas SAT de la notaría 2tlatlauquitepec\n";
     }
 
-    echo "\n   TOTAL EN LISTASSAT: " . $consultasSat->count() . " registros\n";
+    echo "\n   TOTAL EN LISTASSAT: ".$consultasSat->count()." registros\n";
 
 } catch (Exception $e) {
-    echo "   ❌ ERROR: " . $e->getMessage() . "\n";
+    echo '   ❌ ERROR: '.$e->getMessage()."\n";
 }
 
 echo "\n";
@@ -127,25 +145,29 @@ try {
         ->orWhere('proyecto', 'LIKE', '%2tlatlauquitepec%')
         ->get();
 
-    echo "   Total registros: " . $consultasOfac->count() . "\n";
+    echo '   Total registros: '.$consultasOfac->count()."\n";
 
     if ($consultasOfac->count() > 0) {
         echo "   Primeros 5 registros:\n";
         foreach ($consultasOfac->take(5) as $reg) {
-            echo "   - ID: " . ($reg->id ?? 'N/A');
-            echo " | proyecto: " . ($reg->proyecto ?? 'N/A');
-            if (isset($reg->nombre)) echo " | Nombre: {$reg->nombre}";
-            if (isset($reg->fecha)) echo " | Fecha: {$reg->fecha}";
+            echo '   - ID: '.($reg->id ?? 'N/A');
+            echo ' | proyecto: '.($reg->proyecto ?? 'N/A');
+            if (isset($reg->nombre)) {
+                echo " | Nombre: {$reg->nombre}";
+            }
+            if (isset($reg->fecha)) {
+                echo " | Fecha: {$reg->fecha}";
+            }
             echo "\n";
         }
     } else {
         echo "   ❌ No se encontraron consultas OFAC de la notaría 2tlatlauquitepec\n";
     }
 
-    echo "\n   TOTAL EN LISTASOFAC: " . $consultasOfac->count() . " registros\n";
+    echo "\n   TOTAL EN LISTASOFAC: ".$consultasOfac->count()." registros\n";
 
 } catch (Exception $e) {
-    echo "   ❌ ERROR: " . $e->getMessage() . "\n";
+    echo '   ❌ ERROR: '.$e->getMessage()."\n";
 }
 
 echo "\n";
@@ -166,7 +188,7 @@ echo "\n";
 echo "  📊 APLICATIVOS (busquedas + busquedas_escritorio): {$totalAplicativosCount}\n";
 echo "  📊 LISTASSAT (consultas):                          {$totalSatCount}\n";
 echo "  📊 LISTASOFAC (consultas):                         {$totalOfacCount}\n";
-echo "  " . str_repeat('-', 60) . "\n";
+echo '  '.str_repeat('-', 60)."\n";
 echo "  🎯 TOTAL BÚSQUEDAS NOTARÍA 2tlatlauquitepec:       {$granTotal}\n";
 echo "\n";
 

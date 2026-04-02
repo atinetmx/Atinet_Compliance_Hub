@@ -12,7 +12,6 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Models\AgendaEvent;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 echo "🧪 PRUEBA: Sistema de Vistas (Propio vs Todos)\n";
@@ -53,7 +52,9 @@ if ($superAdmin2) {
 
 echo "✓ Eventos de prueba creados\n";
 echo "  - Evento Super Admin 1: #{$eventoSuperAdmin1->id}\n";
-if ($eventoSuperAdmin2) echo "  - Evento Super Admin 2: #{$eventoSuperAdmin2->id}\n";
+if ($eventoSuperAdmin2) {
+    echo "  - Evento Super Admin 2: #{$eventoSuperAdmin2->id}\n";
+}
 echo "\n";
 
 // ==================== PRUEBA 1: SUPER ADMIN ====================
@@ -69,9 +70,9 @@ $eventosLegacy = AgendaEvent::whereNull('user_id')->where('legacy_notaria', 'ati
 
 echo "👤 Vista: SOLO MÍOS (propio)\n";
 echo "  Total visible: {$eventosPropio->count()}\n";
-echo "    - Propios: " . $eventosPropio->where('user_id', $superAdmin1->id)->count() . "\n";
-echo "    - Legacy compartidos: " . $eventosPropio->whereNull('user_id')->count() . "\n";
-echo "    - De otros super admins: " . $eventosPropio->where('user_id', '!=', $superAdmin1->id)->whereNotNull('user_id')->count() . "\n";
+echo '    - Propios: '.$eventosPropio->where('user_id', $superAdmin1->id)->count()."\n";
+echo '    - Legacy compartidos: '.$eventosPropio->whereNull('user_id')->count()."\n";
+echo '    - De otros super admins: '.$eventosPropio->where('user_id', '!=', $superAdmin1->id)->whereNotNull('user_id')->count()."\n";
 echo "\n";
 
 // Vista "todos"
@@ -79,9 +80,9 @@ $eventosTodos = AgendaEvent::visiblePara($superAdmin1, 'todos')->get();
 
 echo "👁️  Vista: VER TODO (todos)\n";
 echo "  Total visible: {$eventosTodos->count()}\n";
-echo "    - Propios: " . $eventosTodos->where('user_id', $superAdmin1->id)->count() . "\n";
-echo "    - Legacy compartidos: " . $eventosTodos->whereNull('user_id')->count() . "\n";
-echo "    - De otros super admins: " . $eventosTodos->where('user_id', '!=', $superAdmin1->id)->whereNotNull('user_id')->count() . "\n";
+echo '    - Propios: '.$eventosTodos->where('user_id', $superAdmin1->id)->count()."\n";
+echo '    - Legacy compartidos: '.$eventosTodos->whereNull('user_id')->count()."\n";
+echo '    - De otros super admins: '.$eventosTodos->where('user_id', '!=', $superAdmin1->id)->whereNotNull('user_id')->count()."\n";
 echo "\n";
 
 // Verificación
@@ -92,15 +93,15 @@ $deberiaVerEvento2_todos = $eventoSuperAdmin2 ? $eventosTodos->contains('id', $e
 
 echo "✅ Verificación:\n";
 echo "  Vista 'propio':\n";
-echo "    - Ve su evento #{$eventoSuperAdmin1->id}: " . ($deberiaVerEvento1_propio ? '✅ SÍ' : '❌ NO') . " (esperado: ✅ SÍ)\n";
+echo "    - Ve su evento #{$eventoSuperAdmin1->id}: ".($deberiaVerEvento1_propio ? '✅ SÍ' : '❌ NO')." (esperado: ✅ SÍ)\n";
 if ($eventoSuperAdmin2) {
-    echo "    - Ve evento de otro super admin #{$eventoSuperAdmin2->id}: " . ($deberiaVerEvento2_propio ? '❌ SÍ' : '✅ NO') . " (esperado: ✅ NO)\n";
+    echo "    - Ve evento de otro super admin #{$eventoSuperAdmin2->id}: ".($deberiaVerEvento2_propio ? '❌ SÍ' : '✅ NO')." (esperado: ✅ NO)\n";
 }
 echo "\n";
 echo "  Vista 'todos':\n";
-echo "    - Ve su evento #{$eventoSuperAdmin1->id}: " . ($deberiaVerEvento1_todos ? '✅ SÍ' : '❌ NO') . " (esperado: ✅ SÍ)\n";
+echo "    - Ve su evento #{$eventoSuperAdmin1->id}: ".($deberiaVerEvento1_todos ? '✅ SÍ' : '❌ NO')." (esperado: ✅ SÍ)\n";
 if ($eventoSuperAdmin2) {
-    echo "    - Ve evento de otro super admin #{$eventoSuperAdmin2->id}: " . ($deberiaVerEvento2_todos ? '✅ SÍ' : '❌ NO') . " (esperado: ✅ SÍ)\n";
+    echo "    - Ve evento de otro super admin #{$eventoSuperAdmin2->id}: ".($deberiaVerEvento2_todos ? '✅ SÍ' : '❌ NO')." (esperado: ✅ SÍ)\n";
 }
 echo "\n";
 
@@ -108,7 +109,9 @@ echo "\n";
 
 echo "🧹 Limpiando eventos de prueba...\n";
 $eventoSuperAdmin1->delete();
-if ($eventoSuperAdmin2) $eventoSuperAdmin2->delete();
+if ($eventoSuperAdmin2) {
+    $eventoSuperAdmin2->delete();
+}
 echo "✓ Limpieza completada\n\n";
 
 // ==================== RESUMEN ====================

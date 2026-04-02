@@ -26,7 +26,7 @@ foreach ($legacyNotarias as $notaria) {
     echo "  {$notaria->notaria}: {$notaria->eventos} eventos\n";
 }
 
-echo "\n→ Total de notarías diferentes: " . count($legacyNotarias) . "\n\n";
+echo "\n→ Total de notarías diferentes: ".count($legacyNotarias)."\n\n";
 
 // 2. Notarías en sistema nuevo
 echo "→ Notarías en sistema nuevo (tabla notarias):\n";
@@ -40,9 +40,9 @@ foreach ($newNotarias as $notaria) {
     echo "  #{$notaria->id}: {$notaria->nombre} (Notaría {$notaria->numero_notaria}, {$notaria->estado}) → {$legacy}\n";
 }
 
-echo "\n→ Total de notarías en sistema nuevo: " . count($newNotarias) . "\n";
-echo "→ Notarías CON legacy_identifier: " . $newNotarias->whereNotNull('legacy_identifier')->count() . "\n";
-echo "→ Notarías SIN legacy_identifier: " . $newNotarias->whereNull('legacy_identifier')->count() . "\n\n";
+echo "\n→ Total de notarías en sistema nuevo: ".count($newNotarias)."\n";
+echo '→ Notarías CON legacy_identifier: '.$newNotarias->whereNotNull('legacy_identifier')->count()."\n";
+echo '→ Notarías SIN legacy_identifier: '.$newNotarias->whereNull('legacy_identifier')->count()."\n\n";
 
 // 3. Sugerencias de mapeo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";

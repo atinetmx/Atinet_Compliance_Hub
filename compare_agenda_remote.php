@@ -35,13 +35,13 @@ echo "=== ESTRUCTURA DE LA TABLA ===\n\n";
 
 echo "--- LOCAL (aplicativos.agenda) ---\n";
 $localCols = DB::connection('aplicativos')
-    ->select("SHOW COLUMNS FROM agenda");
+    ->select('SHOW COLUMNS FROM agenda');
 foreach ($localCols as $col) {
-    $key = $col->Key ? " [{$col->Key}]" : "";
+    $key = $col->Key ? " [{$col->Key}]" : '';
     $null = $col->Null === 'YES' ? 'NULL' : 'NOT NULL';
-    echo sprintf("  %-20s %-15s %-10s%s\n", 
-        $col->Field, 
-        $col->Type, 
+    echo sprintf("  %-20s %-15s %-10s%s\n",
+        $col->Field,
+        $col->Type,
         $null,
         $key
     );
@@ -49,13 +49,13 @@ foreach ($localCols as $col) {
 
 echo "\n--- REMOTO (Hostgator aplicativos.agenda) ---\n";
 $remoteCols = DB::connection('aplicativos_remote')
-    ->select("SHOW COLUMNS FROM agenda");
+    ->select('SHOW COLUMNS FROM agenda');
 foreach ($remoteCols as $col) {
-    $key = $col->Key ? " [{$col->Key}]" : "";
+    $key = $col->Key ? " [{$col->Key}]" : '';
     $null = $col->Null === 'YES' ? 'NULL' : 'NOT NULL';
-    echo sprintf("  %-20s %-15s %-10s%s\n", 
-        $col->Field, 
-        $col->Type, 
+    echo sprintf("  %-20s %-15s %-10s%s\n",
+        $col->Field,
+        $col->Type,
         $null,
         $key
     );
@@ -72,11 +72,11 @@ $onlyRemote = array_diff($remoteFields, $localFields);
 if (empty($onlyLocal) && empty($onlyRemote)) {
     echo "  ✓ Mismas columnas en ambas BDs\n";
 } else {
-    if (!empty($onlyLocal)) {
-        echo "  Solo en LOCAL: " . implode(', ', $onlyLocal) . "\n";
+    if (! empty($onlyLocal)) {
+        echo '  Solo en LOCAL: '.implode(', ', $onlyLocal)."\n";
     }
-    if (!empty($onlyRemote)) {
-        echo "  Solo en REMOTO: " . implode(', ', $onlyRemote) . "\n";
+    if (! empty($onlyRemote)) {
+        echo '  Solo en REMOTO: '.implode(', ', $onlyRemote)."\n";
     }
 }
 
@@ -108,8 +108,8 @@ $remoteSample = DB::connection('aplicativos_remote')
 foreach ($remoteSample as $row) {
     echo "\n  ID: {$row->id}\n";
     foreach (get_object_vars($row) as $key => $value) {
-        $display = is_null($value) ? '(NULL)' : 
-                   (strlen($value) > 60 ? substr($value, 0, 60) . '...' : $value);
+        $display = is_null($value) ? '(NULL)' :
+                   (strlen($value) > 60 ? substr($value, 0, 60).'...' : $value);
         echo "    {$key}: {$display}\n";
     }
 }
@@ -158,7 +158,7 @@ if (in_array('created_at', $remoteFieldNames) || in_array('fecha_creacion', $rem
         ->orderBy($dateField, 'desc')
         ->limit(5)
         ->get();
-    
+
     foreach ($recent as $r) {
         $date = $r->$dateField ?? 'N/A';
         echo "  ID {$r->id} | {$r->notaria} | {$date} | {$r->titulo}\n";

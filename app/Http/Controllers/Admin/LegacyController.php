@@ -270,7 +270,7 @@ class LegacyController extends Controller
         ]);
 
         try {
-            $service = new BusquedasLegacyService();
+            $service = new BusquedasLegacyService;
 
             $options = [
                 'limit' => $request->input('limit', 100),
@@ -296,7 +296,7 @@ class LegacyController extends Controller
     public function getEstadisticasNotaria(string $legacyIdentifier)
     {
         try {
-            $service = new BusquedasLegacyService();
+            $service = new BusquedasLegacyService;
             $stats = $service->getEstadisticas($legacyIdentifier);
 
             return response()->json($stats);
