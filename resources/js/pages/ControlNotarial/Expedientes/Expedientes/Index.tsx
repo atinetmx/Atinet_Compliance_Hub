@@ -1356,6 +1356,13 @@ export default function ExpedientesIndex() {
     // Cargar todos los datos del expediente cuando se selecciona uno
     useEffect(() => {
         if (currentExpedienteId) {
+            // Cerrar formularios abiertos al cambiar de expediente
+            setMostrarFormInmueble(false);
+            setMostrarFormularioRecibo(false);
+            setInmuebleEnEdicion(null);
+            setInmuebleIdEnEdicion(null);
+            setReciboDetalleSeleccionado(null);
+
             fetchDocumentosExpediente(currentExpedienteId);
             fetchInmueblesExpediente(currentExpedienteId);
             fetchRecibosProvisionales(currentExpedienteId);
@@ -2792,7 +2799,7 @@ export default function ExpedientesIndex() {
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Tipo de Escritura</label>
-                                                    <select name="tipoEscritura" value={formData.tipoEscritura} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                                                    <select name="tipoEscritura" value={formData.tipoEscritura} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
                                                         <option value="">Selecciona tipo</option>
                                                         <option value="protocolo-abierto">Protocolo Abierto</option>
                                                         <option value="protocolo-cerrado">Protocolo Cerrado</option>
@@ -2800,7 +2807,7 @@ export default function ExpedientesIndex() {
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Número de Escritura</label>
-                                                    <Input type="text" name="numeroEscritura" value={formData.numeroEscritura} onChange={handleInputChange} placeholder="Número de escritura" className="text-sm" />
+                                                    <Input type="text" name="numeroEscritura" value={formData.numeroEscritura} onChange={handleInputChange} placeholder="Número de escritura" className="text-sm bg-white dark:bg-white" />
                                                 </div>
                                             </div>
 
@@ -2812,7 +2819,7 @@ export default function ExpedientesIndex() {
                                                     <div className="grid grid-cols-4 gap-4 items-end">
                                                         <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folios Requeridos</label>
-                                                            <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
+                                                            <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="flex items-end w-full pt-5">
                                                             <Button className="bg-blue-600 hover:bg-blue-700 h-10 w-24 min-w-0">Asignar</Button>
@@ -2823,11 +2830,11 @@ export default function ExpedientesIndex() {
                                                     <div className="grid grid-cols-4 gap-4">
                                                         <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folio Inicial</label>
-                                                            <Input type="number" name="folioInicial" value={formData.folioInicial} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
+                                                            <Input type="number" name="folioInicial" value={formData.folioInicial} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folio Final</label>
-                                                            <Input type="number" name="folioFinal" value={formData.folioFinal} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
+                                                            <Input type="number" name="folioFinal" value={formData.folioFinal} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="w-full"></div>
                                                         <div className="w-full"></div>
@@ -2836,15 +2843,15 @@ export default function ExpedientesIndex() {
                                                     <div className="grid grid-cols-4 gap-4">
                                                         <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Volumen</label>
-                                                            <Input type="number" name="volumen" value={formData.volumen} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
+                                                            <Input type="number" name="volumen" value={formData.volumen} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Tomo</label>
-                                                            <Input type="number" name="tomo" value={formData.tomo} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
+                                                            <Input type="number" name="tomo" value={formData.tomo} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="space-y-2 w-full">
                                                             <label className="text-sm font-medium">Folios Inutilizados</label>
-                                                            <Input type="number" name="foliosInutilizados" value={formData.foliosInutilizados} onChange={handleInputChange} placeholder="0" className="text-sm w-full" />
+                                                            <Input type="number" name="foliosInutilizados" value={formData.foliosInutilizados} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="w-full"></div>
                                                     </div>
@@ -2876,7 +2883,7 @@ export default function ExpedientesIndex() {
                                                                 value={formData.fechaEscritura}
                                                                 onChange={handleInputChange}
                                                                 readOnly={!enabledDates.fechaEscritura}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-background border-input text-sm ${!enabledDates.fechaEscritura ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaEscritura ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                             />
                                                         </div>
 
@@ -2898,7 +2905,7 @@ export default function ExpedientesIndex() {
                                                                 value={formData.fechaFirma}
                                                                 onChange={handleInputChange}
                                                                 readOnly={!enabledDates.fechaFirma}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-background border-input text-sm ${!enabledDates.fechaFirma ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaFirma ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                             />
                                                         </div>
 
@@ -2920,7 +2927,7 @@ export default function ExpedientesIndex() {
                                                                 value={formData.fechaElaboracion}
                                                                 onChange={handleInputChange}
                                                                 readOnly={!enabledDates.fechaElaboracion}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-background border-input text-sm ${!enabledDates.fechaElaboracion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaElaboracion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                             />
                                                         </div>
 
@@ -2942,7 +2949,7 @@ export default function ExpedientesIndex() {
                                                                 value={formData.fechaRevision}
                                                                 onChange={handleInputChange}
                                                                 readOnly={!enabledDates.fechaRevision}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-background border-input text-sm ${!enabledDates.fechaRevision ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaRevision ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                             />
                                                         </div>
 
@@ -2964,7 +2971,7 @@ export default function ExpedientesIndex() {
                                                                 value={formData.fechaImpresion}
                                                                 onChange={handleInputChange}
                                                                 readOnly={!enabledDates.fechaImpresion}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-background border-input text-sm ${!enabledDates.fechaImpresion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaImpresion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                             />
                                                         </div>
 
@@ -2986,7 +2993,7 @@ export default function ExpedientesIndex() {
                                                                 value={formData.firmarTodos}
                                                                 onChange={handleInputChange}
                                                                 readOnly={!enabledDates.firmarTodos}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-background border-input text-sm ${!enabledDates.firmarTodos ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.firmarTodos ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                                                             />
                                                         </div>
                                                     </div>
@@ -3016,7 +3023,7 @@ export default function ExpedientesIndex() {
                                                                 onChange={handleInputChange}
                                                                 placeholder="Explica el motivo por el cual no pasó..."
                                                                 rows={3}
-                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                                                             />
                                                         </div>
                                                     )}
@@ -3219,9 +3226,12 @@ export default function ExpedientesIndex() {
 
                                         {/* SubTab: Dependencias */}
                                         <TabsContent value="dependencias" className="space-y-4">
-                                            <div className="mb-6">
-                                                <label className="text-sm font-medium block mb-2">Dependencias Públicas</label>
-                                                <div ref={refDropdownDependencias} className="relative">
+                                            <div className="bg-cyan-50 dark:bg-cyan-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                                                <h3 className="font-semibold text-cyan-900 dark:text-cyan-100 mb-0">Dependencias Públicas</h3>
+
+                                            </div>
+
+                                            <div ref={refDropdownDependencias} className="relative mb-4">
                                                     <div className="relative">
                                                         <Input type="text" placeholder="Buscar dependencia..." value={dependenciaBusqueda} onChange={(e) => setDependenciaBusqueda(e.target.value)} onFocus={() => setMostrarDropdownDependencias(true)} className="text-sm pr-8" />
                                                         <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
@@ -3236,24 +3246,55 @@ export default function ExpedientesIndex() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                {formData.dependencias.length > 0 && (
-                                                    <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-2">
-                                                        {formData.dependencias.map((dep, idx) => (
-                                                            <div key={idx} className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                                <button onClick={() => setDependenciaSeleccionada(dep)} className="text-sm flex-1 text-left hover:underline">{dep}</button>
-                                                                <button onClick={() => handleEliminarDependencia(idx)} className="text-red-600 hover:text-red-800 dark:text-red-400 ml-2">
-                                                                    <X className="h-4 w-4" />
-                                                                </button>
-                                                            </div>
-                                                        ))}
+
+                                            {formData.dependencias.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden" style={{ maxHeight: '150px', display: 'flex', flexDirection: 'column' }}>
+                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                        <table className="w-full text-sm">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                                <tr>
+                                                                    <th className="px-3 py-2 text-left">#</th>
+                                                                    <th className="px-3 py-2 text-left">Dependencia</th>
+                                                                    <th className="px-3 py-2 text-center">Acciones</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {formData.dependencias.map((dep, idx) => (
+                                                                    <tr key={idx} className="border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer transition-colors">
+                                                                        <td className="px-3 py-2">
+                                                                            <span className="font-semibold">{idx + 1}</span>
+                                                                        </td>
+                                                                        <td className="px-3 py-2 text-sm">
+                                                                            <button onClick={() => setDependenciaSeleccionada(dep)} className="hover:underline text-left">{dep}</button>
+                                                                        </td>
+                                                                        <td className="px-3 py-2 text-center">
+                                                                            <button onClick={() => handleEliminarDependencia(idx)} className="text-red-600 hover:text-red-800 dark:text-red-400">
+                                                                                <X className="h-4 w-4" />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
+
+                                            {formData.dependencias.length === 0 && (
+                                                <div className="border rounded-lg p-4">
+                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay dependencias agregadas</p>
+                                                </div>
+                                            )}
 
                                             {/* Formulario de Datos de la Dependencia */}
                                             {dependenciaSeleccionada && datosDepdencias[dependenciaSeleccionada] && (
-                                                <div className="border rounded-lg p-6 bg-slate-50 dark:bg-slate-900/30 mt-2">
-                                                    <h3 className="text-lg font-semibold mb-6">Datos de la Dependencia</h3>
+                                                <div className="border rounded-lg p-6 bg-cyan-50 dark:bg-cyan-950/20 mt-6 border-cyan-300">
+                                                    <div className="flex items-center justify-between mb-6">
+                                                        <h3 className="text-lg font-semibold text-cyan-900 dark:text-cyan-100">Datos de la Dependencia</h3>
+                                                        <button onClick={() => setDependenciaSeleccionada(null)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                                                            <X className="h-5 w-5" />
+                                                        </button>
+                                                    </div>
 
                                                     <div className="space-y-4">
                                                         {/* FILA 1: Dependencia */}
@@ -3266,19 +3307,19 @@ export default function ExpedientesIndex() {
                                                         <div className="grid grid-cols-4 gap-4">
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Folio Real</label>
-                                                                <Input type="text" placeholder="Folio real" value={datosDepdencias[dependenciaSeleccionada].folioReal} onChange={(e) => handleActualizarDatosDependencia('folioReal', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Folio real" value={datosDepdencias[dependenciaSeleccionada].folioReal} onChange={(e) => handleActualizarDatosDependencia('folioReal', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Folio</label>
-                                                                <Input type="text" placeholder="Folio" value={datosDepdencias[dependenciaSeleccionada].folio} onChange={(e) => handleActualizarDatosDependencia('folio', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Folio" value={datosDepdencias[dependenciaSeleccionada].folio} onChange={(e) => handleActualizarDatosDependencia('folio', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Volumen</label>
-                                                                <Input type="text" placeholder="Volumen" value={datosDepdencias[dependenciaSeleccionada].volumen} onChange={(e) => handleActualizarDatosDependencia('volumen', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Volumen" value={datosDepdencias[dependenciaSeleccionada].volumen} onChange={(e) => handleActualizarDatosDependencia('volumen', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Fojas</label>
-                                                                <Input type="text" placeholder="Fojas" value={datosDepdencias[dependenciaSeleccionada].fojas} onChange={(e) => handleActualizarDatosDependencia('fojas', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Fojas" value={datosDepdencias[dependenciaSeleccionada].fojas} onChange={(e) => handleActualizarDatosDependencia('fojas', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                         </div>
 
@@ -3286,26 +3327,26 @@ export default function ExpedientesIndex() {
                                                         <div className="grid grid-cols-4 gap-4">
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Sección</label>
-                                                                <Input type="text" placeholder="Sección" value={datosDepdencias[dependenciaSeleccionada].seccion} onChange={(e) => handleActualizarDatosDependencia('seccion', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Sección" value={datosDepdencias[dependenciaSeleccionada].seccion} onChange={(e) => handleActualizarDatosDependencia('seccion', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Partida</label>
-                                                                <Input type="text" placeholder="Partida" value={datosDepdencias[dependenciaSeleccionada].partida} onChange={(e) => handleActualizarDatosDependencia('partida', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Partida" value={datosDepdencias[dependenciaSeleccionada].partida} onChange={(e) => handleActualizarDatosDependencia('partida', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Libro</label>
-                                                                <Input type="text" placeholder="Libro" value={datosDepdencias[dependenciaSeleccionada].libro} onChange={(e) => handleActualizarDatosDependencia('libro', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Libro" value={datosDepdencias[dependenciaSeleccionada].libro} onChange={(e) => handleActualizarDatosDependencia('libro', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <label className="text-sm font-medium block mb-1">Estatus</label>
-                                                                <Input type="text" placeholder="Estatus" value={datosDepdencias[dependenciaSeleccionada].estatus} onChange={(e) => handleActualizarDatosDependencia('estatus', e.target.value)} className="text-sm" />
+                                                                <Input type="text" placeholder="Estatus" value={datosDepdencias[dependenciaSeleccionada].estatus} onChange={(e) => handleActualizarDatosDependencia('estatus', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                         </div>
 
                                                         {/* FILA 4: Observaciones */}
                                                         <div>
                                                             <label className="text-sm font-medium block mb-1">Observaciones</label>
-                                                            <textarea placeholder="Observaciones..." value={datosDepdencias[dependenciaSeleccionada].observaciones} onChange={(e) => handleActualizarDatosDependencia('observaciones', e.target.value)} rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
+                                                            <textarea placeholder="Observaciones..." value={datosDepdencias[dependenciaSeleccionada].observaciones} onChange={(e) => handleActualizarDatosDependencia('observaciones', e.target.value)} rows={3} className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
                                                         </div>
 
                                                         {/* FILA 5: F. Ingreso, F. Rechazo, F. Subsanado, F. Reingreso */}
@@ -3315,28 +3356,28 @@ export default function ExpedientesIndex() {
                                                                     <input type="checkbox" id="ckFechaIngreso" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso || false} onChange={() => handleToggleCheckboxFecha('fechaIngreso')} className="rounded" />
                                                                     <label htmlFor="ckFechaIngreso" className="text-sm font-medium">F. Ingreso</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso} value={datosDepdencias[dependenciaSeleccionada].fechaIngreso} onChange={(e) => handleActualizarDatosDependencia('fechaIngreso', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso} value={datosDepdencias[dependenciaSeleccionada].fechaIngreso} onChange={(e) => handleActualizarDatosDependencia('fechaIngreso', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input type="checkbox" id="ckFechaRechazo" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo || false} onChange={() => handleToggleCheckboxFecha('fechaRechazo')} className="rounded" />
                                                                     <label htmlFor="ckFechaRechazo" className="text-sm font-medium">F. Rechazo</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo} value={datosDepdencias[dependenciaSeleccionada].fechaRechazo} onChange={(e) => handleActualizarDatosDependencia('fechaRechazo', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo} value={datosDepdencias[dependenciaSeleccionada].fechaRechazo} onChange={(e) => handleActualizarDatosDependencia('fechaRechazo', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input type="checkbox" id="ckFechaSubsanado" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado || false} onChange={() => handleToggleCheckboxFecha('fechaSubsanado')} className="rounded" />
                                                                     <label htmlFor="ckFechaSubsanado" className="text-sm font-medium">F. Subsanado</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado} value={datosDepdencias[dependenciaSeleccionada].fechaSubsanado} onChange={(e) => handleActualizarDatosDependencia('fechaSubsanado', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado} value={datosDepdencias[dependenciaSeleccionada].fechaSubsanado} onChange={(e) => handleActualizarDatosDependencia('fechaSubsanado', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input type="checkbox" id="ckFechaReingreso" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso || false} onChange={() => handleToggleCheckboxFecha('fechaReingreso')} className="rounded" />
                                                                     <label htmlFor="ckFechaReingreso" className="text-sm font-medium">F. Reingreso</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso} value={datosDepdencias[dependenciaSeleccionada].fechaReingreso} onChange={(e) => handleActualizarDatosDependencia('fechaReingreso', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso} value={datosDepdencias[dependenciaSeleccionada].fechaReingreso} onChange={(e) => handleActualizarDatosDependencia('fechaReingreso', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                         </div>
 
@@ -3347,21 +3388,21 @@ export default function ExpedientesIndex() {
                                                                     <input type="checkbox" id="ckFechaRegistro" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro || false} onChange={() => handleToggleCheckboxFecha('fechaRegistro')} className="rounded" />
                                                                     <label htmlFor="ckFechaRegistro" className="text-sm font-medium">F. Registro</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro} value={datosDepdencias[dependenciaSeleccionada].fechaRegistro} onChange={(e) => handleActualizarDatosDependencia('fechaRegistro', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro} value={datosDepdencias[dependenciaSeleccionada].fechaRegistro} onChange={(e) => handleActualizarDatosDependencia('fechaRegistro', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input type="checkbox" id="ckFechaRecogerD" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia || false} onChange={() => handleToggleCheckboxFecha('fechaRecogerDependencia')} className="rounded" />
                                                                     <label htmlFor="ckFechaRecogerD" className="text-sm font-medium">F. Recoger D.</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia} value={datosDepdencias[dependenciaSeleccionada].fechaRecogerDependencia} onChange={(e) => handleActualizarDatosDependencia('fechaRecogerDependencia', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia} value={datosDepdencias[dependenciaSeleccionada].fechaRecogerDependencia} onChange={(e) => handleActualizarDatosDependencia('fechaRecogerDependencia', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input type="checkbox" id="ckFechaConclusión" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión || false} onChange={() => handleToggleCheckboxFecha('fechaConclusión')} className="rounded" />
                                                                     <label htmlFor="ckFechaConclusión" className="text-sm font-medium">F. Conclusión</label>
                                                                 </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión} value={datosDepdencias[dependenciaSeleccionada].fechaConclusión} onChange={(e) => handleActualizarDatosDependencia('fechaConclusión', e.target.value)} className="text-sm" />
+                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión} value={datosDepdencias[dependenciaSeleccionada].fechaConclusión} onChange={(e) => handleActualizarDatosDependencia('fechaConclusión', e.target.value)} className="text-sm bg-white dark:bg-white" />
                                                             </div>
                                                             <div />
                                                         </div>
@@ -4288,8 +4329,10 @@ export default function ExpedientesIndex() {
                                                         className="text-sm"
                                                         onClick={() => {
                                                             setMostrarFormInmueble(false);
+                                                            setMostrarFormularioRecibo(false);
                                                             setInmuebleEnEdicion(null);
                                                             setInmuebleIdEnEdicion(null);
+                                                            setReciboDetalleSeleccionado(null);
                                                         }}
                                                     >
                                                         Cancelar
@@ -4334,7 +4377,19 @@ export default function ExpedientesIndex() {
                                                 <Button
                                                     size="sm"
                                                     className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => setMostrarFormularioRecibo(true)}
+                                                    onClick={() => {
+                                                        setMostrarFormularioRecibo(true);
+                                                        setReciboDetalleSeleccionado(null);
+                                                        setReciboData({
+                                                            impuestosDerechos: 0,
+                                                            gastosNotariales: 0,
+                                                            honorarios: 0,
+                                                            concepto: '',
+                                                            formaPago: '',
+                                                            observaciones: '',
+                                                            clienteId: null
+                                                        });
+                                                    }}
                                                 >
                                                     <Plus className="h-4 w-4 mr-2" />
                                                     Generar Recibo
@@ -4393,17 +4448,19 @@ export default function ExpedientesIndex() {
                                                                         </td>
                                                                         <td className="px-4 py-2 cursor-pointer">{recibo.fecha_Creacion}</td>
                                                                         <td className="px-4 py-2 text-center">
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleImprimirRecibo(recibo.id);
-                                                                                }}
-                                                                                disabled={cargandoReciboDetalle || recibo.estatus === 'PENDIENTE'}
-                                                                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                                                                                title={recibo.estatus === 'PENDIENTE' ? 'No se puede imprimir mientras el recibo esté pendiente' : 'Imprimir recibo'}
-                                                                            >
-                                                                                🖨️ Imprimir
-                                                                            </button>
+                                                                            {recibo.estatus !== 'PENDIENTE' && (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleImprimirRecibo(recibo.id);
+                                                                                    }}
+                                                                                    disabled={cargandoReciboDetalle}
+                                                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                                                                                    title="Imprimir recibo"
+                                                                                >
+                                                                                    🖨️ Imprimir
+                                                                                </button>
+                                                                            )}
                                                                         </td>
                                                                     </tr>
                                                                 ))}
@@ -4545,7 +4602,7 @@ export default function ExpedientesIndex() {
                                                                     impuestosDerechos: Math.max(0, parseFloat(e.target.value) || 0)
                                                                 }))}
                                                                 placeholder="0.00"
-                                                                className="text-sm"
+                                                                className="text-sm bg-white dark:bg-white"
                                                             />
                                                         )}
                                                     </div>
@@ -4569,7 +4626,7 @@ export default function ExpedientesIndex() {
                                                                     gastosNotariales: Math.max(0, parseFloat(e.target.value) || 0)
                                                                 }))}
                                                                 placeholder="0.00"
-                                                                className="text-sm"
+                                                                className="text-sm bg-white dark:bg-white"
                                                             />
                                                         )}
                                                     </div>
@@ -4593,15 +4650,15 @@ export default function ExpedientesIndex() {
                                                                     honorarios: Math.max(0, parseFloat(e.target.value) || 0)
                                                                 }))}
                                                                 placeholder="0.00"
-                                                                className="text-sm"
+                                                                className="text-sm bg-white dark:bg-white"
                                                             />
                                                         )}
                                                     </div>
 
                                                     <div className="space-y-2">
                                                         <label className="text-sm font-medium">Total</label>
-                                                        <div className="px-3 py-2 border rounded-md text-right font-bold text-green-500">
-                                                            ${reciboDetalleSeleccionado ? reciboDetalleSeleccionado.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (reciboData.impuestosDerechos + reciboData.gastosNotariales + reciboData.honorarios).toFixed(2)}
+                                                        <div className="px-3 py-2 border rounded-md text-right font-bold text-green-500 bg-white dark:bg-white">
+                                                            $ {reciboDetalleSeleccionado ? reciboDetalleSeleccionado.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (reciboData.impuestosDerechos + reciboData.gastosNotariales + reciboData.honorarios).toFixed(2)}
                                                         </div>
                                                     </div>
 
@@ -4656,6 +4713,7 @@ export default function ExpedientesIndex() {
                                                                 className="text-sm"
                                                                 onClick={() => {
                                                                     setMostrarFormularioRecibo(false);
+                                                                    setMostrarFormInmueble(false);
                                                                     setReciboDetalleSeleccionado(null);
                                                                     setReciboData({
                                                                         impuestosDerechos: 0,
@@ -4700,6 +4758,7 @@ export default function ExpedientesIndex() {
                                                                 className="text-sm"
                                                                 onClick={() => {
                                                                     setMostrarFormularioRecibo(false);
+                                                                    setMostrarFormInmueble(false);
                                                                     setReciboDetalleSeleccionado(null);
                                                                     setReciboData({
                                                                         impuestosDerechos: 0,
