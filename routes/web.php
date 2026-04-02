@@ -237,6 +237,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Página de búsqueda
     Route::get('listas-negras', function () {
         return Inertia::render('Admin/ListasNegras/Search');
+        
     })->name('listas-negras');
 
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)

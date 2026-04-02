@@ -80,7 +80,7 @@ export function AppSidebar() {
                           },
                           {
                               title: 'Historial',
-                              href: '/admin/listas-negras/historial',
+                              href: '/admin/search-history',
                               icon: History,
                           },
                       ],
@@ -172,7 +172,7 @@ export function AppSidebar() {
                           },
                           {
                               title: 'Historial',
-                              href: '/admin/listas-negras/historial',
+                              href: '/admin/search-history',
                               icon: History,
                           },
                       ],
@@ -246,11 +246,11 @@ export function AppSidebar() {
     ];
 
     const footerNavItems: NavItem[] = [
-        {
-            title: 'Repository',
-            href: 'https://github.com/laravel/react-starter-kit',
-            icon: Folder,
-        },
+        // {
+        //     title: 'Repository',
+        //     href: 'https://github.com/laravel/react-starter-kit',
+        //     icon: Folder,
+        // },
         {
             title: 'Documentación',
             href: '/admin/documentacion',

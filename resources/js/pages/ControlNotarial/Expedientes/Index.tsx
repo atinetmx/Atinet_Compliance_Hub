@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { FileText, Plus, Search, Filter } from 'lucide-react';
+import { FileText, Plus, Search, Filter, Scale } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ interface Props {
 export default function ExpedientesIndex({ expedientes = [], phase = 'production', message }: Props) {
     const [searchTerm, setSearchTerm] = useState('');
 
-    const breadcrumpItems: BreadcrumbItem[] = [
+    const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Dashboard',
             href: '/dashboard',
@@ -38,6 +38,7 @@ export default function ExpedientesIndex({ expedientes = [], phase = 'production
         {
             title: 'Expedientes',
             href: '/control-notarial/expedientes',
+            icon: FileText,
         },
     ];
 
@@ -50,20 +51,12 @@ export default function ExpedientesIndex({ expedientes = [], phase = 'production
     const isDevelopment = phase === 'development';
 
     return (
-        <AppLayout breadcrumbItems={breadcrumpItems}>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Expedientes - Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
-                {/* Header Section */}
-                <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                            Expedientes
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Gestiona todos los expedientes de la notaría
-                        </p>
-                    </div>
+                {/* Botón Nuevo Expediente */}
+                <div className="flex justify-end">
                     {!isDevelopment && (
                         <Button className="gap-2">
                             <Plus className="h-4 w-4" />

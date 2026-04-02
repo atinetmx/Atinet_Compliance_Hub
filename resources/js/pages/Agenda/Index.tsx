@@ -153,7 +153,7 @@ function emptyForm(): EventForm {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Agenda', href: '/admin/agenda' },
+    { title: 'Agenda', href: '/admin/agenda', icon: CalendarDays },
 ];
 
 // ==================== Componente principal ====================
@@ -449,16 +449,11 @@ export default function AgendaIndex() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <CalendarDays className="text-primary h-6 w-6" />
-                        <h1 className="text-xl font-semibold">Agenda</h1>
-                    </div>
-                    <div className="flex items-center gap-3">
+                {/* Controles */}
+                <div className="flex items-center justify-end gap-3">
                         {isAdmin && (
                             <Select value={vista} onValueChange={(v) => handleVistaChange(v as 'propio' | 'todos')}>
-                                <SelectTrigger className="w-[160px]">
+                                <SelectTrigger className="w-40">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -485,7 +480,6 @@ export default function AgendaIndex() {
                             Nuevo evento
                         </Button>
                     </div>
-                </div>
 
                 {/* Tabs */}
                 <Tabs defaultValue="calendario" className="flex flex-1 flex-col gap-4">
@@ -712,10 +706,10 @@ export default function AgendaIndex() {
                     style={{ top: tooltip.y, left: tooltip.x }}
                 >
                     <p className="font-semibold">{tooltip.event.title}</p>
-                    {tooltip.event.extendedProps.comentarios && (
+                    {tooltip.event.extendedProps?.comentarios && (
                         <p className="text-muted-foreground mt-1 text-xs">{tooltip.event.extendedProps.comentarios}</p>
                     )}
-                    {tooltip.event.extendedProps.tipo && (
+                    {tooltip.event.extendedProps?.tipo && (
                         <Badge variant="outline" className="mt-2 text-xs">
                             {TIPOS.find((t) => t.value === tooltip.event!.extendedProps.tipo)?.label}
                         </Badge>

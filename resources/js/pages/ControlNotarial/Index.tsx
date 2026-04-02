@@ -1,7 +1,8 @@
 import { Head } from '@inertiajs/react';
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Scale } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 interface Task {
     total: number;
@@ -41,7 +42,7 @@ export default function ControlNotarialIndex({
     phase,
     tasks,
 }: Props) {
-    const breadcrumbItems = [
+    const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Dashboard',
             href: '/dashboard',
@@ -49,6 +50,7 @@ export default function ControlNotarialIndex({
         {
             title: 'Control Notarial',
             href: '/control-notarial',
+            icon: Scale,
         },
     ];
 
@@ -74,26 +76,10 @@ export default function ControlNotarialIndex({
     ];
 
     return (
-        <AppLayout breadcrumbItems={breadcrumbItems}>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
-                {/* Hero Section */}
-                <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-linear-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 dark:border-amber-800 dark:from-amber-950/50 dark:via-yellow-950/30 dark:to-orange-950/20">
-                    <div className="relative z-10">
-                        <div className="mb-4 flex items-center gap-3">
-                            <div className="rounded-lg bg-amber-500 p-3 text-white shadow-lg">
-                                <FolderOpen className="size-8" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl font-bold text-amber-900 dark:text-amber-100">
-                                    Sistema Control Notarial
-                                </h1>
-                                <p className="text-sm text-amber-700 dark:text-amber-300">
-                                    Migración VB6 → Laravel + React
-                                </p>
-                            </div>
-                        </div>
 
                         <div className="mt-6 flex items-center gap-4">
                             <div className="inline-flex items-center gap-2 rounded-full border border-orange-300 bg-orange-100 px-4 py-2 text-sm font-medium text-orange-900 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200">

@@ -33,7 +33,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Administración', href: '/admin' },
-    { title: 'Registro Web', href: '/admin/registro-web' },
+    { title: 'Registro Web', href: '/admin/registro-web', icon: QrCode },
 ];
 
 type PersonaType = 'fisica' | 'moral';
@@ -218,36 +218,15 @@ export default function Index({ notaria, stats }: Props) {
             <Head title="Registro Web" />
 
             <div className="pb-20">
-                {/* Header */}
-                <div className="mb-4 flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-6 py-4 shadow-sm">
-                    <img
-                        src="/images/LogoAtinetSinFondo.png"
-                        alt="Atinet"
-                        className="h-14 w-auto"
-                    />
-                    <div className="flex-1 text-center">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                            Sistema Notarial Atinet
-                        </h1>
-                        <p className="text-sm text-gray-500">
-                            Registro de Personas v3.0 – Completo (85 campos)
-                        </p>
+                {/* Estadísticas */}
+                <div className="mb-4 flex justify-end gap-4 text-sm text-muted-foreground">
+                    <div>
+                        Notaría: <span className="font-semibold">{notaria || 'N/A'}</span>
                     </div>
-                    <div className="text-right text-xs text-gray-400">
-                        <div>
-                            Notaría:{' '}
-                            <span className="font-semibold text-gray-600">
-                                {notaria || 'N/A'}
-                            </span>
-                        </div>
-                        <div className="mt-1">
-                            <span className="font-semibold text-sky-600">
-                                {stats.total_nuevos}
-                            </span>{' '}
-                            nuevos &nbsp;·&nbsp;
-                            <span className="text-gray-500">{stats.total_legacy}</span>{' '}
-                            legacy
-                        </div>
+                    <div>
+                        <span className="font-semibold text-sky-600">{stats.total_nuevos}</span> nuevos
+                        {' · '}
+                        <span className="text-gray-500">{stats.total_legacy}</span> legacy
                     </div>
                 </div>
 
