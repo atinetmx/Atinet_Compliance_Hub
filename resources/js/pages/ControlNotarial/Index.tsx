@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Scale } from 'lucide-react';
+import { Calendar, CheckCircle2, FileText, Scale } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -80,29 +80,6 @@ export default function ControlNotarialIndex({
             <Head title="Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
-
-                        <div className="mt-6 flex items-center gap-4">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-orange-300 bg-orange-100 px-4 py-2 text-sm font-medium text-orange-900 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200">
-                                <Clock className="size-4" />
-                                {status === 'development' ? 'En Desarrollo' : 'Estado'}
-                            </div>
-                            <div className="text-sm text-amber-700 dark:text-amber-300">
-                                {message}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Decorative background */}
-                    <div className="absolute right-0 top-0 opacity-10">
-                        <svg width="400" height="200" viewBox="0 0 200 200">
-                            <path
-                                fill="currentColor"
-                                d="M40,80 Q60,20 80,80 T120,80 Q140,120 160,80"
-                                className="text-amber-500"
-                            />
-                        </svg>
-                    </div>
-                </div>
 
                 {/* Phase Information */}
                 <div className="grid gap-6 md:grid-cols-2">
