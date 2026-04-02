@@ -72,6 +72,7 @@
         "lucide-react": "^0.475.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
+        "react-pageflip": "^2.0.3",
         "recharts": "^3.7.0",
         "rrule": "^2.8.1",
         "tailwind-merge": "^3.0.1",

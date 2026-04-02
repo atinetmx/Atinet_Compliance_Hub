@@ -27,6 +27,7 @@ import {
     Building2,
     Clock,
     Camera,
+    BookOpenCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import AppLogo from '@/components/app-logo';
@@ -36,8 +37,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import DocumentationLayout from '@/layouts/documentation-layout';
 import { dashboard } from '@/routes';
+import { Page, PageFlipBook } from '@/components/page-flip-book';
 
 interface Props {
     currentSection: string;
@@ -3632,6 +3636,7 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
 export default function Documentation({ currentSection }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeSection, setActiveSection] = useState(currentSection);
+    const [bookMode, setBookMode] = useState(false);
 
     const handleSectionClick = (sectionId: string) => {
         setActiveSection(sectionId);
@@ -3646,39 +3651,116 @@ export default function Documentation({ currentSection }: Props) {
 
             {/* Header estilo Welcome Navbar - con soporte light/dark */}
             <header className="fixed top-0 left-0 right-0 z-50 border-b border-sidebar-border/50 bg-white/95 dark:bg-[#00040f]/95 backdrop-blur-sm shadow-lg transition-all duration-400">
-                <nav className="max-w-7xl mx-auto px-5 md:px-20 py-7">
-                    <div className="flex items-center justify-between">
+                <nav className="max-w-7xl mx-auto px-2 sm:px-5 md:px-20 py-3 sm:py-5 md:py-7">
+                    <div className="flex items-center justify-between gap-2">
                         {/* Logo y Título */}
-                        <div className="flex items-center gap-4">
-                            <div className="h-12 md:h-14">
+                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                            <div className="h-8 sm:h-10 md:h-14">
                                 <AppLogo />
                             </div>
-                            <Separator orientation="vertical" className="h-10 md:h-12 bg-border" />
-                            <div>
-                                <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-                                    <BookOpen className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                                    <span className="hidden sm:inline">Manual de Usuario</span>
-                                    <span className="sm:hidden">Manual</span>
+                            <Separator orientation="vertical" className="h-6 sm:h-10 md:h-12 bg-border hidden sm:block" />
+                            <div className="hidden sm:block">
+                                <h1 className="text-base sm:text-xl md:text-2xl font-bold flex items-center gap-2">
+                                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary" />
+                                    <span>Manual de Usuario</span>
                                 </h1>
                                 <p className="text-xs md:text-sm text-muted-foreground hidden md:block">Guía completa del sistema</p>
                             </div>
                         </div>
 
-                        {/* Botón Volver */}
-                        <Link
-                            href={dashboard()}
-                            className="flex items-center gap-2 px-4 md:px-6 py-2 text-sm md:text-base font-medium text-foreground hover:text-primary bg-accent hover:bg-accent/80 rounded-lg transition-all shadow-sm hover:shadow-md"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            <span className="hidden sm:inline">Volver al Dashboard</span>
-                            <span className="sm:hidden">Volver</span>
-                        </Link>
+                        {/* Controles Mobile/Desktop */}
+                        <div className="flex items-center gap-2">
+                            {/* Toggle Modo Libro */}
+                            <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-accent/50 rounded-lg">
+                                <Label htmlFor="book-mode" className="text-xs sm:text-sm font-medium cursor-pointer flex items-center gap-1 sm:gap-2">
+                                    <BookOpenCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    <span className="hidden lg:inline">Modo Libro</span>
+                                </Label>
+                                <Switch
+                                    id="book-mode"
+                                    checked={bookMode}
+                                    onCheckedChange={setBookMode}
+                                />
+                            </div>
+
+                            {/* Botón Volver */}
+                            <Link
+                                href={dashboard()}
+                                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base font-medium text-foreground hover:text-primary bg-accent hover:bg-accent/80 rounded-lg transition-all shadow-sm hover:shadow-md"
+                            >
+                                <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                <span className="hidden sm:inline">Volver</span>
+                            </Link>
+                        </div>
                     </div>
                 </nav>
             </header>
 
             {/* Content con padding-top para compensar header fixed */}
-            <div className="container mx-auto px-5 md:px-20 py-8 pt-32 md:pt-36">
+            <div className="container mx-auto px-2 sm:px-5 md:px-20 py-4 sm:py-8 pt-20 sm:pt-28 md:pt-36">
+                {bookMode ? (
+                    /* Modo Libro con Page Flip */
+                    <div className="flex flex-col items-center w-full">
+                        <PageFlipBook
+                            width={900}
+                            height={1200}
+                            showControls={true}
+                            className="w-full"
+                            onFlip={(data) => {
+                                // Opcional: actualizar sección activa basado en página
+                                console.log('Flipped to page:', data.page);
+                            }}
+                        >
+                            {/* Portada */}
+                            <Page>
+                                <div className="h-full flex flex-col items-center justify-center bg-linear-to-br from-primary/20 to-accent/20 p-8">
+                                    <div style={{ height: '96px', width: '96px', marginBottom: '32px' }}>
+                                        <AppLogo />
+                                    </div>
+                                    <h1 className="text-4xl font-bold text-center mb-4">Manual de Usuario</h1>
+                                    <h2 className="text-2xl font-semibold text-center text-muted-foreground mb-8">
+                                        Atinet Compliance Hub
+                                    </h2>
+                                    <Separator className="my-6 w-1/2" />
+                                    <p className="text-center text-muted-foreground">
+                                        Guía completa del sistema
+                                    </p>
+                                    <p className="text-sm text-muted-foreground mt-8">
+                                        Última actualización: 1 de abril, 2026
+                                    </p>
+                                </div>
+                            </Page>
+
+                            {/* Páginas de contenido */}
+                            {Object.entries(sectionContent).map(([key, section]) => (
+                                <Page key={key}>
+                                    <div className="h-full p-8">
+                                        <h2 className="text-3xl font-bold mb-6 text-primary sticky top-0 bg-card pb-4 border-b">{section.title}</h2>
+                                        <div className="prose prose-base dark:prose-invert max-w-none">
+                                            {section.content}
+                                        </div>
+                                    </div>
+                                </Page>
+                            ))}
+
+                            {/* Contraportada */}
+                            <Page>
+                                <div className="h-full flex flex-col items-center justify-center bg-linear-to-br from-accent/20 to-primary/20 p-8">
+                                    <BookOpen className="h-16 w-16 text-primary mb-6" />
+                                    <h3 className="text-2xl font-bold text-center mb-4">¿Necesitas más ayuda?</h3>
+                                    <p className="text-center text-muted-foreground mb-6">
+                                        Contacta con el equipo de soporte para asistencia personalizada
+                                    </p>
+                                    <Separator className="my-6 w-1/2" />
+                                    <p className="text-sm text-muted-foreground text-center">
+                                        Atinet Compliance Hub © 2026
+                                    </p>
+                                </div>
+                            </Page>
+                        </PageFlipBook>
+                    </div>
+                ) : (
+                    /* Vista Normal (modo actual) */
                 <div className="flex gap-6 md:gap-8">
                     {/* Sidebar de navegación */}
                     <div className="w-64 md:w-80 shrink-0 hidden lg:block">
@@ -3787,6 +3869,7 @@ export default function Documentation({ currentSection }: Props) {
                         </div>
                     </div>
                 </div>
+                )}
             </div>
         </DocumentationLayout>
     );
