@@ -1,12 +1,46 @@
 import { Link } from '@inertiajs/react';
-import Spline from '@splinetool/react-spline';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { login } from '@/routes';
+
+// Lazy load: el bundle de Spline (~2MB) solo se descarga cuando el componente
+// entra al viewport en pantallas xl, no al cargar la página.
+const Spline = lazy(() => import('@splinetool/react-spline'));
 
 interface HeroProps {
     isAuthenticated: boolean;
 }
 
+const SplinePlaceholder = () => (
+    <div className="absolute inset-0 rounded-2xl overflow-hidden border border-gray-700/50 flex items-center justify-center bg-gray-900/50">
+        <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full border-4 border-cyan-400/30 border-t-cyan-400 animate-spin" />
+            <span className="text-gray-400 text-sm">Cargando visualización...</span>
+        </div>
+    </div>
+);
+
 const Hero = ({ isAuthenticated }: HeroProps) => {
+    const splineContainerRef = useRef<HTMLDivElement>(null);
+    const [shouldLoadSpline, setShouldLoadSpline] = useState(false);
+
+    // Solo carga Spline cuando el contenedor entra al viewport
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setShouldLoadSpline(true);
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (splineContainerRef.current) {
+            observer.observe(splineContainerRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
     return (
         <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden">
             {/* Background gradient */}
@@ -82,12 +116,18 @@ const Hero = ({ isAuthenticated }: HeroProps) => {
 
                     {/* RIGHT: 3D Visual Element */}
                     <div className="hidden xl:flex items-center justify-center">
-                        <div className="relative w-full h-150">
-                            {/* Spline 3D Scene */}
+                        <div className="relative w-full h-150" ref={splineContainerRef}>
+                            {/* Spline 3D Scene — carga lazy cuando entra al viewport */}
                             <div className="absolute inset-0 rounded-2xl overflow-hidden border border-gray-700/50">
-                                <Spline
-                                    scene="https://prod.spline.design/KnXF8coogW5Xomx4/scene.splinecode"
-                                />
+                                {shouldLoadSpline ? (
+                                    <Suspense fallback={<SplinePlaceholder />}>
+                                        <Spline
+                                            scene="https://prod.spline.design/KnXF8coogW5Xomx4/scene.splinecode"
+                                        />
+                                    </Suspense>
+                                ) : (
+                                    <SplinePlaceholder />
+                                )}
                             </div>
 
                             {/* Floating elements */}
