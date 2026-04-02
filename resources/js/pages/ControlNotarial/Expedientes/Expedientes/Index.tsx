@@ -123,6 +123,35 @@ interface Usuario {
     rol: 'NOTARIOS' | 'RESPONSABLES' | 'SECRETARIAS' | 'AUTORIZADOS';
 }
 
+interface ReciboProvisor {
+    numero_Recibo: number;
+    expediente: string;
+    escritura_Numero: number;
+    nombre: string;
+    fecha_Creacion: string;
+    operacion_Concepto: string;
+    total: number;
+    estatus: string;
+}
+
+interface ReciboDetalle {
+    id: number;
+    numero_Recibo: number;
+    expediente: string;
+    escritura_Numero: number;
+    notario: string;
+    forma_Pago: string;
+    nombre: string;
+    fecha_Creacion: string;
+    total_Gastos_Impuestos_Derechos: number;
+    total_Gastos_Notariales: number;
+    total_Honorarios: number;
+    total: number;
+    operacion_Concepto: string;
+    observacion: string;
+    estatus: string;
+}
+
 interface ExpedienteFormData {
     id?: number;
     expediente: string;
@@ -273,6 +302,17 @@ export default function ExpedientesIndex() {
         observaciones: string;
     }>>({});
 
+    // --- Estado del Formulario de Recibo ---
+    const [reciboData, setReciboData] = useState({
+        impuestosDerechos: 0,
+        gastosNotariales: 0,
+        honorarios: 0,
+        concepto: '',
+        formaPago: '',
+        observaciones: '',
+        clienteId: null as number | null,
+    });
+
     // --- Estado Fechas Habilitadas en Datos Escritura ---
     const [enabledDates, setEnabledDates] = useState({
         fechaEscritura: false,
@@ -317,6 +357,15 @@ export default function ExpedientesIndex() {
 
     // --- Estado para guardar ID del expediente actual ---
     const [currentExpedienteId, setCurrentExpedienteId] = useState<number | null>(null);
+
+    // --- Estado para almacenar recibos provisionales ---
+    const [recibosProvisionales, setRecibosProvisionales] = useState<ReciboProvisor[]>([]);
+    const [cargandoRecibos, setCargandoRecibos] = useState(false);
+    const [mostrarFormularioRecibo, setMostrarFormularioRecibo] = useState(false);
+    const [reciboDetalleSeleccionado, setReciboDetalleSeleccionado] = useState<ReciboDetalle | null>(null);
+    const [cargandoReciboDetalle, setCargandoReciboDetalle] = useState(false);
+    const [showRecibosPdfViewer, setShowRecibosPdfViewer] = useState(false);
+    const [recibosPdfUrl, setRecibosPdfUrl] = useState<string | null>(null);
 
     // --- Estados para Documentos por Cliente (Expediente) ---
     const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
@@ -1304,6 +1353,15 @@ export default function ExpedientesIndex() {
         }
     }, [clienteBusqueda, clientesDisponibles]);
 
+    // Cargar todos los datos del expediente cuando se selecciona uno
+    useEffect(() => {
+        if (currentExpedienteId) {
+            fetchDocumentosExpediente(currentExpedienteId);
+            fetchInmueblesExpediente(currentExpedienteId);
+            fetchRecibosProvisionales(currentExpedienteId);
+        }
+    }, [currentExpedienteId]);
+
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {
         const debounceTimer = setTimeout(() => {
@@ -1610,6 +1668,7 @@ export default function ExpedientesIndex() {
             // Cargar documentos e inmuebles del expediente
             await fetchDocumentosExpediente(expedienteId);
             await fetchInmueblesExpediente(expedienteId);
+             await fetchRecibosProvisionales(expedienteId);
         } catch (error) {
             setSaveError('Error al cargar el expediente');
             console.error('Error:', error);
@@ -2003,6 +2062,191 @@ export default function ExpedientesIndex() {
                     : row
             )
         );
+    };
+
+    // Cargar Recibos Provisionales del Expediente
+    const fetchRecibosProvisionales = async (expedienteId: number) => {
+        setCargandoRecibos(true);
+        try {
+            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/GetRecibosProvisionalesXExpediente?expedienteId=${expedienteId}`);
+            const data = await response.json();
+            if (response.ok && data.dataResponse) {
+                setRecibosProvisionales(data.dataResponse);
+            } else {
+                setRecibosProvisionales([]);
+            }
+        } catch (error) {
+            console.error('Error al cargar recibos:', error);
+            setRecibosProvisionales([]);
+        } finally {
+            setCargandoRecibos(false);
+        }
+    };
+
+    // Obtener Recibo Provisional por ID
+    const fetchReciboDetalle = async (reciboId: number) => {
+        setCargandoReciboDetalle(true);
+        try {
+            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/GetReciboProvicionalById?reciboId=${reciboId}`);
+            const data = await response.json();
+            if (response.ok && data.dataResponse && data.dataResponse.length > 0) {
+                setReciboDetalleSeleccionado(data.dataResponse[0]);
+                setMostrarFormularioRecibo(true);
+            } else {
+                addToast('No se pudo obtener el recibo', 'error');
+            }
+        } catch (error) {
+            console.error('Error al obtener recibo:', error);
+            addToast('Error al cargar el recibo', 'error');
+        } finally {
+            setCargandoReciboDetalle(false);
+        }
+    };
+
+    // Guardar Recibo Provisional
+    const handleGuardarRecibo = async () => {
+        if (!reciboData.clienteId || !reciboData.formaPago) {
+            addToast('Por favor completa los campos requeridos (Cliente, Forma de Pago)', 'warning');
+            return;
+        }
+
+        try {
+            const payload = {
+                expediente_Id: currentExpedienteId,
+                cliente_Id: reciboData.clienteId,
+                operacion_Concepto: reciboData.concepto || formData.operaciones.join(', '),
+                total_Gastos_Impuestos_Derechos: reciboData.impuestosDerechos,
+                total_Gastos_Notariales: reciboData.gastosNotariales,
+                total_Honorarios: reciboData.honorarios,
+                forma_Pago: reciboData.formaPago,
+                observacion: reciboData.observaciones,
+                notario_Id: notarioId,
+            };
+
+            const response = await fetch('https://localhost:44327/api/ReciboProvisional/CreateReciboProvisional', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addToast('Recibo generado exitosamente', 'success');
+                // Limpiar formulario
+                setReciboData({ impuestosDerechos: 0, gastosNotariales: 0, honorarios: 0, concepto: '', formaPago: '', observaciones: '', clienteId: null });
+                // Ocultar formulario
+                setMostrarFormularioRecibo(false);
+                // Recargar los recibos
+                if (currentExpedienteId) {
+                    await fetchRecibosProvisionales(currentExpedienteId);
+                }
+            } else {
+                addToast(data.message || 'Error al generar el recibo', 'error');
+            }
+        } catch (error) {
+            console.error('Error guardando recibo:', error);
+            addToast('No se pudo guardar el recibo', 'error');
+        }
+    };
+
+    const handlePagarRecibo = async () => {
+        if (!reciboDetalleSeleccionado?.id) {
+            addToast('Error: No se pudo identificar el recibo', 'error');
+            return;
+        }
+
+        try {
+            setCargandoReciboDetalle(true);
+            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addToast('Recibo pagado exitosamente', 'success');
+                // Recargar los recibos
+                if (currentExpedienteId) {
+                    await fetchRecibosProvisionales(currentExpedienteId);
+                    // Recargar el detalle del recibo
+                    await fetchReciboDetalle(reciboDetalleSeleccionado.numero_Recibo);
+                }
+            } else {
+                addToast(data.message || 'Error al pagar el recibo', 'error');
+            }
+        } catch (error) {
+            console.error('Error pagando recibo:', error);
+            addToast('No se pudo pagar el recibo', 'error');
+        } finally {
+            setCargandoReciboDetalle(false);
+        }
+    };
+
+    const handleCancelarRecibo = async () => {
+        if (!reciboDetalleSeleccionado?.id) {
+            addToast('Error: No se pudo identificar el recibo', 'error');
+            return;
+        }
+
+        try {
+            setCargandoReciboDetalle(true);
+            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addToast('Recibo cancelado exitosamente', 'success');
+                // Recargar los recibos
+                if (currentExpedienteId) {
+                    await fetchRecibosProvisionales(currentExpedienteId);
+                    // Recargar el detalle del recibo
+                    await fetchReciboDetalle(reciboDetalleSeleccionado.id);
+                }
+            } else {
+                addToast(data.message || 'Error al cancelar el recibo', 'error');
+            }
+        } catch (error) {
+            console.error('Error cancelando recibo:', error);
+            addToast('No se pudo cancelar el recibo', 'error');
+        } finally {
+            setCargandoReciboDetalle(false);
+        }
+    };
+
+    const handleImprimirRecibo = async (reciboId: number) => {
+        try {
+            setCargandoReciboDetalle(true);
+            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
+                method: 'GET',
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                setRecibosPdfUrl(url);
+                setShowRecibosPdfViewer(true);
+            } else {
+                addToast('Error al generar el reporte del recibo', 'error');
+            }
+        } catch (error) {
+            console.error('Error imprimiendo recibo:', error);
+            addToast('No se pudo generar el reporte del recibo', 'error');
+        } finally {
+            setCargandoReciboDetalle(false);
+        }
+    };
+
+    const closeRecibosPdfViewer = () => {
+        if (recibosPdfUrl) {
+            window.URL.revokeObjectURL(recibosPdfUrl);
+        }
+        setShowRecibosPdfViewer(false);
+        setRecibosPdfUrl(null);
     };
 
     return (
@@ -4073,13 +4317,412 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 4: FINANCIERO & CONTROL - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="financiero-control" className="space-y-6">
-                                    <Tabs defaultValue="estado-cuenta" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                    <Tabs defaultValue="recibos" className="w-full">
+                                        <TabsList className="grid w-full grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                            <TabsTrigger value="recibos" className="text-xs">Recibos</TabsTrigger>
                                             <TabsTrigger value="estado-cuenta" className="text-xs">Estado Cuenta</TabsTrigger>
                                             <TabsTrigger value="pld" className="text-xs">PLD</TabsTrigger>
                                             <TabsTrigger value="operaciones-lavado" className="text-xs">Op. Lavado</TabsTrigger>
                                             <TabsTrigger value="exportaciones" className="text-xs">Exportaciones</TabsTrigger>
                                         </TabsList>
+
+                                        {/* SubTab: Recibos */}
+                                        <TabsContent value="recibos" className="space-y-6">
+                                            {/* Tabla de Recibos Provisionales */}
+                                            <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                                                <h3 className="font-semibold text-green-900 dark:text-green-100 mb-0">Recibos Provisionales Generados</h3>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-green-600 hover:bg-green-700"
+                                                    onClick={() => setMostrarFormularioRecibo(true)}
+                                                >
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Generar Recibo
+                                                </Button>
+                                            </div>
+
+                                            {cargandoRecibos && (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                                    <span className="ml-2 text-sm text-muted-foreground">Cargando recibos...</span>
+                                                </div>
+                                            )}
+
+                                            {!cargandoRecibos && recibosProvisionales.length === 0 && (
+                                                <div className="border rounded-lg p-4">
+                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay recibos provisionales registrados para este expediente.</p>
+                                                </div>
+                                            )}
+
+                                            {!cargandoRecibos && recibosProvisionales.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden">
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-sm">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                                                <tr>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Nº Recibo</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Expediente</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Escritura</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Operación / Concepto</th>
+                                                                    <th className="px-4 py-2 text-right font-semibold">Total</th>
+                                                                    <th className="px-4 py-2 text-center font-semibold">Estatus</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
+                                                                    <th className="px-4 py-2 text-center font-semibold">Acciones</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {recibosProvisionales.map((recibo, idx) => (
+                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors" onClick={() => fetchReciboDetalle(recibo.id)}>
+                                                                        <td className="px-4 py-2 font-semibold text-blue-600 dark:text-blue-400 cursor-pointer">{recibo.numero_Recibo}</td>
+                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.expediente}</td>
+                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.escritura_Numero || '-'}</td>
+                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.nombre}</td>
+                                                                        <td className="px-4 py-2 text-xs cursor-pointer">{recibo.operacion_Concepto}</td>
+                                                                        <td className="px-4 py-2 text-right font-semibold text-green-600 dark:text-green-400 cursor-pointer">${recibo.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                                        <td className="px-4 py-2 text-center cursor-pointer">
+                                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                                recibo.estatus === 'PAGADO'
+                                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                                : recibo.estatus === 'CANCELADO'
+                                                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                                                : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                                                            }`}>
+                                                                                {recibo.estatus}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.fecha_Creacion}</td>
+                                                                        <td className="px-4 py-2 text-center">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleImprimirRecibo(recibo.id);
+                                                                                }}
+                                                                                disabled={cargandoReciboDetalle || recibo.estatus === 'PENDIENTE'}
+                                                                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                                                                                title={recibo.estatus === 'PENDIENTE' ? 'No se puede imprimir mientras el recibo esté pendiente' : 'Imprimir recibo'}
+                                                                            >
+                                                                                🖨️ Imprimir
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Formulario para Nuevo Recibo */}
+                                            {mostrarFormularioRecibo && (
+                                            <div className="border rounded-lg p-6 bg-purple-50 dark:bg-purple-950/20">
+                                                <h4 className="font-semibold mb-6 text-purple-900 dark:text-purple-100">{reciboDetalleSeleccionado ? `Recibo #${reciboDetalleSeleccionado.numero_Recibo}` : 'Nuevo Recibo'}</h4>
+                                                <div className="grid grid-cols-4 gap-4 mb-6">
+                                                    {/* Row 1: Información Básica */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Recibo Número</label>
+                                                        <Input
+                                                            type="text"
+                                                            readOnly
+                                                            value={reciboDetalleSeleccionado?.numero_Recibo || ''}
+                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            placeholder="Auto-generado"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Expediente</label>
+                                                        <Input
+                                                            type="text"
+                                                            readOnly
+                                                            value={reciboDetalleSeleccionado?.expediente || formData.expediente}
+                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Escritura</label>
+                                                        <Input
+                                                            type="text"
+                                                            readOnly
+                                                            value={reciboDetalleSeleccionado?.escritura_Numero || '-'}
+                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            placeholder="-"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Estatus</label>
+                                                        <Input
+                                                            type="text"
+                                                            readOnly
+                                                            value={reciboDetalleSeleccionado?.estatus || '-'}
+                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            placeholder="-"
+                                                        />
+                                                    </div>
+
+                                                    {/* Row 2: Notario, Forma de Pago, Fecha Emisión */}
+                                                    <div className="col-span-2 space-y-2">
+                                                        <label className="text-sm font-medium">Notario</label>
+                                                        <Input
+                                                            type="text"
+                                                            readOnly
+                                                            value={reciboDetalleSeleccionado?.notario || formData.notario}
+                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            placeholder="-"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Forma de Pago</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <Input
+                                                                type="text"
+                                                                readOnly
+                                                                value={reciboDetalleSeleccionado.forma_Pago}
+                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            />
+                                                        ) : (
+                                                            <select value={reciboData.formaPago} onChange={(e) => setReciboData(prev => ({ ...prev, formaPago: e.target.value }))} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                                                                <option value="">Selecciona</option>
+                                                                <option value="EFECTIVO">EFECTIVO</option>
+                                                                <option value="TARJETA CREDITO">TARJETA CREDITO</option>
+                                                                <option value="TARJETA DEBITO">TARJETA DEBITO</option>
+                                                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                                                                <option value="DEPOSITO">DEPOSITO</option>
+                                                                <option value="PAGO EN LINEA">PAGO EN LINEA</option>
+                                                                <option value="CHEQUE">CHEQUE</option>
+                                                            </select>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Fecha Emisión</label>
+                                                        <Input
+                                                            type="text"
+                                                            readOnly
+                                                            value={reciboDetalleSeleccionado?.fecha_Creacion || new Date().toLocaleDateString('es-MX', { day: '2-digit' , month: '2-digit', year: 'numeric' })}
+                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                        />
+                                                    </div>
+
+                                                    {/* Row 3: Recibí De (Full Width) */}
+                                                    <div className="col-span-4 space-y-2">
+                                                        <label className="text-sm font-medium">Recibí De</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <Input
+                                                                type="text"
+                                                                readOnly
+                                                                value={reciboDetalleSeleccionado.nombre}
+                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            />
+                                                        ) : (
+                                                            <select onChange={(e) => { const clienteSeleccionado = filasComparecientes.find(f => f.nombreCompareciente === e.target.value); setReciboData(prev => ({ ...prev, clienteId: clienteSeleccionado?.cliente_Id || null })); }} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                                                                <option value="">Selecciona</option>
+                                                                {filasComparecientes.map((fila) => (
+                                                                    <option key={fila.id} value={fila.nombreCompareciente}>
+                                                                        {fila.nombreCompareciente}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Row 4: Impuestos y Derechos, Gastos Notariales, Honorarios, Total */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Impuestos y Derechos</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <Input
+                                                                type="text"
+                                                                readOnly
+                                                                value={`$${reciboDetalleSeleccionado.total_Gastos_Impuestos_Derechos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            />
+                                                        ) : (
+                                                            <Input
+                                                                type="number"
+                                                                step="0.5"
+                                                                min="0"
+                                                                value={reciboData.impuestosDerechos}
+                                                                onChange={(e) => setReciboData(prev => ({
+                                                                    ...prev,
+                                                                    impuestosDerechos: Math.max(0, parseFloat(e.target.value) || 0)
+                                                                }))}
+                                                                placeholder="0.00"
+                                                                className="text-sm"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Gastos Notariales</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <Input
+                                                                type="text"
+                                                                readOnly
+                                                                value={`$${reciboDetalleSeleccionado.total_Gastos_Notariales.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            />
+                                                        ) : (
+                                                            <Input
+                                                                type="number"
+                                                                step="0.5"
+                                                                min="0"
+                                                                value={reciboData.gastosNotariales}
+                                                                onChange={(e) => setReciboData(prev => ({
+                                                                    ...prev,
+                                                                    gastosNotariales: Math.max(0, parseFloat(e.target.value) || 0)
+                                                                }))}
+                                                                placeholder="0.00"
+                                                                className="text-sm"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Honorarios</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <Input
+                                                                type="text"
+                                                                readOnly
+                                                                value={`$${reciboDetalleSeleccionado.total_Honorarios.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                                            />
+                                                        ) : (
+                                                            <Input
+                                                                type="number"
+                                                                step="0.5"
+                                                                min="0"
+                                                                value={reciboData.honorarios}
+                                                                onChange={(e) => setReciboData(prev => ({
+                                                                    ...prev,
+                                                                    honorarios: Math.max(0, parseFloat(e.target.value) || 0)
+                                                                }))}
+                                                                placeholder="0.00"
+                                                                className="text-sm"
+                                                            />
+                                                        )}
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Total</label>
+                                                        <div className="px-3 py-2 border rounded-md text-right font-bold text-green-500">
+                                                            ${reciboDetalleSeleccionado ? reciboDetalleSeleccionado.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (reciboData.impuestosDerechos + reciboData.gastosNotariales + reciboData.honorarios).toFixed(2)}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Row 4: Concepto (Full Width) */}
+                                                    <div className="col-span-4 space-y-2">
+                                                        <label className="text-sm font-medium">Concepto</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <textarea
+                                                                readOnly
+                                                                value={reciboDetalleSeleccionado.operacion_Concepto}
+                                                                rows={4}
+                                                                className="w-full px-3 py-2 border rounded-md bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-sm"
+                                                            />
+                                                        ) : (
+                                                            <textarea
+                                                                value={reciboData.concepto || formData.operaciones.join(', ')}
+                                                                onChange={(e) => setReciboData(prev => ({ ...prev, concepto: e.target.value }))}
+                                                                placeholder="Descripción del concepto del recibo..."
+                                                                rows={4}
+                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            />
+                                                        )}
+                                                    </div>
+
+                                                    {/* Row 5: Observaciones (Full Width) */}
+                                                    <div className="col-span-4 space-y-2">
+                                                        <label className="text-sm font-medium">Observaciones</label>
+                                                        {reciboDetalleSeleccionado ? (
+                                                            <textarea
+                                                                readOnly
+                                                                value={reciboDetalleSeleccionado.observacion || ''}
+                                                                rows={3}
+                                                                className="w-full px-3 py-2 border rounded-md bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-sm"
+                                                            />
+                                                        ) : (
+                                                            <textarea
+                                                                value={reciboData.observaciones}
+                                                                onChange={(e) => setReciboData(prev => ({ ...prev, observaciones: e.target.value }))}
+                                                                placeholder="Observaciones adicionales..."
+                                                                rows={3}
+                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    {reciboDetalleSeleccionado ? (
+                                                        <>
+                                                            {/* Botón Cerrar - Siempre disponible */}
+                                                            <Button
+                                                                variant="outline"
+                                                                className="text-sm"
+                                                                onClick={() => {
+                                                                    setMostrarFormularioRecibo(false);
+                                                                    setReciboDetalleSeleccionado(null);
+                                                                    setReciboData({
+                                                                        impuestosDerechos: 0,
+                                                                        gastosNotariales: 0,
+                                                                        honorarios: 0,
+                                                                        concepto: '',
+                                                                        formaPago: '',
+                                                                        observaciones: '',
+                                                                        clienteId: null
+                                                                    });
+                                                                }}
+                                                            >
+                                                                Cerrar
+                                                            </Button>
+
+                                                            {/* Botón Pagar - Solo si status es PENDIENTE */}
+                                                            {reciboDetalleSeleccionado.estatus === 'PENDIENTE' && (
+                                                                <Button
+                                                                    onClick={handlePagarRecibo}
+                                                                    disabled={cargandoReciboDetalle}
+                                                                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:bg-gray-400"
+                                                                >
+                                                                    {cargandoReciboDetalle ? 'Procesando...' : 'Pagar'}
+                                                                </Button>
+                                                            )}
+
+                                                            {/* Botón Cancelar - Solo si status es PENDIENTE o PAGADO */}
+                                                            {(reciboDetalleSeleccionado.estatus === 'PENDIENTE' || reciboDetalleSeleccionado.estatus === 'PAGADO') && (
+                                                                <Button
+                                                                    onClick={handleCancelarRecibo}
+                                                                    disabled={cargandoReciboDetalle}
+                                                                    className="bg-red-600 hover:bg-red-700 text-white text-sm disabled:bg-gray-400"
+                                                                >
+                                                                    {cargandoReciboDetalle ? 'Procesando...' : 'Cancelar Recibo'}
+                                                                </Button>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                className="text-sm"
+                                                                onClick={() => {
+                                                                    setMostrarFormularioRecibo(false);
+                                                                    setReciboDetalleSeleccionado(null);
+                                                                    setReciboData({
+                                                                        impuestosDerechos: 0,
+                                                                        gastosNotariales: 0,
+                                                                        honorarios: 0,
+                                                                        concepto: '',
+                                                                        formaPago: '',
+                                                                        observaciones: '',
+                                                                        clienteId: null
+                                                                    });
+                                                                }}
+                                                            >
+                                                                Cancelar
+                                                            </Button>
+                                                            <Button className="bg-green-600 hover:bg-green-700 text-sm" onClick={handleGuardarRecibo}>
+                                                                Generar Recibo
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            )}
+                                        </TabsContent>
 
                                         {/* SubTab: Estado de Cuenta */}
                                         <TabsContent value="estado-cuenta" className="space-y-4">
@@ -4358,6 +5001,47 @@ export default function ExpedientesIndex() {
                             </a>
                             <button
                                 onClick={closeReciboModal}
+                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* VISOR DE PDF PARA RECIBOS PROVISIONALES */}
+            {showRecibosPdfViewer && recibosPdfUrl && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+                    <div className="bg-white rounded-lg shadow-lg w-[95vw] h-[95vh] flex flex-col">
+                        <div className="flex justify-between items-center p-3 border-b bg-gray-50">
+                            <h2 className="text-lg font-bold">Recibo Provisional</h2>
+                            <button
+                                onClick={closeRecibosPdfViewer}
+                                className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <iframe
+                                src={recibosPdfUrl}
+                                width="100%"
+                                height="100%"
+                                style={{ border: 'none' }}
+                                title="PDF Recibo Provisional"
+                            />
+                        </div>
+                        <div className="flex gap-2 justify-end p-3 border-t bg-gray-50">
+                            <a
+                                href={recibosPdfUrl}
+                                download={`Recibo_Provisional_${currentExpedienteId}.pdf`}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                            >
+                                Descargar PDF
+                            </a>
+                            <button
+                                onClick={closeRecibosPdfViewer}
                                 className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
                             >
                                 Cerrar
