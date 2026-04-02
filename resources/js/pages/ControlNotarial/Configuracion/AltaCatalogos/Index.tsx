@@ -12,14 +12,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
@@ -635,17 +627,6 @@ export default function ControlNotarialAltaCatalogos() {
             <Head title="Alta de Catálogos - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="rounded-lg bg-blue-500 p-3 text-white">
-                            <Database className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Alta de Catálogos</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de catálogos del sistema</p>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Pestañas principales - Con Scroll - ARRIBA */}
                 <div>
@@ -741,103 +722,105 @@ export default function ControlNotarialAltaCatalogos() {
                                 </div>
                             )}
 
-                            <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[470px]">
-                                <div className="overflow-y-auto flex-1">
-                                    <Table>
-                                        <TableHeader className="sticky top-0 bg-background z-10">
-                                            <TableRow>
-                                                <TableHead className="w-16">ID</TableHead>
+                            <div className="border rounded-lg overflow-hidden">
+                                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
                                                 {activeTab === 'actividades_vulnerables' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Monto</TableHead>
-                                                        <TableHead>Siempre</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Monto</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Siempre</th>
                                                     </>
                                                 )}
                                                 {activeTab === 'operaciones' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Actividad Vulnerable</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Actividad Vulnerable</th>
                                                     </>
                                                 )}
                                                 {activeTab === 'impuestos_derechos' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Tipo</TableHead>
-                                                        <TableHead>Dependencia</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Dependencia</th>
                                                     </>
                                                 )}
                                                 {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                    <TableHead>Descripción</TableHead>
+                                                    <th className="px-4 py-2 text-left font-semibold">Descripción</th>
                                                 )}
-                                                <TableHead className="w-20 text-center">Activo</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
+                                                <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
                                             {isSearching ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                         <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                         Cargando...
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ) : resultados.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                         No se encontraron resultados.
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ) : (
                                                 resultados.map((item) => (
-                                                    <TableRow
+                                                    <tr
                                                         key={item.id}
-                                                        className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                        className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                         onClick={() => handleSelectItem(item)}
                                                     >
-                                                        <TableCell className="font-mono text-sm">{item.id}</TableCell>
+                                                        <td className="px-4 py-2 font-mono text-sm">{item.id}</td>
                                                         {activeTab === 'actividades_vulnerables' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>${item.monto?.toFixed(2)}</TableCell>
-                                                                <TableCell>
-                                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                                        item.siempre ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">${item.monto?.toFixed(2)}</td>
+                                                                <td className="px-4 py-2">
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                        item.siempre
+                                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                            : 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
                                                                     }`}>
                                                                         {item.siempre ? 'Sí' : 'No'}
                                                                     </span>
-                                                                </TableCell>
+                                                                </td>
                                                             </>
                                                         )}
                                                         {activeTab === 'operaciones' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>{item.actividad_Vulnerable_Id}</TableCell>
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">{item.actividad_Vulnerable_Id}</td>
                                                             </>
                                                         )}
                                                         {activeTab === 'impuestos_derechos' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>{item.tipo}</TableCell>
-                                                                <TableCell>{item.dependencia}</TableCell>
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">{item.tipo}</td>
+                                                                <td className="px-4 py-2">{item.dependencia}</td>
                                                             </>
                                                         )}
                                                         {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                            <TableCell>{item.descripcion}</TableCell>
+                                                            <td className="px-4 py-2">{item.descripcion}</td>
                                                         )}
-                                                        <TableCell className="text-center">
-                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                        <td className="px-4 py-2 text-center">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                                 item.activo
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : 'bg-red-100 text-red-800'
+                                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                             }`}>
                                                                 {item.activo ? 'Sí' : 'No'}
                                                             </span>
-                                                        </TableCell>
-                                                    </TableRow>
+                                                        </td>
+                                                    </tr>
                                                 ))
                                             )}
-                                        </TableBody>
-                                    </Table>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 

@@ -441,17 +441,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             <Head title="Configuración Operaciones - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Building2 className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Configuración Operaciones</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de operaciones y elementos asociados</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -507,53 +497,53 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[500px]">
-                            <div className="overflow-y-auto flex-1">
-                                <Table>
-                                    <TableHeader className="sticky top-0 bg-background z-10">
-                                        <TableRow>
-                                            <TableHead className="w-16">ID</TableHead>
-                                            <TableHead>Descripción</TableHead>
-                                            <TableHead className="w-20 text-center">Activa</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                            <th className="px-4 py-2 text-center font-semibold">Activa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         {isSearching ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                            <tr>
+                                                <td colSpan={3} className="text-center py-8 text-muted-foreground px-4">
                                                     <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                     Cargando operaciones...
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ) : operaciones.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                            <tr>
+                                                <td colSpan={3} className="text-center py-8 text-muted-foreground px-4">
                                                     No se encontraron operaciones.
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ) : (
                                             operaciones.map((op) => (
-                                                <TableRow
+                                                <tr
                                                     key={op.id}
-                                                    className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                     onClick={() => handleSelectOperacion(op)}
                                                 >
-                                                    <TableCell className="font-mono text-sm">{op.id}</TableCell>
-                                                    <TableCell>{op.descripcion}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    <td className="px-4 py-2 font-mono text-sm">{op.id}</td>
+                                                    <td className="px-4 py-2">{op.descripcion}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                             op.activo
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : 'bg-red-100 text-red-800'
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                         }`}>
                                                             {op.activo ? 'Sí' : 'No'}
                                                         </span>
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ))
                                         )}
-                                    </TableBody>
-                                </Table>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         {!isSearching && operaciones.length > 0 && (

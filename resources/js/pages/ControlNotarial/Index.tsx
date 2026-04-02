@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
 
@@ -41,14 +41,14 @@ export default function ControlNotarialIndex({
     phase,
     tasks,
 }: Props) {
-    const breadcrumbItems = [
+    const breadcrumbs = [
         {
             title: 'Dashboard',
             href: '/dashboard',
         },
         {
             title: 'Control Notarial',
-            href: '/control-notarial',
+            href: '/admin/control-notarial',
         },
     ];
 
@@ -74,7 +74,7 @@ export default function ControlNotarialIndex({
     ];
 
     return (
-        <AppLayout breadcrumbItems={breadcrumbItems}>
+        <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
@@ -118,229 +118,47 @@ export default function ControlNotarialIndex({
                     </div>
                 </div>
 
-                {/* Phase Information */}
-                <div className="grid gap-6 md:grid-cols-2">
-                    {/* Current Phase */}
-                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-6 dark:border-sidebar-border">
-                        <div className="mb-4 flex items-center gap-3">
-                            <div className="rounded-lg bg-blue-500 p-2 text-white">
-                                <Calendar className="size-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-semibold">
-                                    Fase {phase.current}: {phase.name}
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Duración: {phase.duration}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Inicio:
-                                </span>
-                                <span className="font-medium">
-                                    {new Date(phase.start_date).toLocaleDateString('es-MX')}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Fin estimado:
-                                </span>
-                                <span className="font-medium">
-                                    {new Date(phase.end_date).toLocaleDateString('es-MX')}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                    Progreso:
-                                </span>
-                                <span className="font-bold text-amber-600">
-                                    {progressPercentage}%
-                                </span>
-                            </div>
-
-                            {/* Progress bar */}
-                            <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-                                <div
-                                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500"
-                                    style={{ width: `${progressPercentage}%` }}
-                                />
+                {/* Acceso Rápido - Botones Principales */}
+                <div className="grid gap-4 md:grid-cols-2">
+                    {/* Botón Expedientes */}
+                    <Link href="/admin/control-notarial/expedientes" prefetch>
+                        <div className="group cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-8 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-blue-500 p-3 text-white shadow-md group-hover:bg-blue-600 transition-colors">
+                                    <FileText className="size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-blue-900 dark:text-blue-100 group-hover:text-blue-600 dark:group-hover:text-blue-200">
+                                        Expedientes
+                                    </h3>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                                        Gestionar expedientes y documentos
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </Link>
 
-                    {/* Tasks Overview */}
-                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-6 dark:border-sidebar-border">
-                        <div className="mb-4 flex items-center gap-3">
-                            <div className="rounded-lg bg-green-500 p-2 text-white">
-                                <CheckCircle2 className="size-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-semibold">
-                                    Tareas Completadas
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    {completedTasks} de {totalTasks} tareas
-                                </p>
+                    {/* Botón Configuración */}
+                    <Link href="/admin/control-notarial/configuracion" prefetch>
+                        <div className="group cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-8 hover:shadow-lg hover:border-emerald-400 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-emerald-900/30 transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-emerald-500 p-3 text-white shadow-md group-hover:bg-emerald-600 transition-colors">
+                                    <Settings className="size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-200">
+                                        Configuración
+                                    </h3>
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                        Configurar notaría, usuarios y catálogos
+                                    </p>
+                                </div>
                             </div>
                         </div>
-
-                        <div className="space-y-3">
-                            {taskCategories.map((category) => {
-                                const task = tasks[category.key as keyof typeof tasks];
-                                const taskProgress = task.total > 0
-                                    ? (task.completed / task.total) * 100
-                                    : 0;
-
-                                return (
-                                    <div key={category.key}>
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="font-medium">
-                                                {category.label}
-                                                <span className="ml-2 text-xs text-muted-foreground">
-                                                    (Semanas {category.weeks})
-                                                </span>
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {task.completed}/{task.total}
-                                            </span>
-                                        </div>
-                                        <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-                                            <div
-                                                className="h-full bg-green-500 transition-all duration-300"
-                                                style={{ width: `${taskProgress}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    </Link>
                 </div>
 
-                {/* Documentation Links */}
-                <div className="rounded-xl border border-sidebar-border/70 bg-background p-6 dark:border-sidebar-border">
-                    <div className="mb-4 flex items-center gap-3">
-                        <div className="rounded-lg bg-purple-500 p-2 text-white">
-                            <FileText className="size-5" />
-                        </div>
-                        <h2 className="text-lg font-semibold">Documentación</h2>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <a
-                            href={`/${docs.analysis}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group rounded-lg border border-sidebar-border/50 p-4 transition-all hover:border-purple-500 hover:shadow-md dark:border-sidebar-border"
-                        >
-                            <h3 className="mb-2 font-semibold text-purple-600 group-hover:text-purple-700 dark:text-purple-400">
-                                📋 Análisis Completo
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                                Análisis técnico completo del sistema VB6 (1,800 líneas)
-                            </p>
-                        </a>
-
-                        <a
-                            href={`/${docs.quickStart}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group rounded-lg border border-sidebar-border/50 p-4 transition-all hover:border-green-500 hover:shadow-md dark:border-sidebar-border"
-                        >
-                            <h3 className="mb-2 font-semibold text-green-600 group-hover:text-green-700 dark:text-green-400">
-                                🚀 Quick Start Guide
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                                Guía paso a paso para iniciar Fase 0 (12 semanas)
-                            </p>
-                        </a>
-
-                        <a
-                            href={`/${docs.workspace}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group rounded-lg border border-sidebar-border/50 p-4 transition-all hover:border-blue-500 hover:shadow-md dark:border-sidebar-border"
-                        >
-                            <h3 className="mb-2 font-semibold text-blue-600 group-hover:text-blue-700 dark:text-blue-400">
-                                📂 Workspace README
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                                Organización del workspace y seguimiento de progreso
-                            </p>
-                        </a>
-                    </div>
-                </div>
-
-                {/* Next Steps */}
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-800 dark:bg-blue-950/20">
-                    <h2 className="mb-4 text-lg font-semibold text-blue-900 dark:text-blue-100">
-                        🎯 Próximos Pasos
-                    </h2>
-                    <ol className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
-                        <li className="flex items-start gap-2">
-                            <span className="font-bold">1.</span>
-                            <span>
-                                Importar base de datos legacy (<code className="rounded bg-blue-100 px-1 py-0.5 dark:bg-blue-900">controlnotarial_30campeche_dev</code>)
-                            </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="font-bold">2.</span>
-                            <span>
-                                Ejecutar scripts de análisis de schema y relaciones
-                            </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="font-bold">3.</span>
-                            <span>
-                                Crear diccionarios de datos para las 5 tablas core
-                            </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="font-bold">4.</span>
-                            <span>
-                                Documentar workflows críticos con diagramas Mermaid
-                            </span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <span className="font-bold">5.</span>
-                            <span>
-                                Catalogar 121 reportes Crystal Reports
-                            </span>
-                        </li>
-                    </ol>
-                </div>
-
-                {/* Git Info */}
-                <div className="rounded-xl border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-950/20">
-                    <h2 className="mb-4 text-lg font-semibold text-green-900 dark:text-green-100">
-                        🔀 Información de Git
-                    </h2>
-                    <div className="space-y-2 text-sm text-green-800 dark:text-green-200">
-                        <p>
-                            <strong>Rama dedicada:</strong>{' '}
-                            <code className="rounded bg-green-100 px-2 py-1 dark:bg-green-900">
-                                feature/control-notarial
-                            </code>
-                        </p>
-                        <p>
-                            <strong>Commits:</strong> Usar prefijo{' '}
-                            <code className="rounded bg-green-100 px-2 py-1 dark:bg-green-900">
-                                docs(control-notarial):
-                            </code>{' '}
-                            o{' '}
-                            <code className="rounded bg-green-100 px-2 py-1 dark:bg-green-900">
-                                feat(control-notarial):
-                            </code>
-                        </p>
-                        <p className="text-xs">
-                            Consulta el Quick Start Guide para más detalles sobre el workflow de Git
-                        </p>
-                    </div>
-                </div>
             </div>
         </AppLayout>
     );

@@ -44,7 +44,7 @@ export default function ControlNotarialReporteUsuarios() {
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
+            const response = await fetch('https://localhost:44327/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -77,7 +77,7 @@ export default function ControlNotarialReporteUsuarios() {
             };
 
 // Construir URL con parámetros, omitiendo operacion si es 'all'
-            let url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Bitacora/GenerateReporteBitacora?';
+            let url = 'https://localhost:44327/api/Bitacora/GenerateReporteBitacora?';
             const params = [];
 
             params.push(`userId=${encodeURIComponent(userId && userId !== 'all' ? userId : '0')}`);
@@ -136,17 +136,7 @@ export default function ControlNotarialReporteUsuarios() {
             <Head title="Reporte de Bitácora - Control Notarial" />
 
               <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="rounded-lg bg-orange-500 p-3 text-white">
-                            <BarChart3 className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Reporte de Bitácora</h1>
-                            <p className="text-muted-foreground text-xs">Análisis de operaciones y actividades del sistema</p>
-                        </div>
-                    </div>
-                </div>
+                
 
                 <div>
                     {/* Sección de Filtros */}

@@ -11,14 +11,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import AppLayout from '@/layouts/app-layout';
@@ -215,7 +207,7 @@ export default function ControlNotarialClientes() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes');
+            const url = new URL('https://localhost:44327/api/Clientes/GetClientes');
             if (filtroValue.trim()) {
                 url.searchParams.append('filtro', filtroValue);
             }
@@ -281,7 +273,7 @@ export default function ControlNotarialClientes() {
         try {
             // Llamar a la API para obtener los datos completos del cliente
             const response = await fetch(
-                `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
+                `https://localhost:44327/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
                 {
                     method: 'GET',
                     headers: {
@@ -555,8 +547,8 @@ export default function ControlNotarialClientes() {
             // Determinar URL y método según si es crear o actualizar
             const isUpdating = isEditing && formData.id;
             const url = isUpdating
-                ? `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/UpdateCliente?clienteId=${formData.id}`
-                : 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/CreateClient';
+                ? `https://localhost:44327/api/Clientes/UpdateCliente?clienteId=${formData.id}`
+                : 'https://localhost:44327/api/Clientes/CreateClient';
             const method = isUpdating ? 'PUT' : 'POST';
 
             // Llamar a API
@@ -616,17 +608,7 @@ export default function ControlNotarialClientes() {
             <Head title="Clientes - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Users className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Clientes</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de clientes</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -688,76 +670,78 @@ export default function ControlNotarialClientes() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-16">ID</TableHead>
-                                        <TableHead>Alias</TableHead>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>CURP</TableHead>
-                                        <TableHead>RFC</TableHead>
-                                        <TableHead className="w-20 text-center">Activo</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isSearching ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                Cargando clientes...
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : resultados.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                                No se encontraron clientes.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        resultados.map((cliente) => (
-                                            <TableRow
-                                                key={cliente.id}
-                                                className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
-                                                onClick={() => handleSelectCliente(cliente)}
-                                            >
-                                                <TableCell className="font-mono text-sm">
-                                                    {cliente.id}
-                                                </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {cliente.alias || '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {[
-                                                        cliente.nombre,
-                                                        cliente.apellido_Paterno,
-                                                        cliente.apellido_Materno,
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(' ')}
-                                                </TableCell>
-                                                <TableCell className="font-mono text-sm">
-                                                    {cliente.curp || '-'}
-                                                </TableCell>
-                                                <TableCell className="font-mono text-sm">
-                                                    {cliente.rfc}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <span
-                                                        className={`px-2 py-1 rounded text-xs font-medium ${
-                                                            cliente.activo
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : 'bg-red-100 text-red-800'
-                                                        }`}
-                                                    >
-                                                        {cliente.activo ? 'Sí' : 'No'}
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Alias</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                            <th className="px-4 py-2 text-left font-semibold">CURP</th>
+                                            <th className="px-4 py-2 text-left font-semibold">RFC</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearching ? (
+                                            <tr>
+                                                <td colSpan={6} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Cargando clientes...
+                                                </td>
+                                            </tr>
+                                        ) : resultados.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron clientes.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            resultados.map((cliente) => (
+                                                <tr
+                                                    key={cliente.id}
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                                    onClick={() => handleSelectCliente(cliente)}
+                                                >
+                                                    <td className="px-4 py-2 font-mono text-sm">
+                                                        {cliente.id}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-sm">
+                                                        {cliente.alias || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        {[
+                                                            cliente.nombre,
+                                                            cliente.apellido_Paterno,
+                                                            cliente.apellido_Materno,
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' ')}
+                                                    </td>
+                                                    <td className="px-4 py-2 font-mono text-sm">
+                                                        {cliente.curp || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-2 font-mono text-sm">
+                                                        {cliente.rfc}
+                                                    </td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span
+                                                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                cliente.activo
+                                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                            }`}
+                                                        >
+                                                            {cliente.activo ? 'Sí' : 'No'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         {!isSearching && resultados.length > 0 && (
                             <p className="text-sm text-muted-foreground">
