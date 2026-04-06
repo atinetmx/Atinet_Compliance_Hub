@@ -106,8 +106,8 @@ export function AppSidebar() {
                               icon: FileText,
                               items: [
                                   {
-                                      title: 'Expedientes',
-                                      href: '/admin/control-notarial/expedientes/expedientes',
+                                      title: 'Alta Expedientes',
+                                      href: '/admin/control-notarial/expedientes/alta-expedientes',
                                       icon: FileText,
                                   },
                                   {
@@ -124,7 +124,7 @@ export function AppSidebar() {
                               items: [
                                   {
                                       title: 'Notaria',
-                                      href: '/admin/control-notarial/configuracion',
+                                      href: '/admin/control-notarial/configuracion/notaria',
                                       icon: Settings,
                                   },
                                   {
@@ -201,8 +201,8 @@ export function AppSidebar() {
                               icon: FileText,
                               items: [
                                   {
-                                      title: 'Expedientes',
-                                      href: '/admin/control-notarial/expedientes/expedientes',
+                                     title: 'Alta de Expedientes',
+                                      href: '/admin/control-notarial/expedientes/alta-expedientes',
                                       icon: FileText,
                                   },
                                   {
@@ -219,7 +219,7 @@ export function AppSidebar() {
                               items: [
                                   {
                                       title: 'Notaria',
-                                      href: '/admin/control-notarial/configuracion',
+                                      href: '/admin/control-notarial/configuracion/notaria',
                                       icon: Settings,
                                   },
                                   {

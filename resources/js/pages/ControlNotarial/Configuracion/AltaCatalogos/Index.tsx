@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Database, FileText, AlertTriangle, Building2, File, Briefcase, DollarSign, Users, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,14 +13,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
@@ -115,6 +108,7 @@ export default function ControlNotarialAltaCatalogos() {
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
+    const api = useApi();
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -193,11 +187,8 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetActividadesVulnerables', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-            if (response.ok) {
+            const data = await api.get('/Catalogos/GetActividadesVulnerables');
+            if (data) {
                 setActividadesVulnerablesLista(data.dataResponse || []);
             }
         } catch (error) {
@@ -207,11 +198,8 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDependenciasPublicas', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-            if (response.ok) {
+            const data = await api.get('/Catalogos/GetDependenciasPublicas');
+            if (data) {
                 setDependenciasLista(data.dataResponse || []);
             }
         } catch (error) {
@@ -224,14 +212,10 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/${endpoint}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            const data = await api.get(`/Catalogos/${endpoint}`);
 
             // Mostrar resultados si existen en dataResponse, o mostrar el mensaje si no (incluso en 400)
-            if (data.dataResponse && Array.isArray(data.dataResponse)) {
+            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
                 setTodosLosResultados(data.dataResponse);
                 setResultados(data.dataResponse);
                 setSearchError(null);
@@ -444,34 +428,15 @@ export default function ControlNotarialAltaCatalogos() {
             setSaveError(null);
 
             const endpoint = isEditing ? getUpdateEndpoint() : getCreateEndpoint();
-            const method = isEditing ? 'PUT' : 'POST';
             const payload = buildPayload(currentState);
 
-            console.log(`[DEBUG] Enviando ${method} a ${endpoint}`, payload);
+            console.log(`[DEBUG] Enviando ${isEditing ? 'PUT' : 'POST'} a Catalogos/${endpoint}`, payload);
 
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/${endpoint}`, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const data = isEditing
+                ? await api.put(`/Catalogos/${endpoint}`, payload)
+                : await api.post(`/Catalogos/${endpoint}`, payload);
 
-            console.log(`[DEBUG] Status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
-
-            // Intentar parsear como JSON, pero manejar respuestas vacías
-            let data;
-            const contentType = response.headers.get('content-type');
-            const text = await response.text();
-
-            if (text && contentType?.includes('application/json')) {
-                data = JSON.parse(text);
-            } else {
-                console.warn(`[DEBUG] Respuesta no-JSON o vacía:`, text);
-                data = { message: text || 'Operación completada' };
-            }
-
-            if (!response.ok) {
-                throw new Error(data?.message || `Error al guardar el catálogo (${response.status})`);
-            }
+            console.log(`[DEBUG] Response:`, data);
 
             addToast(data?.message || `Catálogo guardado correctamente`, 'success');
             handleCancelEdit();
@@ -635,17 +600,6 @@ export default function ControlNotarialAltaCatalogos() {
             <Head title="Alta de Catálogos - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="rounded-lg bg-blue-500 p-3 text-white">
-                            <Database className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Alta de Catálogos</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de catálogos del sistema</p>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Pestañas principales - Con Scroll - ARRIBA */}
                 <div>
@@ -741,103 +695,105 @@ export default function ControlNotarialAltaCatalogos() {
                                 </div>
                             )}
 
-                            <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[470px]">
-                                <div className="overflow-y-auto flex-1">
-                                    <Table>
-                                        <TableHeader className="sticky top-0 bg-background z-10">
-                                            <TableRow>
-                                                <TableHead className="w-16">ID</TableHead>
+                            <div className="border rounded-lg overflow-hidden">
+                                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
                                                 {activeTab === 'actividades_vulnerables' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Monto</TableHead>
-                                                        <TableHead>Siempre</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Monto</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Siempre</th>
                                                     </>
                                                 )}
                                                 {activeTab === 'operaciones' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Actividad Vulnerable</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Actividad Vulnerable</th>
                                                     </>
                                                 )}
                                                 {activeTab === 'impuestos_derechos' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Tipo</TableHead>
-                                                        <TableHead>Dependencia</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Dependencia</th>
                                                     </>
                                                 )}
                                                 {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                    <TableHead>Descripción</TableHead>
+                                                    <th className="px-4 py-2 text-left font-semibold">Descripción</th>
                                                 )}
-                                                <TableHead className="w-20 text-center">Activo</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
+                                                <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
                                             {isSearching ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                         <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                         Cargando...
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ) : resultados.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                         No se encontraron resultados.
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ) : (
                                                 resultados.map((item) => (
-                                                    <TableRow
+                                                    <tr
                                                         key={item.id}
-                                                        className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                        className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                         onClick={() => handleSelectItem(item)}
                                                     >
-                                                        <TableCell className="font-mono text-sm">{item.id}</TableCell>
+                                                        <td className="px-4 py-2 font-mono text-sm">{item.id}</td>
                                                         {activeTab === 'actividades_vulnerables' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>${item.monto?.toFixed(2)}</TableCell>
-                                                                <TableCell>
-                                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                                        item.siempre ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">${item.monto?.toFixed(2)}</td>
+                                                                <td className="px-4 py-2">
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                        item.siempre
+                                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                            : 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
                                                                     }`}>
                                                                         {item.siempre ? 'Sí' : 'No'}
                                                                     </span>
-                                                                </TableCell>
+                                                                </td>
                                                             </>
                                                         )}
                                                         {activeTab === 'operaciones' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>{item.actividad_Vulnerable_Id}</TableCell>
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">{item.actividad_Vulnerable_Id}</td>
                                                             </>
                                                         )}
                                                         {activeTab === 'impuestos_derechos' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>{item.tipo}</TableCell>
-                                                                <TableCell>{item.dependencia}</TableCell>
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">{item.tipo}</td>
+                                                                <td className="px-4 py-2">{item.dependencia}</td>
                                                             </>
                                                         )}
                                                         {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                            <TableCell>{item.descripcion}</TableCell>
+                                                            <td className="px-4 py-2">{item.descripcion}</td>
                                                         )}
-                                                        <TableCell className="text-center">
-                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                        <td className="px-4 py-2 text-center">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                                 item.activo
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : 'bg-red-100 text-red-800'
+                                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                             }`}>
                                                                 {item.activo ? 'Sí' : 'No'}
                                                             </span>
-                                                        </TableCell>
-                                                    </TableRow>
+                                                        </td>
+                                                    </tr>
                                                 ))
                                             )}
-                                        </TableBody>
-                                    </Table>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 

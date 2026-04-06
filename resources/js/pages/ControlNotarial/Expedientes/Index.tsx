@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { FileText, Plus, Search, Filter, Scale } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { FileText, Plus, Search, Filter, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -33,12 +33,11 @@ export default function ExpedientesIndex({ expedientes = [], phase = 'production
         },
         {
             title: 'Control Notarial',
-            href: '/control-notarial',
+            href: '/admin/control-notarial',
         },
         {
             title: 'Expedientes',
-            href: '/control-notarial/expedientes',
-            icon: FileText,
+            href: '/admin/control-notarial/expedientes',
         },
     ];
 
@@ -55,24 +54,60 @@ export default function ExpedientesIndex({ expedientes = [], phase = 'production
             <Head title="Expedientes - Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
-                {/* Botón Nuevo Expediente */}
-                <div className="flex justify-end">
-                    {!isDevelopment && (
-                        <Button className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Nuevo Expediente
-                        </Button>
-                    )}
-                </div>
-
-                {isDevelopment && (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
-                        <p className="text-sm text-blue-900 dark:text-blue-200">
-                            <strong>En desarrollo:</strong> Este módulo está siendo actualizado. Pronto podrás
-                            gestionar expedientes desde aquí.
+                {/* Header Section */}
+                <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                            Expedientes
+                        </h1>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            Gestiona todos los expedientes de la notaría
                         </p>
                     </div>
-                )}
+                </div>
+
+                {/* Acceso Rápido - Botones Principales */}
+                <div className="grid gap-4 md:grid-cols-2">
+                    {/* Botón Alta de Expedientes */}
+                    <Link href="/admin/control-notarial/expedientes/alta-expedientes" prefetch>
+                        <div className="group cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-8 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-blue-500 p-3 text-white shadow-md group-hover:bg-blue-600 transition-colors">
+                                    <FileText className="size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-blue-900 dark:text-blue-100 group-hover:text-blue-600 dark:group-hover:text-blue-200">
+                                        Alta de Expedientes
+                                    </h3>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                                        Crear y editar expedientes
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+
+                    {/* Botón Presupuesto Previo */}
+                    <Link href="/admin/control-notarial/expedientes/presupuesto-previo" prefetch>
+                        <div className="group cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-8 hover:shadow-lg hover:border-emerald-400 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-emerald-900/30 transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-emerald-500 p-3 text-white shadow-md group-hover:bg-emerald-600 transition-colors">
+                                    <DollarSign className="size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-200">
+                                        Presupuesto Previo
+                                    </h3>
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                        Gestionar presupuestos
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+                </div>
+
+            
 
                 {/* Search and Filter Section */}
                 {!isDevelopment && (

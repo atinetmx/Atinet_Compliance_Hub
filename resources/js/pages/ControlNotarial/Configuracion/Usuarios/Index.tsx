@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,14 +10,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
@@ -100,6 +91,7 @@ export default function ControlNotarialUsuarios() {
     const [cambiarContraseña, setCambiarContraseña] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
+const api = useApi();
 
     // Cargar usuarios al montar (filtro vacío = todos)
     useEffect(() => {
@@ -110,7 +102,7 @@ export default function ControlNotarialUsuarios() {
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetRoles', {
+                const response = await await api.get('Catalogos/GetRoles', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -133,21 +125,18 @@ export default function ControlNotarialUsuarios() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarios');
-            url.searchParams.append('filtro', filtroValue);
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            let endpoint = '/User/GetUsuarios';
+            if (filtroValue) {
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
+            }
+            const data = await api.get(endpoint);
 
-            // Si response.ok (200-299), mostrar datos
-            if (response.ok) {
+            // Si data existe, mostrar datos
+            if (data && data.dataResponse) {
                 setResultados(data.dataResponse || []);
             } else {
-                // Si es 400 u otro error, pero la API devolvió un mensaje, mostrar ese mensaje
-                // (ej: "No hay usuarios que coincidan con: 324")
-                setSearchError(data.message || 'No se pudieron cargar los usuarios.');
+                // Si la API devolvió un mensaje, mostrar ese mensaje
+                setSearchError(data?.message || 'No se pudieron cargar los usuarios.');
                 setResultados([]);
             }
         } catch (error) {
@@ -184,37 +173,25 @@ export default function ControlNotarialUsuarios() {
             try {
                 setIsSaving(true);
                 setSaveError(null);
-                const response = await fetch(
-                    `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/UpdateUsuario?usuarioId=${formData.id}`,
-                    {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nombre: formData.nombre,
-                            apellido_Paterno: formData.apellido_paterno,
-                            apellido_Materno: formData.apellido_materno,
-                            correo: formData.correo,
-                            usuario: formData.usuario,
-                            contrasena: formData.contraseña,
-                            curp: formData.curp,
-                            rfc: formData.rfc,
-                            rol_Id: formData.rol ? Number(formData.rol) : 0,
-                            iniciales: formData.iniciales,
-                            numero_Notaria: formData.numero_notaria,
-                            adscripcion: formData.adscripcion,
-                            tipo: formData.tipo,
-                            procedencia: formData.procedencia,
-                            observaciones: formData.observaciones,
-                            activo: formData.activo,
-                        }),
-                    }
-                );
-
-                const resData = await response.json().catch(() => ({}));
-
-                if (!response.ok) {
-                    throw new Error(resData?.message || resData?.dataResponse?.message || 'Error al actualizar el usuario');
-                }
+                const payload = {
+                    nombre: formData.nombre,
+                    apellido_Paterno: formData.apellido_paterno,
+                    apellido_Materno: formData.apellido_materno,
+                    correo: formData.correo,
+                    usuario: formData.usuario,
+                    contrasena: formData.contraseña,
+                    curp: formData.curp,
+                    rfc: formData.rfc,
+                    rol_Id: formData.rol ? Number(formData.rol) : 0,
+                    iniciales: formData.iniciales,
+                    numero_Notaria: formData.numero_notaria,
+                    adscripcion: formData.adscripcion,
+                    tipo: formData.tipo,
+                    procedencia: formData.procedencia,
+                    observaciones: formData.observaciones,
+                    activo: formData.activo,
+                };
+                const resData = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
 
                 addToast(resData?.message || resData?.dataResponse?.message || 'Usuario actualizado correctamente', 'success');
                 setFormData(defaultUsuarioData);
@@ -232,37 +209,25 @@ export default function ControlNotarialUsuarios() {
             try {
                 setIsSaving(true);
                 setSaveError(null);
-                const response = await fetch(
-                    'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/CreateUsuario',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nombre: formData.nombre,
-                            apellido_Paterno: formData.apellido_paterno,
-                            apellido_Materno: formData.apellido_materno,
-                            correo: formData.correo,
-                            usuario: formData.usuario,
-                            contrasena: formData.contraseña,
-                            curp: formData.curp,
-                            rfc: formData.rfc,
-                            rol_Id: formData.rol ? Number(formData.rol) : 0,
-                            iniciales: formData.iniciales,
-                            numero_Notaria: formData.numero_notaria,
-                            adscripcion: formData.adscripcion,
-                            tipo: formData.tipo,
-                            procedencia: formData.procedencia,
-                            observaciones: formData.observaciones,
-                            activo: formData.activo,
-                        }),
-                    }
-                );
-
-                const resData = await response.json().catch(() => ({}));
-
-                if (!response.ok) {
-                    throw new Error(resData?.message || resData?.dataResponse?.message || 'Error al crear el usuario');
-                }
+                const payload = {
+                    nombre: formData.nombre,
+                    apellido_Paterno: formData.apellido_paterno,
+                    apellido_Materno: formData.apellido_materno,
+                    correo: formData.correo,
+                    usuario: formData.usuario,
+                    contrasena: formData.contraseña,
+                    curp: formData.curp,
+                    rfc: formData.rfc,
+                    rol_Id: formData.rol ? Number(formData.rol) : 0,
+                    iniciales: formData.iniciales,
+                    numero_Notaria: formData.numero_notaria,
+                    adscripcion: formData.adscripcion,
+                    tipo: formData.tipo,
+                    procedencia: formData.procedencia,
+                    observaciones: formData.observaciones,
+                    activo: formData.activo,
+                };
+                const resData = await api.post('/User/CreateUsuario', payload);
 
                 addToast(resData?.message || resData?.dataResponse?.message || 'Usuario creado correctamente', 'success');
                 setFormData(defaultUsuarioData);
@@ -288,12 +253,8 @@ export default function ControlNotarialUsuarios() {
         setSaveError(null);
         setActiveTab('formulario');
         try {
-            const response = await fetch(
-                `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
-                { headers: { 'Content-Type': 'application/json' } }
-            );
-            const data = await response.json();
-            if (!response.ok) {
+            const data = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
+            if (!data || !data.dataResponse) {
                 throw new Error(data?.message || 'Error al obtener el usuario');
             }
             const u = data.dataResponse;
@@ -352,19 +313,8 @@ export default function ControlNotarialUsuarios() {
             <Head title="Usuarios - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Users className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de usuarios notariales</p>
-                        </div>
-                    </div>
-                </div>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                                <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
                         <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
                             <Search className="size-4" />
@@ -420,56 +370,58 @@ export default function ControlNotarialUsuarios() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-16">ID</TableHead>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>Usuario</TableHead>
-                                        <TableHead>Rol</TableHead>
-                                        <TableHead className="w-20 text-center">Activo</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isSearching ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                Cargando usuarios...
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : resultados.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                No se encontraron usuarios.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        resultados.map((usuario) => (
-                                            <TableRow
-                                                key={usuario.id}
-                                                className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
-                                                onClick={() => handleSelectUsuario(usuario)}
-                                            >
-                                                <TableCell className="font-mono text-sm">{usuario.id}</TableCell>
-                                                <TableCell>{[usuario.nombre, usuario.apellido_Paterno, usuario.apellido_Materno].filter(Boolean).join(' ')}</TableCell>
-                                                <TableCell className="font-mono text-sm">{usuario.usuario}</TableCell>
-                                                <TableCell>{usuario.rol}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                        usuario.activo
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {usuario.activo ? 'Sí' : 'No'}
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Usuario</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Rol</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearching ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Cargando usuarios...
+                                                </td>
+                                            </tr>
+                                        ) : resultados.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron usuarios.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            resultados.map((usuario) => (
+                                                <tr
+                                                    key={usuario.id}
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                                    onClick={() => handleSelectUsuario(usuario)}
+                                                >
+                                                    <td className="px-4 py-2 font-mono text-sm">{usuario.id}</td>
+                                                    <td className="px-4 py-2">{[usuario.nombre, usuario.apellido_Paterno, usuario.apellido_Materno].filter(Boolean).join(' ')}</td>
+                                                    <td className="px-4 py-2 font-mono text-sm">{usuario.usuario}</td>
+                                                    <td className="px-4 py-2">{usuario.rol}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                            usuario.activo
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                        }`}>
+                                                            {usuario.activo ? 'Sí' : 'No'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         {!isSearching && resultados.length > 0 && (
                             <p className="text-sm text-muted-foreground">
@@ -758,5 +710,6 @@ ControlNotarialUsuarios.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+
 
 

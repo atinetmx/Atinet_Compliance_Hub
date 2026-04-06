@@ -187,11 +187,12 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');
-        Route::get('expedientes/expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientesExpedientes'])->name('expedientes-expedientes');
+        Route::get('expedientes/alta-expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientesExpedientes'])->name('alta-expedientes');
         Route::get('expedientes/presupuesto-previo', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestoPrevio'])->name('presupuesto-previo');
         Route::get('escrituras', [\App\Http\Controllers\ControlNotarialController::class, 'escrituras'])->name('escrituras');
         Route::get('presupuestos', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestos'])->name('presupuestos');
         Route::get('configuracion', [\App\Http\Controllers\ControlNotarialController::class, 'configuracion'])->name('configuracion');
+        Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion-notaria');
         Route::get('clientes', [\App\Http\Controllers\ControlNotarialController::class, 'clientes'])->name('clientes');
         Route::get('configuracion-operaciones', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionOperaciones'])->name('configuracion-operaciones');
         Route::get('usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'usuarios'])->name('usuarios');
@@ -237,7 +238,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Página de búsqueda
     Route::get('listas-negras', function () {
         return Inertia::render('Admin/ListasNegras/Search');
-        
+
     })->name('listas-negras');
 
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)

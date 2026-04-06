@@ -36,18 +36,32 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: IsCurrentUrlFn, level: 
                     <Collapsible
                         key={item.title}
                         asChild
-                        defaultOpen={hasActiveChild(item, isCurrentUrl)}
+                        defaultOpen={hasActiveChild(item, isCurrentUrl) || isCurrentUrl(item.href)}
                     >
                         <SidebarMenuItem>
                             <CollapsibleTrigger asChild>
-                                <SidebarMenuButton
-                                    tooltip={{ children: item.title }}
-                                    className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 data-[active=true]:bg-amber-600/90 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
-                                >
-                                    {item.icon && <item.icon />}
-                                    <span>{item.title}</span>
-                                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                </SidebarMenuButton>
+                                {item.href ? (
+                                    <Link href={item.href} prefetch>
+                                        <SidebarMenuButton
+                                            tooltip={{ children: item.title }}
+                                            className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 data-[active=true]:bg-amber-600/90 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
+                                            isActive={isCurrentUrl(item.href)}
+                                        >
+                                            {item.icon && <item.icon />}
+                                            <span>{item.title}</span>
+                                            <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                        </SidebarMenuButton>
+                                    </Link>
+                                ) : (
+                                    <SidebarMenuButton
+                                        tooltip={{ children: item.title }}
+                                        className="bg-background/40 hover:bg-amber-500/80 hover:text-amber-50 data-[active=true]:bg-amber-600/90 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
+                                    >
+                                        {item.icon && <item.icon />}
+                                        <span>{item.title}</span>
+                                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                    </SidebarMenuButton>
+                                )}
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                                 <SidebarMenuSub>
@@ -61,17 +75,29 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: IsCurrentUrlFn, level: 
                 return (
                     <Collapsible
                         key={item.title}
-                        defaultOpen={hasActiveChild(item, isCurrentUrl)}
+                        defaultOpen={hasActiveChild(item, isCurrentUrl) || isCurrentUrl(item.href)}
                     >
                         <SidebarMenuSubItem>
                             <CollapsibleTrigger asChild>
-                                <SidebarMenuSubButton
-                                    className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
-                                >
-                                    {item.icon && <item.icon className="h-4 w-4" />}
-                                    <span>{item.title}</span>
-                                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                </SidebarMenuSubButton>
+                                {item.href ? (
+                                    <Link href={item.href} prefetch>
+                                        <SidebarMenuSubButton
+                                            className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
+                                        >
+                                            {item.icon && <item.icon className="h-4 w-4" />}
+                                            <span>{item.title}</span>
+                                            <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                        </SidebarMenuSubButton>
+                                    </Link>
+                                ) : (
+                                    <SidebarMenuSubButton
+                                        className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
+                                    >
+                                        {item.icon && <item.icon className="h-4 w-4" />}
+                                        <span>{item.title}</span>
+                                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                    </SidebarMenuSubButton>
+                                )}
                             </CollapsibleTrigger>
                             <CollapsibleContent>
                                 <div className="flex flex-col gap-1 pl-4">

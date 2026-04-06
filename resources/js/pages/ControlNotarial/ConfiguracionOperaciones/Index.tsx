@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { X, AlertCircle, Search, Loader2, Building2, Save, Settings, SettingsIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +65,7 @@ interface ImpuestoDerechoOperacion {
 
 export default function ControlNotarialConfiguracionOperacionesIndex() {
     const { addToast } = useToast();
+const api = useApi();
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -109,7 +111,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetOperaciones', {
+            const response = await await api.get('Catalogos/GetOperaciones', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -153,13 +155,9 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
 
         try {
             // Cargar etapas configuradas
-            const responseEtapasConfiguradasURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
-            const responseEtapasConfiguradas = await fetch(responseEtapasConfiguradasURL, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataEtapasConfiguradas = await responseEtapasConfiguradas.json();
+            const dataEtapasConfiguradas = await api.get(`/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`);
             // Si la respuesta es exitosa, usar los datos; si no, usar array vacío
-            if (responseEtapasConfiguradas.ok && dataEtapasConfiguradas.dataResponse) {
+            if (dataEtapasConfiguradas && dataEtapasConfiguradas.dataResponse) {
                 setEtapasConfiguradasOperacion(dataEtapasConfiguradas.dataResponse);
             } else {
                 // No hay etapas configuradas (estado normal al inicio)
@@ -167,61 +165,44 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetEtapas', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataEtapasDisponibles = await responseEtapasDisponibles.json();
-            setEtapasDisponibles(dataEtapasDisponibles.dataResponse || dataEtapasDisponibles || []);
+            const dataEtapasDisponibles = await api.get('/Catalogos/GetEtapas');
+            setEtapasDisponibles(dataEtapasDisponibles?.dataResponse || dataEtapasDisponibles || []);
             setEtapasSeleccionadas([]);
             setEtapasRemovidasOperacion([]);
 
             // Cargar documentos configurados
-            const responseDocumentosConfiguradosURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
-            const responseDocumentosConfigurados = await fetch(responseDocumentosConfiguradosURL, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataDocumentosConfigurados = await responseDocumentosConfigurados.json();
-            if (responseDocumentosConfigurados.ok && dataDocumentosConfigurados.dataResponse) {
+            const dataDocumentosConfigurados = await api.get(`/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`);
+            if (dataDocumentosConfigurados && dataDocumentosConfigurados.dataResponse) {
                 setDocumentosConfiguradosOperacion(dataDocumentosConfigurados.dataResponse);
             } else {
                 setDocumentosConfiguradosOperacion([]);
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDocumentos', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataDocumentosDisponibles = await responseDocumentosDisponibles.json();
-            setDocumentosDisponibles(dataDocumentosDisponibles.dataResponse || dataDocumentosDisponibles || []);
+            const dataDocumentosDisponibles = await api.get('/Catalogos/GetDocumentos');
+            setDocumentosDisponibles(dataDocumentosDisponibles?.dataResponse || dataDocumentosDisponibles || []);
             setDocumentosSeleccionados([]);
             setDocumentosRemovidosOperacion([]);
 
             // Cargar impuestos configurados
-            const responseImpuestosConfiguradosURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
-            const responseImpuestosConfigurados = await fetch(responseImpuestosConfiguradosURL, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataImpuestosConfigurados = await responseImpuestosConfigurados.json();
-            console.log('Impuestos Configurados:', dataImpuestosConfigurados.dataResponse);
-            if (dataImpuestosConfigurados.dataResponse && dataImpuestosConfigurados.dataResponse.length > 0) {
+            const dataImpuestosConfigurados = await api.get(`/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`);
+            console.log('Impuestos Configurados:', dataImpuestosConfigurados?.dataResponse);
+            if (dataImpuestosConfigurados?.dataResponse && dataImpuestosConfigurados.dataResponse.length > 0) {
                 console.log('Primer impuesto configurado (estructura):', dataImpuestosConfigurados.dataResponse[0]);
             }
-            if (responseImpuestosConfigurados.ok && dataImpuestosConfigurados.dataResponse) {
+            if (dataImpuestosConfigurados && dataImpuestosConfigurados.dataResponse) {
                 setImpuestosConfiguradosOperacion(dataImpuestosConfigurados.dataResponse);
             } else {
                 setImpuestosConfiguradosOperacion([]);
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetImpuestosDerechos', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataImpuestosDisponibles = await responseImpuestosDisponibles.json();
-            console.log('Impuestos Disponibles:', dataImpuestosDisponibles.dataResponse);
-            if (dataImpuestosDisponibles.dataResponse && dataImpuestosDisponibles.dataResponse.length > 0) {
+            const dataImpuestosDisponibles = await api.get('/Catalogos/GetImpuestosDerechos');
+            console.log('Impuestos Disponibles:', dataImpuestosDisponibles?.dataResponse);
+            if (dataImpuestosDisponibles?.dataResponse && dataImpuestosDisponibles.dataResponse.length > 0) {
                 console.log('Primer impuesto disponible (estructura):', dataImpuestosDisponibles.dataResponse[0]);
             }
-            setImpuestosDisponibles(dataImpuestosDisponibles.dataResponse || dataImpuestosDisponibles || []);
+            setImpuestosDisponibles(dataImpuestosDisponibles?.dataResponse || dataImpuestosDisponibles || []);
             setImpuestosSeleccionados([]);
             setImpuestosRemovidosOperacion([]);
         } catch (error) {
@@ -315,7 +296,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddEtapasOperacion';
+            url = '/ConfiguracionOperacion/AddEtapasOperacion';
         } else if (activeSubTab === 'documentos') {
             const documentosMantenidos = documentosConfiguradosOperacion
                 .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
@@ -330,7 +311,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddDocumentoOperacion';
+            url = '/ConfiguracionOperacion/AddDocumentoOperacion';
         } else if (activeSubTab === 'impuestos') {
             const impuestosMantenidos = impuestosConfiguradosOperacion
                 .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
@@ -351,7 +332,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+            url = '/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
         }
 
         setIsSavingConfig(true);
@@ -362,15 +343,9 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 lista_N: listaFinal,
             };
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const data = await api.post(url, payload);
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast(data.message || 'Configuración guardada correctamente', 'success');
 
                 // Actualizar estado local inmediatamente
@@ -441,17 +416,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             <Head title="Configuración Operaciones - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Building2 className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Configuración Operaciones</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de operaciones y elementos asociados</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -507,53 +472,53 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[500px]">
-                            <div className="overflow-y-auto flex-1">
-                                <Table>
-                                    <TableHeader className="sticky top-0 bg-background z-10">
-                                        <TableRow>
-                                            <TableHead className="w-16">ID</TableHead>
-                                            <TableHead>Descripción</TableHead>
-                                            <TableHead className="w-20 text-center">Activa</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                            <th className="px-4 py-2 text-center font-semibold">Activa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         {isSearching ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                            <tr>
+                                                <td colSpan={3} className="text-center py-8 text-muted-foreground px-4">
                                                     <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                     Cargando operaciones...
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ) : operaciones.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                            <tr>
+                                                <td colSpan={3} className="text-center py-8 text-muted-foreground px-4">
                                                     No se encontraron operaciones.
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ) : (
                                             operaciones.map((op) => (
-                                                <TableRow
+                                                <tr
                                                     key={op.id}
-                                                    className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                     onClick={() => handleSelectOperacion(op)}
                                                 >
-                                                    <TableCell className="font-mono text-sm">{op.id}</TableCell>
-                                                    <TableCell>{op.descripcion}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    <td className="px-4 py-2 font-mono text-sm">{op.id}</td>
+                                                    <td className="px-4 py-2">{op.descripcion}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                             op.activo
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : 'bg-red-100 text-red-800'
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                         }`}>
                                                             {op.activo ? 'Sí' : 'No'}
                                                         </span>
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ))
                                         )}
-                                    </TableBody>
-                                </Table>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         {!isSearching && operaciones.length > 0 && (
@@ -962,3 +927,4 @@ ControlNotarialConfiguracionOperacionesIndex.layout = (page: React.ReactNode) =>
         {page}
     </AppLayout>
 );
+
