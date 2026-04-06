@@ -361,7 +361,7 @@ try {
     if (count($notariasMixtas) > 0) {
         echo "🔄 NOTARÍAS QUE USAN AMBAS PLATAFORMAS (".count($notariasMixtas)." notarías)\n";
         echo str_repeat('─', 66)."\n";
-        printf("   %-25s %10s %10s %10s %12s\n", 
+        printf("   %-25s %10s %10s %10s %12s\n",
             'NOTARÍA', 'TOTAL', 'WEB', 'ESCRIT.', 'ÚLTIMA');
         echo "   ".str_repeat('─', 64)."\n";
 
@@ -384,18 +384,18 @@ try {
     // Resumen
     echo "📊 RESUMEN POR TIPO DE USO:\n";
     echo str_repeat('─', 66)."\n";
-    printf("   %-30s: %s notarías (%s búsquedas)\n", 
-        'Solo WEB', 
+    printf("   %-30s: %s notarías (%s búsquedas)\n",
+        'Solo WEB',
         number_format(count($notariasWeb)),
         number_format(array_sum(array_column($notariasWeb, 'total_web')))
     );
-    printf("   %-30s: %s notarías (%s búsquedas)\n", 
-        'Solo ESCRITORIO', 
+    printf("   %-30s: %s notarías (%s búsquedas)\n",
+        'Solo ESCRITORIO',
         number_format(count($notariasEscritorio)),
         number_format(array_sum(array_column($notariasEscritorio, 'total_escritorio')))
     );
-    printf("   %-30s: %s notarías (%s búsquedas)\n", 
-        'Uso MIXTO', 
+    printf("   %-30s: %s notarías (%s búsquedas)\n",
+        'Uso MIXTO',
         number_format(count($notariasMixtas)),
         number_format(array_sum(array_column($notariasMixtas, 'total_busquedas')))
     );
@@ -444,7 +444,7 @@ try {
                 $csvClasificacion = "reporte_completo_clasificacion_{$timestamp}.csv";
                 $fp = fopen($csvClasificacion, 'w');
                 fputcsv($fp, ['Notaría', 'Tipo de Uso', 'Total Búsquedas', 'Búsquedas Web', 'Búsquedas Escritorio', 'Última Búsqueda']);
-                
+
                 foreach ($notariasWeb as $notaria) {
                     fputcsv($fp, [
                         $notaria->NOTARIA,
@@ -455,7 +455,7 @@ try {
                         $notaria->ultima_busqueda
                     ]);
                 }
-                
+
                 foreach ($notariasEscritorio as $notaria) {
                     fputcsv($fp, [
                         $notaria->NOTARIA,
@@ -466,7 +466,7 @@ try {
                         $notaria->ultima_busqueda
                     ]);
                 }
-                
+
                 foreach ($notariasMixtas as $notaria) {
                     fputcsv($fp, [
                         $notaria->NOTARIA,
@@ -477,7 +477,7 @@ try {
                         $notaria->ultima_busqueda
                     ]);
                 }
-                
+
                 fclose($fp);
                 echo "✅ Exportado: {$csvClasificacion}\n";
                 break;
