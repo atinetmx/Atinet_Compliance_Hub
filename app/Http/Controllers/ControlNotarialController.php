@@ -140,7 +140,7 @@ class ControlNotarialController extends Controller
      */
     public function configuracionOperaciones(): Response
     {
-        return Inertia::render('ControlNotarial/ConfiguracionOperaciones/Index');
+        return Inertia::render('ControlNotarial/Configuracion/ConfiguracionOperaciones/Index');
     }
 
     /**

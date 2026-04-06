@@ -90,6 +90,12 @@ interface ImpuestoDerechoAPI {
     observaciones?: string;
 }
 
+interface ZonaMunicipio {
+    id: number;
+    descripcion: string;
+    activo: boolean;
+}
+
 const defaultPresupuestoData: PresupuestoPrevioData = {
     cliente: '',
     operacion: '',
@@ -132,9 +138,11 @@ export default function PresupuestoPrevioIndex() {
     // --- Estado pestaña Formulario ---
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [operaciones, setOperaciones] = useState<Operacion[]>([]);
+    const [zonas, setZonas] = useState<ZonaMunicipio[]>([]);
     const [formData, setFormData] = useState<PresupuestoPrevioData>(defaultPresupuestoData);
     const [isLoadingClientes, setIsLoadingClientes] = useState(false);
     const [isLoadingOperaciones, setIsLoadingOperaciones] = useState(false);
+    const [isLoadingZonas, setIsLoadingZonas] = useState(false);
     const [isLoadingImpuestos, setIsLoadingImpuestos] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -156,6 +164,10 @@ export default function PresupuestoPrevioIndex() {
     // --- Filtro de operaciones ---
     const [operacionFiltro, setOperacionFiltro] = useState('');
     const [showOperacionDropdown, setShowOperacionDropdown] = useState(false);
+
+    // --- Filtro de zonas/municipios ---
+    const [zonaFiltro, setZonaFiltro] = useState('');
+    const [showZonaDropdown, setShowZonaDropdown] = useState(false);
 
     const { addToast } = useToast();
 
@@ -210,6 +222,30 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchOperaciones();
+    }, [addToast]);
+
+    // Cargar zonas/municipios al montar
+    useEffect(() => {
+        const fetchZonas = async () => {
+            try {
+                setIsLoadingZonas(true);
+                const response = await fetch('https://localhost:44327/api/Catalogos/GetZonasMunicipios', {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.message || 'Error al obtener las zonas/municipios');
+                }
+                setZonas(data.dataResponse || []);
+            } catch (error) {
+                console.error('Error cargando zonas:', error);
+                const message = error instanceof Error ? error.message : 'Error al cargar las zonas';
+                addToast(message, 'error');
+            } finally {
+                setIsLoadingZonas(false);
+            }
+        };
+        fetchZonas();
     }, [addToast]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
@@ -457,6 +493,8 @@ export default function PresupuestoPrevioIndex() {
 
             addToast(resData?.message || 'Presupuesto guardado correctamente', 'success');
             setFormData(defaultPresupuestoData);
+            setOperacionFiltro('');
+            setZonaFiltro('');
             setIsEditing(false);
             setActiveTab('busqueda');
             fetchPresupuestos(filtro);
@@ -531,6 +569,12 @@ export default function PresupuestoPrevioIndex() {
                 setOperacionFiltro(operacionSeleccionada.descripcion);
             }
 
+            // Establecer el filtro de zona/municipio con el nombre seleccionado
+            const zonaSeleccionada = zonas.find(z => z.id === presupuestoPrevio.zona_Municipio_Id);
+            if (zonaSeleccionada) {
+                setZonaFiltro(zonaSeleccionada.descripcion);
+            }
+
             addToast('Presupuesto cargado correctamente', 'success');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar el presupuesto';
@@ -545,6 +589,7 @@ export default function PresupuestoPrevioIndex() {
     const handleCancelEdit = () => {
         setFormData(defaultPresupuestoData);
         setOperacionFiltro('');
+        setZonaFiltro('');
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
@@ -641,7 +686,7 @@ export default function PresupuestoPrevioIndex() {
             <Head title="Presupuesto Previo - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -874,15 +919,58 @@ export default function PresupuestoPrevioIndex() {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
+                                            <div className="space-y-2 relative">
                                                 <SimpleLabel htmlFor="zona_municipio">Zona o Municipio</SimpleLabel>
-                                                <Input
-                                                    id="zona_municipio"
-                                                    name="zona_municipio"
-                                                    value={formData.zona_municipio}
-                                                    onChange={handleInputChange}
-                                                    placeholder="Zona o Municipio"
-                                                />
+                                                <div className="relative">
+                                                    <Input
+                                                        id="zona_municipio"
+                                                        value={zonaFiltro}
+                                                        onChange={(e) => {
+                                                            setZonaFiltro(e.target.value);
+                                                            setShowZonaDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowZonaDropdown(true)}
+                                                        placeholder="Buscar zona o municipio..."
+                                                        disabled={isLoadingZonas}
+                                                    />
+                                                    {zonaFiltro && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setZonaFiltro('');
+                                                                handleSelectChange('zona_municipio', '');
+                                                                setShowZonaDropdown(false);
+                                                            }}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {showZonaDropdown && zonas.length > 0 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                        {zonas
+                                                            .filter(zona =>
+                                                                zona.descripcion
+                                                                    .toLowerCase()
+                                                                    .includes(zonaFiltro.toLowerCase())
+                                                            )
+                                                            .map(zona => (
+                                                                <button
+                                                                    key={zona.id}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleSelectChange('zona_municipio', zona.id.toString());
+                                                                        setZonaFiltro(zona.descripcion);
+                                                                        setShowZonaDropdown(false);
+                                                                    }}
+                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm"
+                                                                >
+                                                                    {zona.descripcion}
+                                                                </button>
+                                                            ))}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="space-y-2">
                                                 <SimpleLabel htmlFor="observaciones">Observaciones</SimpleLabel>

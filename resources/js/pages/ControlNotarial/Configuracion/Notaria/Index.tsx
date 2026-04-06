@@ -1098,7 +1098,7 @@ const api = useApi();
                     </Tabs>
 
                 {/* Action Buttons */}
-                <div className="pt-3 flex gap-3 justify-end">
+                <div className="pt-3 flex mb-3 gap-3 justify-end">
                     <Button
                         variant="outline"
                         onClick={handleReset}
