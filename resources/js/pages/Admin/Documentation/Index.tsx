@@ -32,6 +32,7 @@ import {
     Filter,
     Layers,
     Database,
+    DollarSign,
 } from 'lucide-react';
 import { useState } from 'react';
 import AppLogo from '@/components/app-logo';
@@ -3417,6 +3418,181 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
             </div>
         ),
     },
+    servicios: {
+        title: 'Gestión de Servicios',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Sistema de Gestión de Servicios</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        El módulo de Gestión de Servicios permite administrar el catálogo completo de servicios disponibles
+                        para las notarías, incluyendo configuración de precios, categorías, modelos de facturación y control
+                        de disponibilidad. Cada servicio puede ser personalizado según las necesidades de cada plan de suscripción.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Características Principales</h2>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Package className="h-5 w-5 text-primary" />
+                                    Catálogo Completo
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Administra todos los servicios del sistema:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Búsqueda y filtrado avanzado</li>
+                                    <li>Organización por categorías</li>
+                                    <li>Activación/desactivación rápida</li>
+                                    <li>Estadísticas de uso en tiempo real</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Settings className="h-5 w-5 text-primary" />
+                                    Modelos de Facturación
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Configura cómo se cobra cada servicio:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Incluido: Sin costo adicional</li>
+                                    <li>Limitado: Con límite mensual</li>
+                                    <li>Por Uso: Cobro por consulta</li>
+                                    <li>Ilimitado: Sin restricciones</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Layers className="h-5 w-5 text-primary" />
+                                    Categorías de Servicios
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Organiza servicios por tipo:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Consulta: Búsquedas OFAC/SAT</li>
+                                    <li>API: Integraciones externas</li>
+                                    <li>Sistema: Funciones internas</li>
+                                    <li>Análisis, Storage, Integration</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="h-5 w-5 text-primary" />
+                                    Monitoreo y Estadísticas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Visualiza el rendimiento de cada servicio:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Uso mensual por servicio</li>
+                                    <li>Ingresos generados</li>
+                                    <li>Notarías activas usando el servicio</li>
+                                    <li>Planes asociados</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Flujo de Trabajo</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Pasos para Gestionar Servicios</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ol className="text-sm text-muted-foreground space-y-3 list-decimal list-inside">
+                                <li>
+                                    <strong>Crear Servicio:</strong> Define nombre, categoría y modelo de facturación
+                                </li>
+                                <li>
+                                    <strong>Configurar Precios:</strong> Establece precio unitario si es "Por Uso"
+                                </li>
+                                <li>
+                                    <strong>Asociar a Planes:</strong> Incluye el servicio en planes de suscripción
+                                </li>
+                                <li>
+                                    <strong>Activar:</strong> Habilita el servicio para que las notarías puedan usarlo
+                                </li>
+                                <li>
+                                    <strong>Monitorear:</strong> Revisa estadísticas de uso y rentabilidad
+                                </li>
+                            </ol>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Código de Servicio</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Generación Automática</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Cada servicio tiene un código único que se genera automáticamente al escribir el nombre:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li>Conversión a MAYÚSCULAS automática</li>
+                                <li>Eliminación de acentos y caracteres especiales</li>
+                                <li>Espacios reemplazados por guiones bajos (_)</li>
+                                <li>No se puede modificar una vez creado el servicio</li>
+                            </ul>
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md">
+                                <p className="text-xs font-semibold mb-2">Ejemplos:</p>
+                                <ul className="text-xs space-y-1">
+                                    <li>• "Lista Negra SAT" → <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">LISTA_NEGRA_SAT</code></li>
+                                    <li>• "Búsqueda OFAC" → <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">BUSQUEDA_OFAC</code></li>
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Importante
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>✅ Los servicios activos están disponibles para todas las notarías con planes que los incluyan</li>
+                        <li>✅ Puedes modificar precios, pero solo afectarán consultas futuras</li>
+                        <li>✅ El código de servicio es permanente y no puede modificarse después de la creación</li>
+                        <li>⚠️ Desactivar un servicio lo hace no disponible inmediatamente para nuevas consultas</li>
+                        <li>⚠️ Eliminar un servicio es permanente y no se puede deshacer</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
     'servicios-catalogo': {
         title: 'Catálogo de Servicios',
         content: (
@@ -3458,19 +3634,32 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Filter className="h-5 w-5 text-primary" />
-                                Filtros Disponibles
+                                Búsqueda y Filtros
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-muted-foreground mb-3">
                                 Filtra los servicios para encontrar rápidamente lo que necesitas:
                             </p>
-                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
-                                <li><strong>Búsqueda:</strong> Por nombre o código de servicio</li>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li>
+                                    <strong>Búsqueda:</strong> Por nombre o código de servicio
+                                    <br />
+                                    <span className="text-xs italic text-blue-600">
+                                        💡 Escribe en el campo de búsqueda y presiona Enter o haz clic en el botón de búsqueda
+                                    </span>
+                                </li>
                                 <li><strong>Categoría:</strong> Consulta, API, Sistema, Análisis, Storage, Integration</li>
                                 <li><strong>Modelo de Facturación:</strong> Incluido, Limitado, Por Uso, Ilimitado</li>
-                                <li><strong>Estado:</strong> Servicios activos o inactivos</li>
+                                <li>
+                                    <strong>Estado:</strong> Servicios activos o inactivos
+                                    <br />
+                                    <span className="text-xs italic">Filtra por disponibilidad del servicio</span>
+                                </li>
                             </ul>
+                            <p className="text-xs text-muted-foreground mt-3 italic">
+                                Los filtros se aplican automáticamente al seleccionarlos. La búsqueda requiere presionar Enter o hacer clic en el botón.
+                            </p>
                         </CardContent>
                     </Card>
                 </div>
@@ -3992,14 +4181,34 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground mb-3">
-                                    Lista de planes que incluyen este servicio con su configuración:
+                                    Tabla detallada de planes que incluyen este servicio con su configuración específica:
                                 </p>
                                 <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
-                                    <li><strong>Nombre del Plan:</strong> Identificación del plan</li>
-                                    <li><strong>Límite:</strong> Cantidad mensual permitida (si aplica)</li>
-                                    <li><strong>Precio:</strong> Costo adicional por unidad (si aplica)</li>
-                                    <li><strong>Estado:</strong> Si el servicio está activo en ese plan</li>
+                                    <li><strong>Nombre del Plan:</strong> Identificación del plan de suscripción</li>
+                                    <li>
+                                        <strong>Incluido:</strong> Badge indicando si está incluido en el plan base
+                                        <br />
+                                        <span className="text-xs italic">Verde = Incluido | Gris = No incluido</span>
+                                    </li>
+                                    <li>
+                                        <strong>Límite de Uso:</strong> Cantidad mensual permitida
+                                        <br />
+                                        <span className="text-xs italic">Número específico o "Sin límite" si es ilimitado</span>
+                                    </li>
+                                    <li>
+                                        <strong>Precio Extra:</strong> Costo adicional por unidad al exceder el límite
+                                        <br />
+                                        <span className="text-xs italic">Solo aplica si hay límite configurado y se sobrepasa</span>
+                                    </li>
                                 </ul>
+                                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-md">
+                                    <p className="text-xs font-semibold mb-2">Ejemplos de configuración:</p>
+                                    <ul className="text-xs space-y-1">
+                                        <li>• Plan Básico: Incluido | Límite: 100 | Precio extra: $2.00</li>
+                                        <li>• Plan Premium: Incluido | Límite: Sin límite | Precio extra: N/A</li>
+                                        <li>• Plan Free: No incluido | Límite: 0 | Precio extra: $5.00</li>
+                                    </ul>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
@@ -4057,6 +4266,207 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
                         <li>📈 Identificar servicios infrautilizados o muy demandados</li>
                         <li>⚖️ Decidir ajustes de precio o modelo de facturación</li>
                         <li>🎯 Planear estrategias comerciales basadas en uso real</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    planes: {
+        title: 'Gestión de Planes',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Sistema de Gestión de Planes</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        El módulo de Gestión de Planes permite crear y administrar diferentes planes de suscripción
+                        con configuraciones personalizadas de servicios, límites de uso y precios. Cada plan define
+                        qué servicios están disponibles para las notarías y bajo qué condiciones.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Características Principales</h2>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Layers className="h-5 w-5 text-primary" />
+                                    Planes Flexibles
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Crea planes adaptados a diferentes necesidades:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Planes básicos, estándar y premium</li>
+                                    <li>Configuración de precios mensuales</li>
+                                    <li>Límites de usuarios por notaría</li>
+                                    <li>Activación/desactivación rápida</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Package className="h-5 w-5 text-primary" />
+                                    Configuración de Servicios
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Define qué servicios incluye cada plan:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Selección de servicios incluidos</li>
+                                    <li>Límites de uso mensuales</li>
+                                    <li>Precios extra al exceder límites</li>
+                                    <li>Prioridad de servicios</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-primary" />
+                                    Control de Costos
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Administra los aspectos financieros:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Precio base mensual del plan</li>
+                                    <li>Costos adicionales por servicio</li>
+                                    <li>Configuración de límites gratuitos</li>
+                                    <li>Facturación automática</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="h-5 w-5 text-primary" />
+                                    Estadísticas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Monitorea el uso de cada plan:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Suscripciones activas por plan</li>
+                                    <li>Ingresos generados</li>
+                                    <li>Servicios más utilizados</li>
+                                    <li>Notarías suscritas</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Flujo de Trabajo</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Pasos para Crear un Plan</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ol className="text-sm text-muted-foreground space-y-3 list-decimal list-inside">
+                                <li>
+                                    <strong>Crear Plan Base:</strong> Define nombre, descripción y precio mensual
+                                </li>
+                                <li>
+                                    <strong>Configurar Servicios:</strong> Selecciona qué servicios incluir en el plan
+                                </li>
+                                <li>
+                                    <strong>Establecer Límites:</strong> Define límites de uso para cada servicio
+                                </li>
+                                <li>
+                                    <strong>Definir Precios Extra:</strong> Configura costos adicionales al exceder límites
+                                </li>
+                                <li>
+                                    <strong>Activar Plan:</strong> Habilita el plan para que las notarías puedan suscribirse
+                                </li>
+                            </ol>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Tipos de Configuración de Servicios</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>✅ Servicio Incluido</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    El servicio está incluido en el plan base. Puedes configurar límites de uso
+                                    y precios extra si el servicio se usa en exceso.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>❌ Servicio No Incluido</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    El servicio no está disponible para notarías con este plan. Las notarías
+                                    necesitarían actualizar a un plan superior para acceder.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>🔢 Límite de Uso</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    Define cuántas veces al mes se puede usar el servicio sin cargo adicional.
+                                    Por ejemplo: 100 búsquedas OFAC incluidas, $5 por cada adicional.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>♾️ Sin Límite</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    El servicio se puede usar ilimitadamente sin cargos adicionales.
+                                    Deja el campo de límite vacío para configurar uso ilimitado.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Importante
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>✅ Los cambios en planes afectan solo nuevas suscripciones, no las existentes</li>
+                        <li>✅ Puedes tener múltiples planes activos simultáneamente</li>
+                        <li>✅ Las notarías pueden actualizar o degradar su plan en cualquier momento</li>
+                        <li>⚠️ Desactivar un plan impide nuevas suscripciones pero mantiene las existentes</li>
+                        <li>⚠️ Los límites de uso se renuevan cada mes calendario</li>
                     </ul>
                 </div>
             </div>
@@ -4857,6 +5267,218 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
                         <li>⚠️ Si eliminas un servicio, las notarías perderán acceso</li>
                         <li>⚠️ Los límites se renuevan cada mes calendario</li>
                         <li>⚠️ Los cargos extra se facturan al final del mes</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    notarias: {
+        title: 'Gestión de Notarías',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Sistema de Gestión de Notarías</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        El módulo de Gestión de Notarías permite administrar todas las notarías registradas en el sistema,
+                        incluyendo su información general, ubicación, suscripciones, usuarios y servicios personalizados.
+                        Cada notaría es un cliente independiente con su propia configuración y acceso al sistema.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Características Principales</h2>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Building2 className="h-5 w-5 text-primary" />
+                                    Registro Completo
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Información detallada de cada notaría:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Número de notaría y nombre</li>
+                                    <li>Notario titular y datos de contacto</li>
+                                    <li>Dirección completa y georeferencia</li>
+                                    <li>Teléfonos y correo electrónico</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <CreditCard className="h-5 w-5 text-primary" />
+                                    Gestión de Suscripciones
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Control de planes y pagos:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Asignación de planes</li>
+                                    <li>Suscripciones activas y vencidas</li>
+                                    <li>Múltiples suscripciones simultáneas</li>
+                                    <li>Historial de renovaciones</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="h-5 w-5 text-primary" />
+                                    Administración de Usuarios
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Gestión del equipo de la notaría:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Admin notaría y usuarios</li>
+                                    <li>Límite de usuarios según plan</li>
+                                    <li>Permisos y roles</li>
+                                    <li>Control de accesos</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Settings className="h-5 w-5 text-primary" />
+                                    Servicios Personalizados
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Configuración específica por notaría:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Habilitar/deshabilitar servicios</li>
+                                    <li>Límites personalizados</li>
+                                    <li>Precios especiales</li>
+                                    <li>Prioridades ajustadas</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Información de Ubicación</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>📍 Datos de Dirección</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Sistema completo de ubicación:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li>
+                                    <strong>Dirección Completa:</strong> Calle, número exterior e interior
+                                </li>
+                                <li>
+                                    <strong>Ubicación Administrativa:</strong> Colonia, municipio, estado, código postal
+                                </li>
+                                <li>
+                                    <strong>Coordenadas GPS:</strong> Latitud y longitud para georeferencia
+                                </li>
+                                <li>
+                                    <strong>Referencias:</strong> Información adicional para localización
+                                </li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Estados de Notaría</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>✅ Activa</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    La notaría tiene acceso completo al sistema. Los usuarios pueden iniciar sesión
+                                    y utilizar todos los servicios incluidos en su suscripción activa.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>⏸️ Inactiva</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    La notaría está deshabilitada temporalmente. Los usuarios no pueden acceder
+                                    al sistema hasta que se reactive. Útil para suspensiones temporales.
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>🗑️ Eliminada (Soft Delete)</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground">
+                                    La notaría fue eliminada pero sus datos se mantienen en el sistema.
+                                    No aparece en listados principales pero puede restaurarse si es necesario.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Operaciones Disponibles</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Acciones Principales</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="text-sm text-muted-foreground space-y-2">
+                                <li>📋 <strong>Ver Catálogo:</strong> Lista completa de notarías con búsqueda y filtros</li>
+                                <li>➕ <strong>Crear Notaría:</strong> Registro de nueva notaría con datos completos</li>
+                                <li>✏️ <strong>Editar:</strong> Modificar información, contacto y ubicación</li>
+                                <li>👁️ <strong>Ver Detalles:</strong> Información completa con estadísticas y suscripciones</li>
+                                <li>⚙️ <strong>Configurar Servicios:</strong> Personalizar servicios y límites</li>
+                                <li>🔄 <strong>Activar/Desactivar:</strong> Habilitar o suspender acceso</li>
+                                <li>🗑️ <strong>Eliminar:</strong> Soft delete manteniendo historial</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Importante: Arquitectura Multi-Tenant
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>✅ Cada notaría es un tenant independiente con sus propios datos</li>
+                        <li>✅ Los usuarios de una notaría solo ven información de su notaría</li>
+                        <li>✅ El super admin ve y gestiona todas las notarías</li>
+                        <li>✅ Los datos están completamente aislados entre notarías</li>
+                        <li>⚠️ Desactivar una notaría bloquea acceso inmediato a todos sus usuarios</li>
+                        <li>⚠️ Eliminar una notaría es reversible (soft delete)</li>
                     </ul>
                 </div>
             </div>
