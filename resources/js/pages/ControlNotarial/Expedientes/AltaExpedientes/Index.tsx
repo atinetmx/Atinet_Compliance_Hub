@@ -1764,7 +1764,7 @@ export default function ExpedientesIndex() {
                 })
             };
 
-            const data = await api.post('Expediente/CreateExpediente', requestPayload);
+            const data = await api.post('/Expediente/CreateExpediente', requestPayload);
 
             if (data) {
                 addToast('Expediente creado exitosamente', 'success');
@@ -2112,7 +2112,7 @@ export default function ExpedientesIndex() {
                 notario_Id: notarioId,
             };
 
-            const data = await api.post('ReciboProvisional/CreateReciboProvisional', payload);
+            const data = await api.post('/ReciboProvisional/CreateReciboProvisional', payload);
 
             if (data) {
                 addToast('Recibo generado exitosamente', 'success');

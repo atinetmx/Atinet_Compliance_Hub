@@ -1,6 +1,7 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -170,6 +171,9 @@ export default function PresupuestoPrevioIndex() {
     const [showZonaDropdown, setShowZonaDropdown] = useState(false);
 
     const { addToast } = useToast();
+    const api = useApi();
+    const { props } = usePage();
+    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
     // Cargar presupuestos al montar (filtro vacío = todos)
     useEffect(() => {
@@ -181,14 +185,12 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const response = await fetch('https://localhost:44327/api/Clientes/GetClientes', {
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                if (!response.ok) {
+                const data = await api.get('/Clientes/GetClientes');
+                if (data && data.dataResponse) {
+                    setClientes(data.dataResponse || []);
+                } else {
                     throw new Error(data?.message || 'Error al obtener los clientes');
                 }
-                setClientes(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando clientes:', error);
                 const message = error instanceof Error ? error.message : 'Error al cargar los clientes';
@@ -198,21 +200,19 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchClientes();
-    }, [addToast]);
+    }, [addToast, api]);
 
     // Cargar operaciones al montar
     useEffect(() => {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await fetch('https://localhost:44327/api/Catalogos/GetOperaciones', {
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                if (!response.ok) {
+                const data = await api.get('/Catalogos/GetOperaciones');
+                if (data && data.dataResponse) {
+                    setOperaciones(data.dataResponse || []);
+                } else {
                     throw new Error(data?.message || 'Error al obtener las operaciones');
                 }
-                setOperaciones(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando operaciones:', error);
                 const message = error instanceof Error ? error.message : 'Error al cargar las operaciones';
@@ -222,21 +222,19 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchOperaciones();
-    }, [addToast]);
+    }, [addToast, api]);
 
     // Cargar zonas/municipios al montar
     useEffect(() => {
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
-                const response = await fetch('https://localhost:44327/api/Catalogos/GetZonasMunicipios', {
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                if (!response.ok) {
+                const data = await api.get('/Catalogos/GetZonasMunicipios');
+                if (data && data.dataResponse) {
+                    setZonas(data.dataResponse || []);
+                } else {
                     throw new Error(data?.message || 'Error al obtener las zonas/municipios');
                 }
-                setZonas(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando zonas:', error);
                 const message = error instanceof Error ? error.message : 'Error al cargar las zonas';
@@ -246,7 +244,7 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchZonas();
-    }, [addToast]);
+    }, [addToast, api]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {
@@ -261,19 +259,15 @@ export default function PresupuestoPrevioIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Presupuestos/GetPresupuestosPrevios');
+            let endpoint = '/Presupuestos/GetPresupuestosPrevios';
             if (filtroValue) {
-                url.searchParams.append('filtro', filtroValue);
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const response = await fetch(url.toString(), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok) {
+            const data = await api.get(endpoint);
+            if (data) {
                 setResultados(data.dataResponse || []);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los presupuestos previos.');
+                setSearchError(data?.message || 'No se pudieron cargar los presupuestos previos.');
                 setResultados([]);
             }
         } catch (error) {
@@ -309,13 +303,8 @@ export default function PresupuestoPrevioIndex() {
             if (operacionSeleccionada) {
                 try {
                     setIsLoadingImpuestos(true);
-                    const url = `https://localhost:44327/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`;
-                    const response = await fetch(url, {
-                        headers: { 'Content-Type': 'application/json' },
-                    });
-                    const data = await response.json();
-
-                    if (response.ok && data.dataResponse) {
+                    const data = await api.get(`/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`);
+                    if (data && data.dataResponse) {
                         // Mapear los datos del API al formato de impuestos_derechos
                         const impuestosFormato = data.dataResponse.map((item: ImpuestoDerechoAPI) => ({
                             id: item.impuestos_derechos_Id.toString(),
@@ -474,30 +463,21 @@ export default function PresupuestoPrevioIndex() {
             };
 
             const url = isEditing && formData.id
-                ? `https://localhost:44327/api/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
-                : 'https://localhost:44327/api/Presupuestos/CreatePresupuestoPrevio';
+                ? `/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
+                : '/Presupuestos/CreatePresupuestoPrevio';
 
-            const method = isEditing && formData.id ? 'PUT' : 'POST';
+            const data = isEditing && formData.id
+                ? await api.put(url, payload)
+                : await api.post(url, payload);
 
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            const resData = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-                throw new Error(resData?.message || 'Error al guardar el presupuesto');
+            if (data) {
+                setFormData(defaultPresupuestoData);
+                setOperacionFiltro('');
+                setZonaFiltro('');
+                setIsEditing(false);
+                setActiveTab('busqueda');
+                fetchPresupuestos(filtro);
             }
-
-            addToast(resData?.message || 'Presupuesto guardado correctamente', 'success');
-            setFormData(defaultPresupuestoData);
-            setOperacionFiltro('');
-            setZonaFiltro('');
-            setIsEditing(false);
-            setActiveTab('busqueda');
-            fetchPresupuestos(filtro);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
             setSaveError(message);
@@ -516,16 +496,14 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const response = await fetch(`https://localhost:44327/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const data = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
 
-            if (!response.ok) {
+            if (!data || !data.dataResponse) {
                 throw new Error('Error al obtener los detalles del presupuesto');
             }
 
-            const data = await response.json();
-            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data.dataResponse;
+            const data_response = data.dataResponse;
+            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
 
             // Mapear impuestos y derechos al formato DetalleItem
             const impuestosFormato = impuestosDerechos.map((item: any) => ({
@@ -599,19 +577,15 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingClientes(true);
         setClienteError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Clientes/GetClientes');
+            let endpoint = '/Clientes/GetClientes';
             if (filtroValue) {
-                url.searchParams.append('filtro', filtroValue);
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const response = await fetch(url.toString(), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok) {
+            const data = await api.get(endpoint);
+            if (data) {
                 setClienteResultados(data.dataResponse || []);
             } else {
-                setClienteError(data.message || 'No se encontraron clientes.');
+                setClienteError(data?.message || 'No se encontraron clientes.');
                 setClienteResultados([]);
             }
         } catch (error) {
@@ -637,7 +611,7 @@ export default function PresupuestoPrevioIndex() {
 
         try {
             setIsLoadingPdf(true);
-            const response = await fetch(`https://localhost:44327/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
+            const response = await fetch(`${apiBaseUrl}/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
                 method: 'GET',
             });
 
