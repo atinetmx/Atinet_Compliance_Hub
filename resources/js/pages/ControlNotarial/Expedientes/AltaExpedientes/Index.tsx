@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
+import { useApi } from '@/services/api';
 // Opciones de ejemplo para los dropdowns
 const TIPO_FACTURA_OPCIONES = [
     { value: 'factura', label: 'Factura' },
@@ -541,6 +542,7 @@ export default function ExpedientesIndex() {
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
 
     const { addToast } = useToast();
+    const api = useApi();
 
     // Cargar expedientes al montar (filtro vacío = todos)
     useEffect(() => {
@@ -563,10 +565,8 @@ export default function ExpedientesIndex() {
     const fetchPresupuestos = async (expedienteId: number) => {
         setCargandoPresupuestos(true);
         try {
-            const response = await fetch(`https://localhost:44327/api/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
+            if (data && data.dataResponse) {
                 setPresupuestos(data.dataResponse);
             } else {
                 setPresupuestos([]);
@@ -583,12 +583,8 @@ export default function ExpedientesIndex() {
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetOperaciones', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/Catalogos/GetOperaciones');
+            if (data && data.dataResponse) {
                 setOperacionesDisponibles(data.dataResponse);
                 setOperacionesFiltradas(data.dataResponse);
             }
@@ -603,12 +599,8 @@ export default function ExpedientesIndex() {
     const fetchMunicipios = async () => {
         setCargandoMunicipios(true);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetZonasMunicipios', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/Catalogos/GetZonasMunicipios');
+            if (data && data.dataResponse) {
                 setMunicipiosDisponibles(data.dataResponse);
                 setMunicipiosFiltrados(data.dataResponse);
             }
@@ -623,12 +615,8 @@ export default function ExpedientesIndex() {
     const fetchUsuarios = async () => {
         setCargandoUsuarios(true);
         try {
-            const response = await fetch('https://localhost:44327/api/User/GetRolesUsuarios', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/User/GetRolesUsuarios');
+            if (data && data.dataResponse) {
                 setUsuarios(data.dataResponse);
             }
         } catch (error) {
@@ -642,12 +630,8 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetDependenciasPublicas', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/Catalogos/GetDependenciasPublicas');
+            if (data && data.dataResponse) {
                 setDependenciasDisponibles(data.dataResponse);
                 setDependenciasFiltradas(data.dataResponse);
             }
@@ -661,12 +645,8 @@ export default function ExpedientesIndex() {
     const fetchClientes = async () => {
         setCargandoClientes(true);
         try {
-            const response = await fetch('https://localhost:44327/api/Clientes/GetClientes', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/Clientes/GetClientes');
+            if (data && data.dataResponse) {
                 setClientesDisponibles(data.dataResponse);
                 setClientesFiltrados(data.dataResponse);
             }
@@ -679,14 +659,9 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetComparecientes', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
+            const data = await api.get('/Catalogos/GetComparecientes');
             console.log('Respuesta Comparecientes:', data);
-
-            if (response.ok) {
+            if (data) {
                 // Manejar diferentes formatos de respuesta
                 const comparecientes = data.dataResponse || data.data || data;
                 if (Array.isArray(comparecientes)) {
@@ -708,12 +683,8 @@ export default function ExpedientesIndex() {
     const fetchTiposInmuebles = async () => {
         setCargandoTiposInmuebles(true);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetTipoInmueble', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/Catalogos/GetTipoInmueble');
+            if (data && data.dataResponse) {
                 setTiposInmuebles(data.dataResponse);
 
                 // Filtrar por categoría
@@ -739,14 +710,8 @@ export default function ExpedientesIndex() {
     const handleEditarInmueble = async (inmuebleId) => {
         setCargandoGuardarInmueble(true);
         try {
-            const response = await fetch(`https://localhost:44327/api/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse && data.dataResponse.length > 0) {
+            const data = await api.get(`/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`);
+            if (data && data.dataResponse && data.dataResponse.length > 0) {
                 const inmueblesData = data.dataResponse[0];
                 const datosData = inmueblesData.datos || {};
                 const especificacionesData = inmueblesData.especificaciones || {};
@@ -868,24 +833,19 @@ export default function ExpedientesIndex() {
             // Determinar si es creación o actualización
             const isEditing = inmuebleIdEnEdicion !== null;
             const endpoint = isEditing
-                ? `https://localhost:44327/api/Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
-                : 'https://localhost:44327/api/Expediente/CreateInmuebleExpediente';
-            const httpMethod = isEditing ? 'PUT' : 'POST';
+                ? `Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
+                : 'Expediente/CreateInmuebleExpediente';
 
             // Agregar expediente_Id solo para crear
             if (!isEditing) {
                 payload.expediente_Id = currentExpedienteId;
             }
 
-            const response = await fetch(endpoint, {
-                method: httpMethod,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const data = isEditing
+                ? await api.put(endpoint, payload)
+                : await api.post(endpoint, payload);
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
                 setMostrarFormInmueble(false);
                 // Limpiar formulario
@@ -950,12 +910,8 @@ export default function ExpedientesIndex() {
     const fetchDocumentosDisponibles = async () => {
         setCargandoDocumentosDisponibles(true);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetDocumentos', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get('/Catalogos/GetDocumentos');
+            if (data && data.dataResponse) {
                 setDocumentosDisponibles(data.dataResponse);
                 setMostrarModalAgregarDocumento(true);
             } else {
@@ -1092,7 +1048,7 @@ export default function ExpedientesIndex() {
         try {
             setIsLoadingRecibo(true);
             const response = await fetch(
-                `https://localhost:44327/api/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
+                `${new URL(window.location.href).origin}/api/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
                 { method: 'GET' }
             );
 
@@ -1171,23 +1127,16 @@ export default function ExpedientesIndex() {
                 });
             });
 
-            const response = await fetch(
-                `https://localhost:44327/api/Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(documentosPayload),
-                }
+            const data = await api.put(
+                `Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
+                documentosPayload
             );
 
-            if (response.ok) {
+            if (data) {
                 addToast('Documentos actualizados exitosamente', 'success');
             } else {
-                const errorData = await response.json();
-                console.error('Error al actualizar documentos:', errorData);
-                addToast('Error al actualizar documentos: ' + (errorData.message || 'Error desconocido'), 'error');
+                console.error('Error al actualizar documentos:', data);
+                addToast('Error al actualizar documentos: ' + (data?.message || 'Error desconocido'), 'error');
             }
         } catch (error) {
             console.error('Error actualizando documentos:', error);
@@ -1219,18 +1168,12 @@ export default function ExpedientesIndex() {
                 original: cambios.original,
             };
 
-            const response = await fetch(
-                `https://localhost:44327/api/Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                }
+            const data = await api.put(
+                `Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
+                payload
             );
 
-            if (response.ok) {
+            if (data) {
                   addToast('Documento actualizado exitosamente', 'success');
                 console.log(`Documento ${docsId} actualizado exitosamente`);
             } else {
@@ -1474,15 +1417,11 @@ export default function ExpedientesIndex() {
     const fetchDocumentosExpediente = async (expedienteId: number) => {
         setCargandoDocumentosExpediente(true);
         try {
-            const response = await fetch(`https://localhost:44327/api/Expediente/GetDocumentosClienteXExpediente?expedienteId=${expedienteId}`, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get(`/Expediente/GetDocumentosClienteXExpediente?expedienteId=${expedienteId}`);
+            if (data && data.dataResponse) {
                 setDocumentosPorCliente(data.dataResponse);
             } else {
-                console.error('Error al cargar documentos:', data.message);
+                console.error('Error al cargar documentos:', data?.message);
                 setDocumentosPorCliente([]);
             }
         } catch (error) {
@@ -1496,15 +1435,11 @@ export default function ExpedientesIndex() {
     const fetchInmueblesExpediente = async (expedienteId: number) => {
         setCargandoInmueblesExpediente(true);
         try {
-            const response = await fetch(`https://localhost:44327/api/Expediente/GetInmueblesXExpedienteById?expedienteId=${expedienteId}`, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok && data.dataResponse) {
+            const data = await api.get(`/Expediente/GetInmueblesXExpedienteById?expedienteId=${expedienteId}`);
+            if (data && data.dataResponse) {
                 setInmueblesExpediente(data.dataResponse);
             } else {
-                console.error('Error al cargar inmuebles:', data.message);
+                console.error('Error al cargar inmuebles:', data?.message);
                 setInmueblesExpediente([]);
             }
         } catch (error) {
@@ -1519,19 +1454,15 @@ export default function ExpedientesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Expediente/GetExpediente');
+            let endpoint = '/Expediente/GetExpediente';
             if (filtroValue) {
-                url.searchParams.append('filtro', filtroValue);
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const response = await fetch(url.toString(), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok) {
+            const data = await api.get(endpoint);
+            if (data) {
                 setResultados(data.dataResponse || []);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los expedientes.');
+                setSearchError(data?.message || 'No se pudieron cargar los expedientes.');
                 setResultados([]);
             }
         } catch (error) {
@@ -1608,10 +1539,9 @@ export default function ExpedientesIndex() {
 
     const handleLoadExpediente = async (expedienteId: number) => {
         try {
-            const response = await fetch(`https://localhost:44327/api/Expediente/GetExpedienteById?expedienteId=${expedienteId}`);
-            const data = await response.json();
+            const data = await api.get(`/Expediente/GetExpedienteById?expedienteId=${expedienteId}`);
 
-            if (!response.ok || !data.dataResponse || data.dataResponse.length === 0) {
+            if (!data || !data.dataResponse || data.dataResponse.length === 0) {
                 setSaveError('Error al cargar el expediente');
                 return;
             }
@@ -1834,17 +1764,9 @@ export default function ExpedientesIndex() {
                 })
             };
 
-            const response = await fetch('https://localhost:44327/api/Expediente/CreateExpediente', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestPayload),
-            });
+            const data = await api.post('Expediente/CreateExpediente', requestPayload);
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast('Expediente creado exitosamente', 'success');
 
                 // Obtener el ID del expediente creado
@@ -2137,9 +2059,8 @@ export default function ExpedientesIndex() {
     const fetchRecibosProvisionales = async (expedienteId: number) => {
         setCargandoRecibos(true);
         try {
-            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/GetRecibosProvisionalesXExpediente?expedienteId=${expedienteId}`);
-            const data = await response.json();
-            if (response.ok && data.dataResponse) {
+            const data = await api.get(`/ReciboProvisional/GetRecibosProvisionalesXExpediente?expedienteId=${expedienteId}`);
+            if (data && data.dataResponse) {
                 setRecibosProvisionales(data.dataResponse);
             } else {
                 setRecibosProvisionales([]);
@@ -2156,9 +2077,8 @@ export default function ExpedientesIndex() {
     const fetchReciboDetalle = async (reciboId: number) => {
         setCargandoReciboDetalle(true);
         try {
-            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/GetReciboProvicionalById?reciboId=${reciboId}`);
-            const data = await response.json();
-            if (response.ok && data.dataResponse && data.dataResponse.length > 0) {
+            const data = await api.get(`/ReciboProvisional/GetReciboProvicionalById?reciboId=${reciboId}`);
+            if (data && data.dataResponse && data.dataResponse.length > 0) {
                 setReciboDetalleSeleccionado(data.dataResponse[0]);
                 setMostrarFormularioRecibo(true);
             } else {
@@ -2192,15 +2112,9 @@ export default function ExpedientesIndex() {
                 notario_Id: notarioId,
             };
 
-            const response = await fetch('https://localhost:44327/api/ReciboProvisional/CreateReciboProvisional', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const data = await api.post('ReciboProvisional/CreateReciboProvisional', payload);
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast('Recibo generado exitosamente', 'success');
                 // Limpiar formulario
                 setReciboData({ impuestosDerechos: 0, gastosNotariales: 0, honorarios: 0, concepto: '', formaPago: '', observaciones: '', clienteId: null });
@@ -2227,14 +2141,9 @@ export default function ExpedientesIndex() {
 
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const data = await api.put(`ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast('Recibo pagado exitosamente', 'success');
                 // Recargar los recibos
                 if (currentExpedienteId) {
@@ -2261,14 +2170,9 @@ export default function ExpedientesIndex() {
 
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const data = await api.put(`ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast('Recibo cancelado exitosamente', 'success');
                 // Recargar los recibos
                 if (currentExpedienteId) {
@@ -2290,7 +2194,7 @@ export default function ExpedientesIndex() {
     const handleImprimirRecibo = async (reciboId: number) => {
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`https://localhost:44327/api/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
+            const response = await fetch(`${new URL(window.location.href).origin}/api/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
                 method: 'GET',
             });
 
