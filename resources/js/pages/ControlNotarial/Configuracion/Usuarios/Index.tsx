@@ -102,14 +102,12 @@ const api = useApi();
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await await api.get('Catalogos/GetRoles', {
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                if (!response.ok) {
+                const data = await api.get('/Catalogos/GetRoles');
+                if (data && data.dataResponse) {
+                    setRoles(data.dataResponse || []);
+                } else {
                     throw new Error(data?.message || 'Error al obtener los roles');
                 }
-                setRoles(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando roles:', error);
                 const message = error instanceof Error ? error.message : 'Error al cargar los roles';

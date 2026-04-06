@@ -111,13 +111,10 @@ const api = useApi();
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await await api.get('Catalogos/GetOperaciones', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            const data = await api.get('/Catalogos/GetOperaciones');
 
-            if (response.ok) {
-                const todos = data.dataResponse || data || [];
+            if (data && data.dataResponse) {
+                const todos = data.dataResponse || [];
                 // Filtrar si hay texto de búsqueda
                 if (filtroValue.trim()) {
                     const filtradas = todos.filter((op: Operacion) =>
@@ -128,7 +125,7 @@ const api = useApi();
                     setOperaciones(todos);
                 }
             } else {
-                setSearchError(data.message || 'No se pudieron cargar las operaciones.');
+                setSearchError(data?.message || 'No se pudieron cargar las operaciones.');
                 setOperaciones([]);
             }
         } catch (error) {

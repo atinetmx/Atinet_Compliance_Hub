@@ -44,7 +44,7 @@ const api = useApi();
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
         try {
-            const endpoint = 'User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : '');
+            const endpoint = '/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : '');
             const data = await api.get(endpoint);
             if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
                 setUsuarios(data.dataResponse);
