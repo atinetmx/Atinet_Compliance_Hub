@@ -152,6 +152,17 @@ interface ReciboDetalle {
     estatus: string;
 }
 
+interface Presupuesto {
+    id: number;
+    numero_Presupuesto: number;
+    cliente: string;
+    descripcion: string;
+    total_Honorarios: number | null;
+    total_Impuestos_Derechos: number | null;
+    total_Gastos_Notariales: number | null;
+    total_Presupuesto: number | null;
+}
+
 interface ExpedienteFormData {
     id?: number;
     expediente: string;
@@ -367,6 +378,10 @@ export default function ExpedientesIndex() {
     const [showRecibosPdfViewer, setShowRecibosPdfViewer] = useState(false);
     const [recibosPdfUrl, setRecibosPdfUrl] = useState<string | null>(null);
 
+    // --- Estado para almacenar presupuestos ---
+    const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
+    const [cargandoPresupuestos, setCargandoPresupuestos] = useState(false);
+
     // --- Estados para Documentos por Cliente (Expediente) ---
     const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
         expediente: string;
@@ -518,6 +533,26 @@ export default function ExpedientesIndex() {
             Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
         };
     }, []);
+
+    // Cargar presupuestos cuando se carga un expediente
+    const fetchPresupuestos = async (expedienteId: number) => {
+        setCargandoPresupuestos(true);
+        try {
+            const response = await fetch(`https://localhost:44327/api/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
+            const data = await response.json();
+
+            if (response.ok && data.dataResponse) {
+                setPresupuestos(data.dataResponse);
+            } else {
+                setPresupuestos([]);
+            }
+        } catch (error) {
+            console.error('Error cargando presupuestos:', error);
+            setPresupuestos([]);
+        } finally {
+            setCargandoPresupuestos(false);
+        }
+    };
 
     // Cargar operaciones disponibles desde API
     const fetchOperaciones = async () => {
@@ -1366,6 +1401,7 @@ export default function ExpedientesIndex() {
             fetchDocumentosExpediente(currentExpedienteId);
             fetchInmueblesExpediente(currentExpedienteId);
             fetchRecibosProvisionales(currentExpedienteId);
+            fetchPresupuestos(currentExpedienteId);
         }
     }, [currentExpedienteId]);
 
@@ -1676,6 +1712,7 @@ export default function ExpedientesIndex() {
             await fetchDocumentosExpediente(expedienteId);
             await fetchInmueblesExpediente(expedienteId);
              await fetchRecibosProvisionales(expedienteId);
+             await fetchPresupuestos(expedienteId);
         } catch (error) {
             setSaveError('Error al cargar el expediente');
             console.error('Error:', error);
@@ -4360,14 +4397,76 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 4: FINANCIERO & CONTROL - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="financiero-control" className="space-y-6">
-                                    <Tabs defaultValue="recibos" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                    <Tabs defaultValue="presupuesto" className="w-full">
+                                        <TabsList className="grid w-full grid-cols-6 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+                                            <TabsTrigger value="presupuesto" className="text-xs">Presupuesto</TabsTrigger>
                                             <TabsTrigger value="recibos" className="text-xs">Recibos</TabsTrigger>
                                             <TabsTrigger value="estado-cuenta" className="text-xs">Estado Cuenta</TabsTrigger>
                                             <TabsTrigger value="pld" className="text-xs">PLD</TabsTrigger>
                                             <TabsTrigger value="operaciones-lavado" className="text-xs">Op. Lavado</TabsTrigger>
                                             <TabsTrigger value="exportaciones" className="text-xs">Exportaciones</TabsTrigger>
                                         </TabsList>
+
+                                        {/* SubTab: Presupuesto */}
+                                        <TabsContent value="presupuesto" className="space-y-6">
+                                            <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                                                <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-0">Presupuestos Generados</h3>
+                                            </div>
+
+                                            {cargandoPresupuestos && (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                                    <span className="ml-2 text-sm text-muted-foreground">Cargando presupuestos...</span>
+                                                </div>
+                                            )}
+
+                                            {!cargandoPresupuestos && presupuestos.length === 0 && (
+                                                <div className="border rounded-lg p-4">
+                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay presupuestos registrados para este expediente.</p>
+                                                </div>
+                                            )}
+
+                                            {!cargandoPresupuestos && presupuestos.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden">
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-sm">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                                                <tr>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Nº Presupuesto</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Cliente</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                                    <th className="px-4 py-2 text-right font-semibold">Honorarios</th>
+                                                                    <th className="px-4 py-2 text-right font-semibold">Impuestos/Derechos</th>
+                                                                    <th className="px-4 py-2 text-right font-semibold">Gastos Notariales</th>
+                                                                    <th className="px-4 py-2 text-right font-semibold">Total Presupuesto</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {presupuestos.map((presupuesto, idx) => (
+                                                                    <tr key={idx} className="border-b hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors">
+                                                                        <td className="px-4 py-2 font-semibold text-purple-600 dark:text-purple-400">{presupuesto.numero_Presupuesto}</td>
+                                                                        <td className="px-4 py-2">{presupuesto.cliente}</td>
+                                                                        <td className="px-4 py-2 text-xs">{presupuesto.descripcion}</td>
+                                                                        <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
+                                                                            ${(presupuesto.total_Honorarios || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
+                                                                            ${(presupuesto.total_Impuestos_Derechos || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
+                                                                            ${(presupuesto.total_Gastos_Notariales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        </td>
+                                                                        <td className="px-4 py-2 text-right font-semibold text-green-600 dark:text-green-400">
+                                                                            ${(presupuesto.total_Presupuesto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </TabsContent>
 
                                         {/* SubTab: Recibos */}
                                         <TabsContent value="recibos" className="space-y-6">
