@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Database, FileText, AlertTriangle, Building2, File, Briefcase, DollarSign, Users, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,6 +108,7 @@ export default function ControlNotarialAltaCatalogos() {
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
+    const api = useApi();
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -185,11 +187,8 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetActividadesVulnerables', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-            if (response.ok) {
+            const data = await api.get('/Catalogos/GetActividadesVulnerables');
+            if (data) {
                 setActividadesVulnerablesLista(data.dataResponse || []);
             }
         } catch (error) {
@@ -199,11 +198,8 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetDependenciasPublicas', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-            if (response.ok) {
+            const data = await api.get('/Catalogos/GetDependenciasPublicas');
+            if (data) {
                 setDependenciasLista(data.dataResponse || []);
             }
         } catch (error) {
@@ -216,14 +212,10 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const response = await fetch(`https://localhost:44327/api/Catalogos/${endpoint}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            const data = await api.get(`/Catalogos/${endpoint}`);
 
             // Mostrar resultados si existen en dataResponse, o mostrar el mensaje si no (incluso en 400)
-            if (data.dataResponse && Array.isArray(data.dataResponse)) {
+            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
                 setTodosLosResultados(data.dataResponse);
                 setResultados(data.dataResponse);
                 setSearchError(null);
@@ -436,34 +428,15 @@ export default function ControlNotarialAltaCatalogos() {
             setSaveError(null);
 
             const endpoint = isEditing ? getUpdateEndpoint() : getCreateEndpoint();
-            const method = isEditing ? 'PUT' : 'POST';
             const payload = buildPayload(currentState);
 
-            console.log(`[DEBUG] Enviando ${method} a ${endpoint}`, payload);
+            console.log(`[DEBUG] Enviando ${isEditing ? 'PUT' : 'POST'} a Catalogos/${endpoint}`, payload);
 
-            const response = await fetch(`https://localhost:44327/api/Catalogos/${endpoint}`, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const data = isEditing
+                ? await api.put(`/Catalogos/${endpoint}`, payload)
+                : await api.post(`/Catalogos/${endpoint}`, payload);
 
-            console.log(`[DEBUG] Status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
-
-            // Intentar parsear como JSON, pero manejar respuestas vacías
-            let data;
-            const contentType = response.headers.get('content-type');
-            const text = await response.text();
-
-            if (text && contentType?.includes('application/json')) {
-                data = JSON.parse(text);
-            } else {
-                console.warn(`[DEBUG] Respuesta no-JSON o vacía:`, text);
-                data = { message: text || 'Operación completada' };
-            }
-
-            if (!response.ok) {
-                throw new Error(data?.message || `Error al guardar el catálogo (${response.status})`);
-            }
+            console.log(`[DEBUG] Response:`, data);
 
             addToast(data?.message || `Catálogo guardado correctamente`, 'success');
             handleCancelEdit();

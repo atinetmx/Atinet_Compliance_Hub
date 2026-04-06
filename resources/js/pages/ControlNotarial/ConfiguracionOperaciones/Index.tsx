@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { X, AlertCircle, Search, Loader2, Building2, Save, Settings, SettingsIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +65,7 @@ interface ImpuestoDerechoOperacion {
 
 export default function ControlNotarialConfiguracionOperacionesIndex() {
     const { addToast } = useToast();
+const api = useApi();
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -109,7 +111,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await fetch('https://localhost:44327/api/Catalogos/GetOperaciones', {
+            const response = await await api.get('Catalogos/GetOperaciones', {
                 headers: { 'Content-Type': 'application/json' },
             });
             const data = await response.json();
@@ -153,13 +155,9 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
 
         try {
             // Cargar etapas configuradas
-            const responseEtapasConfiguradasURL = `https://localhost:44327/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
-            const responseEtapasConfiguradas = await fetch(responseEtapasConfiguradasURL, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataEtapasConfiguradas = await responseEtapasConfiguradas.json();
+            const dataEtapasConfiguradas = await api.get(`/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`);
             // Si la respuesta es exitosa, usar los datos; si no, usar array vacío
-            if (responseEtapasConfiguradas.ok && dataEtapasConfiguradas.dataResponse) {
+            if (dataEtapasConfiguradas && dataEtapasConfiguradas.dataResponse) {
                 setEtapasConfiguradasOperacion(dataEtapasConfiguradas.dataResponse);
             } else {
                 // No hay etapas configuradas (estado normal al inicio)
@@ -167,61 +165,44 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await fetch('https://localhost:44327/api/Catalogos/GetEtapas', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataEtapasDisponibles = await responseEtapasDisponibles.json();
-            setEtapasDisponibles(dataEtapasDisponibles.dataResponse || dataEtapasDisponibles || []);
+            const dataEtapasDisponibles = await api.get('/Catalogos/GetEtapas');
+            setEtapasDisponibles(dataEtapasDisponibles?.dataResponse || dataEtapasDisponibles || []);
             setEtapasSeleccionadas([]);
             setEtapasRemovidasOperacion([]);
 
             // Cargar documentos configurados
-            const responseDocumentosConfiguradosURL = `https://localhost:44327/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
-            const responseDocumentosConfigurados = await fetch(responseDocumentosConfiguradosURL, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataDocumentosConfigurados = await responseDocumentosConfigurados.json();
-            if (responseDocumentosConfigurados.ok && dataDocumentosConfigurados.dataResponse) {
+            const dataDocumentosConfigurados = await api.get(`/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`);
+            if (dataDocumentosConfigurados && dataDocumentosConfigurados.dataResponse) {
                 setDocumentosConfiguradosOperacion(dataDocumentosConfigurados.dataResponse);
             } else {
                 setDocumentosConfiguradosOperacion([]);
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await fetch('https://localhost:44327/api/Catalogos/GetDocumentos', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataDocumentosDisponibles = await responseDocumentosDisponibles.json();
-            setDocumentosDisponibles(dataDocumentosDisponibles.dataResponse || dataDocumentosDisponibles || []);
+            const dataDocumentosDisponibles = await api.get('/Catalogos/GetDocumentos');
+            setDocumentosDisponibles(dataDocumentosDisponibles?.dataResponse || dataDocumentosDisponibles || []);
             setDocumentosSeleccionados([]);
             setDocumentosRemovidosOperacion([]);
 
             // Cargar impuestos configurados
-            const responseImpuestosConfiguradosURL = `https://localhost:44327/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
-            const responseImpuestosConfigurados = await fetch(responseImpuestosConfiguradosURL, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataImpuestosConfigurados = await responseImpuestosConfigurados.json();
-            console.log('Impuestos Configurados:', dataImpuestosConfigurados.dataResponse);
-            if (dataImpuestosConfigurados.dataResponse && dataImpuestosConfigurados.dataResponse.length > 0) {
+            const dataImpuestosConfigurados = await api.get(`/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`);
+            console.log('Impuestos Configurados:', dataImpuestosConfigurados?.dataResponse);
+            if (dataImpuestosConfigurados?.dataResponse && dataImpuestosConfigurados.dataResponse.length > 0) {
                 console.log('Primer impuesto configurado (estructura):', dataImpuestosConfigurados.dataResponse[0]);
             }
-            if (responseImpuestosConfigurados.ok && dataImpuestosConfigurados.dataResponse) {
+            if (dataImpuestosConfigurados && dataImpuestosConfigurados.dataResponse) {
                 setImpuestosConfiguradosOperacion(dataImpuestosConfigurados.dataResponse);
             } else {
                 setImpuestosConfiguradosOperacion([]);
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await fetch('https://localhost:44327/api/Catalogos/GetImpuestosDerechos', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const dataImpuestosDisponibles = await responseImpuestosDisponibles.json();
-            console.log('Impuestos Disponibles:', dataImpuestosDisponibles.dataResponse);
-            if (dataImpuestosDisponibles.dataResponse && dataImpuestosDisponibles.dataResponse.length > 0) {
+            const dataImpuestosDisponibles = await api.get('/Catalogos/GetImpuestosDerechos');
+            console.log('Impuestos Disponibles:', dataImpuestosDisponibles?.dataResponse);
+            if (dataImpuestosDisponibles?.dataResponse && dataImpuestosDisponibles.dataResponse.length > 0) {
                 console.log('Primer impuesto disponible (estructura):', dataImpuestosDisponibles.dataResponse[0]);
             }
-            setImpuestosDisponibles(dataImpuestosDisponibles.dataResponse || dataImpuestosDisponibles || []);
+            setImpuestosDisponibles(dataImpuestosDisponibles?.dataResponse || dataImpuestosDisponibles || []);
             setImpuestosSeleccionados([]);
             setImpuestosRemovidosOperacion([]);
         } catch (error) {
@@ -315,7 +296,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://localhost:44327/api/ConfiguracionOperacion/AddEtapasOperacion';
+            url = '/ConfiguracionOperacion/AddEtapasOperacion';
         } else if (activeSubTab === 'documentos') {
             const documentosMantenidos = documentosConfiguradosOperacion
                 .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
@@ -330,7 +311,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://localhost:44327/api/ConfiguracionOperacion/AddDocumentoOperacion';
+            url = '/ConfiguracionOperacion/AddDocumentoOperacion';
         } else if (activeSubTab === 'impuestos') {
             const impuestosMantenidos = impuestosConfiguradosOperacion
                 .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
@@ -351,7 +332,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://localhost:44327/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+            url = '/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
         }
 
         setIsSavingConfig(true);
@@ -362,15 +343,9 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 lista_N: listaFinal,
             };
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const data = await api.post(url, payload);
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (data) {
                 addToast(data.message || 'Configuración guardada correctamente', 'success');
 
                 // Actualizar estado local inmediatamente
@@ -952,3 +927,4 @@ ControlNotarialConfiguracionOperacionesIndex.layout = (page: React.ReactNode) =>
         {page}
     </AppLayout>
 );
+

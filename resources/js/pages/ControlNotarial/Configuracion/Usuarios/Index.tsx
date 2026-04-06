@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -92,6 +91,7 @@ export default function ControlNotarialUsuarios() {
     const [cambiarContraseña, setCambiarContraseña] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
+const api = useApi();
 
     // Cargar usuarios al montar (filtro vacío = todos)
     useEffect(() => {
@@ -102,7 +102,7 @@ export default function ControlNotarialUsuarios() {
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await fetch('https://localhost:44327/api/Catalogos/GetRoles', {
+                const response = await await api.get('Catalogos/GetRoles', {
                     headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
@@ -125,21 +125,18 @@ export default function ControlNotarialUsuarios() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/User/GetUsuarios');
-            url.searchParams.append('filtro', filtroValue);
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            let endpoint = '/User/GetUsuarios';
+            if (filtroValue) {
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
+            }
+            const data = await api.get(endpoint);
 
-            // Si response.ok (200-299), mostrar datos
-            if (response.ok) {
+            // Si data existe, mostrar datos
+            if (data && data.dataResponse) {
                 setResultados(data.dataResponse || []);
             } else {
-                // Si es 400 u otro error, pero la API devolvió un mensaje, mostrar ese mensaje
-                // (ej: "No hay usuarios que coincidan con: 324")
-                setSearchError(data.message || 'No se pudieron cargar los usuarios.');
+                // Si la API devolvió un mensaje, mostrar ese mensaje
+                setSearchError(data?.message || 'No se pudieron cargar los usuarios.');
                 setResultados([]);
             }
         } catch (error) {
@@ -176,37 +173,25 @@ export default function ControlNotarialUsuarios() {
             try {
                 setIsSaving(true);
                 setSaveError(null);
-                const response = await fetch(
-                    `https://localhost:44327/api/User/UpdateUsuario?usuarioId=${formData.id}`,
-                    {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nombre: formData.nombre,
-                            apellido_Paterno: formData.apellido_paterno,
-                            apellido_Materno: formData.apellido_materno,
-                            correo: formData.correo,
-                            usuario: formData.usuario,
-                            contrasena: formData.contraseña,
-                            curp: formData.curp,
-                            rfc: formData.rfc,
-                            rol_Id: formData.rol ? Number(formData.rol) : 0,
-                            iniciales: formData.iniciales,
-                            numero_Notaria: formData.numero_notaria,
-                            adscripcion: formData.adscripcion,
-                            tipo: formData.tipo,
-                            procedencia: formData.procedencia,
-                            observaciones: formData.observaciones,
-                            activo: formData.activo,
-                        }),
-                    }
-                );
-
-                const resData = await response.json().catch(() => ({}));
-
-                if (!response.ok) {
-                    throw new Error(resData?.message || resData?.dataResponse?.message || 'Error al actualizar el usuario');
-                }
+                const payload = {
+                    nombre: formData.nombre,
+                    apellido_Paterno: formData.apellido_paterno,
+                    apellido_Materno: formData.apellido_materno,
+                    correo: formData.correo,
+                    usuario: formData.usuario,
+                    contrasena: formData.contraseña,
+                    curp: formData.curp,
+                    rfc: formData.rfc,
+                    rol_Id: formData.rol ? Number(formData.rol) : 0,
+                    iniciales: formData.iniciales,
+                    numero_Notaria: formData.numero_notaria,
+                    adscripcion: formData.adscripcion,
+                    tipo: formData.tipo,
+                    procedencia: formData.procedencia,
+                    observaciones: formData.observaciones,
+                    activo: formData.activo,
+                };
+                const resData = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
 
                 addToast(resData?.message || resData?.dataResponse?.message || 'Usuario actualizado correctamente', 'success');
                 setFormData(defaultUsuarioData);
@@ -224,37 +209,25 @@ export default function ControlNotarialUsuarios() {
             try {
                 setIsSaving(true);
                 setSaveError(null);
-                const response = await fetch(
-                    'https://localhost:44327/api/User/CreateUsuario',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nombre: formData.nombre,
-                            apellido_Paterno: formData.apellido_paterno,
-                            apellido_Materno: formData.apellido_materno,
-                            correo: formData.correo,
-                            usuario: formData.usuario,
-                            contrasena: formData.contraseña,
-                            curp: formData.curp,
-                            rfc: formData.rfc,
-                            rol_Id: formData.rol ? Number(formData.rol) : 0,
-                            iniciales: formData.iniciales,
-                            numero_Notaria: formData.numero_notaria,
-                            adscripcion: formData.adscripcion,
-                            tipo: formData.tipo,
-                            procedencia: formData.procedencia,
-                            observaciones: formData.observaciones,
-                            activo: formData.activo,
-                        }),
-                    }
-                );
-
-                const resData = await response.json().catch(() => ({}));
-
-                if (!response.ok) {
-                    throw new Error(resData?.message || resData?.dataResponse?.message || 'Error al crear el usuario');
-                }
+                const payload = {
+                    nombre: formData.nombre,
+                    apellido_Paterno: formData.apellido_paterno,
+                    apellido_Materno: formData.apellido_materno,
+                    correo: formData.correo,
+                    usuario: formData.usuario,
+                    contrasena: formData.contraseña,
+                    curp: formData.curp,
+                    rfc: formData.rfc,
+                    rol_Id: formData.rol ? Number(formData.rol) : 0,
+                    iniciales: formData.iniciales,
+                    numero_Notaria: formData.numero_notaria,
+                    adscripcion: formData.adscripcion,
+                    tipo: formData.tipo,
+                    procedencia: formData.procedencia,
+                    observaciones: formData.observaciones,
+                    activo: formData.activo,
+                };
+                const resData = await api.post('/User/CreateUsuario', payload);
 
                 addToast(resData?.message || resData?.dataResponse?.message || 'Usuario creado correctamente', 'success');
                 setFormData(defaultUsuarioData);
@@ -280,12 +253,8 @@ export default function ControlNotarialUsuarios() {
         setSaveError(null);
         setActiveTab('formulario');
         try {
-            const response = await fetch(
-                `https://localhost:44327/api/User/GetUsuarioById?usuarioId=${usuario.id}`,
-                { headers: { 'Content-Type': 'application/json' } }
-            );
-            const data = await response.json();
-            if (!response.ok) {
+            const data = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
+            if (!data || !data.dataResponse) {
                 throw new Error(data?.message || 'Error al obtener el usuario');
             }
             const u = data.dataResponse;
@@ -741,5 +710,6 @@ ControlNotarialUsuarios.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+
 
 

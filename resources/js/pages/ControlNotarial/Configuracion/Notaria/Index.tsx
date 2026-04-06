@@ -9,6 +9,7 @@ import {
     X
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
 
 import { Button } from '@/components/ui/button';
@@ -156,6 +157,7 @@ const defaultFoliosData: FoliosData = {
 
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
+const api = useApi();
     const [notariaData, setNotariaData] = useState<NotariaData>(defaultNotariaData);
     const [controlData, setControlData] = useState<ControlData>(defaultControlData);
     const [servidorData, setServidorData] = useState<ServidorData>(defaultServidorData);
@@ -175,18 +177,12 @@ export default function ControlNotarialConfiguracionIndex() {
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
-                const response = await fetch('https://localhost:44327/api/ConfiguracionNotarial/GetConfiguracionNotaria', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
+                const data = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
-                if (!response.ok) {
+                if (!data) {
                     throw new Error('Error al obtener la configuración');
                 }
 
-                const data = await response.json();
                 const notaria = data.dataResponse;
 
                 // Capturar el ID (puede ser id, idConfiguracionNotaria, configuracionId, etc.)
@@ -223,18 +219,12 @@ export default function ControlNotarialConfiguracionIndex() {
     useEffect(() => {
         const fetchConfiguracionControl = async () => {
             try {
-                const response = await fetch('https://localhost:44327/api/ConfiguracionNotarial/GetConfiguracionControlNotarial', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
+                const data = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
 
-                if (!response.ok) {
+                if (!data) {
                     throw new Error('Error al obtener la configuración de control');
                 }
 
-                const data = await response.json();
                 const config = data.dataResponse;
 
                 console.log('Datos de Control, Cálculos y Folios:', config);
@@ -315,17 +305,12 @@ export default function ControlNotarialConfiguracionIndex() {
 
             console.log('Enviando FormData con ID:', configId);
 
-            const response = await fetch('https://localhost:44327/api/ConfiguracionNotarial/UpdateConfiguracionNotaria', {
-                method: 'PUT',
-                body: formData,
-                // NO incluir Content-Type header, el navegador lo establece automáticamente con FormData
-            });
+            const data = await api.post('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
-            if (!response.ok) {
-                throw new Error(`Error en la respuesta de la API: ${response.status}`);
+            if (!data) {
+                throw new Error('Error en la respuesta de la API');
             }
 
-            const data = await response.json();
             console.log('Configuración guardada:', data);
 
             // Ahora guardar los datos de Control, Cálculos y Folios
@@ -362,18 +347,10 @@ export default function ControlNotarialConfiguracionIndex() {
 
                 console.log('Enviando datos de Control con ID:', controlConfigId);
 
-                const controlResponse = await fetch('https://localhost:44327/api/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(controlPayload),
-                });
+                const controlData2 = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
 
-                const controlData2 = await controlResponse.json();
-
-                if (!controlResponse.ok) {
-                    throw new Error(controlData2?.message || `Error al guardar configuración de control: ${controlResponse.status}`);
+                if (!controlData2) {
+                    throw new Error(controlData2?.message || `Error al guardar configuración de control`);
                 }
                 console.log('Control guardado:', controlData2);
             }
@@ -1174,3 +1151,4 @@ ControlNotarialConfiguracionIndex.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+

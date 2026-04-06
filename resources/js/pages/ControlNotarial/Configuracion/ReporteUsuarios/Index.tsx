@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { BarChart3, Download, Filter, MapPin } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RequiredLabel } from '@/components/ui/label';
@@ -26,6 +25,7 @@ const getTodayDate = () => {
 
 export default function ControlNotarialReporteUsuarios() {
     const { addToast } = useToast();
+const api = useApi();
     const [userId, setUserId] = useState('all');
     const [usuarios, setUsuarios] = useState<any[]>([]);
     const [filtroUsuario, setFiltroUsuario] = useState('');
@@ -44,13 +44,9 @@ export default function ControlNotarialReporteUsuarios() {
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
         try {
-            const response = await fetch('https://localhost:44327/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            const data = await response.json();
-            if (data.dataResponse && Array.isArray(data.dataResponse)) {
+            const endpoint = 'User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : '');
+            const data = await api.get(endpoint);
+            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
                 setUsuarios(data.dataResponse);
             }
         } catch (error) {
@@ -76,31 +72,28 @@ export default function ControlNotarialReporteUsuarios() {
                 return fecha.replace(/-/g, '/');
             };
 
-// Construir URL con parámetros, omitiendo operacion si es 'all'
-            let url = 'https://localhost:44327/api/Bitacora/GenerateReporteBitacora?';
-            const params = [];
-
-            params.push(`userId=${encodeURIComponent(userId && userId !== 'all' ? userId : '0')}`);
+            // Construir URL con parámetros, omitiendo operacion si es 'all'
+            const params = new URLSearchParams();
+            params.append('userId', userId && userId !== 'all' ? userId : '0');
             if (operacion && operacion !== 'all') {
-                params.push(`operacion=${encodeURIComponent(operacion)}`);
+                params.append('operacion', operacion);
             }
-            params.push(`fechaInicio=${encodeURIComponent(convertirFecha(fechaInicio))}`);
-            params.push(`fechaFin=${encodeURIComponent(convertirFecha(fechaFin))}`);
+            params.append('fechaInicio', convertirFecha(fechaInicio));
+            params.append('fechaFin', convertirFecha(fechaFin));
 
-            url += params.join('&');
+            const endpoint = `/Bitacora/GenerateReporteBitacora?${params.toString()}`;
+            console.log(`[DEBUG] Solicitando PDF a: ${endpoint}`);
 
-            console.log(`[DEBUG] Solicitando PDF a: ${url}`);
-
-            const response = await fetch(url, {
+            const responseBlob = await fetch(api.baseUrl + endpoint, {
                 method: 'GET',
             });
 
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            if (!responseBlob.ok) {
+                throw new Error(`Error ${responseBlob.status}: ${responseBlob.statusText}`);
             }
 
             // Obtener el PDF como blob
-            const pdfBlob = await response.blob();
+            const pdfBlob = await responseBlob.blob();
             console.log(`[DEBUG] PDF recibido, tamaño: ${pdfBlob.size} bytes`);
 
             // Crear una URL para el blob
@@ -136,7 +129,7 @@ export default function ControlNotarialReporteUsuarios() {
             <Head title="Reporte de Bitácora - Control Notarial" />
 
               <div className="space-y-6 px-6 pt-6">
-                
+
 
                 <div>
                     {/* Sección de Filtros */}
@@ -266,3 +259,4 @@ ControlNotarialReporteUsuarios.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+

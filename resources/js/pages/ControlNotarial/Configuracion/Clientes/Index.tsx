@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users, User, Calendar, MapPin, Phone, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -197,6 +198,7 @@ export default function ControlNotarialClientes() {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [isLoadingCliente, setIsLoadingCliente] = useState(false);
     const { addToast } = useToast();
+const api = useApi();
 
     // Cargar clientes al montar (filtro vacío = todos)
     useEffect(() => {
@@ -207,23 +209,12 @@ export default function ControlNotarialClientes() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://localhost:44327/api/Clientes/GetClientes');
+            let endpoint = '/Clientes/GetClientes';
             if (filtroValue.trim()) {
-                url.searchParams.append('filtro', filtroValue);
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
 
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
+            const data = await api.get(endpoint);
 
             // Mapear respuesta API a ClienteBusqueda
             const clientesList: ClienteBusqueda[] = data.dataResponse.map((cliente: any) => ({
@@ -272,21 +263,7 @@ export default function ControlNotarialClientes() {
         setIsLoadingCliente(true);
         try {
             // Llamar a la API para obtener los datos completos del cliente
-            const response = await fetch(
-                `https://localhost:44327/api/Clientes/GetClientesById?clienteId=${cliente.id}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
+            const data = await api.get(`/Clientes/GetClientesById?clienteId=${cliente.id}`);
             const clienteData = data.dataResponse[0]?.cliente || {};
             const domicilios = data.dataResponse[0]?.domicilio || [];
             const identificaciones = data.dataResponse[0]?.identificacion || [];
@@ -546,35 +523,25 @@ export default function ControlNotarialClientes() {
 
             // Determinar URL y método según si es crear o actualizar
             const isUpdating = isEditing && formData.id;
-            const url = isUpdating
-                ? `https://localhost:44327/api/Clientes/UpdateCliente?clienteId=${formData.id}`
-                : 'https://localhost:44327/api/Clientes/CreateClient';
-            const method = isUpdating ? 'PUT' : 'POST';
+            const endpoint = isUpdating
+                ? `/Clientes/UpdateCliente?clienteId=${formData.id}`
+                : '/Clientes/CreateClient';
 
             // Llamar a API
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
+            const responseData = isUpdating
+                ? await api.put(endpoint, payload)
+                : await api.post(endpoint, payload);
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorData.message || `HTTP error! status: ${response.status}`
-                );
+            if (responseData && responseData.message) {
+                const successMessage = isUpdating
+                    ? responseData.message || 'Cliente actualizado correctamente'
+                    : responseData.message || 'Cliente creado correctamente';
+
+                addToast(successMessage, 'success');
+            } else {
+                addToast(isUpdating ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
             }
 
-            const responseData = await response.json();
-
-            const successMessage = isUpdating
-                ? responseData.message || 'Cliente actualizado correctamente'
-                : responseData.message || 'Cliente creado correctamente';
-
-            addToast(successMessage, 'success');
             setFormData(defaultClienteData);
             setIsEditing(false);
             setActiveTab('busqueda');
@@ -1537,4 +1504,5 @@ ControlNotarialClientes.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+
 
