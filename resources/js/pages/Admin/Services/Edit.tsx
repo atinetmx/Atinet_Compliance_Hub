@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Package, Save, ArrowLeft } from 'lucide-react';
+import { Edit, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,7 @@ export default function ServicesEdit({
         {
             title: 'Editar',
             href: '#',
+            icon: Edit,
         },
     ];
 
@@ -80,6 +81,24 @@ export default function ServicesEdit({
         is_active: service.is_active,
     });
 
+    // Descripciones de las categorías
+    const categoryDescriptions: Record<string, string> = {
+        consulta: 'Servicios de búsqueda y verificación en bases de datos externas (OFAC, SAT, etc.)',
+        api: 'Servicios de integración mediante API con sistemas externos y proveedores de datos',
+        sistema: 'Servicios internos del sistema como gestión de usuarios, notificaciones y configuración',
+        analisis: 'Servicios de análisis de datos, generación de reportes y estadísticas de uso',
+        storage: 'Servicios de almacenamiento de documentos, imágenes y archivos',
+        integration: 'Servicios de integración con software de terceros y sistemas legacy',
+    };
+
+    // Descripciones de los modelos de facturación
+    const billingModelDescriptions: Record<string, string> = {
+        included: 'Incluido en el plan sin costo adicional. La notaría puede usar este servicio libremente.',
+        limited: 'Con un límite mensual de uso incluido. Al superar el límite, puede aplicar cargo adicional.',
+        per_use: 'Se cobra por cada uso individual. Cada consulta genera un cargo según el precio unitario.',
+        unlimited: 'Uso ilimitado sin restricciones ni cargos adicionales incluido en el plan.',
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         put(`/admin/services/${service.id}`);
@@ -90,20 +109,7 @@ export default function ServicesEdit({
             <Head title={`Editar Servicio - ${service.name}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.history.back()}
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
-                    </Button>
-                    <Package className="h-6 w-6 text-primary" />
-                    <h1 className="text-2xl font-bold">
-                        Editar Servicio: {service.name}
-                    </h1>
-                </div>
+
 
                 <div className="rounded-xl border border-sidebar-border/70 bg-background p-6">
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -114,31 +120,6 @@ export default function ServicesEdit({
                             </h3>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <RequiredLabel htmlFor="code">
-                                        Código del Servicio *
-                                    </RequiredLabel>
-                                    <Input
-                                        id="code"
-                                        value={data.code}
-                                        onChange={(e) =>
-                                            setData('code', e.target.value)
-                                        }
-                                        placeholder="Ej: BLACKLIST_SAT"
-                                        className={
-                                            errors.code ? 'border-red-500' : ''
-                                        }
-                                    />
-                                    {errors.code && (
-                                        <p className="text-sm text-red-500">
-                                            {errors.code}
-                                        </p>
-                                    )}
-                                    <p className="text-sm text-muted-foreground">
-                                        Solo mayúsculas y guiones bajos
-                                    </p>
-                                </div>
-
                                 <div className="space-y-2">
                                     <RequiredLabel htmlFor="name">
                                         Nombre del Servicio *
@@ -159,6 +140,21 @@ export default function ServicesEdit({
                                             {errors.name}
                                         </p>
                                     )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <RequiredLabel htmlFor="code">
+                                        Código del Servicio
+                                    </RequiredLabel>
+                                    <Input
+                                        id="code"
+                                        value={data.code}
+                                        disabled
+                                        className="bg-muted"
+                                    />
+                                    <p className="text-sm text-muted-foreground">
+                                        El código no se puede modificar
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2 md:col-span-2">
@@ -233,6 +229,11 @@ export default function ServicesEdit({
                                             {errors.category}
                                         </p>
                                     )}
+                                    {data.category && categoryDescriptions[data.category] && (
+                                        <p className="text-sm text-muted-foreground italic">
+                                            {categoryDescriptions[data.category]}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
@@ -268,6 +269,11 @@ export default function ServicesEdit({
                                     {errors.billing_model && (
                                         <p className="text-sm text-red-500">
                                             {errors.billing_model}
+                                        </p>
+                                    )}
+                                    {data.billing_model && billingModelDescriptions[data.billing_model] && (
+                                        <p className="text-sm text-muted-foreground italic">
+                                            {billingModelDescriptions[data.billing_model]}
                                         </p>
                                     )}
                                 </div>

@@ -246,11 +246,14 @@ export function AppSidebar() {
     ];
 
     const footerNavItems: NavItem[] = [
+
+        // Boton para repositorio laravel. 
         // {
         //     title: 'Repository',
         //     href: 'https://github.com/laravel/react-starter-kit',
         //     icon: Folder,
         // },
+
         {
             title: 'Documentación',
             href: '/admin/documentacion',

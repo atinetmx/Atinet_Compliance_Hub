@@ -89,6 +89,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Notarías Cerca del Límite',
         href: ReportsController.notariasNearLimit.url(),
+        icon: AlertCircle,
     },
 ];
 
@@ -234,10 +235,7 @@ export default function NotariasNearLimit({
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                                Notarías Cerca del Límite
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground">
                                 Servicios cercanos al límite y suscripciones próximas a vencer
                             </p>
                         </div>

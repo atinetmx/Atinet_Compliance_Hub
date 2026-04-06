@@ -219,29 +219,104 @@ class NotariaController extends Controller
 
         $notaria->update($validated);
 
+        // Si se está deshabilitando, registrar la razón en logs
+        if (isset($validated['activa']) && $validated['activa'] === false && $request->has('_reason')) {
+            Log::warning('Notaría inhabilitada', [
+                'notaria_id' => $notaria->id,
+                'notaria_nombre' => $notaria->nombre,
+                'razon' => $request->input('_reason'),
+                'usuario' => Auth::user()->email,
+                'fecha' => now()->toDateTimeString(),
+            ]);
+        }
+
         return redirect()->route('admin.notarias.index')
             ->with('success', 'Notaría actualizada exitosamente');
     }
 
     /**
      * Remove the specified resource from storage.
+     * ⚠️ ELIMINACIÓN PERMANENTE - Solo para casos excepcionales
+     * Requiere contraseña y razón documentada
      */
-    public function destroy(Notaria $notaria)
+    public function destroy(Request $request, Notaria $notaria)
     {
         // Solo super_admin puede acceder
         if (Auth::user()->tipo_cuenta !== 'super_admin') {
             abort(403, 'Acceso denegado');
         }
 
-        // Verificar si tiene usuarios activos
-        if ($notaria->users()->count() > 0) {
-            return back()->with('error', 'No se puede eliminar una notaría que tiene usuarios activos');
+        // DEBUG: Log completo de lo que está pasando
+        Log::info('=== INICIANDO ELIMINACIÓN DE NOTARÍA ===', [
+            'notaria_id' => $notaria->id,
+            'nombre' => $notaria->nombre,
+            'conexion_actual' => DB::connection()->getDatabaseName(),
+            'conexion_notaria_model' => $notaria->getConnectionName(),
+            'request_all' => $request->all(),
+            'request_method' => $request->method(),
+            'user' => Auth::user()->email,
+        ]);
+
+        // Validar contraseña
+        $validated = $request->validate([
+            'password' => 'required|string',
+            'reason' => 'required|string|min:10',
+        ], [
+            'password.required' => 'Debes ingresar tu contraseña para confirmar',
+            'reason.required' => 'Debes especificar una razón para la eliminación',
+            'reason.min' => 'La razón debe tener al menos 10 caracteres',
+        ]);
+
+        Log::info('Validación pasada', $validated);
+
+        // Verificar que la contraseña sea correcta
+        if (! Hash::check($validated['password'], Auth::user()->password)) {
+            Log::warning('Contraseña incorrecta');
+
+            return back()->with('error', 'Contraseña incorrecta');
         }
 
-        $notaria->delete();
+        Log::info('Contraseña correcta');
+
+        // Verificar si tiene usuarios activos
+        $usersCount = $notaria->users()->count();
+        Log::info('Conteo de usuarios', ['count' => $usersCount]);
+
+        if ($usersCount > 0) {
+            Log::warning('Notaría tiene usuarios activos', ['usuarios' => $usersCount]);
+
+            return back()->with('error', 'No se puede eliminar una notaría que tiene usuarios activos. Considera inhabilitarla en su lugar.');
+        }
+
+        // Forzar la conexión correcta antes de eliminar
+        Log::info('Antes de delete', [
+            'exist_before' => Notaria::where('id', $notaria->id)->exists(),
+            'conexion' => DB::connection()->getDatabaseName(),
+        ]);
+
+        // Registrar la eliminación ANTES de borrar
+        Log::critical('Notaría eliminada permanentemente', [
+            'notaria_id' => $notaria->id,
+            'notaria_nombre' => $notaria->nombre,
+            'numero_notaria' => $notaria->numero_notaria,
+            'razon' => $validated['reason'],
+            'usuarios_eliminados' => $usersCount,
+            'usuario_responsable' => Auth::user()->email,
+            'fecha' => now()->toDateTimeString(),
+            'ip' => $request->ip(),
+            'nota' => '⚠️ ACCIÓN IRREVERSIBLE - Base de datos tenant debe eliminarse manualmente',
+        ]);
+
+        // Ejecutar delete
+        $deleted = $notaria->delete();
+
+        Log::info('Después de delete', [
+            'deleted_result' => $deleted,
+            'exist_after' => Notaria::where('id', $notaria->id)->exists(),
+        ]);
 
         return redirect()->route('admin.notarias.index')
-            ->with('success', 'Notaría eliminada exitosamente');
+            ->with('success', 'Notaría eliminada permanentemente. RECUERDA eliminar la base de datos tenant manualmente.');
     }
 
     /**

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Activity, AlertCircle, DollarSign, FileDown, TrendingUp, Users } from 'lucide-react';
+import { Activity, AlertCircle, BarChart3, DollarSign, FileDown, TrendingUp, Users } from 'lucide-react';
 import { useState } from 'react';
 
 import * as ReportsController from '@/actions/App/Http/Controllers/Admin/ReportsController';
@@ -33,11 +33,12 @@ interface ReportsProps {
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: '/admin/dashboard',
+        href: '/dashboard',
     },
     {
         title: 'Reportes',
         href: ReportsController.index.url(),
+        icon: BarChart3,
     },
 ];
 
@@ -79,11 +80,7 @@ export default function Index({ stats, period, notarias }: ReportsProps) {
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
 
                     {/* Filtros y controles */}
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                            Reportes y Estadísticas de Uso
-                        </h2>
-                        <div className="flex gap-2">
+                    <div className="flex items-center justify-end gap-2">
                             <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
                                 <SelectTrigger className="w-45">
                                     <SelectValue placeholder="Período" />
@@ -113,7 +110,6 @@ export default function Index({ stats, period, notarias }: ReportsProps) {
                                 <FileDown className="mr-2 h-4 w-4" />
                                 Exportar
                             </Button>
-                        </div>
                     </div>
 
                     {/* Tarjetas de estadísticas generales */}

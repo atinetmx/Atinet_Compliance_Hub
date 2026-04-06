@@ -4,6 +4,8 @@
 
 Proporcionar a los usuarios finales (notarios, administradores de notaría, usuarios) un **manual de usuario integrado** en el sistema que les permita aprender a usar todas las funcionalidades sin necesidad de documentación externa.
 
+## 📅 Última Actualización: 2 de Abril, 2026
+
 ---
 
 ## 📋 Características Implementadas
@@ -130,14 +132,79 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
 
 2. **Primeros Pasos**
    - Guía de inicio rápido
-   - 3 pasos numerados:
-     1. Acceso al Sistema
-     2. Navegación del Sistema
-     3. Tu Primera Búsqueda
+   - 3 pasos numerados
+
+3. **Gestión de Servicios** ✅ _(sesión 2 de abril 2026)_
+   - Catálogo de Servicios
+   - Crear Servicio (con generación automática de código)
+   - Editar Servicio
+   - Ver Detalles
+   - Manual con 4 subsecciones
+
+4. **Gestión de Planes** ✅ _(sesión 2 de abril 2026)_
+   - Catálogo de Planes
+   - Crear Plan
+   - Editar Plan
+   - Ver Detalles
+   - Configurar Servicios del Plan
+   - Manual con 5 subsecciones
+
+5. **Gestión de Notarías** ✅ _(sesión 2 de abril 2026)_
+   - Catálogo de Notarías
+   - Crear Notaría
+   - Editar Notaría
+   - Ver Detalles
+   - Configurar Servicios Personalizados
+   - **Eliminar / Inhabilitar Notaría** _(nueva subsección)_
 
 ### ⏳ Secciones Pendientes
 
-Todas las demás secciones están **estructuradas pero sin contenido**. Se irán completando a medida que se revisen las vistas del sistema.
+- [ ] Gestión de Usuarios (estructura lista, contenido pendiente)
+- [ ] Suscripciones
+- [ ] Listas Negras OFAC/SAT
+- [ ] Agenda Web
+- [ ] Control Notarial
+- [ ] Registro Web
+- [ ] Reportes
+- [ ] Configuración
+- [ ] FAQ
+
+---
+
+## 🗂️ Estructura de Navegación Actual
+
+```
+📖 Manual de Usuario
+  ├─ 🏠 Introducción
+  ├─ ▶️ Primeros Pasos
+  ├─ 📦 Gestión de Servicios
+  │   ├─ Catálogo de Servicios
+  │   ├─ Crear Servicio
+  │   ├─ Editar Servicio
+  │   └─ Ver Detalles
+  ├─ 💳 Gestión de Planes
+  │   ├─ Catálogo de Planes
+  │   ├─ Crear Plan
+  │   ├─ Editar Plan
+  │   ├─ Ver Detalles
+  │   └─ Configurar Servicios
+  ├─ 🏛️ Gestión de Notarías
+  │   ├─ Catálogo de Notarías
+  │   ├─ Crear Notaría
+  │   ├─ Editar Notaría
+  │   ├─ Ver Detalles
+  │   ├─ Configurar Servicios
+  │   └─ Eliminar / Inhabilitar ← NUEVO
+  ├─ 👤 Gestión de Usuarios     (pendiente)
+  ├─ 🔑 Suscripciones           (pendiente)
+  ├─ 🛡️ Listas Negras OFAC/SAT  (pendiente)
+  ├─ 📅 Agenda Web              (pendiente)
+  ├─ ⚖️ Control Notarial        (pendiente)
+  ├─ 🔵 Registro Web            (pendiente)
+  ├─ 📊 Reportes                (pendiente)
+  ├─ ⚙️ Configuración           (pendiente)
+  └─ ❓ Preguntas Frecuentes    (pendiente)
+```
 
 ---
 
@@ -207,24 +274,27 @@ const breadcrumbs: BreadcrumbItem[] = [
 ### Fase 1: Contenido Básico ✅
 - [x] Introducción
 - [x] Primeros Pasos
-- [ ] FAQ básicas
 
-### Fase 2: Módulos Core (En progreso)
-- [ ] Gestión de Usuarios (completa)
-- [ ] Suscripciones (completa)
-- [ ] Listas Negras OFAC/SAT (completa)
+### Fase 2: Módulos Admin (En progreso)
+- [x] Gestión de Servicios ✅
+- [x] Gestión de Planes ✅
+- [x] Gestión de Notarías (incluyendo Eliminar/Inhabilitar) ✅
+- [ ] Gestión de Usuarios
+- [ ] Suscripciones
 
-### Fase 3: Módulos Avanzados
+### Fase 3: Módulos Notaría
+- [ ] Listas Negras OFAC/SAT
 - [ ] Agenda Web
 - [ ] Control Notarial
 - [ ] Registro Web
 - [ ] Reportes
 - [ ] Configuración
+- [ ] FAQ
 
 ### Fase 4: Mejoras Interactivas (Futuro)
 - [ ] Búsqueda funcional
 - [ ] Videos/GIFs demostrativos
-- [ ] Tours interactivos (Opción 4)
+- [ ] Tours interactivos
 - [ ] Exportar a PDF
 - [ ] Tracking de feedback
 

@@ -180,7 +180,7 @@ class Notaria extends Model
     /**
      * Registro de uso de servicios
      */
-    public function serviceUsage(): HasMany
+    public function serviceUsages(): HasMany
     {
         return $this->hasMany(ServiceUsage::class, 'notaria_id');
     }

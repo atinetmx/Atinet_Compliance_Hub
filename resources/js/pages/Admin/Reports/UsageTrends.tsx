@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 interface Service {
     id: number;
@@ -24,11 +25,6 @@ interface Notaria {
 interface TrendData {
     period: string; // '2025-10' (monthly) | '2025-W42' (weekly) | '2025-10-15' (daily)
     [key: string]: string | number; // service_1, service_2, etc.
-}
-
-interface BreadcrumbItem {
-    title: string;
-    href: string;
 }
 
 interface Props {
@@ -78,7 +74,7 @@ const COLORS = [
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: '/admin/dashboard',
+        href: '/dashboard',
     },
     {
         title: 'Reportes',
@@ -87,6 +83,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Tendencias de Uso',
         href: ReportsController.usageTrends.url(),
+        icon: TrendingUp,
     },
 ];
 
@@ -271,10 +268,7 @@ export default function UsageTrends({
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                                Tendencias de Uso
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground">
                                 Análisis histórico del consumo de servicios
                             </p>
                         </div>

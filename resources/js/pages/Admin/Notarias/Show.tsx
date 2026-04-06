@@ -10,6 +10,7 @@ import {
     Settings,
     CreditCard,
     Database,
+    Eye,
 } from 'lucide-react';
 
 import HistorialBusquedasLegacy from '@/components/Admin/HistorialBusquedasLegacy';
@@ -105,6 +106,7 @@ export default function NotariaShow({ notaria }: NotariaShowProps) {
         {
             title: notaria.nombre,
             href: `/admin/notarias/${notaria.id}`,
+            icon: Eye,
         },
     ];
 
@@ -133,28 +135,14 @@ export default function NotariaShow({ notaria }: NotariaShowProps) {
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.history.back()}
-                        >
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver
-                        </Button>
-                        <Building2 className="h-6 w-6 text-primary" />
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                {notaria.nombre}
-                            </h1>
-                            <p className="text-muted-foreground">
-                                Notaría No. {notaria.numero_notaria}
-                            </p>
-                        </div>
+                    <div className="flex items-center gap-2">
+                        {getStatusBadge(notaria.activa ? 'activa' : 'inactiva')}
+                        <p className="text-sm text-muted-foreground">
+                            Notaría No. {notaria.numero_notaria}
+                        </p>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {getStatusBadge(notaria.activa ? 'activa' : 'inactiva')}
                        <Button variant="outline" size="sm" asChild>
                             <a href={`/admin/subscriptions/create?notaria_id=${notaria.id}`}>
                                 <CreditCard className="mr-2 h-4 w-4" />

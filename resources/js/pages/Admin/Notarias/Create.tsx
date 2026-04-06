@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Building2, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Save, ArrowLeft } from 'lucide-react';
 
 import CodigoPostalInput from '@/components/Admin/CodigoPostalInput';
 import EstadoSelector from '@/components/Admin/EstadoSelector';
@@ -47,7 +47,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Crear Nueva Notaría',
         href: '/admin/notarias/create',
-        icon: Building2,
+        icon: Plus,
     },
 ];
 

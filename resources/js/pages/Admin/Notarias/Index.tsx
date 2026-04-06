@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     Building2,
     Plus,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import DeleteNotariaDialog from '@/components/Admin/DeleteNotariaDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,8 @@ interface Notaria {
     telefono: string | null;
     fecha_registro: string;
     users_count: number;
+    total_usuarios?: number;
+    busquedas_mes_actual?: number;
     plan: Plan | null;
     subscripcion_activa: Subscription | null;
 }
@@ -63,11 +66,14 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Gestión de Notarías',
         href: '/admin/notarias',
+        icon: Building2,
     },
 ];
 
 export default function NotariaIndex({ notarias }: NotariaIndexProps) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [selectedNotaria, setSelectedNotaria] = useState<Notaria | null>(null);
 
     const filteredNotarias = notarias.filter(
         (notaria) =>
@@ -84,13 +90,7 @@ export default function NotariaIndex({ notarias }: NotariaIndexProps) {
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Building2 className="h-6 w-6 text-primary" />
-                        <h1 className="text-2xl font-bold">
-                            Gestión de Notarías
-                        </h1>
-                    </div>
+                <div className="mb-6 flex items-center justify-end">
                     <Link href="/admin/notarias/create">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />
@@ -284,22 +284,8 @@ export default function NotariaIndex({ notarias }: NotariaIndexProps) {
                                                 size="sm"
                                                 className="text-red-600 hover:text-red-700"
                                                 onClick={() => {
-                                                    if (
-                                                        confirm(
-                                                            '¿Estás seguro de eliminar esta notaría?',
-                                                        )
-                                                    ) {
-                                                        router.delete(
-                                                            route(
-                                                                'admin.notarias.destroy',
-                                                                notaria.id,
-                                                            ),
-                                                            {
-                                                                preserveScroll:
-                                                                    true,
-                                                            },
-                                                        );
-                                                    }
+                                                    setSelectedNotaria(notaria);
+                                                    setDeleteDialogOpen(true);
                                                 }}
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -322,6 +308,13 @@ export default function NotariaIndex({ notarias }: NotariaIndexProps) {
                     )}
                 </div>
             </div>
+
+            {/* Modal de confirmación de eliminación */}
+            <DeleteNotariaDialog
+                notaria={selectedNotaria}
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+            />
         </AppLayout>
     );
 }

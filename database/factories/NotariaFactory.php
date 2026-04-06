@@ -20,6 +20,7 @@ class NotariaFactory extends Factory
             'nombre' => $this->faker->company().' Notaría',
             'numero_notaria' => $this->faker->unique()->regexify('[0-9]{3}'),
             'activa' => true,
+            'total_usuarios' => 0,
         ];
     }
 
