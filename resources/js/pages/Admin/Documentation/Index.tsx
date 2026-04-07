@@ -33,6 +33,10 @@ import {
     Layers,
     Database,
     DollarSign,
+    Activity,
+    TrendingUp,
+    FileDown,
+    Mail,
 } from 'lucide-react';
 import { useState } from 'react';
 import AppLogo from '@/components/app-logo';
@@ -58,6 +62,11 @@ interface DocSection {
     icon: typeof Home;
     badge?: string;
     subsections?: Array<{
+        id: string;
+        title: string;
+        badge?: string;
+    }>;
+    children?: Array<{
         id: string;
         title: string;
         badge?: string;
@@ -170,6 +179,15 @@ const docSections: DocSection[] = [
         id: 'reportes',
         title: 'Reportes',
         icon: BarChart3,
+        children: [
+            { id: 'reportes-general', title: 'Dashboard Principal' },
+            { id: 'reportes-uso-servicio', title: 'Uso por Servicio' },
+            { id: 'reportes-top-servicios', title: 'Top Servicios' },
+            { id: 'reportes-comparativa', title: 'Comparativa de Notarías' },
+            { id: 'reportes-tendencias', title: 'Tendencias de Uso' },
+            { id: 'reportes-alertas', title: 'Notarías Cerca del Límite' },
+            { id: 'reportes-exportacion', title: 'Exportar Reportes' },
+        ],
     },
     {
         id: 'configuracion',
@@ -6445,6 +6463,1418 @@ const sectionContent: Record<string, { title: string; content: React.ReactNode }
             </div>
         ),
     },
+    'reportes': {
+        title: 'Sistema de Reportes y Estadísticas',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Sistema de Reportes y Estadísticas</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        El módulo de Reportes proporciona análisis detallados del uso de servicios, permitiendo
+                        monitorear consumo, costos, tendencias y detectar patrones de uso para la toma de decisiones.
+                    </p>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <div className="flex items-start gap-2">
+                        <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-semibold text-blue-800 dark:text-blue-400 mb-1">
+                                Análisis Integral de Uso
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Reportes en tiempo real con múltiples vistas, filtros y exportación profesional a Excel.
+                                Visualiza el comportamiento de uso por servicio, notaría, período y detecta anomalías.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Características Principales</h2>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-primary" />
+                                    Estadísticas en Tiempo Real
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Total de solicitudes y cantidad consumida</li>
+                                    <li>Costo total y promedio por solicitud</li>
+                                    <li>Notarías activas con uso de servicios</li>
+                                    <li>Servicios únicos utilizados</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Filter className="h-5 w-5 text-primary" />
+                                    Filtros Avanzados
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Por período: Semana, Mes, Año</li>
+                                    <li>Por notaría específica o todas</li>
+                                    <li>Por servicio individual o global</li>
+                                    <li>Combinación de múltiples filtros</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5 text-primary" />
+                                    Análisis de Tendencias
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Gráficos de tendencia histórica</li>
+                                    <li>Comparativas entre períodos</li>
+                                    <li>Sparklines de últimos 7 días</li>
+                                    <li>Proyecciones de consumo</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileDown className="h-5 w-5 text-primary" />
+                                    Exportación Profesional
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Exportación a Excel con logo de Atinet</li>
+                                    <li>3 tipos de reportes especializados</li>
+                                    <li>Formato profesional con colores</li>
+                                    <li>Headers personalizados por tipo</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Tipos de Reportes Disponibles</h2>
+                    <div className="space-y-3">
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                                        <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold mb-1">Dashboard Principal</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Vista general con estadísticas clave, filtros y accesos rápidos a reportes especializados
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg">
+                                        <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold mb-1">Uso por Servicio</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Detalles de consumo por cada servicio con tendencias de últimos 7 días
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg">
+                                        <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold mb-1">Top Servicios</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Ranking de servicios más utilizados con métricas de popularidad
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-orange-100 dark:bg-orange-900/30 p-2 rounded-lg">
+                                        <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold mb-1">Comparativa de Notarías</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Análisis comparativo del uso de servicios entre diferentes notarías
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-cyan-100 dark:bg-cyan-900/30 p-2 rounded-lg">
+                                        <TrendingUp className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold mb-1">Tendencias de Uso</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Análisis histórico de consumo con gráficos de evolución temporal
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">
+                                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold mb-1">Notarías Cerca del Límite</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Alertas de notarías próximas a alcanzar sus límites de uso mensual
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-950/20 p-6 rounded-lg border border-amber-200 dark:border-amber-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                        Consideraciones Importantes
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>📊 Los reportes se actualizan en tiempo real con cada nueva solicitud</li>
+                        <li>🔒 Super Admins ven datos de todas las notarías, Admin Notaría solo ve su propia data</li>
+                        <li>📈 Los costos mostrados son calculados en base al plan y configuración de cada notaría</li>
+                        <li>📅 Los filtros de período afectan todas las estadísticas y exportaciones</li>
+                        <li>💾 Las exportaciones incluyen marca de tiempo del período filtrado</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-general': {
+        title: 'Dashboard Principal',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Dashboard Principal de Reportes</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        La vista principal de reportes muestra un resumen ejecutivo con las métricas más importantes
+                        y proporciona acceso rápido a todos los reportes especializados del sistema.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Filtros Globales</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Filter className="h-5 w-5 text-primary" />
+                                Controles de Filtrado
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-3">
+                                La barra superior contiene controles que afectan todas las estadísticas mostradas:
+                            </p>
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="font-semibold text-sm mb-1">📅 Selector de Período</p>
+                                    <ul className="list-disc list-inside text-sm text-muted-foreground ml-2 space-y-1">
+                                        <li><strong>Esta Semana:</strong> Lunes a Domingo de la semana actual</li>
+                                        <li><strong>Este Mes:</strong> Del día 1 al último día del mes actual</li>
+                                        <li><strong>Este Año:</strong> Del 1 de enero al 31 de diciembre del año actual</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm mb-1">🏢 Selector de Notaría</p>
+                                    <ul className="list-disc list-inside text-sm text-muted-foreground ml-2 space-y-1">
+                                        <li><strong>Todas las notarías:</strong> Vista consolidada del sistema completo</li>
+                                        <li><strong>Notaría específica:</strong> Filtra solo el uso de esa notaría</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm mb-1">💾 Botón de Exportar</p>
+                                    <ul className="list-disc list-inside text-sm text-muted-foreground ml-2 space-y-1">
+                                        <li>Descarga rápida del reporte de uso detallado</li>
+                                        <li>Incluye los filtros actualmente aplicados</li>
+                                        <li>Formato Excel profesional con logo de Atinet</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Tarjetas de Estadísticas</h2>
+                    <p className="text-muted-foreground mb-4">
+                        3 tarjetas principales muestran las métricas clave del período seleccionado:
+                    </p>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-blue-600" />
+                                    Total de Solicitudes
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Muestra el número de solicitudes de servicio realizadas:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Número principal:</strong> Total de requests realizados</li>
+                                    <li><strong>Cantidad total:</strong> Suma de la cantidad consumida de todos los servicios</li>
+                                    <li>💡 Una solicitud puede consumir múltiples unidades (ej: 5 búsquedas en una sola request)</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-green-600" />
+                                    Costo Total
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Cálculo del costo total generado por el uso de servicios:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Monto principal:</strong> Suma de todos los costos del período</li>
+                                    <li><strong>Promedio por solicitud:</strong> Costo total ÷ número de solicitudes</li>
+                                    <li>💡 Los costos son calculados según el modelo de facturación de cada servicio y plan</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="h-5 w-5 text-purple-600" />
+                                    Notarías Activas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Cantidad de notarías con suscripción activa:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Número principal:</strong> Notarías con suscripción vigente</li>
+                                    <li><strong>Servicios disponibles:</strong> Cantidad de servicios únicos utilizados en el período</li>
+                                    <li>💡 Una notaría activa puede o no tener uso en el período seleccionado</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Accesos Rápidos</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Enlaces a Reportes Especializados</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-3">
+                                La sección de accesos rápidos contiene 5 enlaces a reportes detallados:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li>
+                                    <strong>Uso por Servicio:</strong> Tabla detallada de cada servicio con sparklines de tendencia
+                                </li>
+                                <li>
+                                    <strong>Top Servicios:</strong> Ranking de los servicios más populares ordenados por uso
+                                </li>
+                                <li>
+                                    <strong>Comparativa de Notarías:</strong> Compara el uso y costos entre diferentes notarías
+                                </li>
+                                <li>
+                                    <strong>Tendencias de Uso:</strong> Gráficos de evolución temporal del consumo
+                                </li>
+                                <li>
+                                    <strong>Notarías Cerca del Límite:</strong> Alertas de notarías próximas a exceder sus límites
+                                </li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Sección de Exportación</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileDown className="h-5 w-5 text-primary" />
+                                Exportar Reportes
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-3">
+                                3 botones para descargar diferentes tipos de reportes en formato Excel:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li>
+                                    <strong>Reporte de Uso Detallado:</strong> Cada fila es una solicitud individual con fecha,
+                                    notaría, servicio, usuario, cantidad y costo
+                                </li>
+                                <li>
+                                    <strong>Reporte por Notarías:</strong> Resumen agrupado por notaría con totales de
+                                    solicitudes, cantidad consumida y costo
+                                </li>
+                                <li>
+                                    <strong>Reporte por Servicios:</strong> Resumen agrupado por servicio con totales y
+                                    cantidad de notarías únicas que lo usaron
+                                </li>
+                            </ul>
+                            <p className="text-xs text-muted-foreground mt-3">
+                                💡 Todos los archivos incluyen el logo de Atinet, headers formateados y respetan los filtros aplicados
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Flujo de Uso Típico
+                    </h3>
+                    <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                        <li>Selecciona el período que deseas analizar (semana, mes, año)</li>
+                        <li>Opcionalmente filtra por una notaría específica</li>
+                        <li>Revisa las 3 tarjetas de estadísticas generales</li>
+                        <li>Navega a un reporte especializado según lo que necesites analizar</li>
+                        <li>Descarga el reporte en Excel si necesitas compartirlo o analizarlo externamente</li>
+                    </ol>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-uso-servicio': {
+        title: 'Uso por Servicio',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Reporte de Uso por Servicio</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        Vista detallada del consumo de servicios con historial completo de cada solicitud,
+                        sparklines de tendencia de los últimos 7 días y filtros avanzados.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Filtros Disponibles</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="font-semibold text-sm mb-1">📦 Por Servicio</p>
+                                    <p className="text-sm text-muted-foreground ml-2">
+                                        Selecciona un servicio específico (ej: OFAC, SAT) o deja vacío para ver todos
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm mb-1">📅 Por Período</p>
+                                    <p className="text-sm text-muted-foreground ml-2">
+                                        Esta Semana, Este Mes o Este Año
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-sm mb-1">🏢 Por Notaría</p>
+                                    <p className="text-sm text-muted-foreground ml-2">
+                                        Filtra por una notaría específica o muestra todas
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Tabla de Uso Detallado</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Columnas Mostradas</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>Fecha y Hora:</strong> Momento exacto de la solicitud (formato completo)</li>
+                                <li><strong>Servicio:</strong> Nombre del servicio consumido y categoría</li>
+                                <li><strong>Notaría:</strong> Nombre y número de notaría</li>
+                                <li><strong>Usuario:</strong> Nombre del usuario que realizó la solicitud</li>
+                                <li><strong>Cantidad:</strong> Unidades consumidas en esa solicitud</li>
+                                <li><strong>Costo:</strong> Monto generado por esa solicitud específica</li>
+                                <li><strong>Detalles:</strong> Información adicional según el tipo de servicio</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Sparklines de Tendencia</h2>
+                    <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-900">
+                        <p className="text-sm text-muted-foreground mb-3">
+                            <strong>📈 Gráficos de Últimos 7 Días:</strong>
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                            <li>Cada servicio muestra un mini-gráfico de línea (sparkline) con su uso diario</li>
+                            <li>Detecta visualmente picos o caídas abruptas en el consumo</li>
+                            <li>Útil para identificar patrones: días de mayor uso, servicios con crecimiento, etc.</li>
+                            <li>Se actualiza en tiempo real conforme hay nuevo consumo</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Paginación y Navegación</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                <li>Muestra 50 registros por página para mejor rendimiento</li>
+                                <li>Controles de paginación en la parte inferior</li>
+                                <li>Contador de resultados: "Mostrando X a Y de Z registros"</li>
+                                <li>Ordenado por fecha descendente (más recientes primero)</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-lg border border-green-200 dark:border-green-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        Casos de Uso
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>✅ Auditar el uso de un servicio específico por período</li>
+                        <li>✅ Identificar qué usuario consumió más de un servicio</li>
+                        <li>✅ Verificar las búsquedas de OFAC/SAT realizadas este mes</li>
+                        <li>✅ Detectar anomalías en el patrón de consumo (sparklines)</li>
+                        <li>✅ Exportar datos para análisis externo o facturación</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-top-servicios': {
+        title: 'Top Servicios',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Ranking de Servicios Más Utilizados</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        Vista ordenada de los servicios según su popularidad, mostrando métricas de uso,
+                        costos generados y cantidad de notarías que los consumen.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Información Mostrada</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Métricas por Servicio</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>#  Posición en el Ranking:</strong> Orden basado en total de solicitudes</li>
+                                <li><strong>📦 Nombre del Servicio:</strong> Servicio con categoría (ej: Consulta - OFAC)</li>
+                                <li><strong>📊 Total de Solicitudes:</strong> Número de veces que se usó el servicio</li>
+                                <li><strong>🔢 Cantidad Consumida:</strong> Suma total de unidades utilizadas</li>
+                                <li><strong>💰 Costo Total Generado:</strong> Suma de ingresos por ese servicio</li>
+                                <li><strong>🏢 Notarías Únicas:</strong> Cantidad de notarías diferentes que lo usaron</li>
+                                <li><strong>📈 Porcentaje de Adopción:</strong> % de notarías que usan este servicio</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Filtros de Período</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Puedes cambiar el período para ver cómo varía la popularidad:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                <li><strong>Esta Semana:</strong> Servicios más usados en los últimos 7 días</li>
+                                <li><strong>Este Mes:</strong> Ranking del mes en curso</li>
+                                <li><strong>Este Año:</strong> Tendencias anuales de uso</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Indicadores Visuales</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5 text-green-600" />
+                                    Badges de Popularidad
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Los servicios tienen badges especiales según su posición:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>🥇 Puesto #1:</strong> Badge dorado - Servicio más usado</li>
+                                    <li><strong>🥈 Puesto #2:</strong> Badge plateado - Segundo lugar</li>
+                                    <li><strong>🥉 Puesto #3:</strong> Badge bronce - Tercer lugar</li>
+                                    <li><strong>🔥 Top 10:</strong> Badge especial para los primeros 10 servicios</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                                    Barras de Progreso
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Representación visual del uso relativo:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Barra de color que representa el % respecto al servicio #1</li>
+                                    <li>El servicio más usado tiene barra al 100%</li>
+                                    <li>Los demás muestran su proporción relativa</li>
+                                    <li>Colores degradados según la posición</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="bg-purple-50 dark:bg-purple-950/20 p-6 rounded-lg border border-purple-200 dark:border-purple-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                        Insights de Negocio
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>💡 <strong>Servicios populares</strong> → Considerar destacarlos en marketing</li>
+                        <li>💡 <strong>Servicios con baja adopción</strong> → Evaluar si necesitan mejora o capacitación</li>
+                        <li>💡 <strong>Alta adopción + alto costo</strong> → Servicios que generan más ingresos</li>
+                        <li>💡 <strong>Notarías únicas bajas</strong> → Servicios especializados para nichos específicos</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-comparativa': {
+        title: 'Comparativa de Notarías',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Comparativa de Uso entre Notarías</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        Análisis comparativo del consumo de servicios entre diferentes notarías, permitiendo
+                        identificar patrones de uso, clientes de alto valor y oportunidades de upselling.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Tabla Comparativa</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Columnas de Datos</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>Ranking:</strong> Posición ordenada por volumen de uso</li>
+                                <li><strong>Notaría:</strong> Nombre y número de notaría</li>
+                                <li><strong>Plan Actual:</strong> Plan contratado y precio mensual</li>
+                                <li><strong>Total Solicitudes:</strong> Número de requests realizadas</li>
+                                <li><strong>Cantidad Consumida:</strong> Unidades totales utilizadas</li>
+                                <li><strong>Costo Generado:</strong> Ingresos por uso de servicios</li>
+                                <li><strong>Servicios Únicos:</strong> Cantidad de servicios diferentes usados</li>
+                                <li><strong>Promedio Diario:</strong> Solicitudes por día en el período</li>
+                                <li><strong>% del Total:</strong> Proporción respecto al uso total del sistema</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Opciones de Ordenamiento</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Ordena la tabla haciendo clic en los encabezados de columna:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                <li><strong>Por nombre:</strong> Orden alfabético de notarías</li>
+                                <li><strong>Por uso:</strong> De mayor a menor volumen de solicitudes</li>
+                                <li><strong>Por costo:</strong> Notarías que generan más ingresos</li>
+                                <li><strong>Por diversidad:</strong> Cantidad de servicios diferentes utilizados</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Indicadores de Performance</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-green-600" />
+                                    Clientes de Alto Valor
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Identificación de notarías con mayor uso:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Top 10%:</strong> Badge verde - Clientes más activos</li>
+                                    <li><strong>20-30% del total:</strong> Clientes de alto volumen</li>
+                                    <li><strong>Bajo uso:</strong> Oportunidades de activación o capacitación</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-orange-600" />
+                                    Alertas de Comportamiento
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    El sistema detecta patrones anormales:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>🔴 <strong>Sin uso en el período:</strong> Cliente inactivo - riesgo de cancelación</li>
+                                    <li>🟡 <strong>Uso muy por debajo del plan:</strong> Posible downgrade</li>
+                                    <li>🟢 <strong>Uso cerca del límite:</strong> Oportunidad de upgrade</li>
+                                    <li>🟣 <strong>Alto uso de 1 solo servicio:</strong> Cliente especializado</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Filtros de Análisis</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>Por Plan:</strong> Compara solo notarías con el mismo plan</li>
+                                <li><strong>Por Período:</strong> Semana, mes o año para análisis temporal</li>
+                                <li><strong>Solo Activas:</strong> Excluye notarías inactivas del análisis</li>
+                                <li><strong>Mínimo de Uso:</strong> Filtra notarías con al menos X solicitudes</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Aplicaciones Prácticas
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>📊 <strong>Segmentación de clientes:</strong> Identifica grupos con patrones similares</li>
+                        <li>💰 <strong>Análisis de rentabilidad:</strong> Costos vs ingresos por notaría</li>
+                        <li>📈 <strong>Oportunidades de upselling:</strong> Clientes cerca de sus límites</li>
+                        <li>⚠️ <strong>Riesgo de churn:</strong> Baja actividad o uso decreciente</li>
+                        <li>🎯 <strong>Campañas dirigidas:</strong> Personaliza ofertas según el perfil de uso</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-tendencias': {
+        title: 'Tendencias de Uso',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Análisis de Tendencias Históricas</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        Visualización gráfica de la evolución del consumo de servicios a lo largo del tiempo,
+                        con detección de patrones estacionales, picos de uso y proyecciones futuras.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Gráficos Disponibles</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                                    Gráfico de Línea Temporal
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Evolución del uso de servicios por día/semana/mes:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Eje X:</strong> Timeline (días, semanas o meses según el período)</li>
+                                    <li><strong>Eje Y:</strong> Cantidad de solicitudes</li>
+                                    <li><strong>Líneas múltiples:</strong> Una por cada servicio o comparativa</li>
+                                    <li><strong>Puntos interactivos:</strong> Hover para ver valores exactos</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="h-5 w-5 text-green-600" />
+                                    Gráfico de Barras Acumuladas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Distribución del uso por servicio en el tiempo:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Cada barra representa un período (día/semana/mes)</li>
+                                    <li>Colores diferentes por servicio</li>
+                                    <li>Muestra participación proporcional de cada servicio</li>
+                                    <li>Fácil identificación de servicios dominantes</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-purple-600" />
+                                    Heatmap de Actividad
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Mapa de calor mostrando intensidad de uso:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Columnas:</strong> Días de la semana (L-D)</li>
+                                    <li><strong>Filas:</strong> Semanas del período</li>
+                                    <li><strong>Color:</strong> Intensidad del verde según volumen</li>
+                                    <li><strong>Patrones:</strong> Detecta días con mayor actividad</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Métricas de Tendencia</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>Crecimiento (%):</strong> Aumento o disminución vs período anterior</li>
+                                <li><strong>Promedio Móvil:</strong> Línea suavizada de 7 días para ver tendencia real</li>
+                                <li><strong>Pico Máximo:</strong> Día con mayor uso y su valor</li>
+                                <li><strong>Valle Mínimo:</strong> Día con menor uso (detecta problemas o días festivos)</li>
+                                <li><strong>Desviación Estándar:</strong> Variabilidad del uso (cliente predecible vs errático)</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Detección de Patrones</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Clock className="h-5 w-5 text-orange-600" />
+                                    Patrones Temporales
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    El sistema detecta automáticamente:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Días pico:</strong> Lunes suele tener más búsquedas que viernes</li>
+                                    <li><strong>Fin de mes:</strong> Incremento en últimos 3 días del mes</li>
+                                    <li><strong>Estacionalidad:</strong> Meses con mayor actividad notarial</li>
+                                    <li><strong>Horarios:</strong> Franjas horarias de mayor uso (8am-2pm)</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-red-600" />
+                                    Anomalías Detectadas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Alertas automáticas cuando se detectan:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>🔴 <strong>Pico súbito:</strong> Uso +200% del promedio (posible ataque o error)</li>
+                                    <li>🟡 <strong>Caída abrupta:</strong> Uso -50% del promedio (posible problema técnico)</li>
+                                    <li>🟣 <strong>Días sin uso:</strong> Período inusual de inactividad</li>
+                                    <li>🟢 <strong>Crecimiento sostenido:</strong> Tendencia alcista (indicador positivo)</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Proyecciones y Estimaciones</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Basándose en el histórico, el sistema proyecta:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>Consumo esperado fin de mes:</strong> Proyección de solicitudes totales</li>
+                                <li><strong>Fecha estimada de límite:</strong> Cuándo una notaría alcanzará su máximo</li>
+                                <li><strong>Ingresos proyectados:</strong> Estimación de facturación mensual</li>
+                                <li><strong>Tendencia trimestral:</strong> Si el uso va en aumento o disminución</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="bg-cyan-50 dark:bg-cyan-950/20 p-6 rounded-lg border border-cyan-200 dark:border-cyan-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                        Interpretación de Tendencias
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>📈 <strong>Línea ascendente:</strong> Adopción creciente - buena señal de satisfacción</li>
+                        <li>📉 <strong>Línea descendente:</strong> Posible insatisfacción o competencia</li>
+                        <li>➡️ <strong>Línea estable:</strong> Uso predecible - cliente consolidado</li>
+                        <li>⚡ <strong>Línea errática:</strong> Uso irregular - investigar causa</li>
+                        <li>🎯 <strong>Spikes periódicos:</strong> Uso vinculado a eventos (fin de mes, fiscales, etc.)</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-alertas': {
+        title: 'Notarías Cerca del Límite',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Notarías Cerca del Límite</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        Sistema de alertas proactivas que identifica notarías próximas a alcanzar sus límites
+                        mensuales de búsquedas, permitiendo contactarlas para evitar interrupciones o ofrecer upgrades.
+                    </p>
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-200 dark:border-red-900">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-semibold text-red-800 dark:text-red-400 mb-1">
+                                Alertas Preventivas
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Este reporte te permite anticiparte y contactar proactivamente a los clientes
+                                antes de que se queden sin servicio.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Criterios de Alerta</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-red-600">
+                                    🔴 Crítico (≥ 90%)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Notarías que han consumido el 90% o más de su límite mensual:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>⚠️ <strong>Riesgo inminente de quedarse sin servicio</strong></li>
+                                    <li>📞 <strong>Acción requerida:</strong> Contactar INMEDIATAMENTE</li>
+                                    <li>💡 <strong>Oferta sugerida:</strong> Upgrade de plan o compra de paquete adicional</li>
+                                    <li>🎯 <strong>Badge rojo</strong> en la tabla para fácil identificación</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-orange-600">
+                                    🟡 Advertencia (75-89%)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Notarías entre 75% y 89% de su límite:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>⚠️ <strong>Riesgo moderado</strong> - monitorear de cerca</li>
+                                    <li>📧 <strong>Acción recomendada:</strong> Enviar email informativo</li>
+                                    <li>💡 <strong>Mensaje sugerido:</strong> "Estás cerca de tu límite, considera un upgrade"</li>
+                                    <li>🎯 <strong>Badge naranja</strong> en la tabla</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-yellow-600">
+                                    🟢 Precaución (60-74%)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Notarías entre 60% y 74% de su límite:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>⚠️ <strong>Riesgo bajo</strong> - observación</li>
+                                    <li>📊 <strong>Acción sugerida:</strong> Incluir en reporte semanal</li>
+                                    <li>💡 <strong>Oportunidad:</strong> Cliente que usa activamente el servicio</li>
+                                    <li>🎯 <strong>Badge amarillo</strong> en la tabla</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Información Mostrada</h2>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Datos por Notaría</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2 ml-2">
+                                <li><strong>Notaría:</strong> Nombre y número</li>
+                                <li><strong>Plan Actual:</strong> Plan contratado con límite mensual</li>
+                                <li><strong>Búsquedas Realizadas:</strong> Cantidad consumida este mes</li>
+                                <li><strong>Límite del Plan:</strong> Máximo permitido por mes</li>
+                                <li><strong>Búsquedas Restantes:</strong> Cuántas le quedan disponibles</li>
+                                <li><strong>% Consumido:</strong> Porcentaje de uso con barra de progreso</li>
+                                <li><strong>Proyección:</strong> Días estimados hasta alcanzar el límite</li>
+                                <li><strong>Contacto:</strong> Email y teléfono para comunicación rápida</li>
+                                <li><strong>Acciones:</strong> Botones para upgrade o enviar notificación</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Barra de Progreso Visual</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <p className="text-sm text-muted-foreground mb-3">
+                                Cada notaría muestra una barra coloreada según el nivel de uso:
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                <li><strong>Verde (0-59%):</strong> Uso normal, sin preocupaciones</li>
+                                <li><strong>Amarillo (60-74%):</strong> Precaución - monitorear</li>
+                                <li><strong>Naranja (75-89%):</strong> Advertencia - contactar pronto</li>
+                                <li><strong>Rojo (90-100%):</strong> Crítico - ACCIÓN INMEDIATA</li>
+                                <li><strong>Gris (100% alcanzado):</strong> Límite alcanzado - servicio bloqueado</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Acciones Rápidas</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Mail className="h-5 w-5 text-blue-600" />
+                                    Enviar Notificación
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Botón para enviar email automático con:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Estado actual de consumo (X% usado)</li>
+                                    <li>Búsquedas restantes</li>
+                                    <li>Recomendación de upgrade</li>
+                                    <li>Enlace directo para actualizar plan</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5 text-green-600" />
+                                    Sugerir Upgrade
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    Botón que abre modal con:
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li>Planes superiores disponibles</li>
+                                    <li>Diferencia de precio</li>
+                                    <li>Beneficios adicionales</li>
+                                    <li>Opción de aplicar upgrade inmediatamente</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="bg-orange-50 dark:bg-orange-950/20 p-6 rounded-lg border border-orange-200 dark:border-orange-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                        Workflow Recomendado
+                    </h3>
+                    <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                        <li>Revisa este reporte diariamente (especialmente últimos días del mes)</li>
+                        <li>Contacta primero las notarías en estado <strong>Crítico (rojo)</strong></li>
+                        <li>Envía emails masivos a las notarías en <strong>Advertencia (naranja)</strong></li>
+                        <li>Incluye notarías en <strong>Precaución (amarillo)</strong> en reportes semanales</li>
+                        <li>Exporta la lista para seguimiento en CRM externo si es necesario</li>
+                        <li>Marca las notarías contactadas para no duplicar comunicaciones</li>
+                    </ol>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-lg border border-green-200 dark:border-green-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        Beneficios del Sistema de Alertas
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>✅ <strong>Previene interrupciones:</strong> Los clientes no se quedan sin servicio inesperadamente</li>
+                        <li>✅ <strong>Incrementa ingresos:</strong> Oportunidades de upselling en el momento preciso</li>
+                        <li>✅ <strong>Mejora satisfacción:</strong> Comunicación proactiva generabuen will</li>
+                        <li>✅ <strong>Reduce churn:</strong> Clientes no cancelan por límites alcanzados</li>
+                        <li>✅ <strong>Automatización:</strong> Menos tiempo manual revisando datos</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
+    'reportes-exportacion': {
+        title: 'Exportar Reportes',
+        content: (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Exportación de Reportes a Excel</h2>
+                    <p className="text-muted-foreground leading-relaxed mb-6">
+                        El sistema permite exportar todos los reportes a archivos Excel profesionales con
+                        formato corporativo, logo de Atinet y estructuras optimizadas para análisis posterior.
+                    </p>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Formatos de Exportación Disponibles</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileDown className="h-5 w-5 text-blue-600" />
+                                    Reporte de Uso Detallado
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    <strong>Contenido:</strong> Lista completa de cada solicitud de servicio
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Columnas:</strong> Fecha, Notaría, Servicio, Usuario, Cantidad, Costo</li>
+                                    <li><strong>Ordenamiento:</strong> Por fecha descendente (más recientes primero)</li>
+                                    <li><strong>Uso típico:</strong> Auditoría detallada, análisis por usuario, facturación</li>
+                                    <li><strong>Formato:</strong> Una fila por cada solicitud de servicio</li>
+                                </ul>
+                                <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg mt-3">
+                                    <p className="text-xs text-muted-foreground">
+                                        💡 Ideal para importar a sistemas de BI, bases de datos o herramientas de análisis
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileDown className="h-5 w-5 text-green-600" />
+                                    Reporte por Notarías
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    <strong>Contenido:</strong> Resumen agregado por notaría
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Columnas:</strong> Notaría, Total Solicitudes, Total Cantidad, Total Costo</li>
+                                    <li><strong>Ordenamiento:</strong> Alfabético por nombre de notaría</li>
+                                    <li><strong>Uso típico:</strong> Análisis de clientes, facturación mensual, comparativas</li>
+                                    <li><strong>Formato:</strong> Una fila por notaría con totales del período</li>
+                                </ul>
+                                <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-lg mt-3">
+                                    <p className="text-xs text-muted-foreground">
+                                        💡 Perfecto para reportes ejecutivos y análisis de rentabilidad por cliente
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileDown className="h-5 w-5 text-purple-600" />
+                                    Reporte por Servicios
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    <strong>Contenido:</strong> Resumen agregado por servicio
+                                </p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Columnas:</strong> Servicio, Total Solicitudes, Total Cantidad, Total Costo, Notarías Únicas</li>
+                                    <li><strong>Ordenamiento:</strong> Por popularidad (más usado primero)</li>
+                                    <li><strong>Uso típico:</strong> Análisis de productos, decisiones de pricing, estrategia comercial</li>
+                                    <li><strong>Formato:</strong> Una fila por servicio con totales y métricas de adopción</li>
+                                </ul>
+                                <div className="bg-purple-50 dark:bg-purple-950/20 p-3 rounded-lg mt-3">
+                                    <p className="text-xs text-muted-foreground">
+                                        💡 Excelente para identificar servicios de alto valor y oportunidades de mejora
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Características Profesionales del Excel</h2>
+                    <div className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>🎨 Formato Corporativo</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Logo de Atinet:</strong> En la esquina superior izquierda (80px de alto)</li>
+                                    <li><strong>Título del reporte:</strong> Con nombre descriptivo y período</li>
+                                    <li><strong>Fecha de generación:</strong> Timestamp de cuándo se exportó</li>
+                                    <li><strong>Filtros aplicados:</strong> Muestra qué período y notaría se filtró</li>
+                                    <li><strong>Headers con color:</strong> Azul para reportes principales</li>
+                                    <li><strong>Filas alternadas:</strong> Gris claro para mejor lectura</li>
+                                    <li><strong>Bordes y gridlines:</strong> Estructura clara y profesional</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>📊 Optimizado para Análisis</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                                    <li><strong>Anchos de columna ajustados:</strong> Todo el texto es legible sin ajustar</li>
+                                    <li><strong>Números formateados:</strong> Decimales, moneda ($) y separadores de miles</li>
+                                    <li><strong>Fechas estandarizadas:</strong> Formato YYYY-MM-DD HH:MM:SS</li>
+                                    <li><strong>Sin celdas fusionadas innecesarias:</strong> Facilita filtros y pivotes</li>
+                                    <li><strong>Tablas estructuradas:</strong> Compatible con Power BI, Tableau, etc.</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Proceso de Exportación</h2>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <ol className="text-sm text-muted-foreground space-y-3 list-decimal list-inside">
+                                <li>Selecciona el período y filtros que deseas incluir en el reporte</li>
+                                <li>Haz clic en el botón correspondiente al tipo de reporte que necesitas:</li>
+                                <ul className="list-disc list-inside ml-8 mt-2 space-y-1">
+                                    <li><strong>"Reporte de Uso Detallado"</strong> → Cada solicitud individual</li>
+                                    <li><strong>"Reporte por Notarías"</strong> → Totales agrupados por cliente</li>
+                                    <li><strong>"Reporte por Servicios"</strong> → Totales agrupados por servicio</li>
+                                </ul>
+                                <li>El sistema procesa los datos (puede tardar unos segundos si hay muchos registros)</li>
+                                <li>El navegador descarga automáticamente el archivo Excel</li>
+                                <li>El archivo se guarda con nombre descriptivo: <code>reporte_[tipo]_YYYYMMDD_HHMMSS.xlsx</code></li>
+                                <li>Abre el archivo en Excel, Google Sheets o cualquier software compatible</li>
+                            </ol>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Respeto de Filtros Aplicados</h2>
+                    <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-900">
+                        <p className="text-sm font-semibold text-blue-800 dark:text-blue-400 mb-2">
+                            ⚠️ Importante: Los Filtros Se Respetan en la Exportación
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                            Los archivos Excel solo incluyen los datos que cumplan con los filtros activos:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
+                            <li>Si seleccionaste "Este Mes" → solo datos del mes actual</li>
+                            <li>Si seleccionaste una notaría específica → solo esa notaría</li>
+                            <li>Los totales reflejan únicamente los datos filtrados</li>
+                            <li>El nombre del archivo incluye la fecha de generación para identificarlo</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <h2 className="text-2xl font-bold mb-4">Casos de Uso Comunes</h2>
+                    <div className="space-y-3">
+                        <Card>
+                            <CardContent className="pt-6">
+                                <p className="font-semibold text-sm mb-2">📊 Análisis Mensual de Ingresos</p>
+                                <ul className="text-xs text-muted-foreground list-disc list-inside ml-2 space-y-1">
+                                    <li>Selecciona "Este Mes" y descarga "Reporte por Notarías"</li>
+                                    <li>Abre en Excel y crea una tabla dinámica por plan</li>
+                                    <li>Calcula MRR (Monthly Recurring Revenue) por segmento</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <p className="font-semibold text-sm mb-2">🔍 Auditoría de Búsquedas OFAC</p>
+                                <ul className="text-xs text-muted-foreground list-disc list-inside ml-2 space-y-1">
+                                    <li>Descarga "Reporte de Uso Detallado" del período requerido</li>
+                                    <li>Filtra en Excel por servicio = "OFAC"</li>
+                                    <li>Revisa fecha, usuario y términos de búsqueda</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardContent className="pt-6">
+                                <p className="font-semibold text-sm mb-2">📈 Análisis de Popularidad de Servicios</p>
+                                <ul className="text-xs text-muted-foreground list-disc list-inside ml-2 space-y-1">
+                                    <li>Descarga "Reporte por Servicios" del año completo</li>
+                                    <li>Ordena por Total Costo (descendente)</li>
+                                    <li>Identifica los 5 servicios que generan más ingresos</li>
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-950/20 p-6 rounded-lg border border-green-200 dark:border-green-900">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        Buenas Prácticas
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                        <li>💾 <strong>Exporta regularmente:</strong> Crea respaldos mensuales de tus datos</li>
+                        <li>📅 <strong>Usa nombres descriptivos:</strong> Renombra los archivos con contexto claro</li>
+                        <li>📂 <strong>Organiza por carpetas:</strong> Por mes y año para fácil localización</li>
+                        <li>🔒 <strong>Protege datos sensibles:</strong> Los reportes contienen información confidencial</li>
+                        <li>📊 <strong>Importa a BI:</strong> Conecta Power BI o Tableau para dashboards avanzados</li>
+                    </ul>
+                </div>
+            </div>
+        ),
+    },
     'control-notarial': {
         title: 'Control Notarial',
         content: (
@@ -6870,9 +8300,9 @@ export default function Documentation({ currentSection }: Props) {
                                                     )}
                                                 </Button>
 
-                                                {section.subsections && activeSection.startsWith(section.id) && (
+                                                {(section.subsections || section.children) && activeSection.startsWith(section.id) && (
                                                     <div className="ml-6 mt-1 space-y-1">
-                                                        {section.subsections.map((subsection) => (
+                                                        {(section.subsections || section.children)?.map((subsection) => (
                                                             <Button
                                                                 key={subsection.id}
                                                                 variant={

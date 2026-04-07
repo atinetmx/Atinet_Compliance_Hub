@@ -183,20 +183,76 @@ export default function ListasNegrasHistory() {
         return colors[tipo] || 'bg-gray-100 text-gray-700 border-gray-300';
     };
 
+    const handleExportHistory = async () => {
+        if (!history || history.data.length === 0) {
+            alert('No hay datos para exportar');
+            return;
+        }
+
+        try {
+            const payload = {
+                history: history.data,
+                filters: filters,
+            };
+
+            const response = await fetch('/admin/export/history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) throw new Error('Error al exportar historial');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `historial_busquedas_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error al exportar historial:', error);
+            alert('Error al generar el archivo Excel. Por favor intente nuevamente.');
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Historial de Búsquedas - Listas Negras" />
 
             <div className="space-y-6">
-                {/* Botón de acción */}
-                <div className="flex justify-end">
-                    <Button
-                        onClick={() => router.visit('/admin/listas-negras')}
-                        variant="outline"
-                    >
-                        <Search className="w-4 h-4 mr-2" />
-                        Nueva Búsqueda
-                    </Button>
+                {/* Botones de acción */}
+                <div className="flex justify-between items-center gap-4">
+                    <div>
+                        {history && history.total > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                Mostrando <strong>{history.from}</strong> a <strong>{history.to}</strong> de <strong>{history.total}</strong> registros
+                            </p>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            onClick={handleExportHistory}
+                            variant="outline"
+                            disabled={!history || history.data.length === 0}
+                            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Exportar a Excel
+                        </Button>
+                        <Button
+                            onClick={() => router.visit('/admin/listas-negras')}
+                            variant="outline"
+                        >
+                            <Search className="w-4 h-4 mr-2" />
+                            Nueva Búsqueda
+                        </Button>
+                    </div>
                 </div>
 
                 <Alert>

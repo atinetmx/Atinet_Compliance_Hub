@@ -15,34 +15,39 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
+class SearchHistoryExport implements FromArray, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
 {
-    protected array $results;
+    protected array $history;
 
-    protected string $searchTerm;
+    protected array $filters;
 
-    protected string $searchType;
-
-    public function __construct(array $results, string $searchTerm, string $searchType = 'Búsqueda SAT')
+    public function __construct(array $history, array $filters = [])
     {
-        $this->results = $results;
-        $this->searchTerm = $searchTerm;
-        $this->searchType = $searchType;
+        $this->history = $history;
+        $this->filters = $filters;
     }
 
     public function array(): array
     {
-        return collect($this->results)->map(function ($item, $index) {
+        return collect($this->history)->map(function ($item, $index) {
+            $resultados = $item['resultados'] ?? [];
+            $totalResultados = 0;
+
+            // Contar resultados según el tipo
+            if (is_array($resultados)) {
+                $totalResultados = count($resultados);
+            } elseif (is_object($resultados) && isset($resultados->data)) {
+                $totalResultados = count($resultados->data);
+            }
+
             return [
                 $index + 1,
-                $item['nombre_original'] ?? '',
-                $item['nombre_limpio'] ?? '',
-                $item['rfc'] ?? 'N/A',
-                $item['situacion'] ?? 'No especificada',
-                $item['publicacion_sat'] ?? 'N/A',
-                $item['publicacion_dof'] ?? 'N/A',
-                isset($item['coincidencia']) ? number_format($item['coincidencia'], 2).'%' : 'N/A',
-                now()->format('d/m/Y'),
+                $item['user']['name'] ?? 'N/A',
+                $item['notaria']['nombre'] ?? 'Sin notaría',
+                $item['tipo_busqueda'] ?? 'N/A',
+                $item['termino_busqueda'] ?? '',
+                $totalResultados,
+                date('d/m/Y H:i', strtotime($item['created_at'])),
             ];
         })->toArray();
     }
@@ -51,14 +56,12 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
     {
         return [
             '#',
-            'Nombre Original',
-            'Nombre Normalizado',
-            'RFC',
-            'Situación',
-            'Pub. SAT',
-            'Pub. DOF',
-            'Coincidencia',
-            'Fecha Consulta',
+            'Usuario',
+            'Notaría',
+            'Tipo de Búsqueda',
+            'Término Búsqueda',
+            'Resultados',
+            'Fecha',
         ];
     }
 
@@ -66,20 +69,18 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
     {
         return [
             'A' => 8,
-            'B' => 35,
+            'B' => 30,
             'C' => 35,
-            'D' => 15,
-            'E' => 20,
-            'F' => 15,
-            'G' => 15,
-            'H' => 15,
-            'I' => 15,
+            'D' => 20,
+            'E' => 35,
+            'F' => 12,
+            'G' => 18,
         ];
     }
 
     public function title(): string
     {
-        return 'Resultados SAT';
+        return 'Historial Búsquedas';
     }
 
     /**
@@ -97,7 +98,7 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => 'DC2626'],
+                    'startColor' => ['rgb' => '6366F1'],
                 ],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -114,7 +115,7 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 $sheet = $event->sheet->getDelegate();
 
                 // Agregar título y metadata
-                $sheet->insertNewRowBefore(1, 5);
+                $sheet->insertNewRowBefore(1, 6);
 
                 // Agregar logo de Atinet
                 $logoPath = public_path('images/logo-atinet.png');
@@ -134,13 +135,13 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 $sheet->getRowDimension(1)->setRowHeight(60);
 
                 // Título principal (alineado a la derecha junto al logo)
-                $sheet->setCellValue('D1', 'RESULTADOS DE BÚSQUEDA - LISTA NEGRA SAT');
-                $sheet->mergeCells('D1:I1');
+                $sheet->setCellValue('D1', 'HISTORIAL DE BÚSQUEDAS - LISTAS NEGRAS');
+                $sheet->mergeCells('D1:G1');
                 $sheet->getStyle('D1')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'size' => 16,
-                        'color' => ['rgb' => 'DC2626'],
+                        'color' => ['rgb' => '6366F1'],
                     ],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -149,21 +150,29 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 ]);
 
                 $sheet->setCellValue('D2', 'Atinet Compliance Hub');
-                $sheet->mergeCells('D2:I2');
+                $sheet->mergeCells('D2:G2');
                 $sheet->getStyle('D2')->applyFromArray([
                     'font' => ['size' => 11, 'italic' => true],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
 
-                $sheet->setCellValue('A4', 'Término Búsqueda:');
-                $sheet->setCellValue('B4', $this->searchTerm);
-                $sheet->setCellValue('E4', 'Fecha de Generación:');
-                $sheet->setCellValue('F4', now()->format('d/m/Y H:i'));
-                $sheet->getStyle('A4:A4')->getFont()->setBold(true);
-                $sheet->getStyle('E4:E4')->getFont()->setBold(true);
+                // Información de filtros aplicados
+                $filtrosTexto = $this->getFilterDescription();
+                $sheet->setCellValue('A4', 'Filtros Aplicados:');
+                $sheet->setCellValue('B4', $filtrosTexto);
+                $sheet->mergeCells('B4:E4');
+                $sheet->getStyle('A4')->getFont()->setBold(true);
 
-                // Headers row is now at row 6
-                $sheet->getStyle('A6:I6')->applyFromArray([
+                $sheet->setCellValue('F4', 'Fecha Generación:');
+                $sheet->setCellValue('G4', now()->format('d/m/Y H:i'));
+                $sheet->getStyle('F4')->getFont()->setBold(true);
+
+                $sheet->setCellValue('A5', 'Total Registros:');
+                $sheet->setCellValue('B5', count($this->history));
+                $sheet->getStyle('A5')->getFont()->setBold(true);
+
+                // Headers row is now at row 7
+                $sheet->getStyle('A7:G7')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'color' => ['rgb' => 'FFFFFF'],
@@ -171,7 +180,7 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                     ],
                     'fill' => [
                         'fillType' => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'DC2626'],
+                        'startColor' => ['rgb' => '6366F1'],
                     ],
                     'alignment' => [
                         'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -181,7 +190,7 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
 
                 // Borders for data area
                 $lastRow = $sheet->getHighestRow();
-                $sheet->getStyle("A6:I{$lastRow}")->applyFromArray([
+                $sheet->getStyle("A7:G{$lastRow}")->applyFromArray([
                     'borders' => [
                         'allBorders' => [
                             'borderStyle' => Border::BORDER_THIN,
@@ -191,38 +200,61 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 ]);
 
                 // Alternate row colors for data
-                for ($i = 7; $i <= $lastRow; $i++) {
+                for ($i = 8; $i <= $lastRow; $i++) {
                     if ($i % 2 == 0) {
-                        $sheet->getStyle("A{$i}:I{$i}")->applyFromArray([
+                        $sheet->getStyle("A{$i}:G{$i}")->applyFromArray([
                             'fill' => [
                                 'fillType' => Fill::FILL_SOLID,
-                                'startColor' => ['rgb' => 'FEF2F2'],
+                                'startColor' => ['rgb' => 'F9F9F9'],
                             ],
                         ]);
                     }
                 }
 
-                // Disclaimer at the end
-                $disclaimerRow = $lastRow + 2;
-                $sheet->setCellValue("A{$disclaimerRow}", 'DISCLAIMER LEGAL:');
-                $sheet->mergeCells("A{$disclaimerRow}:I{$disclaimerRow}");
-                $sheet->getStyle("A{$disclaimerRow}")->getFont()->setBold(true);
+                // Resumen al final
+                $summaryRow = $lastRow + 2;
+                $sheet->setCellValue("A{$summaryRow}", 'RESUMEN DEL HISTORIAL:');
+                $sheet->mergeCells("A{$summaryRow}:G{$summaryRow}");
+                $sheet->getStyle("A{$summaryRow}")->getFont()->setBold(true);
 
-                $disclaimerRow++;
-                $disclaimer = 'Este reporte contiene información del SAT (Servicio de Administración Tributaria) sobre contribuyentes con situación fiscal comprometida. '
-                    .'Los datos se sincronizan diariamente desde el listado oficial del SAT (9:30 AM y 6:15 PM hora México). '
-                    .'Los resultados mostrados son indicativos y deben ser verificados en el portal oficial del SAT. '
-                    .'Atinet no se hace responsable por decisiones basadas únicamente en este reporte. '
-                    .'Última sincronización: '.now()->format('d/m/Y H:i');
+                $summaryRow++;
+                $summary = 'Este reporte contiene el historial de búsquedas realizadas en las Listas Negras OFAC y SAT 69-B. '
+                    .'Los datos reflejan todas las consultas registradas según los filtros aplicados. '
+                    .'El historial completo está disponible en el sistema para consultas futuras.';
 
-                $sheet->setCellValue("A{$disclaimerRow}", $disclaimer);
-                $sheet->mergeCells("A{$disclaimerRow}:I{$disclaimerRow}");
-                $sheet->getStyle("A{$disclaimerRow}")->applyFromArray([
+                $sheet->setCellValue("A{$summaryRow}", $summary);
+                $sheet->mergeCells("A{$summaryRow}:G{$summaryRow}");
+                $sheet->getStyle("A{$summaryRow}")->applyFromArray([
                     'font' => ['size' => 9, 'italic' => true, 'color' => ['rgb' => '666666']],
                     'alignment' => ['wrapText' => true, 'vertical' => Alignment::VERTICAL_TOP],
                 ]);
-                $sheet->getRowDimension($disclaimerRow)->setRowHeight(60);
+                $sheet->getRowDimension($summaryRow)->setRowHeight(45);
             },
         ];
+    }
+
+    protected function getFilterDescription(): string
+    {
+        $parts = [];
+
+        if (!empty($this->filters['tipo_busqueda']) && $this->filters['tipo_busqueda'] !== 'all') {
+            $parts[] = "Tipo: {$this->filters['tipo_busqueda']}";
+        }
+
+        if (!empty($this->filters['dias']) && $this->filters['dias'] !== 'all') {
+            $diasLabels = [
+                '7' => 'Últimos 7 días',
+                '30' => 'Últimos 30 días',
+                '90' => 'Últimos 3 meses',
+                '365' => 'Último año',
+            ];
+            $parts[] = $diasLabels[$this->filters['dias']] ?? "Últimos {$this->filters['dias']} días";
+        }
+
+        if (!empty($this->filters['termino'])) {
+            $parts[] = "Término: {$this->filters['termino']}";
+        }
+
+        return empty($parts) ? 'Ninguno (todo el historial)' : implode(' | ', $parts);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Exports\CombinedSearchResultsExport;
 use App\Exports\OfacSearchResultsExport;
 use App\Exports\SatSearchResultsExport;
+use App\Exports\SearchHistoryExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -91,5 +92,27 @@ class ExportController extends Controller
         $date = now()->format('Y-m-d_His');
 
         return "busqueda_{$type}_{$safeTerm}_{$date}.xlsx";
+    }
+
+    /**
+     * Export search history to Excel
+     */
+    public function exportHistory(Request $request)
+    {
+        $request->validate([
+            'history' => 'required|array',
+            'filters' => 'array',
+        ]);
+
+        $history = $request->input('history');
+        $filters = $request->input('filters', []);
+
+        $date = now()->format('Y-m-d_His');
+        $filename = "historial_busquedas_{$date}.xlsx";
+
+        return Excel::download(
+            new SearchHistoryExport($history, $filters),
+            $filename
+        );
     }
 }

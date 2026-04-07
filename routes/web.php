@@ -150,7 +150,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usage-trends', [\App\Http\Controllers\Admin\ReportsController::class, 'usageTrends'])->name('usage-trends');
         Route::get('top-services', [\App\Http\Controllers\Admin\ReportsController::class, 'topServices'])->name('top-services');
         Route::get('near-limit', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasNearLimit'])->name('near-limit');
-        Route::get('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
+        Route::post('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
     });
 
     // Rutas para gestión de contraseñas
@@ -237,7 +237,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Página de búsqueda
     Route::get('listas-negras', function () {
         return Inertia::render('Admin/ListasNegras/Search');
-        
+
     })->name('listas-negras');
 
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)
@@ -264,6 +264,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
+    });
+
+    // Exportación a Excel de resultados de búsqueda
+    // NOTA: Los exportes NO consumen límites porque son resultado de búsquedas ya realizadas
+    Route::prefix('export')->name('export.')->middleware(['subscription'])->group(function () {
+        Route::post('ofac', [\App\Http\Controllers\Admin\ExportController::class, 'exportOfac'])->name('ofac');
+        Route::post('sat', [\App\Http\Controllers\Admin\ExportController::class, 'exportSat'])->name('sat');
+        Route::post('combined', [\App\Http\Controllers\Admin\ExportController::class, 'exportCombined'])->name('combined');
+        Route::post('history', [\App\Http\Controllers\Admin\ExportController::class, 'exportHistory'])->name('history');
     });
 
     // === HISTORIAL DE BÚSQUEDAS EN LISTAS NEGRAS ===
