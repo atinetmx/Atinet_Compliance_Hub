@@ -127,6 +127,11 @@ export function AppSidebar() {
                                       href: '/admin/control-notarial/configuracion-operaciones',
                                       icon: Settings,
                                   },
+                                  {
+                                      title: 'Cfg Tarifarias',
+                                      href: '/admin/control-notarial/configuraciones-tarifarias',
+                                      icon: DollarSign,
+                                  },
                               ],
                           },
                       ],
@@ -190,6 +195,11 @@ export function AppSidebar() {
                                       title: 'Configuración Operaciones',
                                       href: '/admin/control-notarial/configuracion-operaciones',
                                       icon: Settings,
+                                  },
+                                  {
+                                      title: 'Configuraciones Tarifarias',
+                                      href: '/admin/control-notarial/configuraciones-tarifarias',
+                                      icon: DollarSign,
                                   },
                               ],
                           },

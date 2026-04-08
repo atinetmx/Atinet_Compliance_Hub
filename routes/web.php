@@ -180,6 +180,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion-notaria');
         Route::get('clientes', [\App\Http\Controllers\ControlNotarialController::class, 'clientes'])->name('clientes');
         Route::get('configuracion-operaciones', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionOperaciones'])->name('configuracion-operaciones');
+        Route::get('configuraciones-tarifarias', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionesTarifarias'])->name('configuraciones-tarifarias');
         Route::get('usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'usuarios'])->name('usuarios');
         Route::get('alta-catalogos', [\App\Http\Controllers\ControlNotarialController::class, 'altaCatalogos'])->name('alta-catalogos');
         Route::get('reporte-usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'reporteUsuarios'])->name('reporte-usuarios');

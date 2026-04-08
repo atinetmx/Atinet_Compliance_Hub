@@ -339,7 +339,9 @@ export default function ControlNotarialAltaCatalogos() {
             payload.actividad_Vulnerable_Id = state.actividad_Vulnerable_Id || 0;
         } else if (activeTab === 'impuestos_derechos') {
             payload.tipo = state.tipo || '';
-            payload.dependencia = state.dependencia || '';
+            // Buscar la descripción de la dependencia seleccionada por ID
+            const dependenciaSeleccionada = dependenciasLista.find(dep => String(dep.id) === String(state.dependencia));
+            payload.dependencia = dependenciaSeleccionada?.descripcion || '';
         }
 
         // Agregar ID si estamos editando
@@ -462,19 +464,21 @@ export default function ControlNotarialAltaCatalogos() {
                     </div>
                 )}
 
-                {/* Descripción */}
-                <div className="space-y-2">
-                    <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
-                    <textarea
-                        id="descripcion"
-                        name="descripcion"
-                        value={currentState.descripcion}
-                        onChange={handleInputChange}
-                        placeholder="Descripción"
-                        rows={6}
-                        className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                </div>
+                {/* Descripción - No se muestra en impuestos_derechos */}
+                {activeTab !== 'impuestos_derechos' && (
+                    <div className="space-y-2">
+                        <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
+                        <textarea
+                            id="descripcion"
+                            name="descripcion"
+                            value={currentState.descripcion}
+                            onChange={handleInputChange}
+                            placeholder="Descripción"
+                            rows={6}
+                            className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                )}
 
                 {/* Campos adicionales según el tipo de catálogo */}
                 {activeTab === 'actividades_vulnerables' && (
@@ -533,24 +537,51 @@ export default function ControlNotarialAltaCatalogos() {
                 {activeTab === 'impuestos_derechos' && (
                     <>
                         <div className="space-y-2">
-                            <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
-                            <Input
-                                id="tipo"
-                                name="tipo"
-                                value={(currentState as ImpuestoDerecho).tipo || ''}
+                            <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
+                            <textarea
+                                id="descripcion"
+                                name="descripcion"
+                                value={currentState.descripcion}
                                 onChange={handleInputChange}
-                                placeholder="Tipo de impuesto o derecho"
+                                placeholder="Descripción"
+                                rows={4}
+                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <RequiredLabel htmlFor="dependencia">Dependencia *</RequiredLabel>
-                            <Input
-                                id="dependencia"
-                                name="dependencia"
-                                value={(currentState as ImpuestoDerecho).dependencia || ''}
-                                onChange={handleInputChange}
-                                placeholder="Dependencia relacionada"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <RequiredLabel htmlFor="dependencia">Dependencia Pública *</RequiredLabel>
+                                <Select
+                                    value={(currentState as ImpuestoDerecho).dependencia ? String((currentState as ImpuestoDerecho).dependencia) : ''}
+                                    onValueChange={(value) => handleSelectChange('dependencia', value)}
+                                >
+                                    <SelectTrigger id="dependencia">
+                                        <SelectValue placeholder="Selecciona una dependencia" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {dependenciasLista.map((dependencia) => (
+                                            <SelectItem key={dependencia.id} value={String(dependencia.id)}>
+                                                {dependencia.descripcion}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
+                                <Select
+                                    value={(currentState as ImpuestoDerecho).tipo || ''}
+                                    onValueChange={(value) => handleSelectChange('tipo', value)}
+                                >
+                                    <SelectTrigger id="tipo">
+                                        <SelectValue placeholder="Selecciona un tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Posterior">Posterior</SelectItem>
+                                        <SelectItem value="Previo">Previo</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </>
                 )}

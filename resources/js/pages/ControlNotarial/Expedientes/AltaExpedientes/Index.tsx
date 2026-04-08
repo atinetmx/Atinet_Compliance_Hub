@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
@@ -366,6 +366,7 @@ export default function ExpedientesIndex() {
     const [autorizadoId, setAutorizadoId] = useState<number | null>(null);
     const [municipioId, setMunicipioId] = useState<number | null>(null);
     const [operacionesIds, setOperacionesIds] = useState<number[]>([]);
+    const [operacionesDelExpediente, setOperacionesDelExpediente] = useState<Operacion[]>([]);
 
     // --- Estado para guardar ID del expediente actual ---
     const [currentExpedienteId, setCurrentExpedienteId] = useState<number | null>(null);
@@ -387,7 +388,6 @@ export default function ExpedientesIndex() {
         cliente: '',
         operacion: '',
         zona_municipio: '',
-        observaciones: '',
         valor_operacion: 0,
         valor_avaluo: 0,
         valor_catastral: 0,
@@ -407,6 +407,10 @@ export default function ExpedientesIndex() {
     const [ret_isr_check, setRetISRCheck] = useState(false);
     const [ret_iva_check, setRetIVACheck] = useState(false);
     const [clienteSelectedPresupuesto, setClienteSelectedPresupuesto] = useState<Cliente | null>(null);
+    const [clienteFiltro, setClienteFiltro] = useState('');
+    const [showClienteDropdown, setShowClienteDropdown] = useState(false);
+    const [municipioFiltroPresupuesto, setMunicipioFiltroPresupuesto] = useState('');
+    const [showMunicipioPresupuestoDropdown, setShowMunicipioPresupuestoDropdown] = useState(false);
 
     // --- Estados para Documentos por Cliente (Expediente) ---
     const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
@@ -543,6 +547,8 @@ export default function ExpedientesIndex() {
 
     const { addToast } = useToast();
     const api = useApi();
+    const { props } = usePage();
+    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
     // Cargar expedientes al montar (filtro vacío = todos)
     useEffect(() => {
@@ -1048,7 +1054,7 @@ export default function ExpedientesIndex() {
         try {
             setIsLoadingRecibo(true);
             const response = await fetch(
-                `${new URL(window.location.href).origin}/api/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
+                `${apiBaseUrl}/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
                 { method: 'GET' }
             );
 
@@ -1593,11 +1599,15 @@ export default function ExpedientesIndex() {
                 const operacionesDescripciones = fullData.operaciones.map((op: any) => op.descripcion);
                 setFormData(prev => ({ ...prev, operaciones: operacionesDescripciones }));
 
-                // Obtener IDs de operaciones
+                // Obtener IDs de operaciones y guardar operaciones completas del expediente
                 const opsIds = operacionesDisponibles
                     .filter(op => operacionesDescripciones.includes(op.descripcion))
                     .map(op => op.id);
                 setOperacionesIds(opsIds);
+
+                // Guardar las operaciones completas del expediente para usarlas en presupuestos
+                const operacionesExpediente = operacionesDisponibles.filter(op => opsIds.includes(op.id));
+                setOperacionesDelExpediente(operacionesExpediente);
             }
 
             // Cargar comparecientes (clientes)
@@ -2141,7 +2151,7 @@ export default function ExpedientesIndex() {
 
         try {
             setCargandoReciboDetalle(true);
-            const data = await api.put(`ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
+            const data = await api.put(`/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
             if (data) {
                 addToast('Recibo pagado exitosamente', 'success');
@@ -2170,7 +2180,7 @@ export default function ExpedientesIndex() {
 
         try {
             setCargandoReciboDetalle(true);
-            const data = await api.put(`ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
+            const data = await api.put(`/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
             if (data) {
                 addToast('Recibo cancelado exitosamente', 'success');
@@ -2194,7 +2204,7 @@ export default function ExpedientesIndex() {
     const handleImprimirRecibo = async (reciboId: number) => {
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`${new URL(window.location.href).origin}/api/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
+            const response = await fetch(`${apiBaseUrl}/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
                 method: 'GET',
             });
 
@@ -2295,52 +2305,64 @@ export default function ExpedientesIndex() {
                                 <span>{searchError}</span>
                             </div>
                         )}
-                        <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-20">ID</TableHead>
-                                        <TableHead>Expediente</TableHead>
-                                        <TableHead>Operación</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Fecha Creación</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isSearching ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                Cargando expedientes...
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : resultados.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                No se encontraron expedientes.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        resultados.map((item) => (
-                                            <TableRow
-                                                key={item.expediente.id}
-                                                className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
-                                                onClick={() => handleLoadExpediente(item.expediente.id)}
-                                            >
-                                                <TableCell className="font-mono text-sm">{item.expediente.id}</TableCell>
-                                                <TableCell className="font-medium">{item.expediente.expediente || '-'}</TableCell>
-                                                <TableCell>
-                                                    <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                        {item.operaciones?.[0]?.descripcion || '-'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>{item.clientes?.[0]?.nombre || '-'}</TableCell>
-                                                <TableCell className="text-sm">{item.expediente.fecha_Creacion ? new Date(item.expediente.fecha_Creacion).toLocaleDateString('es-MX') : '-'}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Expediente</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Operación</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Cliente</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearching ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Cargando expedientes...
+                                                </td>
+                                            </tr>
+                                        ) : resultados.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron expedientes.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            resultados.map((item) => (
+                                                <tr
+                                                    key={item.expediente.id}
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                                    onClick={() => handleLoadExpediente(item.expediente.id)}
+                                                >
+                                                    <td className="px-4 py-2 font-mono text-sm">{item.expediente.id}</td>
+                                                    <td className="px-4 py-2">{item.expediente.expediente || '-'}</td>
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                                {item.operaciones?.[0]?.descripcion || '-'}
+                                                            </span>
+                                                            {item.operaciones && item.operaciones.length > 1 && (
+                                                                <span
+                                                                    className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800 whitespace-nowrap cursor-help hover:bg-amber-200 transition-colors"
+                                                                    title={item.operaciones.map(op => op.descripcion).join('\n')}
+                                                                >
+                                                                    +{item.operaciones.length - 1} más
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-2">{item.clientes?.[0]?.nombre || '-'}</td>
+                                                    <td className="px-4 py-2 text-sm">{item.expediente.fecha_Creacion ? new Date(item.expediente.fecha_Creacion).toLocaleDateString('es-MX') : '-'}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         {!isSearching && resultados.length > 0 && (
                             <p className="text-sm text-muted-foreground">
@@ -4346,6 +4368,7 @@ export default function ExpedientesIndex() {
                                                     onClick={() => {
                                                         setMostrarFormularioPresupuesto(true);
                                                         setClienteSelectedPresupuesto(null);
+                                                        setClienteFiltro('');
                                                         setOperacionFiltro('');
                                                         setRetISRCheck(false);
                                                         setRetIVACheck(false);
@@ -4353,7 +4376,6 @@ export default function ExpedientesIndex() {
                                                             cliente: '',
                                                             operacion: '',
                                                             zona_municipio: '',
-                                                            observaciones: '',
                                                             valor_operacion: 0,
                                                             valor_avaluo: 0,
                                                             valor_catastral: 0,
@@ -4437,147 +4459,216 @@ export default function ExpedientesIndex() {
                                                 </div>
 
                                                 {/* SECCIÓN SUPERIOR: DATOS DEL PRESUPUESTO */}
-                                                <div className="grid grid-cols-3 gap-4">
-                                                    {/* COLUMNA 1: DATOS (2 columnas) */}
-                                                    <div className="border rounded-lg p-4 bg-background/50 space-y-4 col-span-2">
-                                                        <h3 className="text-lg font-bold">Datos del presupuesto</h3>
+                                                <div className="border rounded-lg p-4 bg-background/50">
+                                                    <h3 className="text-lg font-bold mb-4">Datos del presupuesto</h3>
 
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Cliente</label>
-                                                                <div className="flex gap-2">
-                                                                    <Input
-                                                                        readOnly
-                                                                        value={clienteSelectedPresupuesto ? `${clienteSelectedPresupuesto.nombre} ${clienteSelectedPresupuesto.apellido_Paterno}` : 'Selecciona un cliente'}
-                                                                        placeholder="Selecciona un cliente"
-                                                                        className="flex-1"
-                                                                    />
-                                                                    <Button
-                                                                        type="button"
-                                                                        onClick={() => setFormPresupuesto(prev => ({ ...prev, cliente: filasComparecientes.length > 0 ? filasComparecientes[0].cliente_Id.toString() : '' }))}
-                                                                        className="bg-amber-600 hover:bg-amber-700"
-                                                                    >
-                                                                        <ChevronDown className="h-4 w-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="space-y-2 relative">
-                                                                <label className="text-sm font-medium">Operación</label>
-                                                                <div className="relative">
-                                                                    <Input
-                                                                        type="text"
-                                                                        placeholder="Busca o selecciona"
-                                                                        value={operacionFiltro}
-                                                                        onChange={(e) => {
-                                                                            setOperacionFiltro(e.target.value);
-                                                                            setShowOperacionDropdown(true);
-                                                                        }}
-                                                                        onFocus={() => setShowOperacionDropdown(true)}
-                                                                        onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
-                                                                        className="w-full pr-10"
-                                                                    />
-                                                                    {operacionFiltro && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setOperacionFiltro('');
-                                                                                setFormPresupuesto(prev => ({ ...prev, operacion: '' }));
-                                                                                setShowOperacionDropdown(false);
-                                                                            }}
-                                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                                        >
-                                                                            <X className="h-4 w-4" />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                                {showOperacionDropdown && operacionesDisponibles.length > 0 && (
-                                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
-                                                                        {operacionesDisponibles
-                                                                            .filter(op =>
-                                                                                op.descripcion
-                                                                                    .toLowerCase()
-                                                                                    .includes(operacionFiltro.toLowerCase())
-                                                                            )
-                                                                            .map(operacion => (
-                                                                                <button
-                                                                                    key={operacion.id}
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        setFormPresupuesto(prev => ({ ...prev, operacion: operacion.id.toString() }));
-                                                                                        setOperacionFiltro(operacion.descripcion);
-                                                                                        setShowOperacionDropdown(false);
-                                                                                    }}
-                                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
-                                                                                >
-                                                                                    {operacion.descripcion}
-                                                                                </button>
-                                                                            ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Zona o Municipio</label>
+                                                    <div className="grid grid-cols-3 gap-4 mb-6">
+                                                        <div className="space-y-2 relative">
+                                                            <label className="text-sm font-medium">Cliente</label>
+                                                            <div className="relative">
                                                                 <Input
                                                                     type="text"
-                                                                    value={formPresupuesto.zona_municipio}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, zona_municipio: e.target.value }))}
-                                                                    placeholder="Zona o Municipio"
+                                                                    placeholder="Busca o selecciona"
+                                                                    value={clienteFiltro}
+                                                                    onChange={(e) => {
+                                                                        setClienteFiltro(e.target.value);
+                                                                        setShowClienteDropdown(true);
+                                                                    }}
+                                                                    onFocus={() => setShowClienteDropdown(true)}
+                                                                    onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
+                                                                    className="w-full pr-10"
                                                                 />
+                                                                {clienteFiltro && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setClienteFiltro('');
+                                                                            setClienteSelectedPresupuesto(null);
+                                                                            setFormPresupuesto(prev => ({ ...prev, cliente: '' }));
+                                                                            setShowClienteDropdown(false);
+                                                                        }}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Observaciones</label>
-                                                                <textarea
-                                                                    value={formPresupuesto.observaciones}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, observaciones: e.target.value }))}
-                                                                    placeholder="Observaciones adicionales"
-                                                                    rows={2}
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            {showClienteDropdown && filasComparecientes.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                                    {filasComparecientes
+                                                                        .filter(fila =>
+                                                                            fila.nombreCompareciente
+                                                                                .toLowerCase()
+                                                                                .includes(clienteFiltro.toLowerCase())
+                                                                        )
+                                                                        .map(fila => (
+                                                                            <button
+                                                                                key={fila.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const cliente = clientesDisponibles.find(c => c.id === fila.cliente_Id);
+                                                                                    if (cliente) {
+                                                                                        setClienteSelectedPresupuesto(cliente);
+                                                                                        setFormPresupuesto(prev => ({ ...prev, cliente: cliente.id.toString() }));
+                                                                                        setClienteFiltro(`${cliente.nombre} ${cliente.apellido_Paterno}`);
+                                                                                        setShowClienteDropdown(false);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0 text-sm"
+                                                                            >
+                                                                                {fila.nombreCompareciente}
+                                                                            </button>
+                                                                        ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="space-y-2 relative">
+                                                            <label className="text-sm font-medium">Operación</label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Busca o selecciona"
+                                                                    value={operacionFiltro}
+                                                                    onChange={(e) => {
+                                                                        setOperacionFiltro(e.target.value);
+                                                                        setShowOperacionDropdown(true);
+                                                                    }}
+                                                                    onFocus={() => setShowOperacionDropdown(true)}
+                                                                    onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
+                                                                    className="w-full pr-10"
                                                                 />
+                                                                {operacionFiltro && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setOperacionFiltro('');
+                                                                            setFormPresupuesto(prev => ({ ...prev, operacion: '' }));
+                                                                            setShowOperacionDropdown(false);
+                                                                        }}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
+                                                            {showOperacionDropdown && operacionesDelExpediente.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                                    {operacionesDelExpediente
+                                                                        .filter(op =>
+                                                                            op.descripcion
+                                                                                .toLowerCase()
+                                                                                .includes(operacionFiltro.toLowerCase())
+                                                                        )
+                                                                        .map(operacion => (
+                                                                            <button
+                                                                                key={operacion.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setFormPresupuesto(prev => ({ ...prev, operacion: operacion.id.toString() }));
+                                                                                    setOperacionFiltro(operacion.descripcion);
+                                                                                    setShowOperacionDropdown(false);
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
+                                                                            >
+                                                                                {operacion.descripcion}
+                                                                            </button>
+                                                                        ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="space-y-2 relative">
+                                                            <label className="text-sm font-medium">Zona o Municipio</label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Busca o selecciona"
+                                                                    value={formPresupuesto.zona_municipio || formData.municipio}
+                                                                    onChange={(e) => {
+                                                                        setFormPresupuesto(prev => ({ ...prev, zona_municipio: e.target.value }));
+                                                                        setShowMunicipioPresupuestoDropdown(true);
+                                                                    }}
+                                                                    onFocus={() => setShowMunicipioPresupuestoDropdown(true)}
+                                                                    onBlur={() => setTimeout(() => setShowMunicipioPresupuestoDropdown(false), 200)}
+                                                                    className="w-full pr-10"
+                                                                />
+                                                                {(formPresupuesto.zona_municipio || formData.municipio) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFormPresupuesto(prev => ({ ...prev, zona_municipio: formData.municipio }));
+                                                                            setShowMunicipioPresupuestoDropdown(false);
+                                                                        }}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            {showMunicipioPresupuestoDropdown && municipiosDisponibles.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                                    {municipiosDisponibles
+                                                                        .filter(municipio =>
+                                                                            municipio.descripcion
+                                                                                .toLowerCase()
+                                                                                .includes((formPresupuesto.zona_municipio || formData.municipio || '').toLowerCase())
+                                                                        )
+                                                                        .map(municipio => (
+                                                                            <button
+                                                                                key={municipio.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setFormPresupuesto(prev => ({ ...prev, zona_municipio: municipio.descripcion }));
+                                                                                    setShowMunicipioPresupuestoDropdown(false);
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 hover:bg-green-50 border-b last:border-b-0 text-sm"
+                                                                            >
+                                                                                {municipio.descripcion}
+                                                                            </button>
+                                                                        ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
+                                                </div>
 
-                                                    {/* COLUMNA 2: VALORES */}
-                                                    <div className="border rounded-lg p-4 bg-background/50 space-y-4">
-                                                        <h3 className="text-lg font-bold">Valores</h3>
-                                                        <div className="space-y-3">
-                                                            <div className="space-y-1">
-                                                                <label className="text-sm font-medium">Valor Operación</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={formPresupuesto.valor_operacion}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_operacion: parseFloat(e.target.value) || 0 }))}
-                                                                    placeholder="0.00"
-                                                                    className="text-right font-bold text-green-600"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <label className="text-sm font-medium">Valor Avalúo</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={formPresupuesto.valor_avaluo}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_avaluo: parseFloat(e.target.value) || 0 }))}
-                                                                    placeholder="0.00"
-                                                                    className="text-right font-bold text-green-600"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <label className="text-sm font-medium">Valor Catastral</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={formPresupuesto.valor_catastral}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_catastral: parseFloat(e.target.value) || 0 }))}
-                                                                    placeholder="0.00"
-                                                                    className="text-right font-bold text-green-600"
-                                                                />
-                                                            </div>
+                                                {/* SECCIÓN: VALORES */}
+                                                <div className="border rounded-lg p-4 bg-background/50">
+                                                    <h3 className="text-lg font-bold mb-4">Valores</h3>
+                                                    <div className="grid grid-cols-3 gap-4">
+                                                        <div className="space-y-1">
+                                                            <label className="text-sm font-medium">Valor Operación</label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={formPresupuesto.valor_operacion}
+                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_operacion: parseFloat(e.target.value) || 0 }))}
+                                                                placeholder="0.00"
+                                                                className="text-right font-bold text-green-600"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-sm font-medium">Valor Avalúo</label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={formPresupuesto.valor_avaluo}
+                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_avaluo: parseFloat(e.target.value) || 0 }))}
+                                                                placeholder="0.00"
+                                                                className="text-right font-bold text-green-600"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-sm font-medium">Valor Catastral</label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={formPresupuesto.valor_catastral}
+                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_catastral: parseFloat(e.target.value) || 0 }))}
+                                                                placeholder="0.00"
+                                                                className="text-right font-bold text-green-600"
+                                                            />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4876,8 +4967,10 @@ export default function ExpedientesIndex() {
                                                                 activo: true,
                                                             });
                                                             setOperacionFiltro('');
+                                                            setClienteFiltro('');
                                                             setRetISRCheck(false);
                                                             setRetIVACheck(false);
+                                                            setClienteSelectedPresupuesto(null);
                                                         }}
                                                     >
                                                         Cancelar
@@ -4890,7 +4983,6 @@ export default function ExpedientesIndex() {
                                                                 cliente: '',
                                                                 operacion: '',
                                                                 zona_municipio: '',
-                                                                observaciones: '',
                                                                 valor_operacion: 0,
                                                                 valor_avaluo: 0,
                                                                 valor_catastral: 0,
@@ -4906,8 +4998,10 @@ export default function ExpedientesIndex() {
                                                                 activo: true,
                                                             });
                                                             setOperacionFiltro('');
+                                                            setClienteFiltro('');
                                                             setRetISRCheck(false);
                                                             setRetIVACheck(false);
+                                                            setClienteSelectedPresupuesto(null);
                                                             fetchPresupuestos(currentExpedienteId!);
                                                         }}
                                                         className="bg-purple-600 hover:bg-purple-700 text-white text-sm"

@@ -144,6 +144,14 @@ class ControlNotarialController extends Controller
     }
 
     /**
+     * Display configuraciones tarifarias module
+     */
+    public function configuracionesTarifarias(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/ConfiguracionesTarifarias/Index');
+    }
+
+    /**
      * Display clientes module within configuración
      */
     public function clientes(): Response
