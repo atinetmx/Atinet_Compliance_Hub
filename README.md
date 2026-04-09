@@ -1,8 +1,40 @@
 # 📚 Índice de Documentación - Atinet Compliance Hub
 
-**Última actualización:** 10 de Febrero, 2026
+**Última actualización:** 8 de Abril, 2026
 
 Este documento sirve como índice central de toda la documentación del proyecto. Aquí encontrarás referencias organizadas a todos los documentos técnicos, guías y recursos disponibles.
+
+---
+
+## ⭐ DOCUMENTACIÓN ACTUALIZADA (8 Abril 2026)
+
+### 🎯 INICIO RÁPIDO
+
+| Documento | Para quién | Descripción |
+|-----------|-----------|-------------|
+| **[📋 Índice Maestro](docs/INDICE_MAESTRO.md)** | Todos | Índice completo de documentación por rol |
+| **[⚡ Guía Rápida](docs/GUIA_RAPIDA_SINCRONIZACION_Y_DESARROLLO.md)** | Desarrolladores | Comandos diarios, sincronización, troubleshooting |
+| **[🏗️ Arquitectura Completa](docs/architecture/ARQUITECTURA_COMPLETA_Y_SINCRONIZACION.md)** | Tech Lead, Arquitectos | Multi-tenancy, sincronización, roadmap servidores dedicados |
+| **[🔧 Actualización NotariaController](docs/development/ACTUALIZACION_NOTARIA_CONTROLLER.md)** | Backend PHP | 🚨 CRÍTICO - Migraciones faltantes, SQL completo |
+
+### 💎 DECISIÓN ESTRATÉGICA (8 Abril 2026)
+
+**1. Sistema de Registro Web - Opción B: Tablas Tenant**
+- **Decisión:** Implementar tablas tenant AHORA (registro_web, activity_log, etc.)
+- **Razón:** Preparación para transición desde sistemas legacy
+- **Timeline:** 8-15 Abril (implementación), Mayo-Junio (servidores dedicados)
+- **Ver:** [ACTUALIZACION_NOTARIA_CONTROLLER.md](docs/development/ACTUALIZACION_NOTARIA_CONTROLLER.md)
+
+**2. Consolidación de BDs Legacy a BD Master**
+- **Objetivo:** `php artisan migrate:fresh` crea TODAS las tablas (incluye OFAC, SAT, Catálogos, Aplicativos)
+- **Beneficio:** BD Master auto-suficiente, desarrollo sin dependencia de Hostgator
+- **Timeline:** 15-19 Abril (1 semana)
+- **Ver:** [PLAN_CONSOLIDACION_BDS_LEGACY.md](docs/development/PLAN_CONSOLIDACION_BDS_LEGACY.md)
+
+**3. Sistema de sincronización con Hostgator**
+- **Producción:** Automático cada 15 minutos (durante transición)
+- **Desarrollo:** php artisan db:seed --class=LegacyConsolidationSeeder
+- **Ver:** [Guía Rápida](docs/GUIA_RAPIDA_SINCRONIZACION_Y_DESARROLLO.md)
 
 ---
 

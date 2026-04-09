@@ -177,7 +177,7 @@ class RegistroPersona extends Model
      * Valores por defecto
      */
     protected $attributes = [
-        'Persona' => 'FISICA',
+        'persona' => 'fisica',
         'paisnac' => 'MEXICO',
         'nacionalidad' => 'MEXICANA',
         'pais' => 'MEXICO',
@@ -185,8 +185,6 @@ class RegistroPersona extends Model
         'envio_de_correo' => 0,
         'sabe_escribir' => '',
         'sabe_leer' => '',
-        'escribir' => '',
-        'leer' => '',
     ];
 
     /**

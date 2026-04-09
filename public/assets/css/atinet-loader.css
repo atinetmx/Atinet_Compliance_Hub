@@ -1,0 +1,187 @@
+/**
+ * Atinet 3D Loader - Pulse Effect
+ * Loader personalizado con logo Atinet en 3D
+ * Efecto: Rotación con pulsación y glow
+ */
+
+/* Contenedor principal del loader */
+.atinet-3d-loader {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 1000px;
+  margin: 20px auto;
+}
+
+/* Canvas Three.js - posición absoluta para que los anillos orbitales sean visibles */
+.atinet-logo-3d-canvas {
+  display: block;
+  width: 200px;
+  height: 200px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  background: transparent;
+}
+
+/* Efecto de resplandor de fondo para profundidad adicional */
+.atinet-3d-loader::before {
+  content: '';
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(220, 53, 69, 0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 0;
+  animation: pulseGlow 2.5s ease-in-out infinite;
+  filter: blur(20px);
+}
+
+/* Anillo orbital - encima del canvas (z-index > 2), fondo transparente */
+.atinet-orbital-ring {
+  position: absolute;
+  width: 185px;
+  height: 185px;
+  border: 3px solid rgba(220, 53, 69, 0.2);
+  border-top-color: rgba(220, 53, 69, 0.8);
+  border-radius: 50%;
+  animation: spin 3s linear infinite;
+  z-index: 3;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Anillo secundario - encima del canvas */
+.atinet-orbital-ring-2 {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border: 2px solid rgba(220, 53, 69, 0.15);
+  border-bottom-color: rgba(220, 53, 69, 0.6);
+  border-radius: 50%;
+  animation: spin 4s linear infinite reverse;
+  z-index: 4;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* La rotación 3D real la maneja Three.js — no se necesita pulse3D */
+
+/* Animación del resplandor de fondo */
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Animación de rotación para anillos */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Animación de fade in para el loader */
+@keyframes fadeInLoader {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.atinet-3d-loader {
+  animation: fadeInLoader 0.3s ease-out;
+}
+
+/* Estilos para integración con SweetAlert2 */
+.swal2-popup.atinet-custom-loader {
+  width: 360px !important;
+}
+
+/* Altura fija para el html-container: evita reflow durante animación Three.js */
+.swal2-popup.atinet-custom-loader .swal2-html-container {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.swal2-popup .atinet-3d-loader {
+  margin: 10px auto 0;
+}
+
+.swal2-html-container .atinet-3d-loader {
+  margin: 10px auto 0;
+}
+
+/* Ocultar el loader por defecto de SweetAlert2 cuando usamos el nuestro */
+.swal2-popup.atinet-custom-loader .swal2-loader {
+  display: none;
+}
+
+/* Texto de carga debajo del loader */
+.atinet-loader-text {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 14px;
+  color: #666;
+  animation: fadeInText 0.5s ease-out 0.3s both;
+}
+
+@keyframes fadeInText {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .atinet-3d-loader {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .atinet-logo-3d {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .atinet-orbital-ring {
+    width: 110px;
+    height: 110px;
+  }
+  
+  .atinet-orbital-ring-2 {
+    width: 130px;
+    height: 130px;
+  }
+}
+
+/* Variante sin anillos (más limpia) */
+.atinet-3d-loader.no-rings .atinet-orbital-ring,
+.atinet-3d-loader.no-rings .atinet-orbital-ring-2 {
+  display: none;
+}
+
+/* Variante con un solo anillo */
+.atinet-3d-loader.single-ring .atinet-orbital-ring-2 {
+  display: none;
+}

@@ -216,6 +216,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('ine', [\App\Http\Controllers\Admin\OCRController::class, 'processINE'])->name('ine');
         Route::post('curp', [\App\Http\Controllers\Admin\OCRController::class, 'processCURP'])->name('curp');
         Route::post('acta', [\App\Http\Controllers\Admin\OCRController::class, 'processActa'])->name('acta');
+        Route::post('sat-qr', [\App\Http\Controllers\Admin\OCRController::class, 'processSATQR'])->name('sat-qr');
         Route::post('qr', [\App\Http\Controllers\Admin\OCRController::class, 'processQR'])->name('qr');
     });
 

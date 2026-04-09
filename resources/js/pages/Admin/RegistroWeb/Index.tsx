@@ -1,4 +1,4 @@
-﻿import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import {
     User,
     Building2,
@@ -18,8 +18,23 @@ import {
     PlusCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+import { ScannerQR } from '@/components/Admin/RegistroWeb/ScannerQR';
+import { ImageOCRScanner } from '@/components/Admin/RegistroWeb/ImageOCRScanner';
+import { MissingFieldsModal } from '@/components/Admin/RegistroWeb/MissingFieldsModal';
+import { DocumentSelectorModal } from '@/components/Admin/RegistroWeb/DocumentSelectorModal';
+import { procesarDatosQR, type ParsedQRData } from '@/utils/qr-parser';
+import { processSATQR } from '@/actions/App/Http/Controllers/Admin/OCRController';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { AtinetLoader } from '@/components/ui/AtinetLoader';
+import {
+    verificarCamposFaltantes,
+    getSuggestedDocuments,
+    type MissingFieldGroup,
+    type DocumentType,
+} from '@/utils/field-validation';
 
 interface Props {
     historial: unknown[];
@@ -104,6 +119,39 @@ export default function Index({ notaria, stats }: Props) {
         domicilio: false,
         contacto: false,
         testador: false,
+    });
+    const [qrScannerOpen, setQrScannerOpen] = useState(false);
+    const [ineScannerOpen, setIneScannerOpen] = useState(false);
+    const [curpScannerOpen, setCurpScannerOpen] = useState(false);
+    const [actaScannerOpen, setActaScannerOpen] = useState(false);
+    const [confirmCopyDialog, setConfirmCopyDialog] = useState<{
+        isOpen: boolean;
+        text: string;
+    }>({ isOpen: false, text: '' });
+
+    // Estados para modales de flujo de campos faltantes
+    const [missingFieldsModal, setMissingFieldsModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        personData: {
+            nombre: string;
+            rfc: string;
+            curp: string;
+        };
+        missingGroups: MissingFieldGroup[];
+    }>({
+        isOpen: false,
+        title: '',
+        personData: { nombre: '', rfc: '', curp: '' },
+        missingGroups: [],
+    });
+
+    const [docSelectorModal, setDocSelectorModal] = useState<{
+        isOpen: boolean;
+        suggestedDocs: DocumentType[];
+    }>({
+        isOpen: false,
+        suggestedDocs: [],
     });
 
     const { data, setData, post, processing, reset } = useForm({
@@ -207,11 +255,393 @@ export default function Index({ notaria, stats }: Props) {
         setData('pais_fiscal', 'MEXICO');
     };
 
-    const handleScanINE = () => alert('Scanner INE - Pendiente Fase 3');
-    const handleScanCURP = () => alert('Scanner CURP - Pendiente Fase 3');
-    const handleScanActa = () => alert('Scanner Acta - Pendiente Fase 3');
-    const handleScanQR = () => alert('Scanner QR - Pendiente Fase 3');
+    const handleScanINE = () => setIneScannerOpen(true);
+    const handleScanCURP = () => setCurpScannerOpen(true);
+    const handleScanActa = () => setActaScannerOpen(true);
+    const handleScanQR = () => setQrScannerOpen(true);
     const handleManualEntry = () => alert('Captura Manual - Disponible');
+
+    /**
+     * Procesar QR detectado
+     * Flujo completo: Parse → Buscar en BD → Auto-completar con SAT → Verificar campos faltantes
+     */
+    const handleQRDetected = async (qrText: string) => {
+        let loaderInstance: Awaited<ReturnType<typeof AtinetLoader.show>> | null = null;
+
+        try {
+            // 1. Parsear QR localmente
+            const parsedData = procesarDatosQR(qrText);
+
+            if (!parsedData.rfc && !parsedData.urlSAT) {
+                // QR no contiene RFC ni URL SAT - mostrar raw
+                setConfirmCopyDialog({ isOpen: true, text: qrText });
+                return;
+            }
+
+            // 2. Buscar en base de datos por RFC
+            if (parsedData.rfc) {
+                loaderInstance = await AtinetLoader.show({
+                    title: 'Buscando en base de datos...',
+                    text: `Consultando RFC: ${parsedData.rfc}`,
+                    showRings: true,
+                });
+
+                const searchResponse = await fetch(
+                    `/admin/registro-web/search-rfc?rfc=${encodeURIComponent(parsedData.rfc)}`
+                );
+                const searchResult = await searchResponse.json();
+
+                if (searchResult.found && searchResult.data) {
+                    // ✅ Encontrado en BD
+                    loaderInstance?.close();
+
+                    // Cargar datos de la BD al formulario
+                    cargarDatosQR(searchResult.data);
+
+                    // Verificar si tiene campos incompletos
+                    const missingGroups = verificarCamposFaltantes(searchResult.data);
+
+                    // Auto-completar con SAT si hay campos faltantes y URL disponible
+                    if (missingGroups.length > 0 && parsedData.urlSAT) {
+                        loaderInstance = await AtinetLoader.showCompletando();
+
+                        try {
+                            const satResponse = await fetch(processSATQR().url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN':
+                                        document
+                                            .querySelector('meta[name="csrf-token"]')
+                                            ?.getAttribute('content') || '',
+                                },
+                                body: JSON.stringify({ url: parsedData.urlSAT }),
+                            });
+
+                            const satResult = await satResponse.json();
+
+                            if (satResult.success && satResult.data) {
+                                // Merge solo campos vacíos (no sobrescribir datos existentes)
+                                const mergedData = { ...searchResult.data };
+                                Object.entries(satResult.data).forEach(([key, value]) => {
+                                    if (
+                                        value &&
+                                        (!mergedData[key] ||
+                                            mergedData[key as keyof typeof mergedData] === '')
+                                    ) {
+                                        mergedData[key as keyof typeof mergedData] =
+                                            value as (typeof mergedData)[keyof typeof mergedData];
+                                    }
+                                });
+
+                                // Cargar datos combinados
+                                cargarDatosQR(mergedData);
+
+                                // Re-verificar campos faltantes después de SAT
+                                const updatedMissingGroups = verificarCamposFaltantes(mergedData);
+
+                                loaderInstance?.close();
+
+                                // Mostrar modal de campos faltantes
+                                setMissingFieldsModal({
+                                    isOpen: true,
+                                    title: '✅ Datos completados con SAT',
+                                    personData: {
+                                        nombre: `${mergedData.nombre || ''} ${mergedData.apellidopat || ''} ${mergedData.apellidomat || ''}`.trim(),
+                                        rfc: mergedData.rfc || '',
+                                        curp: mergedData.curp || '',
+                                    },
+                                    missingGroups: updatedMissingGroups,
+                                });
+
+                                toast.success(
+                                    '✅ Datos de BD completados con información del SAT'
+                                );
+                                return;
+                            }
+                        } catch (satError) {
+                            console.warn('No se pudo completar con SAT:', satError);
+                            // Continuar con datos de BD aunque SAT falle
+                        }
+                    }
+
+                    loaderInstance?.close();
+
+                    // Mostrar modal de campos faltantes (sin auto-complete SAT)
+                    setMissingFieldsModal({
+                        isOpen: true,
+                        title: '✅ Encontrado en Base de Datos',
+                        personData: {
+                            nombre: `${searchResult.data.nombre || ''} ${searchResult.data.apellidopat || ''} ${searchResult.data.apellidomat || ''}`.trim(),
+                            rfc: searchResult.data.rfc || '',
+                            curp: searchResult.data.curp || '',
+                        },
+                        missingGroups: verificarCamposFaltantes(searchResult.data),
+                    });
+
+                    toast.success(
+                        `✅ Datos encontrados en ${searchResult.source === 'nuevo' ? 'sistema nuevo' : 'sistema legacy'}`
+                    );
+                    return;
+                }
+
+                // ❌ No encontrado en BD - fetch desde SAT
+                loaderInstance?.close();
+            }
+
+            // 3. Consultar SAT si no está en BD o no hay RFC
+            if (parsedData.urlSAT) {
+                loaderInstance = await AtinetLoader.showSAT();
+
+                const satResponse = await fetch(processSATQR().url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN':
+                            document
+                                .querySelector('meta[name="csrf-token"]')
+                                ?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({ url: parsedData.urlSAT }),
+                });
+
+                const satResult = await satResponse.json();
+
+                loaderInstance?.close();
+
+                if (satResult.success && satResult.data) {
+                    // Cargar datos del SAT
+                    cargarDatosQR(satResult.data);
+
+                    // Verificar campos faltantes
+                    const missingGroups = verificarCamposFaltantes(satResult.data);
+
+                    // Mostrar modal
+                    setMissingFieldsModal({
+                        isOpen: true,
+                        title: '✅ Datos del SAT cargados',
+                        personData: {
+                            nombre: `${satResult.data.nombre || ''} ${satResult.data.apellidopat || ''} ${satResult.data.apellidomat || ''}`.trim(),
+                            rfc: satResult.data.rfc || '',
+                            curp: satResult.data.curp || '',
+                        },
+                        missingGroups,
+                    });
+
+                    toast.success('✅ Datos del SAT cargados correctamente');
+                } else {
+                    toast.error(
+                        '❌ Error al procesar QR del SAT: ' +
+                            (satResult.message || 'Error desconocido')
+                    );
+                }
+                return;
+            }
+
+            // 4. Cargar datos parseados localmente si no es URL SAT
+            if (Object.keys(parsedData).length > 0) {
+                cargarDatosQR(parsedData);
+
+                const missingGroups = verificarCamposFaltantes(parsedData);
+
+                setMissingFieldsModal({
+                    isOpen: true,
+                    title: '✅ Datos del QR cargados',
+                    personData: {
+                        nombre: `${parsedData.nombre || ''} ${parsedData.apellidopat || ''} ${parsedData.apellidomat || ''}`.trim(),
+                        rfc: parsedData.rfc || '',
+                        curp: parsedData.curp || '',
+                    },
+                    missingGroups,
+                });
+
+                toast.success('✅ Datos del QR cargados correctamente');
+            }
+        } catch (error) {
+            console.error('Error procesando QR:', error);
+            toast.error('❌ Error al procesar el código QR');
+            loaderInstance?.close();
+        }
+    };
+
+    /**
+     * Handler para cuando el usuario elige escanear otro documento
+     */
+    const handleScanMore = () => {
+        // Cerrar modal de campos faltantes
+        setMissingFieldsModal({ ...missingFieldsModal, isOpen: false });
+
+        // Obtener documentos sugeridos según campos faltantes
+        const suggestedDocs = getSuggestedDocuments(missingFieldsModal.missingGroups);
+
+        // Abrir modal de selección de documento
+        setDocSelectorModal({
+            isOpen: true,
+            suggestedDocs,
+        });
+    };
+
+    /**
+     * Handler para cuando el usuario selecciona un documento específico
+     */
+    const handleSelectDocument = (doc: DocumentType) => {
+        // Cerrar modal de selección
+        setDocSelectorModal({ isOpen: false, suggestedDocs: [] });
+
+        // Abrir el scanner correspondiente con un pequeño delay para animación
+        setTimeout(() => {
+            switch (doc) {
+                case 'INE':
+                    setIneScannerOpen(true);
+                    break;
+                case 'CURP':
+                    setCurpScannerOpen(true);
+                    break;
+                case 'Acta':
+                    setActaScannerOpen(true);
+                    break;
+                case 'QR':
+                    setQrScannerOpen(true);
+                    break;
+            }
+        }, 150);
+    };
+
+    /**
+     * Cargar datos desde OCR (INE, CURP, Acta) al formulario
+     */
+    const handleOCRDataExtracted = (datos: Record<string, any>) => {
+        // Determinar tipo de persona
+        if (datos.Persona === 'MORAL' || datos.persona === 'moral') {
+            setActiveTab('moral');
+            setData('persona', 'moral');
+        } else if (datos.Persona === 'FISICA' || datos.persona === 'fisica' || datos.curp) {
+            setActiveTab('fisica');
+            setData('persona', 'fisica');
+        }
+
+        // Mapear todos los campos posibles
+        const fieldMapping: Record<string, keyof typeof data> = {
+            nombre: 'nombre',
+            apellidopat: 'apellidopat',
+            apellidomat: 'apellidomat',
+            curp: 'curp',
+            rfc: 'rfc',
+            dia: 'dia',
+            genero: 'genero',
+            paisnac: 'paisnac',
+            nacionalidad: 'nacionalidad',
+            estado_nac: 'estado_nac',
+            ciudad_nac: 'ciudad_nac',
+            municipio_nac: 'municipio_nac',
+            ocupacion: 'ocupacion',
+            calle: 'calle',
+            no_exterior: 'no_exterior',
+            no_interior: 'no_interior',
+            cp: 'cp',
+            colonia: 'colonia',
+            municipio: 'municipio',
+            estado: 'estado',
+            ciudad: 'ciudad',
+            pais: 'pais',
+            calle_fiscal: 'calle_fiscal',
+            no_exterior_fiscal: 'no_exterior_fiscal',
+            no_interior_fiscal: 'no_interior_fiscal',
+            cp_fiscal: 'cp_fiscal',
+            colonia_fiscal: 'colonia_fiscal',
+            municipio_fiscal: 'municipio_fiscal',
+            estado_fiscal: 'estado_fiscal',
+            ciudad_fiscal: 'ciudad_fiscal',
+            pais_fiscal: 'pais_fiscal',
+            correo: 'correo',
+            padre_nombre: 'padre_nombre',
+            madre_nombre: 'madre_nombre',
+            no_identificacion: 'no_identificacion',
+            vigiencia_de_ine: 'vigiencia_de_ine',
+            regimen_fiscal: 'regimen_fiscal',
+        };
+
+        // Actualizar formulario con datos extraídos
+        Object.entries(datos).forEach(([key, value]) => {
+            const formField = fieldMapping[key];
+            if (formField && value !== null && value !== undefined && value !== '') {
+                // Convertir CP a string para el formulario
+                if (key.includes('cp') && typeof value === 'number') {
+                    setData(formField, String(value));
+                } else {
+                    setData(formField, String(value));
+                }
+            }
+        });
+
+        // Abrir sección de datos generales
+        setOpenSections((prev) => ({ ...prev, generales: true }));
+
+        toast.success('✅ Datos cargados correctamente desde el documento');
+
+        // Verificar campos faltantes y mostrar modal
+        const missingGroups = verificarCamposFaltantes(data);
+
+        setMissingFieldsModal({
+            isOpen: true,
+            title: '✅ Datos extraídos del documento',
+            personData: {
+                nombre: `${data.nombre || ''} ${data.apellidopat || ''} ${data.apellidomat || ''}`.trim(),
+                rfc: data.rfc || '',
+                curp: data.curp || '',
+            },
+            missingGroups,
+        });
+    };
+
+    /**
+     * Cargar datos del QR al formulario
+     */
+    const cargarDatosQR = (datos: ParsedQRData) => {
+        // Determinar tipo de persona
+        if (datos.Persona === 'MORAL') {
+            setActiveTab('moral');
+            setData('persona', 'moral');
+        } else if (datos.Persona === 'FISICA' || datos.curp) {
+            setActiveTab('fisica');
+            setData('persona', 'fisica');
+        }
+
+        // Mapear campos del QR al formulario
+        const updates: Partial<typeof data> = {};
+
+        if (datos.nombre) updates.nombre = datos.nombre;
+        if (datos.apellidopat) updates.apellidopat = datos.apellidopat;
+        if (datos.apellidomat) updates.apellidomat = datos.apellidomat;
+        if (datos.curp) updates.curp = datos.curp;
+        if (datos.rfc) updates.rfc = datos.rfc;
+        if (datos.dia) updates.dia = datos.dia;
+        if (datos.genero) updates.genero = datos.genero;
+        if (datos.estado_nac) updates.estado_nac = datos.estado_nac;
+        if (datos.municipio_nac) updates.municipio_nac = datos.municipio_nac;
+        if (datos.paisnac) updates.paisnac = datos.paisnac;
+        if (datos.nacionalidad) updates.nacionalidad = datos.nacionalidad;
+        if (datos.padre_nombre) updates.padre_nombre = datos.padre_nombre;
+        if (datos.madre_nombre) updates.madre_nombre = datos.madre_nombre;
+
+        // Dirección fiscal (SAT)
+        if (datos.calle_fiscal) updates.calle_fiscal = datos.calle_fiscal;
+        if (datos.no_exterior_fiscal) updates.no_exterior_fiscal = datos.no_exterior_fiscal;
+        if (datos.no_interior_fiscal) updates.no_interior_fiscal = datos.no_interior_fiscal;
+        if (datos.colonia_fiscal) updates.colonia_fiscal = datos.colonia_fiscal;
+        if (datos.cp_fiscal) updates.cp_fiscal = String(datos.cp_fiscal);
+        if (datos.municipio_fiscal) updates.municipio_fiscal = datos.municipio_fiscal;
+        if (datos.estado_fiscal) updates.estado_fiscal = datos.estado_fiscal;
+        if (datos.correo) updates.correo = datos.correo;
+
+        // Actualizar formulario con todos los datos
+        Object.entries(updates).forEach(([key, value]) => {
+            setData(key as keyof typeof data, value);
+        });
+
+        // Abrir sección de datos generales
+        setOpenSections((prev) => ({ ...prev, generales: true }));
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -769,6 +1199,83 @@ export default function Index({ notaria, stats }: Props) {
                     {processing ? 'Guardando...' : 'Guardar Registro'}
                 </button>
             </div>
+
+            {/* Scanner QR Modal */}
+            <ScannerQR
+                isOpen={qrScannerOpen}
+                onClose={() => setQrScannerOpen(false)}
+                onQRDetected={handleQRDetected}
+            />
+
+            {/* Scanner INE Modal */}
+            <ImageOCRScanner
+                isOpen={ineScannerOpen}
+                onClose={() => setIneScannerOpen(false)}
+                onDataExtracted={handleOCRDataExtracted}
+                endpoint="/admin/ocr/ine"
+                title="Escanear INE (Credencial de Elector)"
+                documentType="INE"
+                requiresSide={true}
+            />
+
+            {/* Scanner CURP Modal */}
+            <ImageOCRScanner
+                isOpen={curpScannerOpen}
+                onClose={() => setCurpScannerOpen(false)}
+                onDataExtracted={handleOCRDataExtracted}
+                endpoint="/admin/ocr/curp"
+                title="Escanear Documento CURP"
+                documentType="CURP"
+            />
+
+            {/* Scanner Acta Modal */}
+            <ImageOCRScanner
+                isOpen={actaScannerOpen}
+                onClose={() => setActaScannerOpen(false)}
+                onDataExtracted={handleOCRDataExtracted}
+                endpoint="/admin/ocr/acta"
+                title="Escanear Acta de Nacimiento"
+                documentType="ACTA"
+            />
+
+            {/* Confirm Copy QR Dialog */}
+            <ConfirmDialog
+                isOpen={confirmCopyDialog.isOpen}
+                onClose={() => setConfirmCopyDialog({ isOpen: false, text: '' })}
+                title="QR Escaneado"
+                description={
+                    <div className="space-y-2">
+                        <p className="text-sm">No se pudo procesar automáticamente el contenido del QR:</p>
+                        <pre className="bg-muted p-3 rounded text-xs overflow-auto max-h-48">
+                            {confirmCopyDialog.text}
+                        </pre>
+                    </div>
+                }
+                confirmText="Copiar al portapapeles"
+                cancelText="Cerrar"
+                onConfirm={async () => {
+                    await navigator.clipboard.writeText(confirmCopyDialog.text);
+                    toast.success('📋 Copiado al portapapeles');
+                }}
+            />
+
+            {/* Missing Fields Modal - Muestra campos faltantes después de escanear */}
+            <MissingFieldsModal
+                isOpen={missingFieldsModal.isOpen}
+                onClose={() => setMissingFieldsModal({ ...missingFieldsModal, isOpen: false })}
+                title={missingFieldsModal.title}
+                personData={missingFieldsModal.personData}
+                missingGroups={missingFieldsModal.missingGroups}
+                onScanMore={handleScanMore}
+            />
+
+            {/* Document Selector Modal - Sugiere qué documento escanear */}
+            <DocumentSelectorModal
+                isOpen={docSelectorModal.isOpen}
+                onClose={() => setDocSelectorModal({ isOpen: false, suggestedDocs: [] })}
+                suggestedDocs={docSelectorModal.suggestedDocs}
+                onSelectDocument={handleSelectDocument}
+            />
         </AppLayout>
     );
 }
