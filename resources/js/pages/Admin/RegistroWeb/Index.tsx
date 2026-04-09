@@ -17,7 +17,7 @@ import {
     QrCode,
     PlusCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -258,8 +258,35 @@ export default function Index({ notaria, stats }: Props) {
     const handleScanINE = () => setIneScannerOpen(true);
     const handleScanCURP = () => setCurpScannerOpen(true);
     const handleScanActa = () => setActaScannerOpen(true);
+
+    // 🚀 PRECARGA: Cargar Three.js y modelo 3D al inicio para uso instantáneo
+    useEffect(() => {
+        console.log('📦 Iniciando precarga del loader 3D...');
+        AtinetLoader.preload().catch((error) => {
+            console.error('⚠️ Error en precarga del loader 3D:', error);
+            // No bloqueante - el loader funcionará con carga on-demand
+        });
+    }, []); // Solo una vez al montar
     const handleScanQR = () => setQrScannerOpen(true);
     const handleManualEntry = () => alert('Captura Manual - Disponible');
+
+    /**
+     * Cierra el loader asegurando un tiempo mínimo de visualización (para ver el modelo 3D)
+     */
+    const closeLoaderWithMinDelay = async (
+        loaderInstance: Awaited<ReturnType<typeof AtinetLoader.show>> | null,
+        startTime: number,
+        minDisplayTime: number = 2000
+    ) => {
+        if (!loaderInstance) return;
+
+        const elapsed = Date.now() - startTime;
+        if (elapsed < minDisplayTime) {
+            await new Promise(resolve => setTimeout(resolve, minDisplayTime - elapsed));
+        }
+
+        loaderInstance.close();
+    };
 
     /**
      * Procesar QR detectado
@@ -267,6 +294,7 @@ export default function Index({ notaria, stats }: Props) {
      */
     const handleQRDetected = async (qrText: string) => {
         let loaderInstance: Awaited<ReturnType<typeof AtinetLoader.show>> | null = null;
+        const startTime = Date.now(); // Timestamp inicio para delay mínimo
 
         try {
             // 1. Parsear QR localmente
@@ -293,7 +321,7 @@ export default function Index({ notaria, stats }: Props) {
 
                 if (searchResult.found && searchResult.data) {
                     // ✅ Encontrado en BD
-                    loaderInstance?.close();
+                    await closeLoaderWithMinDelay(loaderInstance, startTime);
 
                     // Cargar datos de la BD al formulario
                     cargarDatosQR(searchResult.data);
@@ -340,7 +368,7 @@ export default function Index({ notaria, stats }: Props) {
                                 // Re-verificar campos faltantes después de SAT
                                 const updatedMissingGroups = verificarCamposFaltantes(mergedData);
 
-                                loaderInstance?.close();
+                                await closeLoaderWithMinDelay(loaderInstance, startTime);
 
                                 // Mostrar modal de campos faltantes
                                 setMissingFieldsModal({
@@ -365,7 +393,7 @@ export default function Index({ notaria, stats }: Props) {
                         }
                     }
 
-                    loaderInstance?.close();
+                    await closeLoaderWithMinDelay(loaderInstance, startTime);
 
                     // Mostrar modal de campos faltantes (sin auto-complete SAT)
                     setMissingFieldsModal({
@@ -386,7 +414,7 @@ export default function Index({ notaria, stats }: Props) {
                 }
 
                 // ❌ No encontrado en BD - fetch desde SAT
-                loaderInstance?.close();
+                await closeLoaderWithMinDelay(loaderInstance, startTime);
             }
 
             // 3. Consultar SAT si no está en BD o no hay RFC
@@ -407,7 +435,7 @@ export default function Index({ notaria, stats }: Props) {
 
                 const satResult = await satResponse.json();
 
-                loaderInstance?.close();
+                await closeLoaderWithMinDelay(loaderInstance, startTime);
 
                 if (satResult.success && satResult.data) {
                     // Cargar datos del SAT
@@ -460,7 +488,7 @@ export default function Index({ notaria, stats }: Props) {
         } catch (error) {
             console.error('Error procesando QR:', error);
             toast.error('❌ Error al procesar el código QR');
-            loaderInstance?.close();
+            await closeLoaderWithMinDelay(loaderInstance, startTime);
         }
     };
 

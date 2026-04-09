@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { X, Camera, FolderOpen, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ScannerQRProps {
@@ -21,6 +21,8 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
 
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const lastScannedQRRef = useRef<string | null>(null); // Evitar escaneos duplicados
+    const isProcessingRef = useRef(false); // Ref para bloqueo más confiable
 
     // Limpiar scanner al cerrar
     useEffect(() => {
@@ -29,6 +31,8 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
             setShowCamera(false);
             setStatus('idle');
             setErrorMessage(null);
+            lastScannedQRRef.current = null; // Reset último QR escaneado
+            isProcessingRef.current = false; // Reset flag de procesamiento
         }
     }, [isOpen]);
 
@@ -91,7 +95,10 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                     cameraConfig,
                     config,
                     async (decodedText) => {
-                        if (!isProcessing) {
+                        // Evitar escaneos duplicados del mismo QR
+                        if (!isProcessingRef.current && lastScannedQRRef.current !== decodedText) {
+                            isProcessingRef.current = true;
+                            lastScannedQRRef.current = decodedText;
                             setIsProcessing(true);
                             setStatus('processing');
                             await handleQRDetected(decodedText);
@@ -108,7 +115,10 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                     devices[0].id,
                     config,
                     async (decodedText) => {
-                        if (!isProcessing) {
+                        // Evitar escaneos duplicados del mismo QR
+                        if (!isProcessingRef.current && lastScannedQRRef.current !== decodedText) {
+                            isProcessingRef.current = true;
+                            lastScannedQRRef.current = decodedText;
                             setIsProcessing(true);
                             setStatus('processing');
                             await handleQRDetected(decodedText);
@@ -175,6 +185,7 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
     const handleQRDetected = async (qrText: string) => {
         try {
             setIsProcessing(true);
+            // Detener scanner inmediatamente para evitar escaneos adicionales
             await cleanupScanner();
             await onQRDetected(qrText);
             onClose();
@@ -182,6 +193,8 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
             console.error('Error procesando QR:', error);
             setStatus('error');
             setErrorMessage('Error al procesar el código QR.');
+            isProcessingRef.current = false; // Permitir reintento
+            lastScannedQRRef.current = null; // Resetear último QR
         } finally {
             setIsProcessing(false);
         }
@@ -241,10 +254,12 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                         <Camera className="h-5 w-5 text-green-600" />
                         Escanear Código QR
                     </DialogTitle>
+                    <DialogDescription>
+                        Escanea el código QR del SAT desde tu cámara o sube una imagen
+                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4">
-                    {/* Panel de elección */}
+                <div className="space-y-4">{/* Panel de elección */}
                     {!showCamera && (
                         <div className="space-y-4">
                             <p className="text-center text-sm text-gray-600">

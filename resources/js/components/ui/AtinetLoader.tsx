@@ -39,6 +39,11 @@ let GLTFLoader: any = null;
 let currentAnimationId: number | null = null;
 let currentRenderer: any = null;
 
+// Cache del modelo 3D precargado
+let preloadedModel: any = null;
+let isPreloading = false;
+let preloadPromise: Promise<void> | null = null;
+
 /**
  * Carga los módulos Three.js dinámicamente (solo una vez)
  */
@@ -58,6 +63,68 @@ async function loadThreeJS(): Promise<void> {
         console.error('❌ Error loading Three.js modules:', error);
         throw new Error('No se pudo cargar el motor 3D');
     }
+}
+
+/**
+ * Precarga Three.js y el modelo GLB para uso instantáneo
+ * LLAMAR AL INICIO DE LA PÁGINA para evitar delays al mostrar el loader
+ */
+export async function preload(): Promise<void> {
+    // Si ya está precargando o precargado, retornar la Promise existente
+    if (preloadedModel) {
+        console.log('✅ Modelo 3D ya precargado');
+        return;
+    }
+
+    if (isPreloading && preloadPromise) {
+        console.log('⏳ Precarga en progreso...');
+        return preloadPromise;
+    }
+
+    isPreloading = true;
+    preloadPromise = (async () => {
+        try {
+            console.log('🚀 Iniciando precarga de Three.js y modelo 3D...');
+
+            // 1. Cargar Three.js
+            await loadThreeJS();
+
+            // 2. Precargar el modelo GLB
+            const glbPath = `/assets/img/atinet3d.glb`;
+            const loader = new GLTFLoader();
+
+            console.log('📦 Precargando modelo desde:', glbPath);
+
+            preloadedModel = await new Promise((resolve, reject) => {
+                loader.load(
+                    glbPath,
+                    (gltf: any) => {
+                        console.log('✅ Modelo 3D precargado exitosamente');
+                        resolve(gltf);
+                    },
+                    (progress: any) => {
+                        const percentComplete = (progress.loaded / progress.total) * 100;
+                        if (percentComplete % 25 === 0 || percentComplete === 100) {
+                            console.log(`⏳ Precarga: ${percentComplete.toFixed(1)}%`);
+                        }
+                    },
+                    (error: any) => {
+                        console.error('❌ Error precargando modelo:', error);
+                        reject(error);
+                    }
+                );
+            });
+
+            console.log('🎯 Precarga completa - loader listo para uso instantáneo');
+        } catch (error) {
+            console.error('❌ Error en precarga:', error);
+            preloadedModel = null;
+        } finally {
+            isPreloading = false;
+        }
+    })();
+
+    return preloadPromise;
 }
 
 /**
@@ -127,48 +194,57 @@ async function initThreeJS(canvas: HTMLCanvasElement): Promise<void> {
     let pivot: any = null;
     let clock = 0;
 
-    // Ruta del modelo GLB
-    const glbPath = `/assets/img/atinet3d.glb`;
-    console.log('🔵 Intentando cargar modelo 3D desde:', glbPath);
+    // Función para agregar modelo a la escena
+    const addModelToScene = (gltf: any) => {
+        const model = gltf.scene;
 
-    const loader = new GLTFLoader();
+        // Calcular bounding box y centrar el modelo
+        const box = new (THREE as any).Box3().setFromObject(model);
+        const center = box.getCenter(new (THREE as any).Vector3());
+        const size = box.getSize(new (THREE as any).Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
 
-    // Cargar modelo GLB (asíncrono)
-    loader.load(
-        glbPath,
-        (gltf: any) => {
-            console.log('✅ Modelo 3D cargado exitosamente');
-            const model = gltf.scene;
+        console.log('📦 Dimensiones del modelo:', { size, maxDim, center });
 
-            // Calcular bounding box y centrar el modelo
-            const box = new (THREE as any).Box3().setFromObject(model);
-            const center = box.getCenter(new (THREE as any).Vector3());
-            const size = box.getSize(new (THREE as any).Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
+        // Centrar el modelo en su propio origen
+        model.position.set(-center.x, -center.y, -center.z);
 
-            console.log('📦 Dimensiones del modelo:', { size, maxDim, center });
+        // Pivot group para rotación y escala
+        pivot = new (THREE as any).Group();
+        pivot.scale.setScalar(2 / maxDim);
+        pivot.rotation.x = 0.25; // Inclinación inicial
+        pivot.add(model);
+        scene.add(pivot);
 
-            // Centrar el modelo en su propio origen
-            model.position.set(-center.x, -center.y, -center.z);
+        console.log('✅ Modelo 3D agregado a la escena');
+    };
 
-            // Pivot group para rotación y escala
-            pivot = new (THREE as any).Group();
-            pivot.scale.setScalar(2 / maxDim);
-            pivot.rotation.x = 0.25; // Inclinación inicial
-            pivot.add(model);
-            scene.add(pivot);
+    // Usar modelo precargado si está disponible (instantáneo)
+    if (preloadedModel) {
+        console.log('⚡ Usando modelo precargado (instantáneo)');
+        addModelToScene(preloadedModel);
+    } else {
+        // Fallback: cargar modelo on-demand (más lento)
+        console.log('⏳ Modelo no precargado - cargando on-demand...');
+        const glbPath = `/assets/img/atinet3d.glb`;
+        const loader = new GLTFLoader();
 
-            console.log('✅ Modelo 3D agregado a la escena');
-        },
-        (progress: any) => {
-            const percentComplete = (progress.loaded / progress.total) * 100;
-            console.log(`⏳ Cargando modelo: ${percentComplete.toFixed(1)}%`);
-        },
-        (error: any) => {
-            console.error('❌ Error al cargar atinet3d.glb:', error);
-            // Continuar sin modelo (solo anillos de carga)
-        }
-    );
+        loader.load(
+            glbPath,
+            (gltf: any) => {
+                console.log('✅ Modelo 3D cargado exitosamente');
+                addModelToScene(gltf);
+            },
+            (progress: any) => {
+                const percentComplete = (progress.loaded / progress.total) * 100;
+                console.log(`⏳ Cargando modelo: ${percentComplete.toFixed(1)}%`);
+            },
+            (error: any) => {
+                console.error('❌ Error al cargar atinet3d.glb:', error);
+                // Continuar sin modelo (solo anillos de carga)
+            }
+        );
+    }
 
     // IMPORTANTE: Animation loop comienza ANTES de cargar el modelo
     // Esto asegura que los anillos giren aunque el modelo falle
@@ -217,7 +293,7 @@ async function show(options: LoaderOptions = {}): Promise<LoaderInstance> {
         showConfirmButton = false,
     } = options;
 
-    // Cargar Three.js si no está cargado
+    // Cargar Three.js si no está cargado (si no se hizo preload)
     await loadThreeJS();
 
     // Mostrar SweetAlert2 con el loader - configuración exacta del original
@@ -257,6 +333,7 @@ async function show(options: LoaderOptions = {}): Promise<LoaderInstance> {
             Swal.close();
         },
     };
+
 }
 
 /**
@@ -264,6 +341,11 @@ async function show(options: LoaderOptions = {}): Promise<LoaderInstance> {
  */
 
 export const AtinetLoader = {
+    /**
+     * Precarga Three.js y el modelo 3D (llamar al inicio de la página)
+     */
+    preload,
+
     /**
      * Muestra loader genérico con opciones personalizadas
      */

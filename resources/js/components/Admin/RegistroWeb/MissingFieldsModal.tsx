@@ -68,21 +68,23 @@ export function MissingFieldsModal({
                     </DialogTitle>
                     <DialogDescription className="text-base mt-3">
                         {/* Resumen de la persona */}
-                        {nombreCompleto && (
-                            <div className="font-semibold text-gray-900 text-lg">
-                                {nombreCompleto}
-                            </div>
-                        )}
-                        {personData.rfc && (
-                            <div className="text-sm text-gray-600 mt-1">
-                                RFC: <code className="bg-gray-100 px-2 py-0.5 rounded">{personData.rfc}</code>
-                            </div>
-                        )}
-                        {personData.curp && (
-                            <div className="text-sm text-gray-600">
-                                CURP: <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{personData.curp}</code>
-                            </div>
-                        )}
+                        <span className="block">
+                            {nombreCompleto && (
+                                <span className="font-semibold text-gray-900 text-lg block">
+                                    {nombreCompleto}
+                                </span>
+                            )}
+                            {personData.rfc && (
+                                <span className="text-sm text-gray-600 mt-1 block">
+                                    RFC: <code className="bg-gray-100 px-2 py-0.5 rounded">{personData.rfc}</code>
+                                </span>
+                            )}
+                            {personData.curp && (
+                                <span className="text-sm text-gray-600 block">
+                                    CURP: <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{personData.curp}</code>
+                                </span>
+                            )}
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
 
