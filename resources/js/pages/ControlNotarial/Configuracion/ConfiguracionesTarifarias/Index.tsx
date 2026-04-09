@@ -17,7 +17,7 @@ interface ZonaMunicipio {
 
 interface ConfiguracionTarifaria {
     id: number;
-    tramite: string;
+    descripcion: string;
     cuota_Fija_Pesos: number;
     cuota_Fija_UMA: number;
     salarios_Minimos: number;
@@ -36,9 +36,12 @@ export default function ConfiguracionesTarifariasIndex() {
     const [selectedZona, setSelectedZona] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [configuracionesTarifarias, setConfiguracionesTarifarias] = useState<ConfiguracionEditada[]>([]);
+    const [configuracionesHonorarios, setConfiguracionesHonorarios] = useState<ConfiguracionEditada[]>([]);
     const [loadingTarifas, setLoadingTarifas] = useState(false);
+    const [loadingHonorarios, setLoadingHonorarios] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [savingConfigId, setSavingConfigId] = useState<number | null>(null);
+    const [savingTab, setSavingTab] = useState<'tarifas' | 'honorarios' | null>(null);
     const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -67,6 +70,7 @@ export default function ConfiguracionesTarifariasIndex() {
     useEffect(() => {
         if (selectedZona) {
             fetchConfiguracionesTarifarias(selectedZona);
+            fetchConfiguracionesHonorarios(selectedZona);
         }
     }, [selectedZona]);
 
@@ -108,7 +112,29 @@ export default function ConfiguracionesTarifariasIndex() {
         }
     };
 
-    const saveConfigurationToApi = async (config: ConfiguracionEditada) => {
+    const fetchConfiguracionesHonorarios = async (zonaMunicipioId: string) => {
+        setLoadingHonorarios(true);
+        try {
+            const data = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaHonorarios?zonaMunicipioId=${zonaMunicipioId}`);
+            if (data && data.dataResponse) {
+                const configuraciones = data.dataResponse.map((config: ConfiguracionTarifaria) => ({
+                    ...config,
+                    tipoLleno: null as ConfiguracionEditada['tipoLleno'],
+                }));
+                setConfiguracionesHonorarios(configuraciones);
+            } else {
+                setConfiguracionesHonorarios([]);
+                console.error('Error:', data?.message || 'No se pudieron cargar los honorarios.');
+            }
+        } catch (error) {
+            console.error('Error fetching configuraciones honorarios:', error);
+            setConfiguracionesHonorarios([]);
+        } finally {
+            setLoadingHonorarios(false);
+        }
+    };
+
+    const saveConfigurationToApi = async (config: ConfiguracionEditada, tab: 'tarifas' | 'honorarios' = 'tarifas') => {
         setSavingConfigId(config.id);
         try {
             const payload = {
@@ -119,7 +145,11 @@ export default function ConfiguracionesTarifariasIndex() {
                 porcentaje: config.porcentaje,
             };
 
-            await api.put(`/ConfiguracionTarifaria/UpdateConfiguracionTarifariaImpuestosDerechos?configuracionId=${config.id}`, payload);
+            const endpoint = tab === 'honorarios'
+                ? `/ConfiguracionTarifaria/UpdateConfiguracionTarifariaHonorarios?configuracionId=${config.id}`
+                : `/ConfiguracionTarifaria/UpdateConfiguracionTarifariaImpuestosDerechos?configuracionId=${config.id}`;
+
+            await api.put(endpoint, payload);
             console.log(`Configuración ${config.id} guardada correctamente`);
         } catch (error) {
             console.error(`Error guardando configuración ${config.id}:`, error);
@@ -128,12 +158,13 @@ export default function ConfiguracionesTarifariasIndex() {
         }
     };
 
-    const handleInputChange = (id: number, field: string, value: string) => {
+    const handleInputChange = (id: number, field: string, value: string, tab: 'tarifas' | 'honorarios' = 'tarifas') => {
         const numValue = value === '' ? 0 : parseFloat(value) || 0;
 
         let updatedConfig: ConfiguracionEditada | null = null;
+        const setterFunction = tab === 'honorarios' ? setConfiguracionesHonorarios : setConfiguracionesTarifarias;
 
-        setConfiguracionesTarifarias(prev =>
+        setterFunction(prev =>
             prev.map(config => {
                 if (config.id === id) {
                     let tipoLleno: ConfiguracionEditada['tipoLleno'] = null;
@@ -191,7 +222,7 @@ export default function ConfiguracionesTarifariasIndex() {
         // Ejecutar la API después de 500ms de que el usuario deje de escribir
         saveTimeoutRef.current = setTimeout(() => {
             if (updatedConfig) {
-                saveConfigurationToApi(updatedConfig);
+                saveConfigurationToApi(updatedConfig, tab);
             }
         }, 500);
     };
@@ -205,7 +236,7 @@ export default function ConfiguracionesTarifariasIndex() {
                 zonaMunicipioId: parseInt(selectedZona),
                 configuraciones: configuracionesTarifarias.map(config => ({
                     id: config.id,
-                    tramite: config.tramite,
+                    descripcion: config.descripcion,
                     cuota_Fija_Pesos: config.cuota_Fija_Pesos,
                     cuota_Fija_UMA: config.cuota_Fija_UMA,
                     salarios_Minimos: config.salarios_Minimos,
@@ -228,22 +259,6 @@ export default function ConfiguracionesTarifariasIndex() {
             <Head title="Configuraciones Tarifarias - Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
-                {/* Header Section */}
-                <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-                    <div className="flex items-center gap-4">
-                        <Link href="/admin/control-notarial/configuracion" className="rounded-lg bg-gray-200 p-2 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600">
-                            <ArrowLeft className="size-5 text-gray-700 dark:text-gray-300" />
-                        </Link>
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                                Configuraciones Tarifarias
-                            </h1>
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                Administra las tarifas y servicios de tu notaría
-                            </p>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Zona Municipios Selector */}
                 <div className="rounded-lg border border-gray-200 bg-white p-6 shadow dark:border-gray-700 dark:bg-gray-800">
@@ -279,7 +294,7 @@ export default function ConfiguracionesTarifariasIndex() {
                         <Tabs defaultValue="tramites" className="w-full">
                             <TabsList className="w-full rounded-t-lg bg-gray-100 dark:bg-gray-700">
                                 <TabsTrigger value="tramites" className="flex-1">
-                                    Trámites
+                                    Impuestos y Derechos
                                 </TabsTrigger>
                                 <TabsTrigger value="honorarios" className="flex-1">
                                     Honorarios
@@ -291,11 +306,6 @@ export default function ConfiguracionesTarifariasIndex() {
 
                             {/* Trámites Tab */}
                             <TabsContent value="tramites" className="space-y-4">
-                                {/* Header con título y botón */}
-                                <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-md mb-4 flex items-center justify-between border border-green-200 dark:border-green-800 m-6 mt-6">
-                                    <h3 className="font-semibold text-green-900 dark:text-green-100 mb-0">Impuestos y Derechos - Trámites</h3>
-
-                                </div>
 
                                 {/* Tabla */}
                                 <div className="px-6 pb-6">
@@ -310,11 +320,11 @@ export default function ConfiguracionesTarifariasIndex() {
                                         </div>
                                     ) : (
                                         <div className="border rounded-lg overflow-hidden">
-                                            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                            <div className="overflow-x-auto max-h-[750px] overflow-y-auto">
                                                 <table className="w-full text-sm">
                                                     <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
                                                         <tr>
-                                                            <th className="px-4 py-2 text-left font-semibold w-32">ID</th>
+                                                            <th className="px-4 py-2 text-left font-semibold w-15">ID</th>
                                                             <th className="px-4 py-2 text-left font-semibold">Trámite</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija Pesos</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija UMA</th>
@@ -328,7 +338,7 @@ export default function ConfiguracionesTarifariasIndex() {
                                                         {configuracionesTarifarias.map((config) => (
                                                             <tr key={config.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
                                                                 <td className="px-4 py-2 font-mono text-sm">{config.id}</td>
-                                                                <td className="px-4 py-2">{config.tramite}</td>
+                                                                <td className="px-4 py-2">{config.descripcion}</td>
                                                                 <td className="px-4 py-2 text-center relative">
                                                                     <div className="relative">
                                                                         <Input
@@ -428,10 +438,136 @@ export default function ConfiguracionesTarifariasIndex() {
                             </TabsContent>
 
                             {/* Honorarios Tab */}
-                            <TabsContent value="honorarios" className="p-6">
-                                <p className="text-gray-600 dark:text-gray-400">
-                                    Contenido de Honorarios próximamente...
-                                </p>
+                            <TabsContent value="honorarios" className="space-y-4">
+
+                                {/* Tabla */}
+                                <div className="px-6 pb-6">
+                                    {loadingHonorarios ? (
+                                        <div className="flex items-center justify-center py-12">
+                                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                            <p className="text-muted-foreground">Cargando configuraciones de honorarios...</p>
+                                        </div>
+                                    ) : configuracionesHonorarios.length === 0 ? (
+                                        <div className="border rounded-lg p-6 text-center text-muted-foreground">
+                                            No hay configuraciones de honorarios para esta zona/municipio
+                                        </div>
+                                    ) : (
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                        <tr>
+                                                            <th className="px-4 py-2 text-left font-semibold w-32">ID</th>
+                                                            <th className="px-4 py-2 text-left font-semibold">Honorario</th>
+                                                            <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija Pesos</th>
+                                                            <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija UMA</th>
+                                                            <th className="px-4 py-2 text-center font-semibold w-36">Salarios Mínimos</th>
+                                                            <th className="px-4 py-2 text-center font-semibold w-32">Impuesto Extra</th>
+                                                            <th className="px-4 py-2 text-center font-semibold w-24">Porcentaje %</th>
+                                                            <th className="px-4 py-2 text-center font-semibold w-28">Rango</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {configuracionesHonorarios.map((config) => (
+                                                            <tr key={config.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                                                <td className="px-4 py-2 font-mono text-sm">{config.id}</td>
+                                                                <td className="px-4 py-2">{config.descripcion}</td>
+                                                                <td className="px-4 py-2 text-center relative">
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            value={config.cuota_Fija_Pesos}
+                                                                            onChange={(e) => handleInputChange(config.id, 'cuota_Fija_Pesos', e.target.value, 'honorarios')}
+                                                                            className="w-full h-8 text-xs text-center"
+                                                                        />
+                                                                        {savingConfigId === config.id && (
+                                                                            <Loader2 className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center relative">
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            value={config.cuota_Fija_UMA}
+                                                                            onChange={(e) => handleInputChange(config.id, 'cuota_Fija_UMA', e.target.value, 'honorarios')}
+                                                                            className="w-full h-8 text-xs text-center"
+                                                                        />
+                                                                        {savingConfigId === config.id && (
+                                                                            <Loader2 className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center relative">
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            value={config.salarios_Minimos}
+                                                                            onChange={(e) => handleInputChange(config.id, 'salarios_Minimos', e.target.value, 'honorarios')}
+                                                                            className="w-full h-8 text-xs text-center"
+                                                                        />
+                                                                        {savingConfigId === config.id && (
+                                                                            <Loader2 className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center relative">
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="1"
+                                                                            value={config.impuesto_Extra}
+                                                                            onChange={(e) => handleInputChange(config.id, 'impuesto_Extra', e.target.value, 'honorarios')}
+                                                                            className="w-full h-8 text-xs text-center"
+                                                                        />
+                                                                        {savingConfigId === config.id && (
+                                                                            <Loader2 className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center relative">
+                                                                    <div className="relative">
+                                                                        <Input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            max="100"
+                                                                            step="1"
+                                                                            value={config.porcentaje}
+                                                                            onChange={(e) => handleInputChange(config.id, 'porcentaje', e.target.value, 'honorarios')}
+                                                                            className="w-full h-8 text-xs text-center"
+                                                                        />
+                                                                        {savingConfigId === config.id && (
+                                                                            <Loader2 className="absolute right-1 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center">
+                                                                    <select
+                                                                        disabled
+                                                                        className="w-full h-8 text-xs text-center bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded cursor-not-allowed opacity-70"
+                                                                        defaultValue={config.rango || ''}
+                                                                    >
+                                                                        <option value="">--</option>
+                                                                        <option value="Básico">Básico</option>
+                                                                        <option value="Intermedio">Intermedio</option>
+                                                                        <option value="Avanzado">Avanzado</option>
+                                                                    </select>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </TabsContent>
 
                             {/* Cotejos Tab */}

@@ -6,7 +6,13 @@ import {
     Calculator,
     File,
     Save,
-    X
+    X,
+    Phone,
+    MapPin,
+    Image,
+    BarChart3,
+    BookOpen,
+    Mail
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
@@ -180,7 +186,7 @@ const api = useApi();
                 const data = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
                 if (!data) {
-                    throw new Error('Error al obtener la configuración');
+                    throw new Error('Error al obtener la configuraciÃƒÂ³n');
                 }
 
                 const notaria = data.dataResponse;
@@ -204,7 +210,7 @@ const api = useApi();
                     imagen: notaria.logotipo ? `data:image/png;base64,${notaria.logotipo}` : null,
                 });
             } catch (error) {
-                console.error('Error al cargar la configuración de la notaría:', error);
+                console.error('Error al cargar la configuraciÃƒÂ³n de la notarÃƒÂ­a:', error);
                 // Si hay error, mantener los datos por defecto
                 setNotariaData(defaultNotariaData);
             } finally {
@@ -432,8 +438,13 @@ const api = useApi();
                             ) : (
                             <div className="grid gap-6">
                                 {/* Sección 1: Información Principal */}
-                                <div >
-                                    <h3 className="mb-4 text-lg font-semibold">Información Principal</h3>
+                                <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                            <Building2 className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Información Principal</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
                                             <RequiredLabel htmlFor="notaria_numero">Nº Notaría</RequiredLabel>
@@ -446,7 +457,7 @@ const api = useApi();
                                                         notaria_numero: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -460,15 +471,20 @@ const api = useApi();
                                                         nombre: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Sección 2: Contacto */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Contacto</h3>
+                                <div className="border-2 border-green-200 rounded-lg p-5 bg-gradient-to-br from-green-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-green-600 text-white p-3 rounded-lg">
+                                            <Phone className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Contacto</h3>
+                                    </div>
                                     <div className="grid gap-4">
                                         <div>
                                             <RequiredLabel htmlFor="telefono">Teléfono</RequiredLabel>
@@ -481,15 +497,20 @@ const api = useApi();
                                                         telefono: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Sección 3: Ubicación */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Ubicación</h3>
+                                <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-purple-600 text-white p-3 rounded-lg">
+                                            <MapPin className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Ubicación</h3>
+                                    </div>
                                     <div className="grid gap-4">
                                         <div>
                                             <RequiredLabel htmlFor="domicilio">Domicilio</RequiredLabel>
@@ -502,7 +523,7 @@ const api = useApi();
                                                         domicilio: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-3">
@@ -517,7 +538,7 @@ const api = useApi();
                                                             estado: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -531,7 +552,7 @@ const api = useApi();
                                                             municipio: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -545,7 +566,7 @@ const api = useApi();
                                                             codigo_postal: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                         </div>
@@ -553,8 +574,13 @@ const api = useApi();
                                 </div>
 
                                 {/* Sección 4: Imagen */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Foto de la Notaría</h3>
+                                <div className="border-2 border-amber-200 rounded-lg p-5 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-amber-600 text-white p-3 rounded-lg">
+                                            <Image className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Foto de la Notaría</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
                                             <RequiredLabel htmlFor="imagen">Subir Imagen</RequiredLabel>
@@ -584,7 +610,7 @@ const api = useApi();
                                                 <RequiredLabel>Vista Previa</RequiredLabel>
                                                 <img
                                                     src={notariaData.imagen}
-                                                    alt="Foto de la notaría"
+                                                    alt="Foto de la notarÃƒÂ­a"
                                                     className="mt-2 h-110 w-full rounded-lg border border-gray-300 object-contain shadow-lg"
                                                 />
                                             </div>
@@ -595,10 +621,15 @@ const api = useApi();
                             )}
                         </TabsContent>
 
-                        {/* Pestaña 2: Control */}
+                        {/* PestaÃƒÂ±a 2: Control */}
                         <TabsContent value="control" className="space-y-6">
-                            <div>
-                                <h3 className="mb-4 text-lg font-semibold">Contador de Documentos</h3>
+                            <div className="border-2 border-orange-200 rounded-lg p-5 bg-gradient-to-br from-orange-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-orange-600 text-white p-3 rounded-lg">
+                                        <BarChart3 className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Contador de Documentos</h3>
+                                </div>
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                                     <div>
                                         <RequiredLabel htmlFor="expediente">Expediente</RequiredLabel>
@@ -612,7 +643,7 @@ const api = useApi();
                                                     expediente: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -627,7 +658,7 @@ const api = useApi();
                                                     acta_fuera_protocolo: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -642,7 +673,7 @@ const api = useApi();
                                                     certificacion: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -657,7 +688,7 @@ const api = useApi();
                                                     recibo_honorarios: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -672,7 +703,7 @@ const api = useApi();
                                                     ratificacion: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -687,7 +718,7 @@ const api = useApi();
                                                     recibo_general: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -702,7 +733,7 @@ const api = useApi();
                                                     cotejo: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                 </div>
@@ -713,8 +744,13 @@ const api = useApi();
                         <TabsContent value="servidor" className="space-y-6">
                             <div className="grid gap-6">
                                 {/* Sección de Ruta */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Configuración del Servidor</h3>
+                                <div className="border-2 border-red-200 rounded-lg p-5 bg-gradient-to-br from-red-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-red-600 text-white p-3 rounded-lg">
+                                            <Server className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Configuración del Servidor</h3>
+                                    </div>
                                     <div>
                                         <RequiredLabel htmlFor="ruta">Ruta del Servidor</RequiredLabel>
                                         <Input
@@ -726,7 +762,7 @@ const api = useApi();
                                                     ruta: e.target.value,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                 </div>
@@ -737,8 +773,13 @@ const api = useApi();
                         <TabsContent value="correo" className="space-y-6">
                             <div className="grid gap-6">
                                 {/* Sección de Correo */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Configuración de Correo</h3>
+                                <div className="border-2 border-indigo-200 rounded-lg p-5 bg-gradient-to-br from-indigo-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-indigo-600 text-white p-3 rounded-lg">
+                                            <Mail className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Configuración de Correo</h3>
+                                    </div>
                                     <div className="grid gap-4">
                                         <div>
                                             <RequiredLabel htmlFor="correo_servidor">Servidor SMTP</RequiredLabel>
@@ -751,7 +792,7 @@ const api = useApi();
                                                         servidor_correo: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-2">
@@ -766,7 +807,7 @@ const api = useApi();
                                                             usuario_correo: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -781,7 +822,7 @@ const api = useApi();
                                                             password_correo: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                         </div>
@@ -797,7 +838,7 @@ const api = useApi();
                                                             puerto: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -830,7 +871,7 @@ const api = useApi();
                                                         asunto_correo: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="mt-2 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                 rows={4}
                                             />
                                         </div>
@@ -839,8 +880,13 @@ const api = useApi();
                             </div>
                         </TabsContent>
                         <TabsContent value="calculos" className="space-y-6">
-                            <div>
-                                <h3 className="mb-4 text-lg font-semibold">Configuración de Cálculos</h3>
+                            <div className="border-2 border-emerald-200 rounded-lg p-5 bg-gradient-to-br from-emerald-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-emerald-600 text-white p-3 rounded-lg">
+                                        <Calculator className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Configuración de Cálculos</h3>
+                                </div>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div>
                                         <RequiredLabel htmlFor="iva">IVA (%)</RequiredLabel>
@@ -855,7 +901,7 @@ const api = useApi();
                                                     iva: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -871,7 +917,7 @@ const api = useApi();
                                                     ret_iva: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -887,7 +933,7 @@ const api = useApi();
                                                     ret_isr: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -903,7 +949,7 @@ const api = useApi();
                                                     salario: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -919,19 +965,24 @@ const api = useApi();
                                                     uma: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                 </div>
                             </div>
                         </TabsContent>
 
-                        {/* Pestaña 6: Folios */}
+                        {/* PestaÃƒÂ±a 6: Folios */}
                         <TabsContent value="folios" className="space-y-6">
                             <div className="grid gap-6">
                                 {/* Folios de Instrumentos */}
-                                <div className="rounded-lg border border-sidebar-border p-6">
-                                    <h3 className="mb-6 text-lg font-semibold">Folios de Instrumentos</h3>
+                                <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                            <BookOpen className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Folios de Instrumentos</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                         <div>
                                             <RequiredLabel htmlFor="tomo_inicial_inst">Tomo Inicial</RequiredLabel>
@@ -945,7 +996,7 @@ const api = useApi();
                                                         tomo_inicial_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -960,7 +1011,7 @@ const api = useApi();
                                                         volumenes_por_tomo_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -975,7 +1026,7 @@ const api = useApi();
                                                         folios_por_volumen_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -990,7 +1041,7 @@ const api = useApi();
                                                         volumen_inicial_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1005,15 +1056,20 @@ const api = useApi();
                                                         folio_inicial_por_tomo_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Folios de Certificaciones */}
-                                <div className="rounded-lg border border-sidebar-border p-6">
-                                    <h3 className="mb-6 text-lg font-semibold">Folios de Certificaciones</h3>
+                                <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                            <BookOpen className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Folios de Certificaciones</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                         <div>
                                             <RequiredLabel htmlFor="tomo_inicial_cert">Tomo Inicial</RequiredLabel>
@@ -1027,7 +1083,7 @@ const api = useApi();
                                                         tomo_inicial_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1042,7 +1098,7 @@ const api = useApi();
                                                         volumenes_por_tomo_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1057,7 +1113,7 @@ const api = useApi();
                                                         folios_por_volumen_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1072,7 +1128,7 @@ const api = useApi();
                                                         volumen_inicial_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1087,7 +1143,7 @@ const api = useApi();
                                                         folio_inicial_por_tomo_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
@@ -1144,11 +1200,12 @@ ControlNotarialConfiguracionIndex.layout = (page: React.ReactNode) => (
             href: '/admin/control-notarial',
         },
         {
-            title: 'Configuración',
+            title: 'ConfiguraciÃƒÂ³n',
             href: '/admin/control-notarial/configuracion',
         },
     ]}>
         {page}
     </AppLayout>
 );
+
 

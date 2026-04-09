@@ -2800,8 +2800,13 @@ export default function ExpedientesIndex() {
                                             </div>
 
                                             {/* APARTADO DE FOLIOS */}
-                                            <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
-                                                <h4 className="font-semibold text-sm mb-4 text-blue-900 dark:text-blue-100">Gestión de Folios</h4>
+                                            <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                                        <Plus className="h-5 w-5" />
+                                                    </div>
+                                                    <h4 className="text-lg font-bold text-gray-900">Gestión de Folios</h4>
+                                                </div>
                                                 <div className="space-y-4">
                                                     {/* Fila 1: Folios requeridos, botón, vacío */}
                                                     <div className="grid grid-cols-4 gap-4 items-end">
@@ -2810,7 +2815,7 @@ export default function ExpedientesIndex() {
                                                             <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="flex items-end w-full pt-5">
-                                                            <Button className="bg-blue-600 hover:bg-blue-700 h-10 w-24 min-w-0">Asignar</Button>
+                                                            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all h-10 w-24 min-w-0">Asignar</Button>
                                                         </div>
                                                         <div className="w-full"></div>
                                                     </div>
@@ -2847,7 +2852,7 @@ export default function ExpedientesIndex() {
                                             </div>
 
                                             {/* APARTADO DE FECHAS CON CHECKBOXES */}
-                                            <div className="border rounded-lg p-4 bg-purple-50 dark:bg-purple-950/20">
+                                            <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
                                                 <h4 className="font-semibold text-sm mb-4 text-purple-900 dark:text-purple-100">Fechas de Proceso</h4>
                                                 <div className="space-y-3">
                                                     <div className="text-xs text-muted-foreground mb-3">*Para modificar las fechas, activa el checkbox correspondiente</div>
