@@ -92,6 +92,7 @@ Este documento sirve como índice central de toda la documentación del proyecto
   - ✅ Sistema completo de permisos y visibilidad por notaría
   - ✅ 4 tipos de eventos (General, Cita, Recordatorio, Festivo)
   - ✅ Integración con React/TypeScript + Inertia.js v2
+  - 📖 **[Integración Legacy](docs/AGENDA_INTEGRACION_LEGACY.md)** - Documentación técnica completa de integración con sistema VB6/PHP
 
 #### Activity Logging System 📋 Completado (Marzo 2026)
 - [`ACTIVITY_LOGGING_IMPLEMENTACION.md`](docs/ACTIVITY_LOGGING_IMPLEMENTACION.md) - **Sistema de registro de actividades**

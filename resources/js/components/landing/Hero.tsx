@@ -2,9 +2,29 @@ import { Link } from '@inertiajs/react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { login } from '@/routes';
 
-// Lazy load: el bundle de Spline (~2MB) solo se descarga cuando el componente
-// entra al viewport en pantallas xl, no al cargar la página.
+// Lazy load con precarga inteligente: el bundle de Spline (~2MB) inicia
+// precarga después de 1 segundo de cargar la página para que esté listo
+// cuando el usuario scrollee al Hero.
 const Spline = lazy(() => import('@splinetool/react-spline'));
+
+// Precarga Spline después de un delay para no bloquear carga inicial
+let splinePreloaded = false;
+const preloadSpline = () => {
+    if (!splinePreloaded && typeof window !== 'undefined') {
+        splinePreloaded = true;
+        console.log('🚀 Iniciando precarga de Spline 3D...');
+
+        // Precargar el componente Spline
+        import('@splinetool/react-spline')
+            .then(() => {
+                console.log('✅ Spline precargado - listo para uso instantáneo');
+            })
+            .catch((error) => {
+                console.warn('⚠️ Error precargando Spline:', error);
+                splinePreloaded = false;
+            });
+    }
+};
 
 interface HeroProps {
     isAuthenticated: boolean;
@@ -23,7 +43,19 @@ const Hero = ({ isAuthenticated }: HeroProps) => {
     const splineContainerRef = useRef<HTMLDivElement>(null);
     const [shouldLoadSpline, setShouldLoadSpline] = useState(false);
 
-    // Solo carga Spline cuando el contenedor entra al viewport
+    // 🚀 PRECARGA: Iniciar precarga de Spline después de 1 segundo
+    // Esto no bloquea la carga inicial pero asegura que cuando el usuario
+    // scrollee, el modelo 3D ya esté listo
+    useEffect(() => {
+        const preloadTimer = setTimeout(() => {
+            preloadSpline();
+        }, 1000); // Esperar 1 segundo después de cargar la página
+
+        return () => clearTimeout(preloadTimer);
+    }, []);
+
+    // Solo muestra Spline cuando el contenedor entra al viewport
+    // Si ya está precargado, aparecerá instantáneamente
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {

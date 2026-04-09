@@ -23,6 +23,7 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const lastScannedQRRef = useRef<string | null>(null); // Evitar escaneos duplicados
     const isProcessingRef = useRef(false); // Ref para bloqueo más confiable
+    const cameraStartTimeRef = useRef<number>(0); // Timestamp de inicio de cámara
 
     // Limpiar scanner al cerrar
     useEffect(() => {
@@ -31,8 +32,10 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
             setShowCamera(false);
             setStatus('idle');
             setErrorMessage(null);
-            lastScannedQRRef.current = null; // Reset último QR escaneado
+            // NO resetear lastScannedQRRef - mantiene memoria del último QR escaneado
+            // para evitar reprocesar el mismo QR si la cámara muestra el frame anterior
             isProcessingRef.current = false; // Reset flag de procesamiento
+            cameraStartTimeRef.current = 0; // Reset timestamp
         }
     }, [isOpen]);
 
@@ -91,10 +94,18 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
             let cameraConfig = { facingMode: 'environment' };
 
             try {
+                cameraStartTimeRef.current = Date.now(); // Marcar inicio de cámara
                 await scanner.start(
                     cameraConfig,
                     config,
                     async (decodedText) => {
+                        // Warm-up: ignorar frames iniciales (800ms) para evitar procesar frame anterior capturado
+                        const timeSinceStart = Date.now() - cameraStartTimeRef.current;
+                        if (timeSinceStart < 800) {
+                            console.log('⏳ Ignorando frame inicial (warm-up)...');
+                            return;
+                        }
+
                         // Evitar escaneos duplicados del mismo QR
                         if (!isProcessingRef.current && lastScannedQRRef.current !== decodedText) {
                             isProcessingRef.current = true;
@@ -111,10 +122,18 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
             } catch (backCameraError) {
                 // Si falla la cámara trasera, intentar con la primera disponible
                 console.log('Cámara trasera no disponible, usando cámara por defecto');
+                cameraStartTimeRef.current = Date.now(); // Marcar inicio de cámara
                 await scanner.start(
                     devices[0].id,
                     config,
                     async (decodedText) => {
+                        // Warm-up: ignorar frames iniciales (800ms)
+                        const timeSinceStart = Date.now() - cameraStartTimeRef.current;
+                        if (timeSinceStart < 800) {
+                            console.log('⏳ Ignorando frame inicial (warm-up)...');
+                            return;
+                        }
+
                         // Evitar escaneos duplicados del mismo QR
                         if (!isProcessingRef.current && lastScannedQRRef.current !== decodedText) {
                             isProcessingRef.current = true;
