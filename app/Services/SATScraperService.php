@@ -201,69 +201,120 @@ class SATScraperService
      */
     protected function structureWithGemini(array $rawData): array
     {
-        try {
-            // Preparar texto para Gemini
-            $fullText = implode(' ', $rawData);
+        $maxRetries = 3;
+        $baseDelay = 1; // segundo
 
-            // Construir request para Gemini
-            $requestData = [
-                'contents' => [
-                    [
-                        'parts' => [
-                            [
-                                'text' => $this->buildPrompt($fullText),
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                // Preparar texto para Gemini
+                $fullText = implode(' ', $rawData);
+
+                // Construir request para Gemini
+                $requestData = [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                [
+                                    'text' => $this->buildPrompt($fullText),
+                                ],
                             ],
                         ],
                     ],
-                ],
-                'generationConfig' => [
-                    'temperature' => $this->temperature,
-                    'responseMimeType' => 'application/json',
-                ],
-            ];
+                    'generationConfig' => [
+                        'temperature' => $this->temperature,
+                        'responseMimeType' => 'application/json',
+                    ],
+                ];
 
-            // Llamar a Gemini API
-            $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                ])
-                ->post($this->geminiEndpoint.'?key='.$this->geminiApiKey, $requestData);
+                Log::info('Llamando a Gemini API', ['attempt' => $attempt, 'max_retries' => $maxRetries]);
 
-            // Verificar errores de Gemini (incluso en respuestas no exitosas)
-            $geminiResponse = $response->json();
+                // Llamar a Gemini API
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders([
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post($this->geminiEndpoint.'?key='.$this->geminiApiKey, $requestData);
 
-            if (isset($geminiResponse['error'])) {
-                $errorCode = $geminiResponse['error']['code'] ?? 'unknown';
-                $errorMessage = $geminiResponse['error']['message'] ?? 'Error desconocido';
+                // Verificar errores de Gemini (incluso en respuestas no exitosas)
+                $geminiResponse = $response->json();
 
-                if ($errorCode == 429) {
-                    throw new Exception('Límite de uso de Gemini alcanzado. Intente más tarde.');
+                if (isset($geminiResponse['error'])) {
+                    $errorCode = $geminiResponse['error']['code'] ?? 'unknown';
+                    $errorMessage = $geminiResponse['error']['message'] ?? 'Error desconocido';
+
+                    // Detectar errores de sobrecarga (429, 503, o mensajes de "high demand")
+                    $isOverloaded = $errorCode == 429 ||
+                                    $errorCode == 503 ||
+                                    str_contains(strtolower($errorMessage), 'high demand') ||
+                                    str_contains(strtolower($errorMessage), 'overloaded') ||
+                                    str_contains(strtolower($errorMessage), 'rate limit');
+
+                    if ($isOverloaded && $attempt < $maxRetries) {
+                        // Retry con exponential backoff
+                        $delay = $baseDelay * pow(2, $attempt - 1); // 1s, 2s, 4s...
+                        Log::warning('Gemini sobrecargado, reintentando en '.$delay.'s', [
+                            'attempt' => $attempt,
+                            'error_code' => $errorCode,
+                            'error_message' => $errorMessage,
+                        ]);
+                        sleep($delay);
+                        continue; // Retry
+                    }
+
+                    if ($isOverloaded) {
+                        throw new Exception('El servicio de análisis está temporalmente saturado. Por favor intenta de nuevo en unos momentos.');
+                    }
+
+                    throw new Exception('Error de Gemini: '.$errorMessage);
                 }
-                throw new Exception('Error de Gemini: '.$errorMessage);
-            }
 
-            if (! $response->successful()) {
-                throw new Exception('Error al conectar con Gemini: '.$response->body());
-            }
+                // Verificar respuesta HTTP
+                if (! $response->successful()) {
+                    $statusCode = $response->status();
 
-            // Extraer contenido JSON de la respuesta
-            if (isset($geminiResponse['candidates'][0]['content']['parts'][0]['text'])) {
-                $jsonText = $geminiResponse['candidates'][0]['content']['parts'][0]['text'];
-                $structuredData = json_decode($jsonText, true);
+                    // Retry en errores de servidor (500, 503)
+                    if (in_array($statusCode, [500, 503]) && $attempt < $maxRetries) {
+                        $delay = $baseDelay * pow(2, $attempt - 1);
+                        Log::warning('Error HTTP '.$statusCode.' de Gemini, reintentando en '.$delay.'s', [
+                            'attempt' => $attempt,
+                            'status' => $statusCode,
+                        ]);
+                        sleep($delay);
+                        continue; // Retry
+                    }
 
-                if (json_last_error() === JSON_ERROR_NONE && is_array($structuredData)) {
-                    return $structuredData;
+                    throw new Exception('Error al conectar con Gemini: '.$response->body());
                 }
-            }
 
-            throw new Exception('No se pudo procesar la respuesta de Gemini');
-        } catch (Exception $e) {
-            Log::error('Error structuring data with Gemini', [
-                'error' => $e->getMessage(),
-                'raw_data_count' => count($rawData),
-            ]);
-            throw $e;
+                // Extraer contenido JSON de la respuesta
+                if (isset($geminiResponse['candidates'][0]['content']['parts'][0]['text'])) {
+                    $jsonText = $geminiResponse['candidates'][0]['content']['parts'][0]['text'];
+                    $structuredData = json_decode($jsonText, true);
+
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($structuredData)) {
+                        Log::info('Gemini procesó exitosamente', ['attempt' => $attempt]);
+                        return $structuredData;
+                    }
+                }
+
+                throw new Exception('No se pudo procesar la respuesta de Gemini');
+
+            } catch (Exception $e) {
+                // Si es el último intento o no es un error de sobrecarga, lanzar error
+                if ($attempt >= $maxRetries || !str_contains($e->getMessage(), 'saturado')) {
+                    Log::error('Error structuring data with Gemini', [
+                        'error' => $e->getMessage(),
+                        'raw_data_count' => count($rawData),
+                        'attempts' => $attempt,
+                    ]);
+                    throw $e;
+                }
+                // Si es error de sobrecarga y no es el último intento, continuar el loop
+            }
         }
+
+        // Fallback (no debería llegar aquí)
+        throw new Exception('No se pudo procesar la constancia después de '.$maxRetries.' intentos');
     }
 
     /**

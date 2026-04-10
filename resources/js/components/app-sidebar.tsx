@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode } from 'lucide-react';
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode, ScanLine } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -39,6 +39,12 @@ export function AppSidebar() {
 
     // Agenda Web: disponible para todos los usuarios autenticados
     const hasAgenda = isSuperAdmin || servicios.some((s) => s.code === 'AGENDA') || true;
+
+    // Escáner Inteligente: disponible para usuarios con el servicio habilitado
+    const hasEscanerInteligente = servicios.some((s) => s.code === 'ESCANER_INTELIGENTE') || isSuperAdmin;
+
+    // Registro Web: disponible para usuarios con el servicio habilitado
+    const hasRegistroWeb = servicios.some((s) => s.code === 'REGISTRO_WEB') || isSuperAdmin;
 
     const mainNavItems: NavItem[] = [
         {
@@ -94,6 +100,12 @@ export function AppSidebar() {
                       title: 'Registro Web',
                       href: '/admin/registro-web',
                       icon: QrCode,
+                  },
+                  {
+                      title: 'Escáner Inteligente',
+                      href: '/admin/escaner-inteligente',
+                      icon: ScanLine,
+                      badge: 'Próximamente',
                   },
                   {
                       title: 'Control Notarial',
@@ -188,6 +200,25 @@ export function AppSidebar() {
                   },
               ]
             : []),
+        ...(hasRegistroWeb && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Registro Web',
+                      href: '/admin/registro-web',
+                      icon: QrCode,
+                  },
+              ]
+            : []),
+        ...(hasEscanerInteligente && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Escáner Inteligente',
+                      href: '/admin/escaner-inteligente',
+                      icon: ScanLine,
+                      badge: 'Próximamente',
+                  },
+              ]
+            : []),
         ...(hasControlNotarial && !isSuperAdmin
             ? [
                   {
@@ -247,7 +278,7 @@ export function AppSidebar() {
 
     const footerNavItems: NavItem[] = [
 
-        // Boton para repositorio laravel. 
+        // Boton para repositorio laravel.
         // {
         //     title: 'Repository',
         //     href: 'https://github.com/laravel/react-starter-kit',

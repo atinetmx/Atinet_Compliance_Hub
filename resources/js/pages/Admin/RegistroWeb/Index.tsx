@@ -114,6 +114,7 @@ const selectClass =
 
 export default function Index({ notaria, stats }: Props) {
     const [activeTab, setActiveTab] = useState<PersonaType>('fisica');
+    const [personTypeLockedByQR, setPersonTypeLockedByQR] = useState(false); // Bloquear cambio de tipo cuando viene del QR
     const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
         generales: true,
         domicilio: false,
@@ -228,6 +229,11 @@ export default function Index({ notaria, stats }: Props) {
     };
 
     const handleTabChange = (tab: PersonaType) => {
+        // No permitir cambio si el tipo fue detectado automáticamente
+        if (personTypeLockedByQR) {
+            toast.warning('⚠️ El tipo de persona fue detectado automáticamente y no puede cambiarse');
+            return;
+        }
         setActiveTab(tab);
         setData('persona', tab);
     };
@@ -253,6 +259,7 @@ export default function Index({ notaria, stats }: Props) {
         setData('nacionalidad', 'MEXICANA');
         setData('pais', 'MEXICO');
         setData('pais_fiscal', 'MEXICO');
+        setPersonTypeLockedByQR(false); // Desbloquear selector al limpiar
     };
 
     const handleScanINE = () => setIneScannerOpen(true);
@@ -300,13 +307,28 @@ export default function Index({ notaria, stats }: Props) {
             // 1. Parsear QR localmente
             const parsedData = procesarDatosQR(qrText);
 
-            if (!parsedData.rfc && !parsedData.urlSAT) {
-                // QR no contiene RFC ni URL SAT - mostrar raw
+            // Verificar si el QR tiene datos útiles
+            const hasUsefulData = parsedData.rfc ||
+                                  parsedData.urlSAT ||
+                                  parsedData.curp ||
+                                  parsedData.nombre ||
+                                  parsedData.apellidopat ||
+                                  parsedData._tipoDocumento;
+
+            if (!hasUsefulData) {
+                // QR no reconocido - mostrar texto crudo para copiar
                 setConfirmCopyDialog({ isOpen: true, text: qrText });
+                toast.info('ℹ️ QR no reconocido. Puedes copiar el contenido manualmente.');
                 return;
             }
 
-            // 2. Buscar en base de datos por RFC
+            console.log('📄 Tipo de documento detectado:', parsedData._tipoDocumento || 'desconocido');
+            console.log('📊 Datos parseados:', parsedData);
+
+            console.log('📄 Tipo de documento detectado:', parsedData._tipoDocumento || 'desconocido');
+            console.log('📊 Datos parseados:', parsedData);
+
+            // 2. Buscar en base de datos por RFC (solo si tiene RFC)
             if (parsedData.rfc) {
                 loaderInstance = await AtinetLoader.show({
                     title: 'Buscando en base de datos...',
@@ -458,23 +480,49 @@ export default function Index({ notaria, stats }: Props) {
 
                     toast.success('✅ Datos del SAT cargados correctamente');
                 } else {
-                    toast.error(
-                        '❌ Error al procesar QR del SAT: ' +
-                            (satResult.message || 'Error desconocido')
-                    );
+                    // Detectar errores de saturación del servicio
+                    const errorMsg = satResult.message || 'Error desconocido';
+                    const isSaturationError =
+                        errorMsg.includes('saturado') ||
+                        errorMsg.includes('high demand') ||
+                        errorMsg.includes('overloaded') ||
+                        errorMsg.includes('rate limit');
+
+                    if (isSaturationError) {
+                        toast.error(
+                            '⏳ El servicio está temporalmente saturado. ' +
+                            'Por favor intenta de nuevo en unos momentos.',
+                            { duration: 6000 }
+                        );
+                    } else {
+                        toast.error(
+                            '❌ Error al procesar QR del SAT: ' + errorMsg,
+                            { duration: 5000 }
+                        );
+                    }
                 }
                 return;
             }
 
-            // 4. Cargar datos parseados localmente si no es URL SAT
-            if (Object.keys(parsedData).length > 0) {
+            // 4. Cargar datos parseados localmente (CURP, Acta de Nacimiento, u otros)
+            if (Object.keys(parsedData).filter(k => !k.startsWith('_')).length > 0) {
                 cargarDatosQR(parsedData);
 
                 const missingGroups = verificarCamposFaltantes(parsedData);
 
+                // Determinar título según tipo de documento
+                let title = '✅ Datos del QR cargados';
+                if (parsedData._tipoDocumento === 'curp') {
+                    title = '✅ Datos de CURP cargados';
+                } else if (parsedData._tipoDocumento === 'acta_nacimiento') {
+                    title = '✅ Datos de Acta de Nacimiento cargados';
+                } else if (parsedData._tipoDocumento === 'sat') {
+                    title = '✅ Datos del SAT cargados';
+                }
+
                 setMissingFieldsModal({
                     isOpen: true,
-                    title: '✅ Datos del QR cargados',
+                    title,
                     personData: {
                         nombre: `${parsedData.nombre || ''} ${parsedData.apellidopat || ''} ${parsedData.apellidomat || ''}`.trim(),
                         rfc: parsedData.rfc || '',
@@ -483,7 +531,13 @@ export default function Index({ notaria, stats }: Props) {
                     missingGroups,
                 });
 
-                toast.success('✅ Datos del QR cargados correctamente');
+                toast.success(
+                    parsedData._tipoDocumento === 'curp'
+                        ? '✅ Datos de CURP cargados correctamente'
+                        : parsedData._tipoDocumento === 'acta_nacimiento'
+                        ? '✅ Datos de Acta de Nacimiento cargados correctamente'
+                        : '✅ Datos del QR cargados correctamente'
+                );
             }
         } catch (error) {
             console.error('Error procesando QR:', error);
@@ -630,9 +684,11 @@ export default function Index({ notaria, stats }: Props) {
         if (datos.Persona === 'MORAL') {
             setActiveTab('moral');
             setData('persona', 'moral');
+            setPersonTypeLockedByQR(true); // Bloquear cambio de selector
         } else if (datos.Persona === 'FISICA' || datos.curp) {
             setActiveTab('fisica');
             setData('persona', 'fisica');
+            setPersonTypeLockedByQR(true); // Bloquear cambio de selector
         }
 
         // Mapear campos del QR al formulario
@@ -693,26 +749,44 @@ export default function Index({ notaria, stats }: Props) {
                     <button
                         type="button"
                         onClick={() => handleTabChange('fisica')}
+                        disabled={personTypeLockedByQR}
+                        title={personTypeLockedByQR ? 'Tipo de persona detectado automáticamente' : ''}
                         className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                             activeTab === 'fisica'
                                 ? 'border-b-2 border-sky-600 bg-sky-50 text-sky-700'
                                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                        } ${
+                            personTypeLockedByQR
+                                ? 'cursor-not-allowed opacity-60'
+                                : ''
                         }`}
                     >
                         <User className="h-4 w-4" />
                         Persona Física
+                        {personTypeLockedByQR && activeTab === 'fisica' && (
+                            <span className="ml-1 text-xs text-sky-600">🔒</span>
+                        )}
                     </button>
                     <button
                         type="button"
                         onClick={() => handleTabChange('moral')}
+                        disabled={personTypeLockedByQR}
+                        title={personTypeLockedByQR ? 'Tipo de persona detectado automáticamente' : ''}
                         className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                             activeTab === 'moral'
                                 ? 'border-b-2 border-sky-600 bg-sky-50 text-sky-700'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-70 0'
+                        } ${
+                            personTypeLockedByQR
+                                ? 'cursor-not-allowed opacity-60'
+                                : ''
                         }`}
                     >
                         <Building2 className="h-4 w-4" />
                         Persona Moral
+                        {personTypeLockedByQR && activeTab === 'moral' && (
+                            <span className="ml-1 text-xs text-sky-600">🔒</span>
+                        )}
                     </button>
                 </div>
 

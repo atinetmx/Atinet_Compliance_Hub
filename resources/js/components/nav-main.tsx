@@ -97,6 +97,11 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: IsCurrentUrlFn, level: 
                         <Link href={item.href} prefetch>
                             {item.icon && <item.icon />}
                             <span>{item.title}</span>
+                            {item.badge && (
+                                <SidebarMenuBadge className="ml-auto text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                                    {item.badge}
+                                </SidebarMenuBadge>
+                            )}
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -112,6 +117,11 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: IsCurrentUrlFn, level: 
                         <Link href={item.href} prefetch>
                             {item.icon && <item.icon className="h-4 w-4" />}
                             <span>{item.title}</span>
+                            {item.badge && (
+                                <SidebarMenuBadge className="ml-auto text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                                    {item.badge}
+                                </SidebarMenuBadge>
+                            )}
                         </Link>
                     </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
