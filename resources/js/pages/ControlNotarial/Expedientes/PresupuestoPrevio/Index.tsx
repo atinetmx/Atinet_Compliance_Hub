@@ -641,6 +641,9 @@ export default function PresupuestoPrevioIndex() {
                     parametro: formData.parametro,
                     honorarios: formData.honorarios,
                     descuento: formData.descuento,
+                    chkIVA: formData.incluir_iva,
+                    chkRetISR: ret_isr_check,
+                    chkRetIVA: ret_iva_check,
                 },
                 presupuestoPrevioImpuestosDerechos: formData.impuestos_derechos.map(item => ({
                     impuestos_Derechos_Id: Number(item.id),
@@ -919,7 +922,7 @@ export default function PresupuestoPrevioIndex() {
                                             <th className="px-4 py-2 text-left font-semibold">Nombre</th>
                                             <th className="px-4 py-2 text-left font-semibold">Operación</th>
                                             <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
-                                            <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Estatus</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -957,7 +960,7 @@ export default function PresupuestoPrevioIndex() {
                                                                 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                                                 : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                         }`}>
-                                                            {presupuesto.activo ? 'Sí' : 'No'}
+                                                            {presupuesto.activo ? 'Activo' : 'Inactivo'}
                                                         </span>
                                                     </td>
                                                 </tr>
@@ -1014,7 +1017,7 @@ export default function PresupuestoPrevioIndex() {
                                                                 : 'Selecciona un cliente'
                                                         }
                                                         placeholder="Selecciona un cliente"
-                                                        className="flex-1"
+                                                        className="flex-1 bg-white dark:bg-slate-900/50"
                                                     />
                                                     <Button
                                                         type="button"
@@ -1046,7 +1049,7 @@ export default function PresupuestoPrevioIndex() {
                                                         onFocus={() => setShowOperacionDropdown(true)}
                                                         onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
                                                         disabled={isLoadingOperaciones}
-                                                        className="w-full pr-10"
+                                                        className="w-full pr-10 bg-white dark:bg-slate-900/50"
                                                     />
                                                     {operacionFiltro && (
                                                         <button
@@ -1103,6 +1106,7 @@ export default function PresupuestoPrevioIndex() {
                                                         onFocus={() => setShowZonaDropdown(true)}
                                                         placeholder="Buscar zona o municipio..."
                                                         disabled={isLoadingZonas}
+                                                        className="bg-white dark:bg-slate-900/50"
                                                     />
                                                     {zonaFiltro && (
                                                         <button
@@ -1152,7 +1156,7 @@ export default function PresupuestoPrevioIndex() {
                                                     onChange={handleInputChange}
                                                     placeholder="Observaciones adicionales"
                                                     rows={2}
-                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                                    className="w-full px-3 py-2 border rounded-md bg-white dark:bg-slate-900/50 border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                                 />
                                             </div>
                                         </div>
@@ -1176,7 +1180,7 @@ export default function PresupuestoPrevioIndex() {
                                                     value={formData.valor_operacion}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
-                                                    className="text-right font-bold text-green-600"
+                                                    className="text-right font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -1188,7 +1192,7 @@ export default function PresupuestoPrevioIndex() {
                                                     value={formData.valor_avaluo}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
-                                                    className="text-right font-bold text-green-600"
+                                                    className="text-right font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -1200,7 +1204,7 @@ export default function PresupuestoPrevioIndex() {
                                                     value={formData.valor_catastral}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
-                                                    className="text-right font-bold text-green-600"
+                                                    className="text-right font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -1238,7 +1242,7 @@ export default function PresupuestoPrevioIndex() {
                                                     step="0.01"
                                                     value={formData.honorarios}
                                                     onChange={handleInputChange}
-                                                    className="text-right font-bold border-0 rounded-none"
+                                                    className="text-right font-bold border-0 rounded-none bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -1252,7 +1256,7 @@ export default function PresupuestoPrevioIndex() {
                                                     step="0.01"
                                                     value={formData.descuento}
                                                     onChange={handleInputChange}
-                                                    className="text-right font-bold border-0 rounded-none"
+                                                    className="text-right font-bold border-0 rounded-none bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -1264,7 +1268,7 @@ export default function PresupuestoPrevioIndex() {
                                                     step="0.01"
                                                     value={(formData.honorarios - formData.descuento).toFixed(2)}
                                                     readOnly
-                                                    className="text-right font-bold text-green-600 border-0 rounded-none"
+                                                    className="text-right font-bold text-green-600 border-0 rounded-none bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -1288,7 +1292,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={formatCurrency(formData.incluir_iva ? ((formData.honorarios - formData.descuento) * 0.16) : 0)}
-                                                className="text-right font-bold text-red-600 border"
+                                                className="text-right font-bold text-red-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                         <div className="space-y-1">
@@ -1296,7 +1300,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={formatCurrency(formData.incluir_iva ? ((formData.honorarios - formData.descuento) * 1.16) : (formData.honorarios - formData.descuento))}
-                                                className="text-right font-bold text-blue-600 border"
+                                                className="text-right font-bold text-blue-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                     </div>
@@ -1317,7 +1321,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={ret_isr_check ? formatCurrency(calcularTotales().retISR) : formatCurrency(0)}
-                                                className="text-right font-bold text-green-600 border"
+                                                className="text-right font-bold text-green-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                         <div className="space-y-1">
@@ -1334,7 +1338,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={ret_iva_check && formData.incluir_iva ? formatCurrency(calcularTotales().retIVA) : formatCurrency(0)}
-                                                className="text-right font-bold text-green-600 border"
+                                                className="text-right font-bold text-green-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                         <div className="space-y-1">
@@ -1399,7 +1403,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         value={item.importe}
                                                                         onChange={(e) => updateImpuestoDerechos(item.id, 'importe', e.target.value)}
                                                                         placeholder="0.00"
-                                                                        className="text-right text-sm h-8 font-bold text-green-600"
+                                                                        className="text-right text-sm h-8 font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                                     />
                                                                 </td>
                                                                 <td className="px-4 py-3">
@@ -1407,7 +1411,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         value={item.observaciones || ''}
                                                                         onChange={(e) => updateImpuestoDerechos(item.id, 'observaciones', e.target.value)}
                                                                         placeholder="Observaciones"
-                                                                        className="w-full text-sm h-8"
+                                                                        className="w-full text-sm h-8 bg-white dark:bg-slate-900/50"
                                                                     />
                                                                 </td>
                                                                 <td className="px-4 py-3 text-center">
@@ -1464,7 +1468,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         value={item.descripcion}
                                                                         onChange={(e) => updateGastoNotarial(item.id, 'descripcion', e.target.value)}
                                                                         placeholder="Concepto"
-                                                                        className="w-full text-sm h-8"
+                                                                        className="w-full text-sm h-8 bg-white dark:bg-slate-900/50"
                                                                     />
                                                                 </td>
                                                                 <td className="px-4 py-3 text-right">
@@ -1474,7 +1478,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         value={item.importe}
                                                                         onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
                                                                         placeholder="0.00"
-                                                                        className="text-right text-sm h-8 font-bold text-green-600"
+                                                                        className="text-right text-sm h-8 font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                                     />
                                                                 </td>
                                                                 <td className="px-4 py-3 text-center">
@@ -1502,7 +1506,7 @@ export default function PresupuestoPrevioIndex() {
                                     return (
                                         <div className="grid grid-cols-4 gap-4">
                                             <div className="border-2 border-yellow-400 rounded-lg p-5 bg-gradient-to-br from-yellow-50 to-yellow-100 shadow-lg hover:shadow-xl transition-shadow">
-                                                <p className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Total Gastos</p>
+                                                <p className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Total Gastos Notariales</p>
                                                 <p className="text-2xl font-bold text-yellow-900 mt-2">
                                                     {formatCurrency(totales.totalGastos)}
                                                 </p>
@@ -1646,7 +1650,7 @@ export default function PresupuestoPrevioIndex() {
                                         value={clienteFiltro}
                                         onChange={(e) => setClienteFiltro(e.target.value)}
                                         placeholder="Buscar por nombre, RFC, CURP..."
-                                        className="pr-10"
+                                        className="pr-10 bg-white dark:bg-slate-900/50"
                                     />
                                     {clienteFiltro && (
                                         <button
@@ -1773,6 +1777,7 @@ export default function PresupuestoPrevioIndex() {
                                         value={impuestosFiltro}
                                         onChange={(e) => setImpuestosFiltro(e.target.value)}
                                         placeholder="Filtrar por descripción..."
+                                        className="bg-white dark:bg-slate-900/50"
                                     />
                                     {impuestosFiltro && (
                                         <button

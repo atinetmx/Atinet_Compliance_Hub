@@ -33,13 +33,21 @@ class ApiService {
      */
     async post<T = any>(endpoint: string, body: any): Promise<T & { dataResponse?: any; message?: string }> {
         const url = `${this.baseUrl}${endpoint}`;
+        const isFormData = body instanceof FormData;
+        const headers: Record<string, string> = {
+            'Accept': 'application/json',
+        };
+
+        // Solo establecer Content-Type para JSON, no para FormData
+        // El navegador establece automáticamente multipart/form-data para FormData
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json';
+        }
+
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: body instanceof FormData ? body : JSON.stringify(body),
+            headers,
+            body: isFormData ? body : JSON.stringify(body),
         });
 
         const contentType = response.headers.get('content-type');
@@ -60,13 +68,21 @@ class ApiService {
      */
     async put<T = any>(endpoint: string, body: any): Promise<T & { dataResponse?: any; message?: string }> {
         const url = `${this.baseUrl}${endpoint}`;
+        const isFormData = body instanceof FormData;
+        const headers: Record<string, string> = {
+            'Accept': 'application/json',
+        };
+
+        // Solo establecer Content-Type para JSON, no para FormData
+        // El navegador establece automáticamente multipart/form-data para FormData
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json';
+        }
+
         const response = await fetch(url, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: body instanceof FormData ? body : JSON.stringify(body),
+            headers,
+            body: isFormData ? body : JSON.stringify(body),
         });
 
         const contentType = response.headers.get('content-type');

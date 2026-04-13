@@ -1,5 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building, Users } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
 // Opciones de ejemplo para los dropdowns
@@ -73,6 +73,17 @@ interface Cliente {
     rfc: string;
     curp: string;
     activo: boolean;
+}
+
+interface ClienteBusqueda {
+    id: number;
+    tipo_Cliente: string;
+    alias: string;
+    nombre: string;
+    apellido_Paterno: string;
+    apellido_Materno: string;
+    rfc: string;
+    curp: string;
 }
 
 interface Compareciente {
@@ -217,6 +228,7 @@ export default function ExpedientesIndex() {
 
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');
+    const [activeInternalTab, setActiveInternalTab] = useState('info-general');
 
     // --- Estado pestaña Formulario ---
     const [isEditing, setIsEditing] = useState(false);
@@ -296,6 +308,13 @@ export default function ExpedientesIndex() {
     const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
     const [dropdownTipoAbierto, setDropdownTipoAbierto] = useState<Record<string, boolean>>({});
     const [busquedaTipo, setBusquedaTipo] = useState<Record<string, string>>({});
+
+    // Estados para Modal de Búsqueda de Clientes (Comparecientes)
+    const [showClienteModalComparecientes, setShowClienteModalComparecientes] = useState(false);
+    const [clienteResultadosComparecientes, setClienteResultadosComparecientes] = useState<ClienteBusqueda[]>([]);
+    const [isSearchingClientesComparecientes, setIsSearchingClientesComparecientes] = useState(false);
+    const [clienteErrorComparecientes, setClienteErrorComparecientes] = useState<string | null>(null);
+    const [clienteFiltroComparecientes, setClienteFiltroComparecientes] = useState('');
 
     // --- Estados para Documentos ---
     const [mostrarDropdownOtorgante, setMostrarDropdownOtorgante] = useState(false);
@@ -542,6 +561,13 @@ export default function ExpedientesIndex() {
     const [reciboUrl, setReciboUrl] = useState<string | null>(null);
     const [isLoadingRecibo, setIsLoadingRecibo] = useState(false);
 
+    // Estado para validación del número de escritura
+    const [numeroEscrituraError, setNumeroEscrituraError] = useState<string | null>(null);
+    const [validandoNumeroEscritura, setValidandoNumeroEscritura] = useState(false);
+    const [numeroEscrituraTouched, setNumeroEscrituraTouched] = useState(false);
+    const [numeroEscrituraOriginal, setNumeroEscrituraOriginal] = useState<string>('');
+    const debounceNumeroEscrituraRef = useRef<NodeJS.Timeout | null>(null);
+
     // Ref para debounce de actualización de documentos individuales
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
 
@@ -564,8 +590,54 @@ export default function ExpedientesIndex() {
         // Cleanup de timers al desmontar
         return () => {
             Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
+            if (debounceNumeroEscrituraRef.current) clearTimeout(debounceNumeroEscrituraRef.current);
         };
     }, []);
+
+    // Validar número de escritura con debounce
+    useEffect(() => {
+        // Limpiar timer anterior si existe
+        if (debounceNumeroEscrituraRef.current) {
+            clearTimeout(debounceNumeroEscrituraRef.current);
+        }
+
+        // Si el campo está vacío o no fue tocado, limpiar error
+        if (!formData.numeroEscritura || !numeroEscrituraTouched) {
+            setNumeroEscrituraError(null);
+            return;
+        }
+
+        // Crear nuevo timer
+        debounceNumeroEscrituraRef.current = setTimeout(async () => {
+            setValidandoNumeroEscritura(true);
+            try {
+                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+                // Si la respuesta es exitosa, no hay error
+                setNumeroEscrituraError(null);
+
+                // Mostrar toast con el mensaje de la API
+                if (response?.dataResponse == true) {
+                    addToast(response.message, 'success', 4000);
+                }else {
+                         addToast(response.message, 'warning', 4000);
+                }
+            } catch (error: any) {
+                // Si hay error, mostrar el mensaje
+                let errorMessage = 'Error al validar el número de escritura.';
+
+                if (error?.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error?.message) {
+                    errorMessage = error.message;
+                }
+
+                setNumeroEscrituraError(errorMessage);
+                addToast(errorMessage, 'error', 4000);
+            } finally {
+                setValidandoNumeroEscritura(false);
+            }
+        }, 500);
+    }, [formData.numeroEscritura, api, numeroEscrituraTouched]);
 
     // Cargar presupuestos cuando se carga un expediente
     const fetchPresupuestos = async (expedienteId: number) => {
@@ -681,7 +753,7 @@ export default function ExpedientesIndex() {
             }
         } catch (error) {
             console.error('Error cargando comparecientes:', error);
-            addToast('No se pudieron cargar los comparecientes', 'error');
+            addToast('No se pudieron cargar los comparecientes', 'error', 4000);
         }
     };
 
@@ -706,7 +778,7 @@ export default function ExpedientesIndex() {
             }
         } catch (error) {
             console.error('Error cargando tipos de inmuebles:', error);
-            addToast('No se pudieron cargar los tipos de inmuebles', 'error');
+            addToast('No se pudieron cargar los tipos de inmuebles', 'error', 4000);
         } finally {
             setCargandoTiposInmuebles(false);
         }
@@ -778,13 +850,13 @@ export default function ExpedientesIndex() {
 
                 // Mostrar el formulario
                 setMostrarFormInmueble(true);
-                addToast('Inmueble cargado para editar', 'success');
+                addToast('Inmueble cargado para editar', 'success', 4000);
             } else {
-                addToast('No se pudieron cargar los datos del inmueble', 'error');
+                addToast('No se pudieron cargar los datos del inmueble', 'error', 4000);
             }
         } catch (error) {
             console.error('Error cargando inmueble:', error);
-            addToast('Error al cargar los datos del inmueble', 'error');
+            addToast('Error al cargar los datos del inmueble', 'error', 4000);
         } finally {
             setCargandoGuardarInmueble(false);
         }
@@ -793,7 +865,7 @@ export default function ExpedientesIndex() {
     // Guardar Inmueble
     const handleGuardarInmueble = async () => {
         if (!currentExpedienteId) {
-            addToast('No hay expediente seleccionado', 'error');
+            addToast('No hay expediente seleccionado', 'error', 4000);
             return;
         }
 
@@ -839,8 +911,8 @@ export default function ExpedientesIndex() {
             // Determinar si es creación o actualización
             const isEditing = inmuebleIdEnEdicion !== null;
             const endpoint = isEditing
-                ? `Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
-                : 'Expediente/CreateInmuebleExpediente';
+                ? `/Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
+                : '/Expediente/CreateInmuebleExpediente';
 
             // Agregar expediente_Id solo para crear
             if (!isEditing) {
@@ -853,54 +925,54 @@ export default function ExpedientesIndex() {
 
             if (data) {
                 addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
-                setMostrarFormInmueble(false);
-                // Limpiar formulario
-                setFormInmueble({
-                    tipoFactura: '',
-                    tipoVulnerable: '',
-                    tipoDeclaranot: '',
-                    medidas: '',
-                    antecedentes: '',
-                    descripcion: '',
-                    claveCatastral: '',
-                    valorAvaluo: '',
-                    valorCatastral: '',
-                    valorOperacion: '',
-                    superficieTerreno: '',
-                    superficieConstruida: '',
-                    ctaAgua: '',
-                    ctaPredial: '',
-                    calle: '',
-                    numeroExt: '',
-                    numeroInt: '',
-                    manzana: '',
-                    lote: '',
-                    pais: '',
-                    estado: '',
-                    municipio: '',
-                    colonia: '',
-                    cp: '',
-                    inscripcion: '',
-                    folioReal: '',
-                    folioInicial: '',
-                    folioFinal: '',
-                    folioElectronico: '',
-                    partida: '',
-                    volumen: '',
-                    seccion: '',
-                    fechaRegistro: '',
-                    fechaEscritura: '',
-                    montoTotal: '',
-                    formaPago: '',
-                    fechaPago: '',
-                    referenciaPago: '',
-                    observacionesPago: '',
-                });
-                // Limpiar estado de edición
-                setInmuebleEnEdicion(null);
-                setInmuebleIdEnEdicion(null);
-                // Recargar inmuebles
-                await fetchInmueblesExpediente(currentExpedienteId);
+            setMostrarFormInmueble(false);
+            // Limpiar formulario
+            setFormInmueble({
+                tipoFactura: '',
+                tipoVulnerable: '',
+                tipoDeclaranot: '',
+                medidas: '',
+                antecedentes: '',
+                descripcion: '',
+                claveCatastral: '',
+                valorAvaluo: '',
+                valorCatastral: '',
+                valorOperacion: '',
+                superficieTerreno: '',
+                superficieConstruida: '',
+                ctaAgua: '',
+                ctaPredial: '',
+                calle: '',
+                numeroExt: '',
+                numeroInt: '',
+                manzana: '',
+                lote: '',
+                pais: '',
+                estado: '',
+                municipio: '',
+                colonia: '',
+                cp: '',
+                inscripcion: '',
+                folioReal: '',
+                folioInicial: '',
+                folioFinal: '',
+                folioElectronico: '',
+                partida: '',
+                volumen: '',
+                seccion: '',
+                fechaRegistro: '',
+                fechaEscritura: '',
+                montoTotal: '',
+                formaPago: '',
+                fechaPago: '',
+                referenciaPago: '',
+                observacionesPago: '',
+            });
+            // Limpiar estado de edición
+            setInmuebleEnEdicion(null);
+            setInmuebleIdEnEdicion(null);
+            // Recargar inmuebles
+            await fetchInmueblesExpediente(currentExpedienteId);
             } else {
                 addToast(data.message || 'Error al guardar el inmueble', 'error');
             }
@@ -921,11 +993,11 @@ export default function ExpedientesIndex() {
                 setDocumentosDisponibles(data.dataResponse);
                 setMostrarModalAgregarDocumento(true);
             } else {
-                addToast('No se pudieron cargar los documentos disponibles', 'error');
+                addToast('No se pudieron cargar los documentos disponibles', 'error', 4000);
             }
         } catch (error) {
             console.error('Error cargando documentos disponibles:', error);
-            addToast('Error cargando documentos', 'error');
+            addToast('Error cargando documentos', 'error', 4000);
         } finally {
             setCargandoDocumentosDisponibles(false);
         }
@@ -965,7 +1037,7 @@ export default function ExpedientesIndex() {
                 ]
             }))
         );
-        addToast(`Documento "${documento.descripcion}" agregado a todas las tablas`, 'success');
+        addToast(`Documento "${documento.descripcion}" agregado a todas las tablas`, 'success', 4000);
     };
 
     // Agregar múltiples documentos seleccionados
@@ -973,7 +1045,7 @@ export default function ExpedientesIndex() {
         const documentosAgregar = documentosDisponibles.filter(doc => documentosSeleccionados[doc.id]);
 
         if (documentosAgregar.length === 0) {
-            addToast('Selecciona al menos un documento', 'warning');
+            addToast('Selecciona al menos un documento', 'warning', 4000);
             return;
         }
 
@@ -1047,7 +1119,7 @@ export default function ExpedientesIndex() {
     // Abrir modal y cargar recibo de documentos
     const handleAbrirReciboDocumentos = async () => {
         if (!currentExpedienteId || !clienteSeleccionadoDocumentos) {
-            addToast('Selecciona un cliente para visualizar el recibo', 'warning');
+            addToast('Selecciona un cliente para visualizar el recibo', 'warning', 4000);
             return;
         }
 
@@ -1066,10 +1138,10 @@ export default function ExpedientesIndex() {
             const url = URL.createObjectURL(blob);
             setReciboUrl(url);
             setShowReciboModal(true);
-            addToast('Recibo cargado correctamente', 'success');
+            addToast('Recibo cargado correctamente', 'success', 4000);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al generar el recibo';
-            addToast(message, 'error');
+            addToast(message, 'error', 4000);
             console.error('Error:', error);
         } finally {
             setIsLoadingRecibo(false);
@@ -1134,12 +1206,12 @@ export default function ExpedientesIndex() {
             });
 
             const data = await api.put(
-                `Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
+                `/Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
                 documentosPayload
             );
 
             if (data) {
-                addToast('Documentos actualizados exitosamente', 'success');
+                addToast('Documentos actualizados exitosamente', 'success', 4000);
             } else {
                 console.error('Error al actualizar documentos:', data);
                 addToast('Error al actualizar documentos: ' + (data?.message || 'Error desconocido'), 'error');
@@ -1175,7 +1247,7 @@ export default function ExpedientesIndex() {
             };
 
             const data = await api.put(
-                `Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
+                `/Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
                 payload
             );
 
@@ -1183,7 +1255,7 @@ export default function ExpedientesIndex() {
                   addToast('Documento actualizado exitosamente', 'success');
                 console.log(`Documento ${docsId} actualizado exitosamente`);
             } else {
-                const errorData = await response.json();
+                const errorData = await data.json();
                 console.error(`Error al actualizar documento ${docsId}:`, errorData);
             }
         } catch (error) {
@@ -1490,6 +1562,50 @@ export default function ExpedientesIndex() {
         setFormData(prev => ({ ...prev, [name]: val }));
     };
 
+    const handleNumeroEscrituraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        handleInputChange(e);
+        setNumeroEscrituraTouched(true);
+    };
+
+    const validateNumeroEscrituraBeforeSave = async (): Promise<boolean> => {
+        // Si no hay número de escritura, no validar
+        if (!formData.numeroEscritura) {
+            return true;
+        }
+
+        // Si el número de escritura no ha sido modificado del original, no validar
+        if (isEditing && formData.numeroEscritura === numeroEscrituraOriginal) {
+            return true;
+        }
+
+        try {
+            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+
+            // Verificar si dataResponse es true
+            if (response?.dataResponse === true) {
+                return true;
+            } else {
+                // Si dataResponse no es true, mostrar error
+                setSaveError(`El número de escritura ${formData.numeroEscritura} no es válido.`);
+                addToast(response?.message, 'warning', 4000);
+                return false;
+            }
+        } catch (error: any) {
+            // Si hay error en la API, mostrar el mensaje de error
+            let errorMessage = 'Error al validar el número de escritura.';
+
+            if (error?.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+
+            setSaveError(errorMessage);
+            addToast(errorMessage, 'error', 4000);
+            return false;
+        }
+    };
+
     const handleCancelEdit = () => {
         setFormData({
             expediente: '',
@@ -1533,6 +1649,18 @@ export default function ExpedientesIndex() {
         setMostrarDropdownDependencias(false);
         setDatosDepdencias({});
         setDependenciaSeleccionada(null);
+        setFilasComparecientes([]);
+        setEnabledDates({
+            fechaEscritura: false,
+            fechaFirma: false,
+            fechaElaboracion: false,
+            fechaRevision: false,
+            fechaImpresion: false,
+            firmarTodos: false,
+        });
+        setNumeroEscrituraTouched(false);
+        setNumeroEscrituraOriginal('');
+        setNumeroEscrituraError(null);
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
@@ -1580,6 +1708,9 @@ export default function ExpedientesIndex() {
                 fechaImpresion: expediente.fecha_Impresion ? expediente.fecha_Impresion.split('T')[0] : '',
                 firmarTodos: expediente.fecha_Firma_Todos ? expediente.fecha_Firma_Todos.split('T')[0] : '',
             }));
+
+            // Guardar el valor original del número de escritura para comparación posterior
+            setNumeroEscrituraOriginal(expediente.escritura_Numero?.toString() || '');
 
             // Buscar y establecer IDs de usuarios
             const notarioEncontrado = usuarios.find(u => u.nombre + ' ' + u.apellido_Paterno + ' ' + u.apellido_Materno === expediente.notario);
@@ -1670,7 +1801,10 @@ export default function ExpedientesIndex() {
             // Activar modo edición y navegación
             setCurrentExpedienteId(expedienteId);
             setIsEditing(true);
+            setNumeroEscrituraTouched(false);
+            setNumeroEscrituraOriginal(expediente.escritura_Numero?.toString() || '');
             setActiveTab('formulario');
+            setActiveInternalTab('info-general');
             setSaveError(null);
 
             // Cargar documentos e inmuebles del expediente
@@ -1707,38 +1841,48 @@ export default function ExpedientesIndex() {
             return;
         }
 
+        // Validar número de escritura antes de guardar
+        const isNumeroEscrituraValid = await validateNumeroEscrituraBeforeSave();
+        if (!isNumeroEscrituraValid) {
+            return;
+        }
+
         setIsSaving(true);
         setSaveError(null);
 
         try {
-            // Construir el payload según la estructura esperada por la API
+            // Construir el payload base (igual para crear y actualizar)
+            const expedientePayload = {
+                observaciones: formData.observaciones || 'NA',
+                referencia: formData.referencia,
+                municipio_Id: municipioId || 1,
+                notario_Id: notarioId,
+                responsable_Id: responsableId || 0,
+                secretaria_Id: secretariaId || 0,
+                autorizado_Id: autorizadoId || 0,
+                credito: 0,
+                tipo_Escritura: formData.tipoEscritura || '',
+                escritura_Numero: parseInt(formData.numeroEscritura) || 0,
+                folio_Inicial: formData.folioInicial || 0,
+                folio_Final: formData.folioFinal || 0,
+                volumen: formData.volumen || 0,
+                tomo: formData.tomo || 0,
+                fojas: 0,
+                monto: 0,
+                fecha_Escritura: formData.fechaEscritura || new Date().toISOString(),
+                fecha_Firma: formData.fechaFirma || new Date().toISOString(),
+                fecha_Elaboracion: formData.fechaElaboracion || new Date().toISOString(),
+                fecha_Revision: formData.fechaRevision || new Date().toISOString(),
+                fecha_Impresion: formData.fechaImpresion || new Date().toISOString(),
+                fecha_Firma_Todos: formData.firmarTodos || new Date().toISOString(),
+                motivo: formData.motivoCancelacion || 'string'
+            };
+
             const requestPayload = {
-                expediente: {
+                expediente: isEditing ? expedientePayload : {
                     tipo_Expediente: 'EXPEDIENTE',
-                    observaciones: formData.observaciones || 'NA',
                     fecha_Apertura: new Date().toISOString(),
-                    referencia: formData.referencia,
-                    municipio_Id: municipioId || 1,
-                    notario_Id: notarioId,
-                    responsable_Id: responsableId || 0,
-                    secretaria_Id: secretariaId || 0,
-                    autorizado_Id: autorizadoId || 0,
-                    credito: 0,
-                    tipo_Escritura: formData.tipoEscritura || '',
-                    escritura_Numero: parseInt(formData.numeroEscritura) || 0,
-                    folio_Inicial: formData.folioInicial || 0,
-                    folio_Final: formData.folioFinal || 0,
-                    volumen: formData.volumen || 0,
-                    tomo: formData.tomo || 0,
-                    fojas: 0,
-                    monto: 0,
-                    fecha_Escritura: formData.fechaEscritura || new Date().toISOString(),
-                    fecha_Firma: formData.fechaFirma || new Date().toISOString(),
-                    fecha_Elaboracion: formData.fechaElaboracion || new Date().toISOString(),
-                    fecha_Revision: formData.fechaRevision || new Date().toISOString(),
-                    fecha_Impresion: formData.fechaImpresion || new Date().toISOString(),
-                    fecha_Firma_Todos: formData.firmarTodos || new Date().toISOString(),
-                    motivo: formData.motivoCancelacion || 'string'
+                    ...expedientePayload
                 },
                 operacion: operacionesIds.map(opId => ({ operacion_Id: opId })),
                 clientes: filasComparecientes.map(comp => ({
@@ -1774,113 +1918,132 @@ export default function ExpedientesIndex() {
                 })
             };
 
-            const data = await api.post('/Expediente/CreateExpediente', requestPayload);
+            // Determinar endpoint y acción
+            const endpoint = isEditing && currentExpedienteId
+                ? `/Expediente/UpdateExpediente?expedienteId=${currentExpedienteId}`
+                : '/Expediente/CreateExpediente';
+
+            const data = isEditing
+                ? await api.put(endpoint, requestPayload)
+                : await api.post(endpoint, requestPayload);
 
             if (data) {
-                addToast('Expediente creado exitosamente', 'success');
+                const messageAction = isEditing ? 'actualizado' : 'creado';
+                addToast(`Expediente ${messageAction} exitosamente`, 'success', 4000);
 
-                // Obtener el ID del expediente creado
-                const expedienteId = data.dataResponse?.id || currentExpedienteId;
+                // Si es actualización, solo recargar datos y volver a busqueda
+                if (isEditing && currentExpedienteId) {
+                    setIsEditing(false);
+                    setCurrentExpedienteId(null);
+                    setSaveError(null);
+                    setActiveTab('busqueda');
+                    setActiveInternalTab('info-general');
 
-                // Actualizar documentos si hay
-                if (expedienteId && documentosPorCliente.length > 0) {
-                    await handleActualizarDocumentosExpediente(expedienteId);
+                    // Recargar expedientes
+                    setTimeout(() => {
+                        fetchExpedientes('');
+                    }, 100);
+                } else {
+                    // Si es creación, resetear todo
+                    const nuevoFormData = {
+                        expediente: '',
+                        fecha_creacion: new Date().toISOString().split('T')[0],
+                        referencia: '',
+                        municipio: '',
+                        operaciones: [],
+                        dependencias: [],
+                        observaciones: '',
+                        notario: '',
+                        responsable: '',
+                        secretaria: '',
+                        autorizado: '',
+                        estatus: '',
+                        motivoCancelacion: '',
+                        ultima_etapa: '',
+                        financiamiento_con: false,
+                        financiamiento_monto: 0,
+                        tipoEscritura: '',
+                        numeroEscritura: '',
+                        foliosRequeridos: 0,
+                        folioInicial: 0,
+                        folioFinal: 0,
+                        volumen: 0,
+                        tomo: 0,
+                        foliosInutilizados: 0,
+                        fechaEscritura: '',
+                        fechaFirma: '',
+                        fechaElaboracion: '',
+                        fechaRevision: '',
+                        fechaImpresion: '',
+                        firmarTodos: '',
+                        noPaso: false,
+                        nopasoMotivo: '',
+                    };
+
+                    // Batch de updates para evitar render issues
+                    setFormData(nuevoFormData);
+                    setNotarioId(null);
+                    setResponsableId(null);
+                    setSecretariaId(null);
+                    setAutorizadoId(null);
+                    setOperacionesIds([]);
+                    setFilasComparecientes([]);
+                    setDatosDepdencias({});
+                    setDependenciaSeleccionada(null);
+                    setSaveError(null);
+                    setCheckboxesFecha({});
+                    setFilasDocumentos({});
+                    setClienteSeleccionado(null);
+                    setOtorganteSeleccionado(null);
+                    setClienteBusqueda('');
+                    setBusquedaOtorgante('');
+                    setOperacionBusqueda('');
+                    setMostrarDropdownOperaciones(false);
+                    setMunicipioBusqueda('');
+                    setMostrarDropdownMunicipios(false);
+                    setDependenciaBusqueda('');
+                    setMostrarDropdownDependencias(false);
+                    setDatosDepdencias({});
+                    setDependenciaSeleccionada(null);
+                    setBusquedaNotario('');
+                    setMostrarDropdownNotario(false);
+                    setBusquedaResponsable('');
+                    setMostrarDropdownResponsable(false);
+                    setBusquedaSecretaria('');
+                    setMostrarDropdownSecretaria(false);
+                    setBusquedaAutorizado('');
+                    setMostrarDropdownAutorizado(false);
+                    setMostrarDropdownClientes(false);
+                    setMostrarDropdownOtorgante(false);
+                    setDropdownTipoAbierto({});
+                    setBusquedaTipo({});
+                    setEnabledDates({
+                        fechaEscritura: false,
+                        fechaFirma: false,
+                        fechaElaboracion: false,
+                        fechaRevision: false,
+                        fechaImpresion: false,
+                        firmarTodos: false,
+                    });
+                    setActiveTab('busqueda');
+                    setActiveInternalTab('info-general');
+
+                    // Recargar expedientes en el siguiente ciclo
+                    setTimeout(() => {
+                        fetchExpedientes('');
+                    }, 100);
                 }
-
-                // Resetear todo en un paso
-                const nuevoFormData = {
-                    expediente: '',
-                    fecha_creacion: new Date().toISOString().split('T')[0],
-                    referencia: '',
-                    municipio: '',
-                    operaciones: [],
-                    dependencias: [],
-                    observaciones: '',
-                    notario: '',
-                    responsable: '',
-                    secretaria: '',
-                    autorizado: '',
-                    estatus: '',
-                    motivoCancelacion: '',
-                    ultima_etapa: '',
-                    financiamiento_con: false,
-                    financiamiento_monto: 0,
-                    tipoEscritura: '',
-                    numeroEscritura: '',
-                    foliosRequeridos: 0,
-                    folioInicial: 0,
-                    folioFinal: 0,
-                    volumen: 0,
-                    tomo: 0,
-                    foliosInutilizados: 0,
-                    fechaEscritura: '',
-                    fechaFirma: '',
-                    fechaElaboracion: '',
-                    fechaRevision: '',
-                    fechaImpresion: '',
-                    firmarTodos: '',
-                    noPaso: false,
-                    nopasoMotivo: '',
-                };
-
-                // Batch de updates para evitar render issues
-                setFormData(nuevoFormData);
-                setNotarioId(null);
-                setResponsableId(null);
-                setSecretariaId(null);
-                setAutorizadoId(null);
-                setOperacionesIds([]);
-                setFilasComparecientes([]);
-                setDatosDepdencias({});
-                setDependenciaSeleccionada(null);
-                setSaveError(null);
-                setCheckboxesFecha({});
-                setFilasDocumentos({});
-                setClienteSeleccionado(null);
-                setOtorganteSeleccionado(null);
-                setClienteBusqueda('');
-                setBusquedaOtorgante('');
-                setOperacionBusqueda('');
-                setMostrarDropdownOperaciones(false);
-                setMunicipioBusqueda('');
-                setMostrarDropdownMunicipios(false);
-                setDependenciaBusqueda('');
-                setMostrarDropdownDependencias(false);
-                setBusquedaNotario('');
-                setMostrarDropdownNotario(false);
-                setBusquedaResponsable('');
-                setMostrarDropdownResponsable(false);
-                setBusquedaSecretaria('');
-                setMostrarDropdownSecretaria(false);
-                setBusquedaAutorizado('');
-                setMostrarDropdownAutorizado(false);
-                setMostrarDropdownClientes(false);
-                setMostrarDropdownOtorgante(false);
-                setDropdownTipoAbierto({});
-                setBusquedaTipo({});
-                setEnabledDates({
-                    fechaEscritura: false,
-                    fechaFirma: false,
-                    fechaElaboracion: false,
-                    fechaRevision: false,
-                    fechaImpresion: false,
-                    firmarTodos: false,
-                });
-                setActiveTab('busqueda');
-
-                // Recargar expedientes en el siguiente ciclo
-                setTimeout(() => {
-                    fetchExpedientes('');
-                }, 100);
             } else {
-                setSaveError(data.message || 'Error al crear el expediente');
-                addToast(data.message || 'Error al crear el expediente', 'error');
+                const action = isEditing ? 'actualizar' : 'crear';
+                setSaveError(data.message || `Error al ${action} el expediente`);
+                addToast(data.message || `Error al ${action} el expediente`, 'error');
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-            setSaveError(`Error al crear expediente: ${errorMessage}`);
-            addToast(`Error al crear expediente: ${errorMessage}`, 'error');
-            console.error('Error al guardar expediente:', error);
+            const action = isEditing ? 'actualizar' : 'crear';
+            setSaveError(`Error al ${action} expediente: ${errorMessage}`);
+            addToast(`Error al ${action} expediente: ${errorMessage}`, 'error');
+            console.error(`Error al guardar expediente:`, error);
         } finally {
             setIsSaving(false);
         }
@@ -2065,6 +2228,46 @@ export default function ExpedientesIndex() {
         );
     };
 
+    // Función para buscar clientes desde el modal de comparecientes
+    const fetchClientesModal = async (filtroValue: string) => {
+        setIsSearchingClientesComparecientes(true);
+        setClienteErrorComparecientes(null);
+
+        try {
+            const url = `/Clientes/GetClientes?filtro=${encodeURIComponent(filtroValue)}`;
+            const data = await api.get(url);
+
+            if (data && data.dataResponse) {
+                setClienteResultadosComparecientes(data.dataResponse || []);
+            } else {
+                setClienteErrorComparecientes(data?.message || 'No se encontraron clientes.');
+                setClienteResultadosComparecientes([]);
+            }
+        } catch (error) {
+            setClienteErrorComparecientes('No se pudieron cargar los clientes. Verifica la conexión con el servidor.');
+            setClienteResultadosComparecientes([]);
+        } finally {
+            setIsSearchingClientesComparecientes(false);
+        }
+    };
+
+    // Función para seleccionar cliente del modal y agregarlo a la tabla
+    const handleSelectClienteFromModalComparecientes = (cliente: ClienteBusqueda) => {
+        const nuevoCompareciente: FilaCompareciente = {
+            id: Date.now().toString(),
+            cliente_Id: cliente.id,
+            nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
+            tipoCompareciente: '',
+            firmaRequerida: false,
+            fechaFirma: ''
+        };
+        setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
+        setShowClienteModalComparecientes(false);
+        setClienteFiltroComparecientes('');
+        setClienteResultadosComparecientes([]);
+        setClienteErrorComparecientes(null);
+    };
+
     // Cargar Recibos Provisionales del Expediente
     const fetchRecibosProvisionales = async (expedienteId: number) => {
         setCargandoRecibos(true);
@@ -2236,7 +2439,7 @@ export default function ExpedientesIndex() {
         <>
             <Head title="Expedientes - Control Notarial" />
 
-            <div className="space-y-6 px-6 pt-6">
+            <div className="space-y-6 mb-5 px-6 pt-6">
                 {/* <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="rounded-lg bg-blue-600 p-3 text-white">
@@ -2381,10 +2584,10 @@ export default function ExpedientesIndex() {
                             )}
 
                             {/* TABS INTERNOS: 4 CATEGORÍAS TEMÁTICAS */}
-                            <Tabs defaultValue="info-general" className="w-full">
-                                <TabsList className="grid w-full grid-cols-5 gap-2 bg-transparent mb-4 p-0">
+                            <Tabs value={activeInternalTab} onValueChange={setActiveInternalTab} className="w-full">
+                                <TabsList className="grid w-full grid-cols-5 gap-4 bg-transparent mb-6 p-0 border-b border-slate-200 dark:border-slate-700">
                                     {/* GRUPO 1: INFORMACIÓN GENERAL */}
-                                    <TabsTrigger value="info-general" className="gap-1 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger value="info-general" className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent">
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Info General</span>
                                     </TabsTrigger>
@@ -2392,7 +2595,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 2: DOCUMENTOS */}
                                     <TabsTrigger
                                         value="documentos"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2403,7 +2606,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 3: INMUEBLES */}
                                     <TabsTrigger
                                         value="inmuebles"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2414,7 +2617,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 4: FINANCIERO & CONTROL */}
                                     <TabsTrigger
                                         value="financiero-control"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2425,7 +2628,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 5: PROCESO & TRÁMITES */}
                                     <TabsTrigger
                                         value="proceso-tramites"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2795,7 +2998,26 @@ export default function ExpedientesIndex() {
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Número de Escritura</label>
-                                                    <Input type="text" name="numeroEscritura" value={formData.numeroEscritura} onChange={handleInputChange} placeholder="Número de escritura" className="text-sm bg-white dark:bg-white" />
+                                                    <div className="relative">
+                                                        <Input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            name="numeroEscritura"
+                                                            value={formData.numeroEscritura}
+                                                            onChange={handleNumeroEscrituraChange}
+                                                            placeholder="Número de escritura"
+                                                            className={`text-sm bg-white dark:bg-white ${numeroEscrituraError ? 'border-red-500 focus:ring-red-500' : ''}`}
+                                                        />
+                                                        {validandoNumeroEscritura && (
+                                                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                                                        )}
+                                                    </div>
+                                                    {numeroEscrituraError && (
+                                                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-1">
+                                                            <AlertCircle className="h-4 w-4 shrink-0" />
+                                                            <span>{numeroEscrituraError}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -3028,51 +3250,15 @@ export default function ExpedientesIndex() {
                                         {/* SubTab: Comparecientes */}
                                         <TabsContent value="comparecientes" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Agregar Compareciente(s)</h3>
-
-                                                {/* Dropdown de Clientes */}
-                                                <div ref={refDropdownClientes} className="relative mb-4">
-                                                    <div className="relative">
-                                                        <Input
-                                                            type="text"
-                                                            placeholder="Buscar compareciente..."
-                                                            value={clienteBusqueda}
-                                                            onChange={(e) => setClienteBusqueda(e.target.value)}
-                                                            onFocus={() => setMostrarDropdownClientes(true)}
-                                                            className="text-sm pr-8"
-                                                        />
-                                                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                    </div>
-                                                    {mostrarDropdownClientes && (
-                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                                                            {cargandoClientes && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
-                                                            {!cargandoClientes && clientesFiltrados.filter(c => !filasComparecientes.some(f => f.nombreCompareciente === `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`)).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
-                                                            {clientesFiltrados.filter(c => !filasComparecientes.some(f => f.nombreCompareciente === `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`)).map(cliente => (
-                                                                <div
-                                                                    key={cliente.id}
-                                                                    onClick={() => {
-                                                                        setClienteSeleccionado(cliente);
-                                                                        // Agregar directamente a la tabla
-                                                                        const nuevoCompareciente: FilaCompareciente = {
-                                                                            id: Date.now().toString(),
-                                                                            cliente_Id: cliente.id,
-                                                                            nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
-                                                                            tipoCompareciente: '',
-                                                                            firmaRequerida: false,
-                                                                            fechaFirma: ''
-                                                                        };
-                                                                        setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
-                                                                        setClienteBusqueda('');
-                                                                        setMostrarDropdownClientes(false);
-                                                                    }}
-                                                                    className="px-3 py-3 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                >
-                                                                    <div className="font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</div>
-                                                                    <div className="text-xs text-muted-foreground mt-1">{cliente.tipo_Cliente} - {cliente.curp} - {cliente.rfc}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">Agregar Compareciente(s)</h3>
+                                                    <Button
+                                                        onClick={() => setShowClienteModalComparecientes(true)}
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                    >
+                                                        <Plus className="h-4 w-4 mr-2" />
+                                                        Buscar Cliente
+                                                    </Button>
                                                 </div>
                                             </div>
 
@@ -3241,28 +3427,35 @@ export default function ExpedientesIndex() {
                                                 </div>
 
                                             {formData.dependencias.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden" style={{ maxHeight: '150px', display: 'flex', flexDirection: 'column' }}>
-                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                <div className="border rounded-lg overflow-hidden">
+                                                    <div className="overflow-x-auto">
                                                         <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
                                                                 <tr>
-                                                                    <th className="px-3 py-2 text-left">#</th>
-                                                                    <th className="px-3 py-2 text-left">Dependencia</th>
-                                                                    <th className="px-3 py-2 text-center">Acciones</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">#</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Dependencia</th>
+                                                                    <th className="px-4 py-2 text-center font-semibold"></th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 {formData.dependencias.map((dep, idx) => (
-                                                                    <tr key={idx} className="border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer transition-colors">
-                                                                        <td className="px-3 py-2">
+                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" onClick={() => setDependenciaSeleccionada(dep)}>
+                                                                        <td className="px-4 py-2">
                                                                             <span className="font-semibold">{idx + 1}</span>
                                                                         </td>
-                                                                        <td className="px-3 py-2 text-sm">
-                                                                            <button onClick={() => setDependenciaSeleccionada(dep)} className="hover:underline text-left">{dep}</button>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            <button onClick={(e) => e.stopPropagation()} className="text-left">{dep}</button>
                                                                         </td>
-                                                                        <td className="px-3 py-2 text-center">
-                                                                            <button onClick={() => handleEliminarDependencia(idx)} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                                <X className="h-4 w-4" />
+                                                                        <td className="px-4 py-2 text-right flex items-center justify-end">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleEliminarDependencia(idx);
+                                                                                }}
+                                                                                className="text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-2xl font-bold rounded-md w-8 h-8 flex items-center justify-center leading-none"
+                                                                                aria-label="Eliminar"
+                                                                            >
+                                                                                ×
                                                                             </button>
                                                                         </td>
                                                                     </tr>
@@ -3284,9 +3477,7 @@ export default function ExpedientesIndex() {
                                                 <div className="border rounded-lg p-6 bg-cyan-50 dark:bg-cyan-950/20 mt-6 border-cyan-300">
                                                     <div className="flex items-center justify-between mb-6">
                                                         <h3 className="text-lg font-semibold text-cyan-900 dark:text-cyan-100">Datos de la Dependencia</h3>
-                                                        <button onClick={() => setDependenciaSeleccionada(null)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400">
-                                                            <X className="h-5 w-5" />
-                                                        </button>
+
                                                     </div>
 
                                                     <div className="space-y-4">
@@ -5654,24 +5845,28 @@ export default function ExpedientesIndex() {
                             </Tabs>
 
                         {/* BOTONES DE ACCIÓN */}
-                        <div className="flex gap-2 justify-end pt-6 border-t mt-6">
-                            <Button variant="outline" onClick={handleCancelEdit}>
-                                <X className="h-4 w-4 mr-2" />
-                                Cancelar
-                            </Button>
-                            <Button
-                                onClick={handleSaveExpediente}
-                                disabled={isSaving}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                {isSaving ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                    <Plus className="h-4 w-4 mr-2" />
+                        {activeTab === 'formulario' && (
+                            <div className="flex gap-2 justify-end pt-6 border-t mt-6">
+                                <Button variant="outline" onClick={handleCancelEdit}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cerrar
+                                </Button>
+                                {activeInternalTab === 'info-general' && (
+                                    <Button
+                                        onClick={handleSaveExpediente}
+                                        disabled={isSaving}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        {isSaving ? (
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        ) : (
+                                            <Plus className="h-4 w-4 mr-2" />
+                                        )}
+                                        {isEditing ? 'Actualizar' : 'Crear'} Expediente
+                                    </Button>
                                 )}
-                                {isEditing ? 'Actualizar' : 'Guardar'} Expediente
-                            </Button>
-                        </div>
+                            </div>
+                        )}
                     </div>
                     </TabsContent>
                 </Tabs>
@@ -5754,6 +5949,133 @@ export default function ExpedientesIndex() {
                             >
                                 Cerrar
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE BÚSQUEDA DE CLIENTES PARA COMPARECIENTES */}
+            {showClienteModalComparecientes && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-background border rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="border-b px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                Búsqueda de Clientes
+                            </h2>
+                            <button
+                                onClick={() => setShowClienteModalComparecientes(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Body - Búsqueda */}
+                        <div className="border-b px-6 py-4 space-y-3">
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        value={clienteFiltroComparecientes}
+                                        onChange={(e) => setClienteFiltroComparecientes(e.target.value)}
+                                        placeholder="Buscar por nombre, RFC, CURP..."
+                                        className="pr-10 bg-white dark:bg-slate-900/50"
+                                    />
+                                    {clienteFiltroComparecientes && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setClienteFiltroComparecientes('');
+                                                setClienteResultadosComparecientes([]);
+                                                setClienteErrorComparecientes(null);
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                                <Button
+                                    onClick={() => fetchClientesModal(clienteFiltroComparecientes)}
+                                    disabled={isSearchingClientesComparecientes}
+                                    className="bg-amber-600 hover:bg-amber-700"
+                                >
+                                    {isSearchingClientesComparecientes ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Search className="h-4 w-4" />
+                                    )}
+                                    <span className="ml-2">Buscar</span>
+                                </Button>
+                            </div>
+                            {clienteErrorComparecientes && (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-red-50 border-red-200 text-red-800 text-sm">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <span>{clienteErrorComparecientes}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Table */}
+                        <div className="border rounded-lg overflow-hidden m-2">
+                            <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                            <th className="px-4 py-2 text-left font-semibold">RFC</th>
+                                            <th className="px-4 py-2 text-left font-semibold">CURP</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Seleccionar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearchingClientesComparecientes ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Buscando clientes...
+                                                </td>
+                                            </tr>
+                                        ) : clienteResultadosComparecientes.filter(c => !filasComparecientes.some(f => f.cliente_Id === c.id)).length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron clientes disponibles.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            clienteResultadosComparecientes.filter(c => !filasComparecientes.some(f => f.cliente_Id === c.id)).map((cliente) => (
+                                                <tr key={cliente.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer">
+                                                    <td className="px-4 py-2 font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</td>
+                                                    <td className="px-4 py-2 font-mono text-sm">{cliente.rfc}</td>
+                                                    <td className="px-4 py-2 font-mono text-sm">{cliente.curp}</td>
+                                                    <td className="px-4 py-2">{cliente.tipo_Cliente}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <Button
+                                                            onClick={() => handleSelectClienteFromModalComparecientes(cliente)}
+                                                            size="sm"
+                                                            className="bg-green-600 hover:bg-green-700"
+                                                        >
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t px-6 py-4 flex justify-end gap-2">
+                            <Button
+                                onClick={() => setShowClienteModalComparecientes(false)}
+                                variant="outline"
+                            >
+                                Cerrar
+                            </Button>
                         </div>
                     </div>
                 </div>

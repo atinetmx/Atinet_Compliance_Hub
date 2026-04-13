@@ -105,71 +105,59 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const defaultNotariaData: NotariaData = {
-    nombre: 'DR. MARIO BALCAZAR DE LA FUENTE',
-    domicilio: 'Calle Conocida #999',
-    telefono: '55 59 64 23 17',
-    municipio: 'NUEVA ROSITA',
-    estado: 'Coahuila de Zaragoza',
-    ciudad: 'NUEVA ROSITA',
-    notaria_numero: '15',
-    codigo_postal: '54850',
-    imagen: null,
-};
-
-const defaultControlData: ControlData = {
-    expediente: 110,
-    acta_fuera_protocolo: 2,
-    certificacion: 10,
-    recibo_honorarios: 7,
-    ratificacion: 8,
-    recibo_general: 243,
-    cotejo: 2,
-};
-
-const defaultServidorData: ServidorData = {
-    ruta: '\\\\Srvaitinet.atinet.Sistema de Control Notarial',
-};
-
-const defaultCorreoData: CorreoData = {
-    servidor_correo: 'mail.atinet.com.mx',
-    usuario_correo: 'recepcion@atinet.com.mx',
-    password_correo: '••••••••••••',
-    asunto_correo: 'CORREO DE AVISO PARA RECOLECCION DE FIRMA',
-    puerto: '587',
-    ssl_enabled: true,
-};
-
-const defaultCalculosData: CalculosData = {
-    iva: 16,
-    ret_iva: 10.666667,
-    ret_isr: 10,
-    salario: 248.93,
-    uma: 113.14,
-};
-
-const defaultFoliosData: FoliosData = {
-    tomo_inicial_instrumentos: 66,
-    volumenes_por_tomo_instrumentos: 10,
-    folios_por_volumen_instrumentos: 200,
-    volumen_inicial_instrumentos: 10,
-    folio_inicial_por_tomo_instrumentos: 16000,
-    tomo_inicial_certificaciones: 50,
-    volumenes_por_tomo_certificaciones: 5,
-    folios_por_volumen_certificaciones: 200,
-    volumen_inicial_certificaciones: 100,
-    folio_inicial_por_tomo_certificaciones: 12000,
-};
-
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
 const api = useApi();
-    const [notariaData, setNotariaData] = useState<NotariaData>(defaultNotariaData);
-    const [controlData, setControlData] = useState<ControlData>(defaultControlData);
-    const [servidorData, setServidorData] = useState<ServidorData>(defaultServidorData);
-    const [correoData, setCorreoData] = useState<CorreoData>(defaultCorreoData);
-    const [calculosData, setCalculosData] = useState<CalculosData>(defaultCalculosData);
-    const [foliosData, setFoliosData] = useState<FoliosData>(defaultFoliosData);
+    const [notariaData, setNotariaData] = useState<NotariaData>({
+        nombre: '',
+        domicilio: '',
+        telefono: '',
+        municipio: '',
+        estado: '',
+        ciudad: '',
+        notaria_numero: '',
+        codigo_postal: '',
+        imagen: null,
+    });
+    const [controlData, setControlData] = useState<ControlData>({
+        expediente: 0,
+        acta_fuera_protocolo: 0,
+        certificacion: 0,
+        recibo_honorarios: 0,
+        ratificacion: 0,
+        recibo_general: 0,
+        cotejo: 0,
+    });
+    const [servidorData, setServidorData] = useState<ServidorData>({
+        ruta: '',
+    });
+    const [correoData, setCorreoData] = useState<CorreoData>({
+        servidor_correo: '',
+        usuario_correo: '',
+        password_correo: '',
+        asunto_correo: '',
+        puerto: '',
+        ssl_enabled: false,
+    });
+    const [calculosData, setCalculosData] = useState<CalculosData>({
+        iva: 0,
+        ret_iva: 0,
+        ret_isr: 0,
+        salario: 0,
+        uma: 0,
+    });
+    const [foliosData, setFoliosData] = useState<FoliosData>({
+        tomo_inicial_instrumentos: 0,
+        volumenes_por_tomo_instrumentos: 0,
+        folios_por_volumen_instrumentos: 0,
+        volumen_inicial_instrumentos: 0,
+        folio_inicial_por_tomo_instrumentos: 0,
+        tomo_inicial_certificaciones: 0,
+        volumenes_por_tomo_certificaciones: 0,
+        folios_por_volumen_certificaciones: 0,
+        volumen_inicial_certificaciones: 0,
+        folio_inicial_por_tomo_certificaciones: 0,
+    });
     const [isSaved, setIsSaved] = useState(false);
     const [activeTab, setActiveTab] = useState('datos');
     const [isLoading, setIsLoading] = useState(true);
@@ -199,20 +187,19 @@ const api = useApi();
 
                 // Mapear los datos de la API a los campos del formulario
                 setNotariaData({
-                    nombre: notaria.nombre_Notario || defaultNotariaData.nombre,
-                    domicilio: notaria.domicilio || defaultNotariaData.domicilio,
-                    telefono: notaria.telefono || defaultNotariaData.telefono,
-                    municipio: notaria.municipio || defaultNotariaData.municipio,
-                    estado: notaria.estado || defaultNotariaData.estado,
-                    ciudad: notaria.ciudad || defaultNotariaData.ciudad,
-                    notaria_numero: notaria.numero_Notaria || defaultNotariaData.notaria_numero,
-                    codigo_postal: notaria.codigo_Postal || defaultNotariaData.codigo_postal,
+                    nombre: notaria.nombre_Notario || '',
+                    domicilio: notaria.domicilio || '',
+                    telefono: notaria.telefono || '',
+                    municipio: notaria.municipio || '',
+                    estado: notaria.estado || '',
+                    ciudad: notaria.ciudad || '',
+                    notaria_numero: notaria.numero_Notaria || '',
+                    codigo_postal: notaria.codigo_Postal || '',
                     imagen: notaria.logotipo ? `data:image/png;base64,${notaria.logotipo}` : null,
                 });
             } catch (error) {
-                console.error('Error al cargar la configuraciÃƒÂ³n de la notarÃƒÂ­a:', error);
-                // Si hay error, mantener los datos por defecto
-                setNotariaData(defaultNotariaData);
+                console.error('Error al cargar la configuración de la notaría:', error);
+                // Si hay error, mantener los datos vacíos
             } finally {
                 setIsLoading(false);
             }
@@ -240,36 +227,36 @@ const api = useApi();
 
                 // Mapear datos de Control
                 setControlData({
-                    expediente: parseInt(config.expediente) || defaultControlData.expediente,
-                    acta_fuera_protocolo: parseInt(config.acta_Fuera_Protocolo) || defaultControlData.acta_fuera_protocolo,
-                    certificacion: parseInt(config.certificado) || defaultControlData.certificacion,
-                    recibo_honorarios: parseInt(config.recibo_Honorarios) || defaultControlData.recibo_honorarios,
-                    ratificacion: parseInt(config.ratificacion) || defaultControlData.ratificacion,
-                    recibo_general: parseInt(config.recibo_Provisional) || defaultControlData.recibo_general,
-                    cotejo: parseInt(config.cotejo) || defaultControlData.cotejo,
+                    expediente: parseInt(config.expediente) || 0,
+                    acta_fuera_protocolo: parseInt(config.acta_Fuera_Protocolo) || 0,
+                    certificacion: parseInt(config.certificado) || 0,
+                    recibo_honorarios: parseInt(config.recibo_Honorarios) || 0,
+                    ratificacion: parseInt(config.ratificacion) || 0,
+                    recibo_general: parseInt(config.recibo_Provisional) || 0,
+                    cotejo: parseInt(config.cotejo) || 0,
                 });
 
                 // Mapear datos de Cálculos
                 setCalculosData({
-                    iva: parseFloat(config.iva) || defaultCalculosData.iva,
-                    ret_iva: parseFloat(config.retencion_IVA) || defaultCalculosData.ret_iva,
-                    ret_isr: parseFloat(config.isr) || defaultCalculosData.ret_isr,
-                    salario: parseFloat(config.salario) || defaultCalculosData.salario,
-                    uma: parseFloat(config.uma) || defaultCalculosData.uma,
+                    iva: parseFloat(config.iva) || 0,
+                    ret_iva: parseFloat(config.retencion_IVA) || 0,
+                    ret_isr: parseFloat(config.isr) || 0,
+                    salario: parseFloat(config.salario) || 0,
+                    uma: parseFloat(config.uma) || 0,
                 });
 
                 // Mapear datos de Folios
                 setFoliosData({
-                    tomo_inicial_instrumentos: parseInt(config.tomo_Inicial_Instrumentos) || defaultFoliosData.tomo_inicial_instrumentos,
-                    volumenes_por_tomo_instrumentos: parseInt(config.volumen_Tomo_Instrumentos) || defaultFoliosData.volumenes_por_tomo_instrumentos,
-                    folios_por_volumen_instrumentos: parseInt(config.folio_Volumen_Instrumentos) || defaultFoliosData.folios_por_volumen_instrumentos,
-                    volumen_inicial_instrumentos: parseInt(config.volumen_Inicial_Instrumentos) || defaultFoliosData.volumen_inicial_instrumentos,
-                    folio_inicial_por_tomo_instrumentos: parseInt(config.folio_Inicial_Tomo_Instrumentos) || defaultFoliosData.folio_inicial_por_tomo_instrumentos,
-                    tomo_inicial_certificaciones: parseInt(config.tomo_Inicial_Certificaciones) || defaultFoliosData.tomo_inicial_certificaciones,
-                    volumenes_por_tomo_certificaciones: parseInt(config.volumen_Tomo_Certificaciones) || defaultFoliosData.volumenes_por_tomo_certificaciones,
-                    folios_por_volumen_certificaciones: parseInt(config.folios_Volumen_Certificaciones) || defaultFoliosData.folios_por_volumen_certificaciones,
-                    volumen_inicial_certificaciones: parseInt(config.volumen_Inicial_Certificaciones) || defaultFoliosData.volumen_inicial_certificaciones,
-                    folio_inicial_por_tomo_certificaciones: parseInt(config.folio_Inicial_Tomo_Certificaciones) || defaultFoliosData.folio_inicial_por_tomo_certificaciones,
+                    tomo_inicial_instrumentos: parseInt(config.tomo_Inicial_Instrumentos) || 0,
+                    volumenes_por_tomo_instrumentos: parseInt(config.volumen_Tomo_Instrumentos) || 0,
+                    folios_por_volumen_instrumentos: parseInt(config.folio_Volumen_Instrumentos) || 0,
+                    volumen_inicial_instrumentos: parseInt(config.volumen_Inicial_Instrumentos) || 0,
+                    folio_inicial_por_tomo_instrumentos: parseInt(config.folio_Inicial_Tomo_Instrumentos) || 0,
+                    tomo_inicial_certificaciones: parseInt(config.tomo_Inicial_Certificaciones) || 0,
+                    volumenes_por_tomo_certificaciones: parseInt(config.volumen_Tomo_Certificaciones) || 0,
+                    folios_por_volumen_certificaciones: parseInt(config.folios_Volumen_Certificaciones) || 0,
+                    volumen_inicial_certificaciones: parseInt(config.volumen_Inicial_Certificaciones) || 0,
+                    folio_inicial_por_tomo_certificaciones: parseInt(config.folio_Inicial_Tomo_Certificaciones) || 0,
                 });
             } catch (error) {
                 console.error('Error al cargar la configuración de control:', error);
@@ -288,13 +275,10 @@ const api = useApi();
                 throw new Error('ID de configuración no disponible');
             }
 
-            // Crear FormData en lugar de JSON
+            // Siempre usar FormData (el servidor lo espera así)
             const formData = new FormData();
 
-            // Agregar el ID
             formData.append('id', String(configId));
-
-            // Agregar campos de texto
             formData.append('numero_Notaria', notariaData.notaria_numero);
             formData.append('nombre_Notario', notariaData.nombre);
             formData.append('telefono', notariaData.telefono);
@@ -303,15 +287,14 @@ const api = useApi();
             formData.append('estado', notariaData.estado);
             formData.append('codigo_Postal', notariaData.codigo_postal);
 
-            // Si hay archivo de imagen, agregarlo directamente
+            // Si hay archivo de imagen, agregarlo
             if (notariaData.imagenFile) {
                 formData.append('fileLogo', notariaData.imagenFile);
-                console.log('Enviando archivo de imagen:', notariaData.imagenFile.name);
+                console.log('Enviando FormData con imagen:', notariaData.imagenFile.name);
             }
 
-            console.log('Enviando FormData con ID:', configId);
-
-            const data = await api.post('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
+            console.log('Enviando FormData a UpdateConfiguracionNotaria');
+            const data = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
             if (!data) {
                 throw new Error('Error en la respuesta de la API');
@@ -383,12 +366,56 @@ const api = useApi();
     };
 
     const handleReset = () => {
-        setNotariaData(defaultNotariaData);
-        setControlData(defaultControlData);
-        setServidorData(defaultServidorData);
-        setCorreoData(defaultCorreoData);
-        setCalculosData(defaultCalculosData);
-        setFoliosData(defaultFoliosData);
+        setNotariaData({
+            nombre: '',
+            domicilio: '',
+            telefono: '',
+            municipio: '',
+            estado: '',
+            ciudad: '',
+            notaria_numero: '',
+            codigo_postal: '',
+            imagen: null,
+        });
+        setControlData({
+            expediente: 0,
+            acta_fuera_protocolo: 0,
+            certificacion: 0,
+            recibo_honorarios: 0,
+            ratificacion: 0,
+            recibo_general: 0,
+            cotejo: 0,
+        });
+        setServidorData({
+            ruta: '',
+        });
+        setCorreoData({
+            servidor_correo: '',
+            usuario_correo: '',
+            password_correo: '',
+            asunto_correo: '',
+            puerto: '',
+            ssl_enabled: false,
+        });
+        setCalculosData({
+            iva: 0,
+            ret_iva: 0,
+            ret_isr: 0,
+            salario: 0,
+            uma: 0,
+        });
+        setFoliosData({
+            tomo_inicial_instrumentos: 0,
+            volumenes_por_tomo_instrumentos: 0,
+            folios_por_volumen_instrumentos: 0,
+            volumen_inicial_instrumentos: 0,
+            folio_inicial_por_tomo_instrumentos: 0,
+            tomo_inicial_certificaciones: 0,
+            volumenes_por_tomo_certificaciones: 0,
+            folios_por_volumen_certificaciones: 0,
+            volumen_inicial_certificaciones: 0,
+            folio_inicial_por_tomo_certificaciones: 0,
+        });
     };
 
     return (
@@ -1155,15 +1182,7 @@ const api = useApi();
 
                 {/* Action Buttons */}
                 <div className="pt-3 flex mb-3 gap-3 justify-end">
-                    <Button
-                        variant="outline"
-                        onClick={handleReset}
-                        className="gap-2"
-                        disabled={isSaving}
-                    >
-                        <X className="size-4" />
-                        Cancelar
-                    </Button>
+
                     <Button
                         onClick={handleSave}
                         className="gap-2"
@@ -1177,7 +1196,7 @@ const api = useApi();
                         ) : (
                             <>
                                 <Save className="size-4" />
-                                {isSaved ? 'Guardado ✓' : 'Guardar'}
+                                {isSaved ? 'Guardado ✓' : 'Actualizar'}
                             </>
                         )}
                     </Button>
