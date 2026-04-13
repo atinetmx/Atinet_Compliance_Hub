@@ -322,10 +322,10 @@ export default function ConfiguracionesTarifariasIndex() {
                                         <div className="border rounded-lg overflow-hidden">
                                             <div className="overflow-x-auto max-h-[750px] overflow-y-auto">
                                                 <table className="w-full text-sm">
-                                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                    <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
                                                         <tr>
-                                                            <th className="px-4 py-2 text-left font-semibold w-15">ID</th>
-                                                            <th className="px-4 py-2 text-left font-semibold">Trámite</th>
+                                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                                            <th className="px-4 py-2 text-left font-semibold w-40">Impuesto y Derecho</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija Pesos</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija UMA</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Salarios Mínimos</th>
@@ -337,8 +337,8 @@ export default function ConfiguracionesTarifariasIndex() {
                                                     <tbody>
                                                         {configuracionesTarifarias.map((config) => (
                                                             <tr key={config.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
-                                                                <td className="px-4 py-2 font-mono text-sm">{config.id}</td>
-                                                                <td className="px-4 py-2">{config.descripcion}</td>
+                                                                <td className="px-4 py-3 font-mono text-sm text-blue-500 dark:text-blue-400">{config.id}</td>
+                                                                <td className="px-4 py-3">{config.descripcion}</td>
                                                                 <td className="px-4 py-2 text-center relative">
                                                                     <div className="relative">
                                                                         <Input
@@ -455,10 +455,10 @@ export default function ConfiguracionesTarifariasIndex() {
                                         <div className="border rounded-lg overflow-hidden">
                                             <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                                                 <table className="w-full text-sm">
-                                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                    <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
                                                         <tr>
-                                                            <th className="px-4 py-2 text-left font-semibold w-32">ID</th>
-                                                            <th className="px-4 py-2 text-left font-semibold">Honorario</th>
+                                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                                            <th className="px-4 py-2 text-left font-semibold w-40">Honorario</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija Pesos</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Cuota Fija UMA</th>
                                                             <th className="px-4 py-2 text-center font-semibold w-36">Salarios Mínimos</th>
@@ -470,8 +470,8 @@ export default function ConfiguracionesTarifariasIndex() {
                                                     <tbody>
                                                         {configuracionesHonorarios.map((config) => (
                                                             <tr key={config.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
-                                                                <td className="px-4 py-2 font-mono text-sm">{config.id}</td>
-                                                                <td className="px-4 py-2">{config.descripcion}</td>
+                                                                <td className="px-4 py-3 font-mono text-sm text-blue-500 dark:text-blue-400">{config.id}</td>
+                                                                <td className="px-4 py-3">{config.descripcion}</td>
                                                                 <td className="px-4 py-2 text-center relative">
                                                                     <div className="relative">
                                                                         <Input

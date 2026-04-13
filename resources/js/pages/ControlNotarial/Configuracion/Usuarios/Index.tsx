@@ -311,8 +311,7 @@ const api = useApi();
             <Head title="Usuarios - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-
-                                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
                         <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
                             <Search className="size-4" />
@@ -325,50 +324,51 @@ const api = useApi();
                             </span>
                         </TabsTrigger>
                     </TabsList>
+                    <div className="pb-3"/>
 
                     {/* ── PESTAÑA 1: BÚSQUEDA ── */}
                     <TabsContent value="busqueda" className="space-y-4">
                         <form onSubmit={handleSearch} className="flex gap-2">
-                            <div className="relative flex-1 max-w-sm">
-                                <Input
-                                    value={filtro}
-                                    onChange={(e) => setFiltro(e.target.value)}
-                                    placeholder="Buscar por nombre, usuario, rol..."
+                                <div className="relative flex-1 max-w-sm">
+                                    <Input
+                                        value={filtro}
+                                        onChange={(e) => setFiltro(e.target.value)}
+                                        placeholder="Buscar por nombre, usuario, rol..."
                                     className="bg-white pr-10"
-                                />
-                                {filtro && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setFiltro('');
-                                            setSearchError(null);
-                                            setResultados([]);
-                                        }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Limpiar búsqueda"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                            <Button type="submit" disabled={isSearching} className="bg-blue-600 hover:bg-blue-700">
-                                {isSearching ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Search className="h-4 w-4" />
-                                )}
-                                <span className="ml-2">Buscar</span>
-                            </Button>
-                        </form>
+                                    />
+                                    {filtro && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFiltro('');
+                                                setSearchError(null);
+                                                setResultados([]);
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                            title="Limpiar búsqueda"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                                <Button type="submit" disabled={isSearching} className="bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-shadow font-medium">
+                                    {isSearching ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Search className="h-4 w-4" />
+                                    )}
+                                    <span className="ml-2">Buscar</span>
+                                </Button>
+                            </form>
 
                         {searchError && (
-                            <div className="flex items-center gap-3 px-4 py-3 rounded-md border bg-red-50 border-red-200 text-red-800">
+                            <div className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-red-200 bg-red-50 text-red-800 shadow-sm">
                                 <AlertCircle className="h-5 w-5 shrink-0" />
-                                <span>{searchError}</span>
+                                <span className="font-medium">{searchError}</span>
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
                             {isSearching ? (
                                 <div className="col-span-full text-center py-8 text-muted-foreground">
                                     <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
@@ -383,11 +383,11 @@ const api = useApi();
                                     <div
                                         key={usuario.id}
                                         onClick={() => handleSelectUsuario(usuario)}
-                                        className="border-2 border-gray-200 rounded-lg p-5 bg-white shadow-sm hover:shadow-lg hover:border-blue-400 transition-all cursor-pointer space-y-4"
+                                        className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-lg hover:border-blue-400 hover:from-blue-100 transition-all cursor-pointer space-y-4"
                                     >
                                         {/* Avatar + Info Básica */}
                                         <div className="flex items-start gap-4">
-                                            <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-600 text-white font-bold text-lg">
+                                            <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-md">
                                                 {usuario.iniciales}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -399,30 +399,30 @@ const api = useApi();
                                         </div>
 
                                         {/* Divider */}
-                                        <div className="border-t border-gray-200"></div>
+                                        <div className="border-t border-blue-200"></div>
 
                                         {/* Detalles */}
                                         <div className="space-y-2">
                                             <div>
-                                                <p className="text-xs text-gray-500">Usuario</p>
+                                                <p className="text-xs text-gray-500 font-medium">Usuario</p>
                                                 <p className="text-sm font-mono font-semibold text-gray-900">{usuario.usuario}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-gray-500">Rol</p>
-                                                <p className="text-sm font-semibold text-gray-900">{usuario.rol}</p>
+                                                <p className="text-xs text-gray-500 font-medium">Rol</p>
+                                                <p className="text-sm font-semibold text-shadow-teal-700">{usuario.rol}</p>
                                             </div>
                                         </div>
 
                                         {/* estado Badge */}
-                                        <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                        <div className="flex justify-between items-center pt-2 border-t border-blue-200">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                                                 usuario.activo
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-red-100 text-red-700'
+                                                    ? 'bg-green-100 text-green-700 shadow-sm'
+                                                    : 'bg-red-100 text-red-700 shadow-sm'
                                             }`}>
-                                                {usuario.activo ? '✓ Activo' : '✕ Inactivo'}
+                                                {usuario.activo ? 'Activo' : 'Inactivo'}
                                             </span>
-                                            <button className="text-blue-600 hover:text-blue-700 text-sm font-semibold transition-colors">
+                                            <button className="text-blue-600 hover:text-blue-700 text-sm font-semibold transition-colors hover:underline">
                                                 Editar →
                                             </button>
                                         </div>
@@ -431,9 +431,9 @@ const api = useApi();
                             )}
                         </div>
                         {!isSearching && resultados.length > 0 && (
-                            <p className="text-sm text-muted-foreground mb-4">
-                                {resultados.length} usuario(s) encontrado(s) — <span className="text-blue-600 font-semibold">haz clic en un usuario para editarlo</span>
-                            </p>
+                            <div className="px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                                <span className="font-medium">{resultados.length} usuario(s) encontrado(s)</span> — <span className="font-semibold">haz clic en un usuario para editarlo</span>
+                            </div>
                         )}
                     </TabsContent>
 
@@ -447,15 +447,16 @@ const api = useApi();
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-6">
+                            <div className="space-y-6 mt-6">
                                 {saveError && (
-                                    <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
-                                        {saveError}
+                                    <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-sm flex items-center gap-2">
+                                        <AlertCircle className="h-5 w-5" />
+                                        <span className="font-medium">{saveError}</span>
                                     </div>
                                 )}
 
                                 {/* ──── SECCIÓN 1: DATOS PERSONALES ──── */}
-                                <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="bg-blue-600 text-white p-3 rounded-lg">
                                             <Users className="h-5 w-5" />
@@ -526,7 +527,7 @@ const api = useApi();
                                 </div>
 
                                 {/* ──── SECCIÓN 2: DATOS DE ACCESO ──── */}
-                                <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                <div className="border-2 border-purple-200 rounded-lg p-6 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="bg-purple-600 text-white p-3 rounded-lg">
                                             <Lock className="h-5 w-5" />
@@ -605,7 +606,7 @@ const api = useApi();
                                 </div>
 
                                 {/* ──── SECCIÓN 3: ROL E IDENTIFICACIÓN ──── */}
-                                <div className="border-2 border-indigo-200 rounded-lg p-5 bg-gradient-to-br from-indigo-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                <div className="border-2 border-indigo-200 rounded-lg p-6 bg-gradient-to-br from-indigo-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="bg-indigo-600 text-white p-3 rounded-lg">
                                             <Shield className="h-5 w-5" />
@@ -658,7 +659,7 @@ const api = useApi();
                                 </div>
 
                                 {/* ──── SECCIÓN 4: INFORMACIÓN ADMINISTRATIVA ──── */}
-                                <div className="border-2 border-amber-200 rounded-lg p-5 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                <div className="border-2 border-amber-200 rounded-lg p-6 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="bg-amber-600 text-white p-3 rounded-lg">
                                             <FileText className="h-5 w-5" />
@@ -716,7 +717,7 @@ const api = useApi();
                                 </div>
 
                                 {/* ──── SECCIÓN 5: ESTADO ──── */}
-                                <div className={`border-2 rounded-lg p-5 bg-gradient-to-br shadow-sm space-y-4 ${
+                                <div className={`border-2 rounded-lg p-6 bg-gradient-to-br shadow-sm hover:shadow-md transition-shadow space-y-4 ${
                                     formData.activo
                                         ? 'border-green-200 from-green-50 to-white'
                                         : 'border-red-200 from-red-50 to-white'
@@ -747,9 +748,9 @@ const api = useApi();
                                 </div>
 
                                 {/* ──── BOTONES DE ACCIÓN ──── */}
-                                <div className="flex gap-3 justify-end pt-4 border-t mb-4">
+                                <div className="flex gap-3 justify-end pt-6 border-t border-gray-200 mt-6">
                                     {isEditing && (
-                                        <Button variant="outline" onClick={handleCancelEdit} className="border-gray-300 hover:bg-gray-100">
+                                        <Button variant="outline" onClick={handleCancelEdit} className="border-2 border-gray-300 hover:bg-gray-50 shadow-sm hover:shadow-md transition-shadow">
                                             <X className="h-4 w-4 mr-2" />
                                             Cancelar
                                         </Button>
@@ -757,7 +758,7 @@ const api = useApi();
                                     <Button
                                         onClick={handleAddUsuario}
                                         disabled={isSaving}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-shadow font-medium"
                                     >
                                         {isSaving ? (
                                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />

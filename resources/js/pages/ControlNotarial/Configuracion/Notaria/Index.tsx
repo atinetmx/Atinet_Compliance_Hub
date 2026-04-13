@@ -1200,7 +1200,7 @@ ControlNotarialConfiguracionIndex.layout = (page: React.ReactNode) => (
             href: '/admin/control-notarial',
         },
         {
-            title: 'ConfiguraciÃƒÂ³n',
+            title: 'Configuraciónn',
             href: '/admin/control-notarial/configuracion',
         },
     ]}>

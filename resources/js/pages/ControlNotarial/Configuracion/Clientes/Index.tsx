@@ -638,16 +638,16 @@ const api = useApi();
                         )}
 
                         <div className="border rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                            <div className="overflow-x-auto max-h-[670px] overflow-y-auto">
                                 <table className="w-full text-sm">
-                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                    <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
                                         <tr>
-                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">ID</th>
                                             <th className="px-4 py-2 text-left font-semibold">Alias</th>
                                             <th className="px-4 py-2 text-left font-semibold">Nombre</th>
                                             <th className="px-4 py-2 text-left font-semibold">CURP</th>
                                             <th className="px-4 py-2 text-left font-semibold">RFC</th>
-                                            <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                            <th className="px-4 py-2 text-center font-semibold">ESTATUS</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -671,7 +671,7 @@ const api = useApi();
                                                     className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                     onClick={() => handleSelectCliente(cliente)}
                                                 >
-                                                    <td className="px-4 py-2 font-mono text-sm">
+                                                    <td className="px-4 py-2 font-mono text-sm text-blue-500 dark:text-blue-400">
                                                         {cliente.id}
                                                     </td>
                                                     <td className="px-4 py-2 text-sm">
@@ -700,7 +700,7 @@ const api = useApi();
                                                                     : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                             }`}
                                                         >
-                                                            {cliente.activo ? 'Sí' : 'No'}
+                                                            {cliente.activo ? 'ACTIVO' : 'INACTIVO'}
                                                         </span>
                                                     </td>
                                                 </tr>
@@ -726,7 +726,7 @@ const api = useApi();
                                 <p className="text-muted-foreground">Cargando datos del cliente...</p>
                             </div>
                         ) : (
-                            <div className="border rounded-lg p-6 bg-background/50 backdrop-blur-sm">
+                            <div>
                                 {saveError && (
                                     <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md mb-6">
                                         {saveError}
@@ -758,198 +758,235 @@ const api = useApi();
                                 </TabsList>
 
                                 {/* TAB 1: DATOS DEL CLIENTE */}
-                                <TabsContent value="datos" className="space-y-6">
-                                    <div className="border-b pb-4">
-                                        {/* Tipo, Alias */}
-                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="tipo">Tipo</RequiredLabel>
-                                                <Select value={formData.tipo} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value as 'fisica' | 'juridica' }))}>
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="fisica">Persona Física</SelectItem>
-                                                        <SelectItem value="juridica">Persona Moral</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                <TabsContent value="datos" className="space-y-4 mt-6">
+                                    {/* Sección 1: Información Básica */}
+                                    <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                                <User className="h-5 w-5" />
                                             </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="alias">Alias</RequiredLabel>
+                                            <h3 className="text-lg font-bold text-gray-900">Información Básica</h3>
+                                        </div>
+                                        <div className="grid gap-4">
+                                            {/* Tipo, Alias */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="tipo">Tipo</RequiredLabel>
+                                                    <Select value={formData.tipo} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value as 'fisica' | 'juridica' }))}>
+                                                        <SelectTrigger className="mt-2">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="fisica">Persona Física</SelectItem>
+                                                            <SelectItem value="juridica">Persona Moral</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="alias">Alias</RequiredLabel>
+                                                    <Input
+                                                        id="alias"
+                                                        name="alias"
+                                                        value={formData.alias}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Nombre, Ap. Paterno, Ap. Materno */}
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="nombre">Nombre</RequiredLabel>
+                                                    <Input
+                                                        id="nombre"
+                                                        name="nombre"
+                                                        value={formData.nombre}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="apellido_paterno">Apellido Paterno</RequiredLabel>
+                                                    <Input
+                                                        id="apellido_paterno"
+                                                        name="apellido_paterno"
+                                                        value={formData.apellido_paterno}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="apellido_materno" className="text-sm font-medium">Apellido Materno</label>
+                                                    <Input
+                                                        id="apellido_materno"
+                                                        name="apellido_materno"
+                                                        value={formData.apellido_materno}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* CURP, RFC, Fecha Nacimiento, Edad */}
+                                            <div className="grid grid-cols-4 gap-4">
+                                                <div>
+                                                    <label htmlFor="curp">C.U.R.P.</label>
+                                                    <Input
+                                                        id="curp"
+                                                        name="curp"
+                                                        value={formData.curp}
+                                                        onChange={handleInputChange}
+                                                        maxLength={18}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="rfc">R.F.C.</RequiredLabel>
+                                                    <Input
+                                                        id="rfc"
+                                                        name="rfc"
+                                                        value={formData.rfc}
+                                                        onChange={handleInputChange}
+                                                        maxLength={13}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="fecha_nacimiento">Fecha Nacimiento</RequiredLabel>
+                                                    <Input
+                                                        id="fecha_nacimiento"
+                                                        name="fecha_nacimiento"
+                                                        type="date"
+                                                        value={formData.fecha_nacimiento}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="edad">Edad</label>
+                                                    <Input
+                                                        id="edad"
+                                                        name="edad"
+                                                        type="number"
+                                                        value={formData.edad}
+                                                        onChange={handleInputChange}
+                                                        readOnly
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Régimen Fiscal */}
+                                            <div>
+                                                <label htmlFor="regimen_fiscal">Régimen Fiscal</label>
                                                 <Input
-                                                    id="alias"
-                                                    name="alias"
-                                                    value={formData.alias}
+                                                    id="regimen_fiscal"
+                                                    name="regimen_fiscal"
+                                                    value={formData.regimen_fiscal}
                                                     onChange={handleInputChange}
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
-                                </div>
 
-                                {/* Nombre, Ap. Paterno, Ap. Materno */}
-                                <div className="grid grid-cols-3 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="nombre">Nombre</RequiredLabel>
-                                        <Input
-                                            id="nombre"
-                                            name="nombre"
-                                            value={formData.nombre}
-                                            onChange={handleInputChange}
-                                        />
+                                            {/* Cliente Activo Switch */}
+                                            <div className="flex items-center gap-3 pt-2 border-t">
+                                                <label htmlFor="activo" className="text-sm font-medium">
+                                                    Cliente Activo
+                                                </label>
+                                                <Switch
+                                                    id="activo"
+                                                    checked={formData.activo}
+                                                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, activo: checked }))}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="apellido_paterno">Apellido Paterno</RequiredLabel>
-                                        <Input
-                                            id="apellido_paterno"
-                                            name="apellido_paterno"
-                                            value={formData.apellido_paterno}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="apellido_materno" className="text-sm font-medium">Apellido Materno</label>
-                                        <Input
-                                            id="apellido_materno"
-                                            name="apellido_materno"
-                                            value={formData.apellido_materno}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                </div>
+                                </TabsContent>
 
-                                {/* CURP, RFC, Fecha Nacimiento, Edad */}
-                                <div className="grid grid-cols-4 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="curp">C.U.R.P.</label>
-                                        <Input
-                                            id="curp"
-                                            name="curp"
-                                            value={formData.curp}
-                                            onChange={handleInputChange}
-                                            maxLength={18}
-                                        />
+                              {/* TAB 2: LUGAR DE NACIMIENTO */}
+                             <TabsContent value="nacimiento" className="space-y-4 mt-6">
+                             <div className="border-2 border-green-200 rounded-lg p-5 bg-gradient-to-br from-green-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-green-600 text-white p-3 rounded-lg">
+                                        <Calendar className="h-5 w-5" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="rfc">R.F.C.</RequiredLabel>
-                                        <Input
-                                            id="rfc"
-                                            name="rfc"
-                                            value={formData.rfc}
-                                            onChange={handleInputChange}
-                                            maxLength={13}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="fecha_nacimiento">Fecha Nacimiento</RequiredLabel>
-                                        <Input
-                                            id="fecha_nacimiento"
-                                            name="fecha_nacimiento"
-                                            type="date"
-                                            value={formData.fecha_nacimiento}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="edad">Edad</label>
-                                        <Input
-                                            id="edad"
-                                            name="edad"
-                                            type="number"
-                                            value={formData.edad}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                        />
-                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Lugar de Nacimiento</h3>
                                 </div>
-
-                                {/* Régimen Fiscal */}
-                                <div className="space-y-2 mb-4">
-                                    <label htmlFor="regimen_fiscal">Régimen Fiscal</label>
-                                    <Input
-                                        id="regimen_fiscal"
-                                        name="regimen_fiscal"
-                                        value={formData.regimen_fiscal}
-                                        onChange={handleInputChange}
-                                    />
-                                </div>
-
-                                {/* Cliente Activo Switch */}
-                                <div className="flex items-center gap-3 pt-4 border-t">
-                                    <label htmlFor="activo" className="text-sm font-medium">
-                                        Cliente Activo
-                                    </label>
-                                    <Switch
-                                        id="activo"
-                                        checked={formData.activo}
-                                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, activo: checked }))}
-                                    />
-                                </div>
-                            </div>
-                            </TabsContent>
-
-                            {/* TAB 2: LUGAR DE NACIMIENTO */}
-                            <TabsContent value="nacimiento" className="space-y-6">
-                            <div className="border-b pb-4">
-                                {/* País, Nacionalidad */}
-                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="pais_nacimiento">País</RequiredLabel>
-                                        <Input
-                                            id="pais_nacimiento"
-                                            name="pais_nacimiento"
-                                            value={formData.pais_nacimiento}
-                                            onChange={handleInputChange}
-                                        />
+                                <div className="grid gap-4">
+                                    {/* País, Nacionalidad */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <RequiredLabel htmlFor="pais_nacimiento">País</RequiredLabel>
+                                            <Input
+                                                id="pais_nacimiento"
+                                                name="pais_nacimiento"
+                                                value={formData.pais_nacimiento}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="nacionalidad">Nacionalidad</RequiredLabel>
+                                            <Input
+                                                id="nacionalidad"
+                                                name="nacionalidad"
+                                                value={formData.nacionalidad}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="nacionalidad">Nacionalidad</RequiredLabel>
-                                        <Input
-                                            id="nacionalidad"
-                                            name="nacionalidad"
-                                            value={formData.nacionalidad}
-                                            onChange={handleInputChange}
-                                        />
+
+                                    {/* Ciudad, Municipio, Estado */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label htmlFor="ciudad_nacimiento" className="text-sm font-medium">Ciudad</label>
+                                            <Input
+                                                id="ciudad_nacimiento"
+                                                name="ciudad_nacimiento"
+                                                value={formData.ciudad_nacimiento}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="municipio_nacimiento">Municipio</RequiredLabel>
+                                            <Input
+                                                id="municipio_nacimiento"
+                                                name="municipio_nacimiento"
+                                                value={formData.municipio_nacimiento}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="estado_nacimiento">Estado</RequiredLabel>
+                                            <Input
+                                                id="estado_nacimiento"
+                                                name="estado_nacimiento"
+                                                value={formData.estado_nacimiento}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+                             </div>
+                             </TabsContent>
 
-                                {/* Ciudad, Municipio, Estado */}
-                                <div className="grid grid-cols-3 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="ciudad_nacimiento" className="text-sm font-medium">Ciudad</label>
-                                        <Input
-                                            id="ciudad_nacimiento"
-                                            name="ciudad_nacimiento"
-                                            value={formData.ciudad_nacimiento}
-                                            onChange={handleInputChange}
-                                        />
+                             {/* TAB 3: DOMICILIO PARTICULAR */}
+                             <TabsContent value="domicilio" className="space-y-4 mt-6">
+                             <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-purple-600 text-white p-3 rounded-lg">
+                                        <MapPin className="h-5 w-5" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="municipio_nacimiento">Municipio</RequiredLabel>
-                                        <Input
-                                            id="municipio_nacimiento"
-                                            name="municipio_nacimiento"
-                                            value={formData.municipio_nacimiento}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="estado_nacimiento">Estado</RequiredLabel>
-                                        <Input
-                                            id="estado_nacimiento"
-                                            name="estado_nacimiento"
-                                            value={formData.estado_nacimiento}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Domicilio</h3>
                                 </div>
-                            </div>
-                            </TabsContent>
-
-                            {/* TAB 3: DOMICILIO PARTICULAR */}
-                            <TabsContent value="domicilio" className="space-y-6">
-                            <div className="border-b pb-4">
 
                                 {/* Tipo de Domicilio */}
-                                <div className="flex gap-4 mb-6">
+                                <div className="flex gap-6 mb-6 p-4 bg-purple-100/30 rounded-lg border border-purple-100">
                                     <div className="flex items-center space-x-2">
                                         <input
                                             id="domicilio-particular"
@@ -959,7 +996,7 @@ const api = useApi();
                                             onChange={() => setDomicilioType('particular')}
                                             className="h-4 w-4"
                                         />
-                                        <label htmlFor="domicilio-particular" className="cursor-pointer">
+                                        <label htmlFor="domicilio-particular" className="cursor-pointer font-medium">
                                             Domicilio Particular
                                         </label>
                                     </div>
@@ -972,492 +1009,548 @@ const api = useApi();
                                             onChange={() => setDomicilioType('fiscal')}
                                             className="h-4 w-4"
                                         />
-                                        <label htmlFor="domicilio-fiscal" className="cursor-pointer">
+                                        <label htmlFor="domicilio-fiscal" className="cursor-pointer font-medium">
                                             Domicilio Fiscal
                                         </label>
                                     </div>
                                 </div>
 
-                                {/* --- DOMICILIO PARTICULAR --- */}
-                                {domicilioType === 'particular' && (
-                                    <div className="space-y-4">
-                                        {/* Calle */}
-                                        <div className="space-y-2">
-                                            <RequiredLabel htmlFor="calle">Calle</RequiredLabel>
-                                            <Input
-                                                id="calle"
-                                                name="calle"
-                                                value={formData.calle}
-                                                onChange={handleInputChange}
-                                            />
-                                        </div>
+                                <div className="grid gap-4">
+                                    {/* --- DOMICILIO PARTICULAR --- */}
+                                    {domicilioType === 'particular' && (
+                                        <div className="space-y-4">
+                                            {/* Calle */}
+                                            <div>
+                                                <RequiredLabel htmlFor="calle">Calle</RequiredLabel>
+                                                <Input
+                                                    id="calle"
+                                                    name="calle"
+                                                    value={formData.calle}
+                                                    onChange={handleInputChange}
+                                                    className="mt-2 bg-white"
+                                                />
+                                            </div>
 
-                                        {/* No. Exterior, No. Interior, Mz., Lote */}
-                                        <div className="grid grid-cols-4 gap-4">
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="numero_exterior">No. Exterior</RequiredLabel>
-                                                <Input
-                                                    id="numero_exterior"
-                                                    name="numero_exterior"
-                                                    value={formData.numero_exterior}
-                                                    onChange={handleInputChange}
-                                                />
+                                            {/* No. Exterior, No. Interior, Mz., Lote */}
+                                            <div className="grid grid-cols-4 gap-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="numero_exterior">No. Exterior</RequiredLabel>
+                                                    <Input
+                                                        id="numero_exterior"
+                                                        name="numero_exterior"
+                                                        value={formData.numero_exterior}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="numero_interior">No. Interior</label>
+                                                    <Input
+                                                        id="numero_interior"
+                                                        name="numero_interior"
+                                                        value={formData.numero_interior}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="manzana">Mz.</label>
+                                                    <Input
+                                                        id="manzana"
+                                                        name="manzana"
+                                                        value={formData.manzana}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="lote">Lote</label>
+                                                    <Input
+                                                        id="lote"
+                                                        name="lote"
+                                                        value={formData.lote}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="numero_interior">No. Interior</label>
-                                                <Input
-                                                    id="numero_interior"
-                                                    name="numero_interior"
-                                                    value={formData.numero_interior}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="manzana">Mz.</label>
-                                                <Input
-                                                    id="manzana"
-                                                    name="manzana"
-                                                    value={formData.manzana}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="lote">Lote</label>
-                                                <Input
-                                                    id="lote"
-                                                    name="lote"
-                                                    value={formData.lote}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                        </div>
 
-                                        {/* Ciudad, Colonia, CP */}
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="municipio">Municipio</RequiredLabel>
-                                                <Input
-                                                    id="municipio"
-                                                    name="municipio"
-                                                    value={formData.municipio}
-                                                    onChange={handleInputChange}
-                                                />
+                                            {/* Ciudad, Colonia, CP */}
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="municipio">Municipio</RequiredLabel>
+                                                    <Input
+                                                        id="municipio"
+                                                        name="municipio"
+                                                        value={formData.municipio}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="colonia">Colonia</RequiredLabel>
+                                                    <Input
+                                                        id="colonia"
+                                                        name="colonia"
+                                                        value={formData.colonia}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="cp">CP</RequiredLabel>
+                                                    <Input
+                                                        id="cp"
+                                                        name="cp"
+                                                        value={formData.cp}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="colonia">Colonia</RequiredLabel>
-                                                <Input
-                                                    id="colonia"
-                                                    name="colonia"
-                                                    value={formData.colonia}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="cp">CP</RequiredLabel>
-                                                <Input
-                                                    id="cp"
-                                                    name="cp"
-                                                    value={formData.cp}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                        </div>
 
-                                        {/* Estado, País */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="estado">Estado/Provincia</RequiredLabel>
-                                                <Input
-                                                    id="estado"
-                                                    name="estado"
-                                                    value={formData.estado || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="pais">País</RequiredLabel>
-                                                <Input
-                                                    id="pais"
-                                                    name="pais"
-                                                    value={formData.pais || ''}
-                                                    onChange={handleInputChange}
-                                                />
+                                            {/* Estado, País */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="estado">Estado/Provincia</RequiredLabel>
+                                                    <Input
+                                                        id="estado"
+                                                        name="estado"
+                                                        value={formData.estado || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="pais">País</RequiredLabel>
+                                                    <Input
+                                                        id="pais"
+                                                        name="pais"
+                                                        value={formData.pais || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* --- DOMICILIO FISCAL --- */}
-                                {domicilioType === 'fiscal' && (
-                                    <div className="space-y-4">
-                                        {/* Botón para copiar datos del domicilio particular */}
-                                        <div className="mb-4">
-                                            <Button
-                                                onClick={handleCopyDomicilioData}
-                                                variant="outline"
-                                                className="w-full"
-                                            >
-                                                <Plus className="h-4 w-4 mr-2" />
-                                                Copiar Datos del Domicilio Particular
-                                            </Button>
-                                        </div>
+                                    {/* --- DOMICILIO FISCAL --- */}
+                                    {domicilioType === 'fiscal' && (
+                                        <div className="space-y-4">
+                                            {/* Botón para copiar datos del domicilio particular */}
+                                            <div>
+                                                <Button
+                                                    onClick={handleCopyDomicilioData}
+                                                    variant="outline"
+                                                    className="w-full"
+                                                >
+                                                    <MapPin className="h-4 w-4 mr-2" />
+                                                    Copiar Datos del Domicilio Particular
+                                                </Button>
+                                            </div>
 
-                                        {/* Calle */}
-                                        <div className="space-y-2">
-                                            <label htmlFor="domicilio_fiscal_calle">Calle</label>
-                                            <Input
-                                                id="domicilio_fiscal_calle"
-                                                name="domicilio_fiscal_calle"
-                                                value={formData.domicilio_fiscal_calle || ''}
-                                                onChange={handleInputChange}
-                                            />
-                                        </div>
+                                            {/* Calle */}
+                                            <div>
+                                                <label htmlFor="domicilio_fiscal_calle">Calle</label>
+                                                <Input
+                                                    id="domicilio_fiscal_calle"
+                                                    name="domicilio_fiscal_calle"
+                                                    value={formData.domicilio_fiscal_calle || ''}
+                                                    onChange={handleInputChange}
+                                                    className="mt-2 bg-white"
+                                                />
+                                            </div>
 
-                                        {/* No. Exterior, No. Interior, Mz., Lote */}
-                                        <div className="grid grid-cols-4 gap-4">
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_num_ext">No. Exterior</label>
-                                                <Input
-                                                    id="domicilio_fiscal_num_ext"
-                                                    name="domicilio_fiscal_num_ext"
-                                                    value={formData.domicilio_fiscal_num_ext || ''}
-                                                    onChange={handleInputChange}
-                                                />
+                                            {/* No. Exterior, No. Interior, Mz., Lote */}
+                                            <div className="grid grid-cols-4 gap-4">
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_num_ext">No. Exterior</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_num_ext"
+                                                        name="domicilio_fiscal_num_ext"
+                                                        value={formData.domicilio_fiscal_num_ext || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_num_int">No. Interior</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_num_int"
+                                                        name="domicilio_fiscal_num_int"
+                                                        value={formData.domicilio_fiscal_num_int || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_mz">Mz.</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_mz"
+                                                        name="domicilio_fiscal_mz"
+                                                        value={formData.domicilio_fiscal_mz || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_lote">Lote</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_lote"
+                                                        name="domicilio_fiscal_lote"
+                                                        value={formData.domicilio_fiscal_lote || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_num_int">No. Interior</label>
-                                                <Input
-                                                    id="domicilio_fiscal_num_int"
-                                                    name="domicilio_fiscal_num_int"
-                                                    value={formData.domicilio_fiscal_num_int || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_mz">Mz.</label>
-                                                <Input
-                                                    id="domicilio_fiscal_mz"
-                                                    name="domicilio_fiscal_mz"
-                                                    value={formData.domicilio_fiscal_mz || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_lote">Lote</label>
-                                                <Input
-                                                    id="domicilio_fiscal_lote"
-                                                    name="domicilio_fiscal_lote"
-                                                    value={formData.domicilio_fiscal_lote || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                        </div>
 
-                                        {/* Ciudad, Colonia, CP */}
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_ciudad">Municipio</label>
-                                                <Input
-                                                    id="domicilio_fiscal_ciudad"
-                                                    name="domicilio_fiscal_ciudad"
-                                                    value={formData.domicilio_fiscal_ciudad || ''}
-                                                    onChange={handleInputChange}
-                                                />
+                                            {/* Ciudad, Colonia, CP */}
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_ciudad">Municipio</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_ciudad"
+                                                        name="domicilio_fiscal_ciudad"
+                                                        value={formData.domicilio_fiscal_ciudad || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_colonia">Colonia</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_colonia"
+                                                        name="domicilio_fiscal_colonia"
+                                                        value={formData.domicilio_fiscal_colonia || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_cp">CP</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_cp"
+                                                        name="domicilio_fiscal_cp"
+                                                        value={formData.domicilio_fiscal_cp || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_colonia">Colonia</label>
-                                                <Input
-                                                    id="domicilio_fiscal_colonia"
-                                                    name="domicilio_fiscal_colonia"
-                                                    value={formData.domicilio_fiscal_colonia || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_cp">CP</label>
-                                                <Input
-                                                    id="domicilio_fiscal_cp"
-                                                    name="domicilio_fiscal_cp"
-                                                    value={formData.domicilio_fiscal_cp || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                        </div>
 
-                                        {/* Estado, País */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_estado">Estado/Provincia</label>
-                                                <Input
-                                                    id="domicilio_fiscal_estado"
-                                                    name="domicilio_fiscal_estado"
-                                                    value={formData.domicilio_fiscal_estado || ''}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="domicilio_fiscal_pais">País</label>
-                                                <Input
-                                                    id="domicilio_fiscal_pais"
-                                                    name="domicilio_fiscal_pais"
-                                                    value={formData.domicilio_fiscal_pais || ''}
-                                                    onChange={handleInputChange}
-                                                />
+                                            {/* Estado, País */}
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_estado">Estado/Provincia</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_estado"
+                                                        name="domicilio_fiscal_estado"
+                                                        value={formData.domicilio_fiscal_estado || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="domicilio_fiscal_pais">País</label>
+                                                    <Input
+                                                        id="domicilio_fiscal_pais"
+                                                        name="domicilio_fiscal_pais"
+                                                        value={formData.domicilio_fiscal_pais || ''}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                             </TabsContent>
 
                             {/* TAB 4: CONTACTO */}
-                            <TabsContent value="contacto" className="space-y-6">
-                            <div className="border-b pb-4">
-
-                                {/* Teléfonos */}
-                                <div className="grid grid-cols-3 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="tel_particular">Tel. Particular</label>
-                                        <Input
-                                            id="tel_particular"
-                                            name="tel_particular"
-                                            value={formData.tel_particular}
-                                            onChange={handleInputChange}
-                                        />
+                            <TabsContent value="contacto" className="space-y-4 mt-6">
+                            <div className="border-2 border-orange-200 rounded-lg p-5 bg-gradient-to-br from-orange-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-orange-600 text-white p-3 rounded-lg">
+                                        <Phone className="h-5 w-5" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="tel_oficina">Tel. Oficina</label>
-                                        <Input
-                                            id="tel_oficina"
-                                            name="tel_oficina"
-                                            value={formData.tel_oficina}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="tel_movil">Tel. Móvil</RequiredLabel>
-                                        <Input
-                                            id="tel_movil"
-                                            name="tel_movil"
-                                            value={formData.tel_movil}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Información de Contacto</h3>
                                 </div>
-
-                                {/* Email 1, Email 2 */}
-                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="email_1">E-mail (1)</label>
-                                        <Input
-                                            id="email_1"
-                                            name="email_1"
-                                            type="email"
-                                            value={formData.email_1}
-                                            onChange={handleInputChange}
-                                        />
+                                <div className="grid gap-4">
+                                    {/* Teléfonos */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label htmlFor="tel_particular">Tel. Particular</label>
+                                            <Input
+                                                id="tel_particular"
+                                                name="tel_particular"
+                                                value={formData.tel_particular}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="tel_oficina">Tel. Oficina</label>
+                                            <Input
+                                                id="tel_oficina"
+                                                name="tel_oficina"
+                                                value={formData.tel_oficina}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="tel_movil">Tel. Móvil</RequiredLabel>
+                                            <Input
+                                                id="tel_movil"
+                                                name="tel_movil"
+                                                value={formData.tel_movil}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="email_2">E-mail (2)</label>
-                                        <Input
-                                            id="email_2"
-                                            name="email_2"
-                                            type="email"
-                                            value={formData.email_2}
-                                            onChange={handleInputChange}
-                                        />
+
+                                    {/* Email 1, Email 2 */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label htmlFor="email_1">E-mail (1)</label>
+                                            <Input
+                                                id="email_1"
+                                                name="email_1"
+                                                type="email"
+                                                value={formData.email_1}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="email_2">E-mail (2)</label>
+                                            <Input
+                                                id="email_2"
+                                                name="email_2"
+                                                type="email"
+                                                value={formData.email_2}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             </TabsContent>
 
-                            {/* TAB 4: IDENTIFICACIÓN */}
+                            {/* TAB 5: IDENTIFICACIÓN */}
                             <TabsContent value="identificacion" className="space-y-6">
-                            <div className="border-b pb-4">
-                                {/* Doc. Identificación, No. Identificación */}
-                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="doc_identificacion">Doc. Identificación</RequiredLabel>
-                                        <Input
-                                            id="doc_identificacion"
-                                            name="doc_identificacion"
-                                            value={formData.doc_identificacion}
-                                            onChange={handleInputChange}
-                                        />
+                            <div className="border-2 border-red-200 rounded-lg p-5 bg-gradient-to-br from-red-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-red-600 text-white p-3 rounded-lg">
+                                        <FileText className="h-5 w-5" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="numero_identificacion">No. Identificación</RequiredLabel>
-                                        <Input
-                                            id="numero_identificacion"
-                                            name="numero_identificacion"
-                                            value={formData.numero_identificacion}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Información de Identificación</h3>
                                 </div>
-
-                                {/* Sexo, IDMEX */}
-                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="sexo">Sexo</label>
-                                        <Select value={formData.sexo} onValueChange={(value) => setFormData(prev => ({ ...prev, sexo: value as 'M' | 'F' | '' }))}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="M">Masculino</SelectItem>
-                                                <SelectItem value="F">Femenino</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="idmex">IDMEX (INE)</label>
-                                        <Input
-                                            id="idmex"
-                                            name="idmex"
-                                            value={formData.idmex}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* OCR, Autoridad Emisora, Vigencia */}
-                                <div className="grid grid-cols-3 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="ocr">OCR</label>
-                                        <Input
-                                            id="ocr"
-                                            name="ocr"
-                                            value={formData.ocr}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="autoridad_emisora">Autoridad Emisora</RequiredLabel>
-                                        <Input
-                                            id="autoridad_emisora"
-                                            name="autoridad_emisora"
-                                            value={formData.autoridad_emisora}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="vigencia">Vigencia</RequiredLabel>
-                                        <Input
-                                            id="vigencia"
-                                            name="vigencia"
-                                            type="date"
-                                            value={formData.vigencia}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Ocupación, Estado Civil */}
-                                <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="ocupacion">Ocupación</label>
-                                        <Input
-                                            id="ocupacion"
-                                            name="ocupacion"
-                                            value={formData.ocupacion}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="estado_civil">Estado Civil</RequiredLabel>
-                                        <Select value={formData.estado_civil || ""} onValueChange={(value) => setFormData(prev => ({ ...prev, estado_civil: value }))}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecciona..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="soltero">Soltero/a</SelectItem>
-                                                <SelectItem value="casado">Casado/a</SelectItem>
-                                                <SelectItem value="divorciado">Divorciado/a</SelectItem>
-                                                <SelectItem value="viudo">Viudo/a</SelectItem>
-                                                <SelectItem value="unión-libre">Unión Libre</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                {/* Datos del Cónyuge - Mostrar solo si estado_civil === 'casado' */}
-                                {formData.estado_civil === 'casado' && (
-                                    <div className="border-t pt-6 mt-6">
-                                        <h4 className="font-semibold mb-4 text-sm text-amber-700">Datos del Cónyuge</h4>
-
-                                        {/* Nombre, Ap. Paterno, Ap. Materno */}
-                                        <div className="grid grid-cols-3 gap-4 mb-4">
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="nombre_conyuge">Nombre (s)</RequiredLabel>
-                                                <Input
-                                                    id="nombre_conyuge"
-                                                    name="nombre_conyuge"
-                                                    value={formData.nombre_conyuge}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="apellido_paterno_conyuge">Apellido Paterno</RequiredLabel>
-                                                <Input
-                                                    id="apellido_paterno_conyuge"
-                                                    name="apellido_paterno_conyuge"
-                                                    value={formData.apellido_paterno_conyuge}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="apellido_materno_conyuge">Apellido Materno</label>
-                                                <Input
-                                                    id="apellido_materno_conyuge"
-                                                    name="apellido_materno_conyuge"
-                                                    value={formData.apellido_materno_conyuge}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
+                                <div className="grid gap-4">
+                                    {/* Doc. Identificación, No. Identificación */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <RequiredLabel htmlFor="doc_identificacion">Doc. Identificación</RequiredLabel>
+                                            <Input
+                                                id="doc_identificacion"
+                                                name="doc_identificacion"
+                                                value={formData.doc_identificacion}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
                                         </div>
-
-                                        {/* Doc Identificación, Núm. Doc, Autoridad Emisora, Régimen Conyugal */}
-                                        <div className="grid grid-cols-4 gap-4 mb-4">
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="doc_identificacion_conyuge">Doc Identificación</RequiredLabel>
-                                                <Input
-                                                    id="doc_identificacion_conyuge"
-                                                    name="doc_identificacion_conyuge"
-                                                    value={formData.doc_identificacion_conyuge}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="numero_doc_conyuge">Núm.Doc.Identificación</RequiredLabel>
-                                                <Input
-                                                    id="numero_doc_conyuge"
-                                                    name="numero_doc_conyuge"
-                                                    value={formData.numero_doc_conyuge}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="autoridad_emisora_conyuge">Autoridad Emisora</label>
-                                                <Input
-                                                    id="autoridad_emisora_conyuge"
-                                                    name="autoridad_emisora_conyuge"
-                                                    value={formData.autoridad_emisora_conyuge}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="regimen_conyugal">Régimen Conyugal</RequiredLabel>
-                                                <Input
-                                                    id="regimen_conyugal"
-                                                    name="regimen_conyugal"
-                                                    value={formData.regimen_conyugal}
-                                                    onChange={handleInputChange}
-                                                />
-                                            </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="numero_identificacion">No. Identificación</RequiredLabel>
+                                            <Input
+                                                id="numero_identificacion"
+                                                name="numero_identificacion"
+                                                value={formData.numero_identificacion}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
                                         </div>
                                     </div>
+
+                                    {/* Sexo, IDMEX */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label htmlFor="sexo" className="text-sm font-medium">Sexo</label>
+                                            <Select value={formData.sexo} onValueChange={(value) => setFormData(prev => ({ ...prev, sexo: value as 'M' | 'F' | '' }))}>
+                                                <SelectTrigger className="mt-2">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="M">Masculino</SelectItem>
+                                                    <SelectItem value="F">Femenino</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="idmex" className="text-sm font-medium">IDMEX (INE)</label>
+                                            <Input
+                                                id="idmex"
+                                                name="idmex"
+                                                value={formData.idmex}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* OCR, Autoridad Emisora, Vigencia */}
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <label htmlFor="ocr" className="text-sm font-medium">OCR</label>
+                                            <Input
+                                                id="ocr"
+                                                name="ocr"
+                                                value={formData.ocr}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="autoridad_emisora">Autoridad Emisora</RequiredLabel>
+                                            <Input
+                                                id="autoridad_emisora"
+                                                name="autoridad_emisora"
+                                                value={formData.autoridad_emisora}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="vigencia">Vigencia</RequiredLabel>
+                                            <Input
+                                                id="vigencia"
+                                                name="vigencia"
+                                                type="date"
+                                                value={formData.vigencia}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Ocupación, Estado Civil */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label htmlFor="ocupacion" className="text-sm font-medium">Ocupación</label>
+                                            <Input
+                                                id="ocupacion"
+                                                name="ocupacion"
+                                                value={formData.ocupacion}
+                                                onChange={handleInputChange}
+                                                className="mt-2 bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <RequiredLabel htmlFor="estado_civil">Estado Civil</RequiredLabel>
+                                            <Select value={formData.estado_civil || ""} onValueChange={(value) => setFormData(prev => ({ ...prev, estado_civil: value }))}>
+                                                <SelectTrigger className="mt-2">
+                                                    <SelectValue placeholder="Selecciona..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="soltero">Soltero/a</SelectItem>
+                                                    <SelectItem value="casado">Casado/a</SelectItem>
+                                                    <SelectItem value="divorciado">Divorciado/a</SelectItem>
+                                                    <SelectItem value="viudo">Viudo/a</SelectItem>
+                                                    <SelectItem value="unión-libre">Unión Libre</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    {/* Datos del Cónyuge - Mostrar solo si estado_civil === 'casado' */}
+                                    {formData.estado_civil === 'casado' && (
+                                        <div className="border-t-2 border-red-100 pt-4 mt-4 px-4 py-2 bg-red-50/50 rounded">
+                                            <h4 className="font-semibold mb-4 text-sm text-red-700">Datos del Cónyuge</h4>
+
+                                            {/* Nombre, Ap. Paterno, Ap. Materno */}
+                                            <div className="grid grid-cols-3 gap-4 mb-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="nombre_conyuge">Nombre (s)</RequiredLabel>
+                                                    <Input
+                                                        id="nombre_conyuge"
+                                                        name="nombre_conyuge"
+                                                        value={formData.nombre_conyuge}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="apellido_paterno_conyuge">Apellido Paterno</RequiredLabel>
+                                                    <Input
+                                                        id="apellido_paterno_conyuge"
+                                                        name="apellido_paterno_conyuge"
+                                                        value={formData.apellido_paterno_conyuge}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="apellido_materno_conyuge" className="text-sm font-medium">Apellido Materno</label>
+                                                    <Input
+                                                        id="apellido_materno_conyuge"
+                                                        name="apellido_materno_conyuge"
+                                                        value={formData.apellido_materno_conyuge}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Doc Identificación, Núm. Doc, Autoridad Emisora, Régimen Conyugal */}
+                                            <div className="grid grid-cols-4 gap-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="doc_identificacion_conyuge">Doc Identificación</RequiredLabel>
+                                                    <Input
+                                                        id="doc_identificacion_conyuge"
+                                                        name="doc_identificacion_conyuge"
+                                                        value={formData.doc_identificacion_conyuge}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="numero_doc_conyuge">Núm.Doc.Identificación</RequiredLabel>
+                                                    <Input
+                                                        id="numero_doc_conyuge"
+                                                        name="numero_doc_conyuge"
+                                                        value={formData.numero_doc_conyuge}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="autoridad_emisora_conyuge" className="text-sm font-medium">Autoridad Emisora</label>
+                                                    <Input
+                                                        id="autoridad_emisora_conyuge"
+                                                        name="autoridad_emisora_conyuge"
+                                                        value={formData.autoridad_emisora_conyuge}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="regimen_conyugal">Régimen Conyugal</RequiredLabel>
+                                                    <Input
+                                                        id="regimen_conyugal"
+                                                        name="regimen_conyugal"
+                                                        value={formData.regimen_conyugal}
+                                                        onChange={handleInputChange}
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                 )}
+                                </div>
                             </div>
                             </TabsContent>
                         </Tabs>
