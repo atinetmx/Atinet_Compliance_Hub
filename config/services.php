@@ -56,4 +56,27 @@ return [
         'temperature' => (float) env('GEMINI_TEMPERATURE', 0.1),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | OpenAI Service (Document Analysis & OCR)
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for OpenAI GPT-4o with Vision API used for:
+    | - Intelligent document scanning and analysis
+    | - Data extraction from legal documents (escrituras, contratos, poderes)
+    | - Document summarization and classification
+    |
+    | Temperature set to 0.1 for consistent structured data extraction.
+    |
+    */
+
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o'),
+        'endpoint' => env('OPENAI_ENDPOINT', 'https://api.openai.com/v1/chat/completions'),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 120),
+        'temperature' => (float) env('OPENAI_TEMPERATURE', 0.1),
+        'max_tokens' => (int) env('OPENAI_MAX_TOKENS', 4096),
+    ],
+
 ];

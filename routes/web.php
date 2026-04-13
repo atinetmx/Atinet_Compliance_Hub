@@ -211,6 +211,21 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::delete('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'destroy'])->name('destroy');
     });
 
+    // === MÓDULO ESCÁNER INTELIGENTE DE DOCUMENTOS ===
+    // Sistema para escanear, convertir y analizar documentos con OpenAI
+    Route::prefix('escaner-inteligente')->name('escaner-inteligente.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'store'])->name('store');
+        Route::get('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'show'])->name('show');
+        Route::delete('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'destroy'])->name('destroy');
+        
+        // Acciones sobre documentos
+        Route::post('{documento}/analyze', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'analyze'])->name('analyze');
+        Route::get('{documento}/download/{formato}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'download'])
+            ->name('download')
+            ->where('formato', 'original|pdf|word|texto');
+    });
+
     // === APIs para OCR y Scanners ===
     Route::prefix('ocr')->name('ocr.')->group(function () {
         Route::post('ine', [\App\Http\Controllers\Admin\OCRController::class, 'processINE'])->name('ine');

@@ -17,7 +17,9 @@
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
         "maatwebsite/excel": "^3.1",
+        "phpoffice/phpword": "^1.4",
         "setasign/tfpdf": "^1.33",
+        "smalot/pdfparser": "^2.12",
         "spatie/laravel-activitylog": "^4.12"
     },
     "require-dev": {
