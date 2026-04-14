@@ -1237,11 +1237,11 @@ export default function ExpedientesIndex() {
     ) => {
         try {
             const payload = {
-                fecha_Entrega: cambios.fecha_Entrega || null,
+                fecha_Entrega: cambios.fecha_Entrega,
                 usuario_Recibe_Id: cambios.usuario_Recibe ? parseInt(cambios.usuario_Recibe) || 0 : 0,
-                fecha_Recepcion: cambios.fecha_Recepcion || null,
+                fecha_Recepcion: cambios.fecha_Recepcion,
                 usuario_Recepcion_Id: cambios.usuario_Recepcion ? parseInt(cambios.usuario_Recepcion) || 0 : 0,
-                observaciones: cambios.observaciones || null,
+                observaciones: cambios.observaciones,
                 copia: cambios.copia,
                 original: cambios.original,
             };
@@ -1469,6 +1469,16 @@ export default function ExpedientesIndex() {
 
     // Inicializar documentosEditados con valores del documento cuando se cargan
     useEffect(() => {
+        const convertirFecha = (fecha: string | null): string | null => {
+            if (!fecha) return null;
+            // Si viene en formato "dd/mm/yyyy", convertir a "yyyy-mm-dd"
+            const partes = fecha.split('/');
+            if (partes.length === 3) {
+                return `${partes[2]}-${partes[1]}-${partes[0]}`;
+            }
+            return fecha;
+        };
+
         const nuevosEditados: Record<number, any> = {};
         documentosPorCliente.forEach(grupoCliente => {
             grupoCliente.documentos.forEach(doc => {
@@ -1476,9 +1486,9 @@ export default function ExpedientesIndex() {
                     nuevosEditados[doc.id] = {
                         cliente_Id: doc.cliente_Id,
                         documento_Id: doc.documento_Id,
-                        fecha_Entrega: doc.fecha_Entrega,
+                        fecha_Entrega: convertirFecha(doc.fecha_Entrega),
                         usuario_Recibe: doc.usuario_Recibe,
-                        fecha_Recepcion: doc.fecha_Recepcion,
+                        fecha_Recepcion: convertirFecha(doc.fecha_Recepcion),
                         usuario_Recepcion: doc.usuario_Recepcion,
                         observaciones: doc.observaciones,
                         copia: doc.copia,
@@ -1491,6 +1501,23 @@ export default function ExpedientesIndex() {
             setDocumentosEditados(prev => ({ ...prev, ...nuevosEditados }));
         }
     }, [documentosPorCliente]);
+
+    // Convertir fecha de formato DD/MM/YYYY a YYYY-MM-DD para inputs date
+    const convertirFechaAlFormatoISO = (fecha: string | null): string | null => {
+        if (!fecha) return null;
+
+        // Si ya está en formato ISO (contiene guiones), devolverlo tal cual
+        if (fecha.includes('-')) return fecha;
+
+        // Convertir de DD/MM/YYYY a YYYY-MM-DD
+        if (fecha.includes('/')) {
+            const partes = fecha.split('/');
+            if (partes.length === 3) {
+                return `${partes[2]}-${partes[1]}-${partes[0]}`;
+            }
+        }
+        return fecha;
+    };
 
     const fetchDocumentosExpediente = async (expedienteId: number) => {
         setCargandoDocumentosExpediente(true);
@@ -3810,8 +3837,8 @@ export default function ExpedientesIndex() {
                                                                                     <td className="px-2 py-2 text-center">
                                                                                         <input
                                                                                             type="text"
-                                                                                            value={docEditado.usuario_Recibe || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'usuario_Recibe', e.target.value || null)}
+                                                                                            value={doc.usuario_Recibe || ''}
+                                                                                            readOnly
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
@@ -3827,8 +3854,8 @@ export default function ExpedientesIndex() {
                                                                                     <td className="px-2 py-2 text-center">
                                                                                         <input
                                                                                             type="text"
-                                                                                            value={docEditado.usuario_Recepcion || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'usuario_Recepcion', e.target.value || null)}
+                                                                                              value={doc.usuario_Recepcion || ''}
+                                                                                            readOnly
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />

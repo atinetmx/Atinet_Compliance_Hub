@@ -171,13 +171,13 @@ const api = useApi();
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
-                const data = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
+                const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
-                if (!data) {
+                if (!response.dataResponse) {
                     throw new Error('Error al obtener la configuracion');
                 }
 
-                const notaria = data.dataResponse;
+                const notaria = response.dataResponse;
 
                 // Capturar el ID (puede ser id, idConfiguracionNotaria, configuracionId, etc.)
                 const id = notaria.id || notaria.idConfiguracionNotaria || notaria.configuracionId || notaria.numero_Notaria;
@@ -197,28 +197,30 @@ const api = useApi();
                     codigo_postal: notaria.codigo_Postal || '',
                     imagen: notaria.logotipo ? `data:image/png;base64,${notaria.logotipo}` : null,
                 });
+
             } catch (error) {
-                console.error('Error al cargar la configuración de la notaría:', error);
-                // Si hay error, mantener los datos vacíos
+                const errorMessage = error instanceof Error ? error.message : 'Error al cargar la configuración';
+                console.error('Error:', errorMessage);
+                addToast(errorMessage, 'error');
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchConfiguracionNotaria();
-    }, []); // Se ejecuta solo una vez al montar el componente
+    }, [addToast]);
 
     // Cargar datos de Control, Cálculos y Folios
     useEffect(() => {
         const fetchConfiguracionControl = async () => {
             try {
-                const data = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
+                const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
 
-                if (!data) {
-                    throw new Error('Error al obtener la configuración de control');
+                if (!response.dataResponse) {
+                    throw new Error(response.message || 'Error al obtener la configuración de control');
                 }
 
-                const config = data.dataResponse;
+                const config = response.dataResponse;
 
                 console.log('Datos de Control, Cálculos y Folios:', config);
 
@@ -259,12 +261,14 @@ const api = useApi();
                     folio_inicial_por_tomo_certificaciones: parseInt(config.folio_Inicial_Tomo_Certificaciones) || 0,
                 });
             } catch (error) {
-                console.error('Error al cargar la configuración de control:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Error al cargar la configuración de control';
+                console.error('Error:', errorMessage);
+                addToast(errorMessage, 'error');
             }
         };
 
         fetchConfiguracionControl();
-    }, []);
+    }, [addToast]);
 
     const handleSave = async () => {
         try {
@@ -293,14 +297,14 @@ const api = useApi();
                 console.log('Enviando FormData con imagen:', notariaData.imagenFile.name);
             }
 
-            console.log('Enviando FormData a UpdateConfiguracionNotaria');
-            const data = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
-            if (!data) {
-                throw new Error('Error en la respuesta de la API');
+            const notariaResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
+
+            if (!notariaResponse.success) {
+                throw new Error(notariaResponse.message);
             }
 
-            console.log('Configuración guardada:', data);
+            console.log('Configuración de notaría guardada:', notariaResponse);
 
             // Ahora guardar los datos de Control, Cálculos y Folios
             if (controlConfigId) {
@@ -336,20 +340,16 @@ const api = useApi();
 
                 console.log('Enviando datos de Control con ID:', controlConfigId);
 
-                const controlData2 = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
+                const controlResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
 
-                if (!controlData2) {
-                    throw new Error(controlData2?.message || `Error al guardar configuración de control`);
+                if (!controlResponse.success) {
+                    throw new Error(controlResponse.message);
                 }
-                console.log('Control guardado:', controlData2);
+                console.log('Control guardado:', controlResponse);
             }
 
-            // Extraer mensaje del dataResponse si existe
-            const message = data.dataResponse?.message || data.message || 'Configuración guardada exitosamente';
-            console.log('Mensaje de la API:', message);
-
-            // Mostrar toast de éxito con el mensaje del servidor
-            addToast(message, 'success');
+            // Mostrar mensaje del servidor
+            addToast(notariaResponse.message, 'success');
             setSaveError(null);
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
@@ -357,7 +357,6 @@ const api = useApi();
             const errorMessage = error instanceof Error ? error.message : 'Error al guardar la configuración';
             console.error('Error al guardar:', errorMessage);
             setSaveError(errorMessage);
-            // Mostrar toast de error
             addToast(errorMessage, 'error');
             setTimeout(() => setSaveError(null), 5000);
         } finally {
