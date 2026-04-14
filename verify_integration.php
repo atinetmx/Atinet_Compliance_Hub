@@ -22,16 +22,16 @@ echo "2. Modelo Notaria:\n";
 $notaria = App\Models\Notaria::first();
 if ($notaria) {
     echo "   ✓ Notaria encontrada: {$notaria->nombre}\n";
-    echo "   ✓ serviceUsages() existe: " . (method_exists($notaria, 'serviceUsages') ? 'SÍ' : 'NO') . "\n";
-    echo "   ✓ serviceUsage() existe: " . (method_exists($notaria, 'serviceUsage') ? 'SÍ' : 'NO') . "\n";
-    
+    echo '   ✓ serviceUsages() existe: '.(method_exists($notaria, 'serviceUsages') ? 'SÍ' : 'NO')."\n";
+    echo '   ✓ serviceUsage() existe: '.(method_exists($notaria, 'serviceUsage') ? 'SÍ' : 'NO')."\n";
+
     // Verificar que ambos retornan lo mismo
     try {
         $usages1 = $notaria->serviceUsages();
         $usages2 = $notaria->serviceUsage();
         echo "   ✓ Ambos métodos funcionan correctamente\n";
     } catch (Exception $e) {
-        echo "   ✗ Error al llamar métodos: " . $e->getMessage() . "\n";
+        echo '   ✗ Error al llamar métodos: '.$e->getMessage()."\n";
     }
 } else {
     echo "   ⚠ No hay notarías en la base de datos\n";
@@ -48,30 +48,30 @@ foreach ($routes as $route) {
     }
 }
 
-echo "   ✓ Rutas encontradas: " . count($controlNotarialRoutes) . "\n";
-echo "   ✓ Ruta notaria existe: " . (in_array('admin.control-notarial.configuracion.notaria', $controlNotarialRoutes) ? 'SÍ' : 'NO') . "\n";
+echo '   ✓ Rutas encontradas: '.count($controlNotarialRoutes)."\n";
+echo '   ✓ Ruta notaria existe: '.(in_array('admin.control-notarial.configuracion.notaria', $controlNotarialRoutes) ? 'SÍ' : 'NO')."\n";
 echo "\n";
 
 // 4. Verificar HandleInertiaRequests
 echo "4. Middleware HandleInertiaRequests:\n";
-$middleware = new App\Http\Middleware\HandleInertiaRequests();
+$middleware = new App\Http\Middleware\HandleInertiaRequests;
 $request = Illuminate\Http\Request::create('/');
 try {
     // No podemos ejecutar share() directamente sin sesión, pero podemos verificar que existe
     echo "   ✓ Middleware existe y es instanciable\n";
-    echo "   ✓ Método share() existe: " . (method_exists($middleware, 'share') ? 'SÍ' : 'NO') . "\n";
+    echo '   ✓ Método share() existe: '.(method_exists($middleware, 'share') ? 'SÍ' : 'NO')."\n";
 } catch (Exception $e) {
-    echo "   ✗ Error: " . $e->getMessage() . "\n";
+    echo '   ✗ Error: '.$e->getMessage()."\n";
 }
 echo "\n";
 
 // 5. Verificar ControlNotarialController
 echo "5. ControlNotarialController:\n";
-$controller = new App\Http\Controllers\ControlNotarialController();
+$controller = new App\Http\Controllers\ControlNotarialController;
 echo "   ✓ Controller existe\n";
-echo "   ✓ Método notaria() existe: " . (method_exists($controller, 'notaria') ? 'SÍ' : 'NO') . "\n";
-echo "   ✓ Método expedientesExpedientes() existe: " . (method_exists($controller, 'expedientesExpedientes') ? 'SÍ' : 'NO') . "\n";
-echo "   ✓ Método usuarios() existe: " . (method_exists($controller, 'usuarios') ? 'SÍ' : 'NO') . "\n";
+echo '   ✓ Método notaria() existe: '.(method_exists($controller, 'notaria') ? 'SÍ' : 'NO')."\n";
+echo '   ✓ Método expedientesExpedientes() existe: '.(method_exists($controller, 'expedientesExpedientes') ? 'SÍ' : 'NO')."\n";
+echo '   ✓ Método usuarios() existe: '.(method_exists($controller, 'usuarios') ? 'SÍ' : 'NO')."\n";
 echo "\n";
 
 echo "=== VERIFICACIÓN COMPLETADA ===\n";

@@ -21,6 +21,7 @@ class Service extends Model
         'billing_model',
         'unit_price',
         'is_active',
+        'implementation_status',
         'metadata',
     ];
 
@@ -31,8 +32,42 @@ class Service extends Model
             'billing_model' => BillingModel::class,
             'unit_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'implementation_status' => 'string',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * Scope: Solo servicios activos e implementados
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where('is_active', true)
+            ->where('implementation_status', 'implemented');
+    }
+
+    /**
+     * Scope: Solo servicios implementados (sin importar si están activos)
+     */
+    public function scopeImplemented($query)
+    {
+        return $query->where('implementation_status', 'implemented');
+    }
+
+    /**
+     * Scope: Servicios planificados para roadmap
+     */
+    public function scopePlanned($query)
+    {
+        return $query->where('implementation_status', 'planned');
+    }
+
+    /**
+     * Scope: Servicios en desarrollo
+     */
+    public function scopeInDevelopment($query)
+    {
+        return $query->where('implementation_status', 'development');
     }
 
     /**
