@@ -174,7 +174,7 @@ const api = useApi();
                 const data = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
                 if (!data) {
-                    throw new Error('Error al obtener la configuraciÃƒÂ³n');
+                    throw new Error('Error al obtener la configuracion');
                 }
 
                 const notaria = data.dataResponse;

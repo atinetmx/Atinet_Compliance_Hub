@@ -119,7 +119,7 @@ export default function ControlNotarialIndex({
                 </div>
 
                 {/* Acceso Rápido - Botones Principales */}
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                     {/* Botón Expedientes */}
                     <Link href="/admin/control-notarial/expedientes" prefetch>
                         <div className="group cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-8 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200">

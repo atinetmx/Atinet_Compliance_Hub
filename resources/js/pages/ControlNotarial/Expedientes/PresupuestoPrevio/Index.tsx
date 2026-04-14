@@ -1139,7 +1139,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         setZonaFiltro(zona.descripcion);
                                                                         setShowZonaDropdown(false);
                                                                     }}
-                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm"
+                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
                                                                 >
                                                                     {zona.descripcion}
                                                                 </button>
@@ -1176,7 +1176,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_operacion"
                                                     type="number"
-                                                    step="0.01"
+                                                    step="1"
                                                     value={formData.valor_operacion}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1188,7 +1188,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_avaluo"
                                                     type="number"
-                                                    step="0.01"
+                                                    step="1"
                                                     value={formData.valor_avaluo}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1200,7 +1200,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_catastral"
                                                     type="number"
-                                                    step="0.01"
+                                                    step="1"
                                                     value={formData.valor_catastral}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"

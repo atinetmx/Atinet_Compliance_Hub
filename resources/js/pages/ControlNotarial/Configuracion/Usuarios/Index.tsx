@@ -383,7 +383,7 @@ const api = useApi();
                                     <div
                                         key={usuario.id}
                                         onClick={() => handleSelectUsuario(usuario)}
-                                        className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-lg hover:border-blue-400 hover:from-blue-100 transition-all cursor-pointer space-y-4"
+                                        className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer space-y-4"
                                     >
                                         {/* Avatar + Info Básica */}
                                         <div className="flex items-start gap-4">
@@ -399,7 +399,7 @@ const api = useApi();
                                         </div>
 
                                         {/* Divider */}
-                                        <div className="border-t border-blue-200"></div>
+                                        <div className="border-t border-gray-200"></div>
 
                                         {/* Detalles */}
                                         <div className="space-y-2">
@@ -414,7 +414,7 @@ const api = useApi();
                                         </div>
 
                                         {/* estado Badge */}
-                                        <div className="flex justify-between items-center pt-2 border-t border-blue-200">
+                                        <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                                             <span className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                                                 usuario.activo
                                                     ? 'bg-green-100 text-green-700 shadow-sm'
@@ -431,7 +431,7 @@ const api = useApi();
                             )}
                         </div>
                         {!isSearching && resultados.length > 0 && (
-                            <div className="px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                            <div className="px-4 py-3  text-sm">
                                 <span className="font-medium">{resultados.length} usuario(s) encontrado(s)</span> — <span className="font-semibold">haz clic en un usuario para editarlo</span>
                             </div>
                         )}

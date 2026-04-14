@@ -1,6 +1,16 @@
 import { usePage } from '@inertiajs/react';
 
 /**
+ * Interfaz estándar para todas las respuestas de la API
+ */
+export interface ApiResponse<T = any> {
+    message: string;          // Mensaje personalizado desde el backend
+    dataResponse?: T;          // Datos (objeto, lista, etc)
+    success?: boolean;         // Indica si la operación fue exitosa
+    statusCode?: number;       // Código HTTP
+}
+
+/**
  * API Service Class
  * Centralizes all API calls with dynamic base URL from Inertia props
  */
@@ -12,9 +22,52 @@ class ApiService {
     }
 
     /**
+     * Normaliza la respuesta del servidor a una estructura estándar
+     */
+    private normalizeResponse<T = any>(data: any): ApiResponse<T> {
+        // Si ya tiene la estructura correcta, devolverla
+        if (data?.message !== undefined && (data?.dataResponse !== undefined || data?.message)) {
+            return {
+                message: data.message || 'Operación completada',
+                dataResponse: data.dataResponse,
+                success: data.success !== undefined ? data.success : true,
+                statusCode: data.statusCode,
+            };
+        }
+
+        // Si solo tiene dataResponse, crear mensaje por defecto
+        if (data?.dataResponse !== undefined) {
+            return {
+                message: 'Operación completada exitosamente',
+                dataResponse: data.dataResponse,
+                success: true,
+                statusCode: 200,
+            };
+        }
+
+        // Si es cualquier otro objeto, usarlo como dataResponse
+        if (typeof data === 'object' && data !== null) {
+            return {
+                message: 'Operación completada exitosamente',
+                dataResponse: data,
+                success: true,
+                statusCode: 200,
+            };
+        }
+
+        // Si es string (error), convertir a mensaje de error
+        return {
+            message: typeof data === 'string' ? data : 'Error desconocido',
+            dataResponse: undefined,
+            success: false,
+            statusCode: 500,
+        };
+    }
+
+    /**
      * Perform a GET request
      */
-    async get<T = any>(endpoint: string): Promise<T & { dataResponse?: any; message?: string }> {
+    async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
         const response = await fetch(url, {
             method: 'GET',
@@ -25,13 +78,13 @@ class ApiService {
         });
 
         const data = await response.json();
-        return data;
+        return this.normalizeResponse<T>(data);
     }
 
     /**
      * Perform a POST request
      */
-    async post<T = any>(endpoint: string, body: any): Promise<T & { dataResponse?: any; message?: string }> {
+    async post<T = any>(endpoint: string, body: any): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
         const isFormData = body instanceof FormData;
         const headers: Record<string, string> = {
@@ -57,16 +110,16 @@ class ApiService {
             data = await response.json();
         } else {
             const text = await response.text();
-            data = text ? { message: text } : {};
+            data = text || 'Operación completada';
         }
 
-        return data;
+        return this.normalizeResponse<T>(data);
     }
 
     /**
      * Perform a PUT request
      */
-    async put<T = any>(endpoint: string, body: any): Promise<T & { dataResponse?: any; message?: string }> {
+    async put<T = any>(endpoint: string, body: any): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
         const isFormData = body instanceof FormData;
         const headers: Record<string, string> = {
@@ -92,16 +145,16 @@ class ApiService {
             data = await response.json();
         } else {
             const text = await response.text();
-            data = text ? { message: text } : {};
+            data = text || 'Operación completada';
         }
 
-        return data;
+        return this.normalizeResponse<T>(data);
     }
 
     /**
      * Perform a DELETE request
      */
-    async delete<T = any>(endpoint: string): Promise<T & { dataResponse?: any; message?: string }> {
+    async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
         const response = await fetch(url, {
             method: 'DELETE',
@@ -112,7 +165,7 @@ class ApiService {
         });
 
         const data = await response.json();
-        return data;
+        return this.normalizeResponse<T>(data);
     }
 }
 
