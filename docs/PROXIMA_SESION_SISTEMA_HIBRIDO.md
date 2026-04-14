@@ -2,7 +2,52 @@
 
 **Fecha Planificada:** Próxima sesión de desarrollo  
 **Objetivo:** Implementar sistema híbrido multitenant para Registro Web  
-**Prioridad:** 🔴 ALTA - Requerido para producción
+**Prioridad:** 🔴 ALTA - Requerido para producción  
+**Deadline MVP:** 13 Mayo 2026 (1 mes)
+
+---
+
+## ⚠️ ACCIÓN PRIORITARIA - Revisar Branch Alex
+
+**ANTES DE CONTINUAR:** Debemos revisar e integrar el trabajo del desarrollador Alex en el branch `alex`.
+
+### 🎯 Control Notarial - Carta de Presentación del Sistema
+- El sistema de **Control Notarial** es una de las principales cartas de presentación
+- Desarrollador: Alex (branch: `alex`)
+- **Acción requerida:** 
+  1. Revisar código y lógica implementada por Alex
+  2. Entender arquitectura y decisiones técnicas
+  3. Integrar/adaptar al sistema principal
+  4. Garantizar compatibilidad con sistema multitenant
+
+### 📋 Plan de Revisión Branch Alex:
+1. **Checkout y análisis:**
+   ```bash
+   git fetch origin
+   git checkout alex
+   git log --oneline -20
+   ```
+
+2. **Inventario de cambios:**
+   - Modelos nuevos/modificados
+   - Controladores y rutas
+   - Migraciones de BD
+   - Vistas frontend
+   - Lógica de negocio
+
+3. **Documentar decisiones:**
+   - Estructura de datos
+   - Patrones utilizados
+   - Integraciones con legacy
+   - Puntos de mejora
+
+4. **Plan de integración:**
+   - Merge strategy
+   - Resolución de conflictos
+   - Testing post-merge
+   - Validación funcional
+
+**Ver:** [REVISION_BRANCH_ALEX.md](./development/REVISION_BRANCH_ALEX.md) (pendiente de crear)
 
 ---
 
@@ -574,7 +619,132 @@ php artisan queue:retry all
 
 ---
 
-**📌 Documento preparado para continuidad**  
-**Próxima sesión:** Sistema Híbrido Multitenant  
-**Estimado:** 8-12 horas de desarrollo  
-**Prioridad:** 🔴 ALTA
+## 📅 Plan de Trabajo MVP - 1 Mes (13 Abril - 13 Mayo 2026)
+
+### **Semana 1 (13-19 Abril): Revisión Branch Alex + Multitenant** 🔴 CRÍTICO
+**Días 1-2: Revisión e Integración Branch Alex**
+- Checkout branch `alex`
+- Análisis de Control Notarial
+- Documentar lógica implementada
+- Plan de merge a master
+- Estimado: 4-6 horas
+
+**Días 3-4: Sistema Multitenant - Fases 1-3**
+- Auditoría BD Master vs Tenant
+- Crear migraciones faltantes
+- Script sincronización retroactiva
+- Estimado: 6-8 horas
+
+**Día 5: Sistema Multitenant - Fases 4-5**
+- Adaptar Registro Web para tenants
+- Testing completo
+- Estimado: 4-6 horas
+
+**Resultado Semana 1:** Control Notarial integrado + Registro Web con tenants funcionando
+
+---
+
+### **Semana 2 (20-26 Abril): Sistema de Tickets + Notificaciones** 🟡
+**Días 1-2: Backend Tickets**
+- Modelos (Ticket, TicketComment, TicketAttachment)
+- Migraciones y seeders
+- Controladores y rutas
+- Estimado: 4-5 horas
+
+**Días 3-4: Frontend Tickets**
+- Dashboard de tickets
+- Crear/asignar/resolver tickets
+- Sistema de categorías y prioridades
+- Estimado: 4-5 horas
+
+**Día 5: Sistema de Notificaciones**
+- Notificaciones en tiempo real
+- Centro de notificaciones
+- Alertas de vencimientos
+- Estimado: 3-4 horas
+
+**Resultado Semana 2:** Soporte completo para clientes con tickets y notificaciones
+
+---
+
+### **Semana 3 (27 Abril - 3 Mayo): Completar Registro Web** 🟢
+**Días 1-2: Scanners OCR**
+- Scanner INE (TensorFlow.js + Tesseract)
+- Scanner CURP (Gemini Vision)
+- Scanner Acta (Gemini Vision)
+- Estimado: 5-6 horas
+
+**Días 3-4: Funcionalidad Completa**
+- Sección Cónyuge (11 campos)
+- Validaciones completas (68 campos)
+- Pulido UI/UX
+- Estimado: 4-5 horas
+
+**Día 5: Testing Integral**
+- Pruebas end-to-end
+- Validación con usuarios
+- Corrección de bugs
+- Estimado: 3-4 horas
+
+**Resultado Semana 3:** Registro Web 100% funcional y validado
+
+---
+
+### **Semana 4 (4-13 Mayo): Importación + Reportes + Deploy** 🔵
+**Días 1-2: Importación Clientes VB**
+- Script de migración desde BD VB
+- Mapeo de datos legacy
+- Validación de datos importados
+- Estimado: 4-5 horas
+
+**Días 3-4: Vista de Reportes/Logs**
+- Dashboard de auditoría
+- Filtros avanzados
+- Exportación de reportes
+- Estimado: 3-4 horas
+
+**Días 5-7: Testing Final + Fixes**
+- Testing integral completo
+- Corrección de bugs críticos
+- Optimización de performance
+- Estimado: 6-8 horas
+
+**Días 8-9: Deploy + Capacitación**
+- Deploy a producción
+- Capacitación equipo
+- Documentación de usuario
+- Estimado: 4-5 horas
+
+**Resultado Semana 4:** Sistema completo en producción
+
+---
+
+## 🎯 Entregables del MVP
+
+### Funcionalidades Core:
+✅ Control Notarial (integrado de branch Alex)  
+✅ Sistema Multitenant Híbrido (Local + Remoto)  
+✅ Registro Web 100% funcional  
+✅ Sistema de Tickets y Soporte  
+✅ Notificaciones en tiempo real  
+✅ Búsquedas OFAC/SAT  
+✅ Gestión de Suscripciones y Planes  
+✅ Reportes y Auditoría  
+✅ Importación de clientes legacy  
+
+### Criterios de Éxito:
+- ✅ Sistema funciona en modo híbrido (BD tenant + BD legacy)
+- ✅ VB6 puede leer datos sincronizados
+- ✅ Control Notarial operativo como carta de presentación
+- ✅ 3+ notarías operando en producción
+- ✅ Tickets y soporte funcionales
+- ✅ Performance aceptable (<2s carga promedio)
+- ✅ Sin errores críticos en producción
+
+---
+
+**📌 Documento actualizado: 13 Abril 2026**  
+**Próxima acción:** Revisar branch `alex` - Control Notarial  
+**Luego:** Sistema Híbrido Multitenant  
+**Deadline MVP:** 13 Mayo 2026 (30 días)  
+**Prioridad:** 🔴 CRÍTICA
