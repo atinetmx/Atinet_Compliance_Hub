@@ -186,6 +186,15 @@ class Notaria extends Model
     }
 
     /**
+     * Alias de serviceUsages() para compatibilidad con API .NET de Control Notarial
+     * (mantiene convención singular usada por módulos externos)
+     */
+    public function serviceUsage(): HasMany
+    {
+        return $this->serviceUsages();
+    }
+
+    /**
      * Scope para notarías activas
      */
     public function scopeActivas($query)

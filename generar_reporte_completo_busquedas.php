@@ -23,6 +23,7 @@
  *   php generar_reporte_completo_busquedas.php --export=json
  *
  * @version 2.0
+ *
  * @date 2026-04-06
  */
 
@@ -41,7 +42,7 @@ echo "==================================================================\n";
 echo "  REPORTE COMPLETO DE BÚSQUEDAS - BASE DE DATOS REMOTA GATOR\n";
 echo "  Base de datos: atinet65_aplicativos\n";
 echo "  Tablas: busquedas (WEB) + busquedas_escritorio (ESCRITORIO)\n";
-echo "  Fecha: ".date('Y-m-d H:i:s')."\n";
+echo '  Fecha: '.date('Y-m-d H:i:s')."\n";
 echo "==================================================================\n\n";
 
 try {
@@ -73,12 +74,12 @@ try {
     $porcentajeWeb = ($totalBusquedas > 0) ? round(($totalWeb / $totalBusquedas) * 100, 2) : 0;
     $porcentajeEscritorio = ($totalBusquedas > 0) ? round(($totalEscritorio / $totalBusquedas) * 100, 2) : 0;
 
-    echo "   • Total de búsquedas registradas: ".number_format($totalBusquedas)."\n";
-    echo "     ├─ Búsquedas WEB: ".number_format($totalWeb)." ({$porcentajeWeb}%)\n";
-    echo "     └─ Búsquedas ESCRITORIO: ".number_format($totalEscritorio)." ({$porcentajeEscritorio}%)\n\n";
-    echo "   • Notarías activas: ".number_format($notariasUnicas)."\n";
-    echo "     ├─ Usan aplicación WEB: ".number_format($notariasWeb)."\n";
-    echo "     └─ Usan aplicación ESCRITORIO: ".number_format($notariasEscritorio)."\n\n";
+    echo '   • Total de búsquedas registradas: '.number_format($totalBusquedas)."\n";
+    echo '     ├─ Búsquedas WEB: '.number_format($totalWeb)." ({$porcentajeWeb}%)\n";
+    echo '     └─ Búsquedas ESCRITORIO: '.number_format($totalEscritorio)." ({$porcentajeEscritorio}%)\n\n";
+    echo '   • Notarías activas: '.number_format($notariasUnicas)."\n";
+    echo '     ├─ Usan aplicación WEB: '.number_format($notariasWeb)."\n";
+    echo '     └─ Usan aplicación ESCRITORIO: '.number_format($notariasEscritorio)."\n\n";
 
     // ========================================================================
     // 2. BÚSQUEDAS POR NOTARÍA (COMBINADAS)
@@ -107,7 +108,7 @@ try {
 
     printf("   %-25s %10s %10s %10s %12s %12s\n",
         'NOTARÍA', 'TOTAL', 'WEB', 'ESCRIT.', 'PRIMERA', 'ÚLTIMA');
-    echo "   ".str_repeat('─', 78)."\n";
+    echo '   '.str_repeat('─', 78)."\n";
 
     foreach ($busquedasPorNotaria as $notaria) {
         printf("   %-25s %10s %10s %10s %12s %12s\n",
@@ -160,7 +161,7 @@ try {
             }
             $tipoActual = $tipo->TIPO_BUSQUEDA;
             $tipoLabel = $tipo->TIPO_BUSQUEDA ?? 'SIN TIPO';
-            echo "   📌 ".substr($tipoLabel, 0, 45)."\n";
+            echo '   📌 '.substr($tipoLabel, 0, 45)."\n";
         }
 
         $porcentaje = ($totalBusquedas > 0)
@@ -214,7 +215,7 @@ try {
 
     foreach ($busquedasDetalladas as $detalle) {
         // Solo mostrar top 10 notarías
-        if (!in_array($detalle->NOTARIA, $top10Notarias)) {
+        if (! in_array($detalle->NOTARIA, $top10Notarias)) {
             continue;
         }
 
@@ -224,13 +225,13 @@ try {
             }
             $notariaActual = $detalle->NOTARIA;
             $contador++;
-            echo "   📍 ".substr($detalle->NOTARIA, 0, 50)."\n";
+            echo '   📍 '.substr($detalle->NOTARIA, 0, 50)."\n";
             $tipoActual = null;
         }
 
         if ($tipoActual !== $detalle->TIPO_BUSQUEDA) {
             $tipoActual = $detalle->TIPO_BUSQUEDA;
-            echo "      │ ".substr($detalle->TIPO_BUSQUEDA ?? 'SIN TIPO', 0, 40)."\n";
+            echo '      │ '.substr($detalle->TIPO_BUSQUEDA ?? 'SIN TIPO', 0, 40)."\n";
         }
 
         printf("      ├─── %-12s: %s búsquedas\n",
@@ -268,13 +269,13 @@ try {
 
     $busquedasRecientes = $busquedasRecientesWeb + $busquedasRecientesEscritorio;
 
-    echo "   • Búsquedas en últimos 30 días: ".number_format($busquedasRecientes)."\n";
-    echo "     ├─ WEB: ".number_format($busquedasRecientesWeb)."\n";
-    echo "     └─ ESCRITORIO: ".number_format($busquedasRecientesEscritorio)."\n\n";
+    echo '   • Búsquedas en últimos 30 días: '.number_format($busquedasRecientes)."\n";
+    echo '     ├─ WEB: '.number_format($busquedasRecientesWeb)."\n";
+    echo '     └─ ESCRITORIO: '.number_format($busquedasRecientesEscritorio)."\n\n";
 
     if ($busquedasRecientes > 0) {
         echo "   Top 10 Notarías más activas (últimos 30 días):\n";
-        echo "   ".str_repeat('─', 64)."\n";
+        echo '   '.str_repeat('─', 64)."\n";
 
         $topRecientes = DB::connection('aplicativos')
             ->table(DB::raw('(
@@ -326,10 +327,10 @@ try {
     }
 
     // 1. Notarías que usan SOLO WEB
-    echo "🌐 NOTARÍAS QUE USAN SOLO APLICACIÓN WEB (".count($notariasWeb)." notarías)\n";
+    echo '🌐 NOTARÍAS QUE USAN SOLO APLICACIÓN WEB ('.count($notariasWeb)." notarías)\n";
     echo str_repeat('─', 66)."\n";
     printf("   %-35s %15s %12s\n", 'NOTARÍA', 'BÚSQUEDAS', 'ÚLTIMA');
-    echo "   ".str_repeat('─', 64)."\n";
+    echo '   '.str_repeat('─', 64)."\n";
 
     foreach ($notariasWeb as $notaria) {
         printf("   %-35s %15s %12s\n",
@@ -342,10 +343,10 @@ try {
     echo "\n";
 
     // 2. Notarías que usan SOLO ESCRITORIO
-    echo "💻 NOTARÍAS QUE USAN SOLO APLICACIÓN ESCRITORIO (".count($notariasEscritorio)." notarías)\n";
+    echo '💻 NOTARÍAS QUE USAN SOLO APLICACIÓN ESCRITORIO ('.count($notariasEscritorio)." notarías)\n";
     echo str_repeat('─', 66)."\n";
     printf("   %-35s %15s %12s\n", 'NOTARÍA', 'BÚSQUEDAS', 'ÚLTIMA');
-    echo "   ".str_repeat('─', 64)."\n";
+    echo '   '.str_repeat('─', 64)."\n";
 
     foreach ($notariasEscritorio as $notaria) {
         printf("   %-35s %15s %12s\n",
@@ -359,11 +360,11 @@ try {
 
     // 3. Notarías que usan AMBAS plataformas
     if (count($notariasMixtas) > 0) {
-        echo "🔄 NOTARÍAS QUE USAN AMBAS PLATAFORMAS (".count($notariasMixtas)." notarías)\n";
+        echo '🔄 NOTARÍAS QUE USAN AMBAS PLATAFORMAS ('.count($notariasMixtas)." notarías)\n";
         echo str_repeat('─', 66)."\n";
         printf("   %-25s %10s %10s %10s %12s\n",
             'NOTARÍA', 'TOTAL', 'WEB', 'ESCRIT.', 'ÚLTIMA');
-        echo "   ".str_repeat('─', 64)."\n";
+        echo '   '.str_repeat('─', 64)."\n";
 
         foreach ($notariasMixtas as $notaria) {
             $pWeb = round(($notaria->total_web / $notaria->total_busquedas) * 100, 1);
@@ -452,7 +453,7 @@ try {
                         $notaria->total_busquedas,
                         $notaria->total_web,
                         0,
-                        $notaria->ultima_busqueda
+                        $notaria->ultima_busqueda,
                     ]);
                 }
 
@@ -463,7 +464,7 @@ try {
                         $notaria->total_busquedas,
                         0,
                         $notaria->total_escritorio,
-                        $notaria->ultima_busqueda
+                        $notaria->ultima_busqueda,
                     ]);
                 }
 
@@ -474,7 +475,7 @@ try {
                         $notaria->total_busquedas,
                         $notaria->total_web,
                         $notaria->total_escritorio,
-                        $notaria->ultima_busqueda
+                        $notaria->ultima_busqueda,
                     ]);
                 }
 
@@ -504,27 +505,27 @@ try {
                     'tipos_busqueda' => $datosExportTipos,
                     'detalle' => $datosExportDetalle,
                     'clasificacion' => [
-                        'solo_web' => array_map(function($n) {
+                        'solo_web' => array_map(function ($n) {
                             return [
                                 'notaria' => $n->NOTARIA,
                                 'total_busquedas' => $n->total_web,
-                                'ultima_busqueda' => $n->ultima_busqueda
+                                'ultima_busqueda' => $n->ultima_busqueda,
                             ];
                         }, $notariasWeb),
-                        'solo_escritorio' => array_map(function($n) {
+                        'solo_escritorio' => array_map(function ($n) {
                             return [
                                 'notaria' => $n->NOTARIA,
                                 'total_busquedas' => $n->total_escritorio,
-                                'ultima_busqueda' => $n->ultima_busqueda
+                                'ultima_busqueda' => $n->ultima_busqueda,
                             ];
                         }, $notariasEscritorio),
-                        'mixtas' => array_map(function($n) {
+                        'mixtas' => array_map(function ($n) {
                             return [
                                 'notaria' => $n->NOTARIA,
                                 'total_busquedas' => $n->total_busquedas,
                                 'busquedas_web' => $n->total_web,
                                 'busquedas_escritorio' => $n->total_escritorio,
-                                'ultima_busqueda' => $n->ultima_busqueda
+                                'ultima_busqueda' => $n->ultima_busqueda,
                             ];
                         }, $notariasMixtas),
                     ],
@@ -546,8 +547,8 @@ try {
 
 } catch (Exception $e) {
     echo "\n❌ ERROR AL GENERAR REPORTE\n";
-    echo "   Mensaje: ".$e->getMessage()."\n";
-    echo "   Archivo: ".$e->getFile()."\n";
-    echo "   Línea: ".$e->getLine()."\n\n";
+    echo '   Mensaje: '.$e->getMessage()."\n";
+    echo '   Archivo: '.$e->getFile()."\n";
+    echo '   Línea: '.$e->getLine()."\n\n";
     exit(1);
 }

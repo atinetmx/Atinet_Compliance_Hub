@@ -120,7 +120,7 @@ class SearchHistoryExport implements FromArray, WithColumnWidths, WithEvents, Wi
                 // Agregar logo de Atinet
                 $logoPath = public_path('images/logo-atinet.png');
                 if (file_exists($logoPath)) {
-                    $drawing = new Drawing();
+                    $drawing = new Drawing;
                     $drawing->setName('Atinet Logo');
                     $drawing->setDescription('Logo Atinet Compliance Hub');
                     $drawing->setPath($logoPath);
@@ -237,11 +237,11 @@ class SearchHistoryExport implements FromArray, WithColumnWidths, WithEvents, Wi
     {
         $parts = [];
 
-        if (!empty($this->filters['tipo_busqueda']) && $this->filters['tipo_busqueda'] !== 'all') {
+        if (! empty($this->filters['tipo_busqueda']) && $this->filters['tipo_busqueda'] !== 'all') {
             $parts[] = "Tipo: {$this->filters['tipo_busqueda']}";
         }
 
-        if (!empty($this->filters['dias']) && $this->filters['dias'] !== 'all') {
+        if (! empty($this->filters['dias']) && $this->filters['dias'] !== 'all') {
             $diasLabels = [
                 '7' => 'Últimos 7 días',
                 '30' => 'Últimos 30 días',
@@ -251,7 +251,7 @@ class SearchHistoryExport implements FromArray, WithColumnWidths, WithEvents, Wi
             $parts[] = $diasLabels[$this->filters['dias']] ?? "Últimos {$this->filters['dias']} días";
         }
 
-        if (!empty($this->filters['termino'])) {
+        if (! empty($this->filters['termino'])) {
             $parts[] = "Término: {$this->filters['termino']}";
         }
 

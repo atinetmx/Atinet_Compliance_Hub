@@ -119,7 +119,7 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 // Agregar logo de Atinet
                 $logoPath = public_path('images/logo-atinet.png');
                 if (file_exists($logoPath)) {
-                    $drawing = new Drawing();
+                    $drawing = new Drawing;
                     $drawing->setName('Atinet Logo');
                     $drawing->setDescription('Logo Atinet Compliance Hub');
                     $drawing->setPath($logoPath);

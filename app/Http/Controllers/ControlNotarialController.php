@@ -68,7 +68,7 @@ class ControlNotarialController extends Controller
      */
     public function expedientesExpedientes(): Response
     {
-        return Inertia::render('ControlNotarial/Expedientes/Expedientes/Index', [
+        return Inertia::render('ControlNotarial/Expedientes/AltaExpedientes/Index', [
             'expedientes' => [],
             'phase' => 'development',
             'message' => 'Módulo Expedientes en desarrollo',
@@ -108,7 +108,7 @@ class ControlNotarialController extends Controller
      */
     public function usuarios(): Response
     {
-        return Inertia::render('ControlNotarial/Configuracion/Usuarios');
+        return Inertia::render('ControlNotarial/Configuracion/Usuarios/Index');
     }
 
     /**
@@ -116,7 +116,7 @@ class ControlNotarialController extends Controller
      */
     public function altaCatalogos(): Response
     {
-        return Inertia::render('ControlNotarial/Configuracion/AltaCatalogos');
+        return Inertia::render('ControlNotarial/Configuracion/AltaCatalogos/Index');
     }
 
     /**
@@ -124,7 +124,7 @@ class ControlNotarialController extends Controller
      */
     public function reporteUsuarios(): Response
     {
-        return Inertia::render('ControlNotarial/Configuracion/ReporteUsuarios');
+        return Inertia::render('ControlNotarial/Configuracion/ReporteUsuarios/Index');
     }
 
     /**
@@ -132,7 +132,15 @@ class ControlNotarialController extends Controller
      */
     public function configuracionOperaciones(): Response
     {
-        return Inertia::render('ControlNotarial/ConfiguracionOperaciones/Index');
+        return Inertia::render('ControlNotarial/Configuracion/ConfiguracionOperaciones/Index');
+    }
+
+    /**
+     * Display notaría configuration module
+     */
+    public function notaria(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Notaria/Index');
     }
 
     /**

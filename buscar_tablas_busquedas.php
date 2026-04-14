@@ -8,14 +8,14 @@ echo "=== BUSCAR TABLAS RELACIONADAS CON BÚSQUEDAS ===\n\n";
 
 // Listar todas las tablas de la BD aplicativos
 $tables = DB::connection('aplicativos')
-    ->select("SHOW TABLES");
+    ->select('SHOW TABLES');
 
 echo "📋 Todas las tablas en atinet65_aplicativos:\n";
 echo str_repeat('-', 60)."\n";
 
 $tablesList = [];
 foreach ($tables as $table) {
-    $tableName = array_values((array)$table)[0];
+    $tableName = array_values((array) $table)[0];
     $tablesList[] = $tableName;
 
     // Contar registros
@@ -51,7 +51,7 @@ foreach ($tablesList as $tableName) {
 echo "\n";
 
 // Ver estructura de tablas relacionadas
-if (!empty($tablesRelacionadas)) {
+if (! empty($tablesRelacionadas)) {
     echo "📊 Estructura de tablas relacionadas:\n";
     echo str_repeat('-', 60)."\n";
 
@@ -65,7 +65,7 @@ if (!empty($tablesRelacionadas)) {
                 echo "    ├─ {$col->Field} ({$col->Type})\n";
             }
         } catch (Exception $e) {
-            echo "    └─ Error: ".$e->getMessage()."\n";
+            echo '    └─ Error: '.$e->getMessage()."\n";
         }
     }
 }

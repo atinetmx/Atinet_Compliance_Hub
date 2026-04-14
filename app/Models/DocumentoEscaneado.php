@@ -124,4 +124,3 @@ class DocumentoEscaneado extends Model
         return $query->where('tipo_documento', $tipo);
     }
 }
-
