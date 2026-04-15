@@ -2,6 +2,10 @@ import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users, User, Calendar, MapPin, Phone, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
+
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -180,6 +184,9 @@ const defaultClienteData: ClienteData = {
 };
 
 export default function ControlNotarialClientes() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<ClienteBusqueda[]>([]);
@@ -198,12 +205,20 @@ export default function ControlNotarialClientes() {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [isLoadingCliente, setIsLoadingCliente] = useState(false);
     const { addToast } = useToast();
-const api = useApi();
+    const api = useApi();
+
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
 
     // Cargar clientes al montar (filtro vacío = todos)
     useEffect(() => {
         fetchClientes('');
-    }, []);
+    }, [api]);
 
     const fetchClientes = async (filtroValue: string) => {
         setIsSearching(true);
@@ -214,10 +229,16 @@ const api = useApi();
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
 
-            const data = await api.get(endpoint);
+            const response = await api.get(endpoint);
+            const data = await handleControlNotarialResponse(response, {
+                onError: (msg) => setSearchError(msg || 'No se pudieron cargar los clientes'),
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (!data) return;
 
             // Mapear respuesta API a ClienteBusqueda
-            const clientesList: ClienteBusqueda[] = data.dataResponse.map((cliente: any) => ({
+            const clientesList: ClienteBusqueda[] = data.map((cliente: any) => ({
                 id: cliente.id,
                 nombre: cliente.nombre || '',
                 apellido_Paterno: cliente.apellido_Paterno || '',
@@ -260,13 +281,19 @@ const api = useApi();
     };
 
     const handleSelectCliente = async (cliente: ClienteBusqueda) => {
+        setSaveError(null);
         setIsLoadingCliente(true);
         try {
             // Llamar a la API para obtener los datos completos del cliente
-            const data = await api.get(`/Clientes/GetClientesById?clienteId=${cliente.id}`);
-            const clienteData = data.dataResponse[0]?.cliente || {};
-            const domicilios = data.dataResponse[0]?.domicilio || [];
-            const identificaciones = data.dataResponse[0]?.identificacion || [];
+            const response = await api.get(`/Clientes/GetClientesById?clienteId=${cliente.id}`);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (!data || data.length === 0) return;
+            const clienteData = data[0]?.cliente || {};
+            const domicilios = data[0]?.domicilio || [];
+            const identificaciones = data[0]?.identificacion || [];
 
             // Obtener domicilios por tipo
             const domicilioParticular = domicilios.find((d: any) => d.tipo_Domicilio?.toLowerCase() === 'particular') || domicilios[0] || {};
@@ -367,13 +394,13 @@ const api = useApi();
                 domicilio_fiscal_pais: domicilioFisico.pais ?? '',
 
                 // Datos del cónyuge
-                nombre_conyuge: data.dataResponse[0]?.conyuge?.[0]?.nombre ?? '',
-                apellido_paterno_conyuge: data.dataResponse[0]?.conyuge?.[0]?.apellido_Paterno ?? '',
-                apellido_materno_conyuge: data.dataResponse[0]?.conyuge?.[0]?.apellido_Materno ?? '',
-                doc_identificacion_conyuge: data.dataResponse[0]?.conyuge?.[0]?.tipo_Identificacion ?? '',
-                numero_doc_conyuge: data.dataResponse[0]?.conyuge?.[0]?.numero_Identificacion ?? '',
-                autoridad_emisora_conyuge: data.dataResponse[0]?.conyuge?.[0]?.autoridad_Emisora ?? '',
-                regimen_conyugal: data.dataResponse[0]?.conyuge?.[0]?.regimen_Conyugal ?? '',
+                nombre_conyuge: data[0]?.conyuge?.[0]?.nombre ?? '',
+                apellido_paterno_conyuge: data[0]?.conyuge?.[0]?.apellido_Paterno ?? '',
+                apellido_materno_conyuge: data[0]?.conyuge?.[0]?.apellido_Materno ?? '',
+                doc_identificacion_conyuge: data[0]?.conyuge?.[0]?.tipo_Identificacion ?? '',
+                numero_doc_conyuge: data[0]?.conyuge?.[0]?.numero_Identificacion ?? '',
+                autoridad_emisora_conyuge: data[0]?.conyuge?.[0]?.autoridad_Emisora ?? '',
+                regimen_conyugal: data[0]?.conyuge?.[0]?.regimen_Conyugal ?? '',
 
                 observaciones: '',
                 activo: clienteData.activo ?? false,
@@ -528,24 +555,34 @@ const api = useApi();
                 : '/Clientes/CreateClient';
 
             // Llamar a API
-            const responseData = isUpdating
+            const response = isUpdating
                 ? await api.put(endpoint, payload)
                 : await api.post(endpoint, payload);
 
-            if (responseData && responseData.message) {
-                const successMessage = isUpdating
-                    ? responseData.message || 'Cliente actualizado correctamente'
-                    : responseData.message || 'Cliente creado correctamente';
+            const responseData = await handleControlNotarialResponse(response, {
+                onError: (msg) => setSaveError(msg || 'Error al guardar el cliente'),
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
-                addToast(successMessage, 'success');
-            } else {
-                addToast(isUpdating ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente', 'success');
+            if (response?.isUnauthorized) {
+                return;
             }
 
-            setFormData(defaultClienteData);
-            setIsEditing(false);
-            setActiveTab('busqueda');
-            fetchClientes(filtro);
+            const isSuccess = response?.success !== false;
+            if (isSuccess) {
+                const successMessage = isUpdating
+                    ? response?.message || 'Cliente actualizado correctamente'
+                    : response?.message || 'Cliente creado correctamente';
+
+                addToast(successMessage, 'success');
+
+                setFormData(defaultClienteData);
+                setIsEditing(false);
+                setActiveTab('busqueda');
+                fetchClientes(filtro);
+            } else {
+                addToast(response?.message || 'Error al guardar el cliente', 'error');
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar el cliente';
             setSaveError(message);
@@ -570,6 +607,11 @@ const api = useApi();
         setActiveTab('busqueda');
     };
 
+    const handleTabChange = (tabValue: string) => {
+        setSaveError(null);
+        setActiveTab(tabValue);
+    };
+
     return (
         <>
             <Head title="Clientes - Control Notarial" />
@@ -577,7 +619,7 @@ const api = useApi();
             <div className="space-y-6 px-6 pt-6">
 
 
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <Tabs value={activeTab} onValueChange={handleTabChange}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
                         <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
                             <Search className="size-4" />
@@ -1581,6 +1623,7 @@ const api = useApi();
                     </TabsContent>
                 </Tabs>
             </div>
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
         </>
     );
 }

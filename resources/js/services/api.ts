@@ -4,10 +4,12 @@ import { usePage } from '@inertiajs/react';
  * Interfaz estándar para todas las respuestas de la API
  */
 export interface ApiResponse<T = any> {
-    message: string;          // Mensaje personalizado desde el backend
-    dataResponse?: T;          // Datos (objeto, lista, etc)
-    success?: boolean;         // Indica si la operación fue exitosa
-    statusCode?: number;       // Código HTTP
+    message: string;                 // Mensaje personalizado desde el backend
+    dataResponse?: T;                // Datos (objeto, lista, etc)
+    success?: boolean;               // Indica si la operación fue exitosa
+    operationStatus?: 'Success' | 'Information'; // Status de la operación (nuevo formato)
+    statusCode?: number;             // Código HTTP
+    isUnauthorized?: boolean;        // Indica si la respuesta fue 401 Unauthorized
 }
 
 /**
@@ -41,14 +43,41 @@ class ApiService {
     /**
      * Normaliza la respuesta del servidor a una estructura estándar
      */
-    private normalizeResponse<T = any>(data: any): ApiResponse<T> {
+    private normalizeResponse<T = any>(data: any, statusCode: number = 200): ApiResponse<T> {
+        // Detectar 401 Unauthorized
+        const isUnauthorized = statusCode === 401;
+
+        // Mapear operationStatus a success
+        // 'Success' = success true, 'Information' = success false
+        let success = !isUnauthorized;
+        if (data?.operationStatus === 'Success') {
+            success = true;
+        } else if (data?.operationStatus === 'Information') {
+            success = false;
+        } else if (data?.success !== undefined) {
+            success = data.success;
+        }
+
         // Si ya tiene la estructura correcta, devolverla
         if (data?.message !== undefined && (data?.dataResponse !== undefined || data?.message)) {
             return {
-                message: data.message || 'Operación completada',
+                message: data.message || (isUnauthorized ? 'No autorizado' : 'Operación completada'),
                 dataResponse: data.dataResponse,
-                success: data.success !== undefined ? data.success : true,
-                statusCode: data.statusCode,
+                success: success,
+                operationStatus: data.operationStatus,
+                statusCode: statusCode,
+                isUnauthorized,
+            };
+        }
+
+        // Si es un 401, retornar respuesta de no autorizado
+        if (isUnauthorized) {
+            return {
+                message: 'No autorizado',
+                dataResponse: undefined,
+                success: false,
+                statusCode: 401,
+                isUnauthorized: true,
             };
         }
 
@@ -59,6 +88,7 @@ class ApiService {
                 dataResponse: data.dataResponse,
                 success: true,
                 statusCode: 200,
+                isUnauthorized: false,
             };
         }
 
@@ -69,6 +99,7 @@ class ApiService {
                 dataResponse: data,
                 success: true,
                 statusCode: 200,
+                isUnauthorized: false,
             };
         }
 
@@ -77,7 +108,8 @@ class ApiService {
             message: typeof data === 'string' ? data : 'Error desconocido',
             dataResponse: undefined,
             success: false,
-            statusCode: 500,
+            statusCode: statusCode || 500,
+            isUnauthorized,
         };
     }
 
@@ -96,8 +128,23 @@ class ApiService {
             headers,
         });
 
-        const data = await response.json();
-        return this.normalizeResponse<T>(data);
+        const contentType = response.headers.get('content-type');
+        let data;
+
+        // Validar content-type antes de parsear JSON
+        if (contentType?.includes('application/json')) {
+            try {
+                data = await response.json();
+            } catch (e) {
+                // Si falla el parsing de JSON, usar respuesta vacía
+                data = {};
+            }
+        } else {
+            const text = await response.text();
+            data = text || {};
+        }
+
+        return this.normalizeResponse<T>(data, response.status);
     }
 
     /**
@@ -128,13 +175,17 @@ class ApiService {
         let data;
 
         if (contentType?.includes('application/json')) {
-            data = await response.json();
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
         } else {
             const text = await response.text();
             data = text || 'Operación completada';
         }
 
-        return this.normalizeResponse<T>(data);
+        return this.normalizeResponse<T>(data, response.status);
     }
 
     /**
@@ -165,13 +216,17 @@ class ApiService {
         let data;
 
         if (contentType?.includes('application/json')) {
-            data = await response.json();
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
         } else {
             const text = await response.text();
             data = text || 'Operación completada';
         }
 
-        return this.normalizeResponse<T>(data);
+        return this.normalizeResponse<T>(data, response.status);
     }
 
     /**
@@ -189,8 +244,23 @@ class ApiService {
             headers,
         });
 
-        const data = await response.json();
-        return this.normalizeResponse<T>(data);
+        const contentType = response.headers.get('content-type');
+        let data;
+
+        // Validar content-type antes de parsear JSON
+        if (contentType?.includes('application/json')) {
+            try {
+                data = await response.json();
+            } catch (e) {
+                // Si falla el parsing de JSON, usar respuesta vacía
+                data = {};
+            }
+        } else {
+            const text = await response.text();
+            data = text || {};
+        }
+
+        return this.normalizeResponse<T>(data, response.status);
     }
 }
 

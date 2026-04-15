@@ -2,6 +2,8 @@ import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Database, FileText, AlertTriangle, Building2, File, Briefcase, DollarSign, Users, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 // Interfaces para cada tipo de catálogo
 interface CatalogoItem {
@@ -107,8 +110,17 @@ export default function ControlNotarialAltaCatalogos() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
     const api = useApi();
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -193,9 +205,13 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const data = await api.get('/Catalogos/GetActividadesVulnerables');
-            if (data) {
-                setActividadesVulnerablesLista(data.dataResponse || []);
+            const response = await api.get('/Catalogos/GetActividadesVulnerables');
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+            if (datos) {
+                setActividadesVulnerablesLista(datos);
             }
         } catch (error) {
             console.error('Error cargando actividades vulnerables:', error);
@@ -204,9 +220,13 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const data = await api.get('/Catalogos/GetDependenciasPublicas');
-            if (data) {
-                setDependenciasLista(data.dataResponse || []);
+            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+            if (datos) {
+                setDependenciasLista(datos);
             }
         } catch (error) {
             console.error('Error cargando dependencias públicas:', error);
@@ -218,15 +238,26 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const data = await api.get(`/Catalogos/${endpoint}`);
+            const response = await api.get(`/Catalogos/${endpoint}`);
 
-            // Mostrar resultados si existen en dataResponse, o mostrar el mensaje si no (incluso en 400)
-            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
-                setTodosLosResultados(data.dataResponse);
-                setResultados(data.dataResponse);
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => setSearchError(msg),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+
+            // Si fue 401, no mostrar error adicional (ya se maneja en onUnauthorized)
+            if (response?.isUnauthorized) {
+                setTodosLosResultados([]);
+                setResultados([]);
+                return;
+            }
+
+            if (datos && Array.isArray(datos)) {
+                setTodosLosResultados(datos);
+                setResultados(datos);
                 setSearchError(null);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los datos.');
+                setSearchError('No se pudieron cargar los datos.');
                 setTodosLosResultados([]);
                 setResultados([]);
             }
@@ -445,15 +476,29 @@ export default function ControlNotarialAltaCatalogos() {
 
             console.log(`[DEBUG] Enviando ${isEditing ? 'PUT' : 'POST'} a Catalogos/${endpoint}`, payload);
 
-            const data = isEditing
+            const response = isEditing
                 ? await api.put(`/Catalogos/${endpoint}`, payload)
                 : await api.post(`/Catalogos/${endpoint}`, payload);
 
-            console.log(`[DEBUG] Response:`, data);
+            console.log(`[DEBUG] Response:`, response);
 
-            addToast(data?.message || `Catálogo guardado correctamente`, 'success');
-            handleCancelEdit();
-            cargarCatalogoActual();
+            // Verificar si fue 401
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
+            const isSuccess = response?.success !== false;
+
+            if (isSuccess) {
+                addToast(response?.message || `Catálogo guardado correctamente`, 'success');
+                handleCancelEdit();
+                cargarCatalogoActual();
+            } else {
+                setSaveError(response?.message || 'Error al guardar el catálogo');
+                addToast(response?.message || 'Error al guardar el catálogo', 'error');
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
             console.error('[DEBUG] Error:', message);
@@ -884,6 +929,12 @@ export default function ControlNotarialAltaCatalogos() {
                     </Tabs>
                 </div>
             </div>
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
         </>
     );
 }

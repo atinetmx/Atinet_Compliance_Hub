@@ -2,6 +2,10 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import  LoginModal   from '@/components/Modals/LoginModal';
+import { useToast } from '@/contexts/ToastContext';
 
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -31,7 +35,11 @@ interface ConfiguracionEditada extends ConfiguracionTarifaria {
 }
 
 export default function ConfiguracionesTarifariasIndex() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     const api = useApi();
+    const { addToast } = useToast();
     const [zonasMunicipios, setZonasMunicipios] = useState<ZonaMunicipio[]>([]);
     const [selectedZona, setSelectedZona] = useState<string>('');
     const [loading, setLoading] = useState(false);
@@ -63,9 +71,17 @@ export default function ConfiguracionesTarifariasIndex() {
         },
     ];
 
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
+
     useEffect(() => {
         fetchZonasMunicipios();
-    }, []);
+    }, [api]);
 
     useEffect(() => {
         if (selectedZona) {
@@ -77,11 +93,12 @@ export default function ConfiguracionesTarifariasIndex() {
     const fetchZonasMunicipios = async () => {
         setLoading(true);
         try {
-            const data = await api.get('/Catalogos/GetZonasMunicipios');
-            if (data && data.dataResponse) {
-                setZonasMunicipios(data.dataResponse);
-            } else {
-                console.error('Error:', data?.message || 'No se pudieron cargar las zonas/municipios.');
+            const response = await api.get('/Catalogos/GetZonasMunicipios');
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (data) {
+                setZonasMunicipios(data);
             }
         } catch (error) {
             console.error('Error fetching zonas municipios:', error);
@@ -93,16 +110,18 @@ export default function ConfiguracionesTarifariasIndex() {
     const fetchConfiguracionesTarifarias = async (zonaMunicipioId: string) => {
         setLoadingTarifas(true);
         try {
-            const data = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaImpuestosDerechos?zonaMunicipioId=${zonaMunicipioId}`);
-            if (data && data.dataResponse) {
-                const configuraciones = data.dataResponse.map((config: ConfiguracionTarifaria) => ({
+            const response = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaImpuestosDerechos?zonaMunicipioId=${zonaMunicipioId}`);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (data) {
+                const configuraciones = data.map((config: ConfiguracionTarifaria) => ({
                     ...config,
                     tipoLleno: null as ConfiguracionEditada['tipoLleno'],
                 }));
                 setConfiguracionesTarifarias(configuraciones);
             } else {
                 setConfiguracionesTarifarias([]);
-                console.error('Error:', data?.message || 'No se pudieron cargar las configuraciones tarifarias.');
             }
         } catch (error) {
             console.error('Error fetching configuraciones tarifarias:', error);
@@ -115,16 +134,18 @@ export default function ConfiguracionesTarifariasIndex() {
     const fetchConfiguracionesHonorarios = async (zonaMunicipioId: string) => {
         setLoadingHonorarios(true);
         try {
-            const data = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaHonorarios?zonaMunicipioId=${zonaMunicipioId}`);
-            if (data && data.dataResponse) {
-                const configuraciones = data.dataResponse.map((config: ConfiguracionTarifaria) => ({
+            const response = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaHonorarios?zonaMunicipioId=${zonaMunicipioId}`);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (data) {
+                const configuraciones = data.map((config: ConfiguracionTarifaria) => ({
                     ...config,
                     tipoLleno: null as ConfiguracionEditada['tipoLleno'],
                 }));
                 setConfiguracionesHonorarios(configuraciones);
             } else {
                 setConfiguracionesHonorarios([]);
-                console.error('Error:', data?.message || 'No se pudieron cargar los honorarios.');
             }
         } catch (error) {
             console.error('Error fetching configuraciones honorarios:', error);
@@ -149,10 +170,21 @@ export default function ConfiguracionesTarifariasIndex() {
                 ? `/ConfiguracionTarifaria/UpdateConfiguracionTarifariaHonorarios?configuracionId=${config.id}`
                 : `/ConfiguracionTarifaria/UpdateConfiguracionTarifariaImpuestosDerechos?configuracionId=${config.id}`;
 
-            await api.put(endpoint, payload);
-            console.log(`Configuración ${config.id} guardada correctamente`);
+            const response = await api.put(endpoint, payload);
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            const isSuccess = response?.success !== false;
+            if (isSuccess) {
+                const tabName = tab === 'honorarios' ? 'Honorario' : 'Tarifa';
+                addToast(response?.message || `${tabName} actualizado correctamente`, 'success');
+            } else {
+                addToast(response?.message || 'Error al guardar la configuración', 'error');
+            }
         } catch (error) {
             console.error(`Error guardando configuración ${config.id}:`, error);
+            addToast('Error al guardar la configuración', 'error');
         } finally {
             setSavingConfigId(null);
         }
@@ -245,17 +277,26 @@ export default function ConfiguracionesTarifariasIndex() {
                 })),
             };
 
-            await api.post('/ConfiguracionTarifaria/UpdateConfiguracionTarifaria', payload);
-            console.log('Cambios guardados correctamente');
+            const response = await api.post('/ConfiguracionTarifaria/UpdateConfiguracionTarifaria', payload);
+            await handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg || 'Error al guardar cambios', 'error'),
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            const isSuccess = response?.success !== false;
+            if (isSuccess) {
+                addToast(response?.message || 'Cambios guardados correctamente', 'success');
+            }
         } catch (error) {
             console.error('Error guardando cambios:', error);
+            addToast('Error al guardar cambios', 'error');
         } finally {
             setIsSaving(false);
         }
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <>
             <Head title="Configuraciones Tarifarias - Control Notarial" />
 
             <div className="min-h-screen space-y-6 p-6">
@@ -580,6 +621,18 @@ export default function ConfiguracionesTarifariasIndex() {
                     </div>
                 )}
             </div>
-        </AppLayout>
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+        </>
     );
 }
+
+ConfiguracionesTarifariasIndex.layout = (page: React.ReactNode) => (
+    <AppLayout breadcrumbs={[
+        { title: 'Dashboard', href: '/dashboard' },
+        { title: 'Control Notarial', href: '/admin/control-notarial' },
+        { title: 'Configuración', href: '/admin/control-notarial/configuracion' },
+        { title: 'Configuraciones Tarifarias', href: '/admin/control-notarial/configuraciones-tarifarias' },
+    ]}>
+        {page}
+    </AppLayout>
+);

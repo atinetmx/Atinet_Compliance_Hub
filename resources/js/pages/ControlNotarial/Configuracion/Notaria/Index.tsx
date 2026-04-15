@@ -17,6 +17,9 @@ import {
 import { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,7 +110,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
-const api = useApi();
+    const api = useApi();
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
     const [notariaData, setNotariaData] = useState<NotariaData>({
         nombre: '',
         domicilio: '',
@@ -173,29 +185,38 @@ const api = useApi();
                 setIsLoading(true);
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
-                if (!response.dataResponse) {
+                const notaria = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
+                if (!notaria && !response?.isUnauthorized) {
                     throw new Error('Error al obtener la configuracion');
                 }
 
-                const notaria = response.dataResponse;
+                // Si fue 401, detener aquí
+                if (!notaria && response?.isUnauthorized) {
+                    return;
+                }
 
                 // Capturar el ID (puede ser id, idConfiguracionNotaria, configuracionId, etc.)
-                const id = notaria.id || notaria.idConfiguracionNotaria || notaria.configuracionId || notaria.numero_Notaria;
+                const id = notaria!.id || notaria!.idConfiguracionNotaria || notaria!.configuracionId || notaria!.numero_Notaria;
                 setConfigId(id);
 
-                console.log('Datos completos de la API:', notaria); // Para debugging
+                console.log('Datos completos de la API:', notaria);
 
                 // Mapear los datos de la API a los campos del formulario
                 setNotariaData({
-                    nombre: notaria.nombre_Notario || '',
-                    domicilio: notaria.domicilio || '',
-                    telefono: notaria.telefono || '',
-                    municipio: notaria.municipio || '',
-                    estado: notaria.estado || '',
-                    ciudad: notaria.ciudad || '',
-                    notaria_numero: notaria.numero_Notaria || '',
-                    codigo_postal: notaria.codigo_Postal || '',
-                    imagen: notaria.logotipo ? `data:image/png;base64,${notaria.logotipo}` : null,
+                    nombre: notaria!.nombre_Notario || '',
+                    domicilio: notaria!.domicilio || '',
+                    telefono: notaria!.telefono || '',
+                    municipio: notaria!.municipio || '',
+                    estado: notaria!.estado || '',
+                    ciudad: notaria!.ciudad || '',
+                    notaria_numero: notaria!.numero_Notaria || '',
+                    codigo_postal: notaria!.codigo_Postal || '',
+                    imagen: notaria!.logotipo ? `data:image/png;base64,${notaria!.logotipo}` : null,
                 });
 
             } catch (error) {
@@ -208,7 +229,7 @@ const api = useApi();
         };
 
         fetchConfiguracionNotaria();
-    }, [addToast]);
+    }, [addToast, api]);
 
     // Cargar datos de Control, Cálculos y Folios
     useEffect(() => {
@@ -216,49 +237,58 @@ const api = useApi();
             try {
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
 
-                if (!response.dataResponse) {
-                    throw new Error(response.message || 'Error al obtener la configuración de control');
+                const config = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
+                if (!config && !response?.isUnauthorized) {
+                    throw new Error('Error al obtener la configuración de control');
                 }
 
-                const config = response.dataResponse;
+                // Si fue 401, detener aquí
+                if (!config && response?.isUnauthorized) {
+                    return;
+                }
 
                 console.log('Datos de Control, Cálculos y Folios:', config);
 
                 // Capturar el ID del control
-                setControlConfigId(config.id);
+                setControlConfigId(config!.id);
 
                 // Mapear datos de Control
                 setControlData({
-                    expediente: parseInt(config.expediente) || 0,
-                    acta_fuera_protocolo: parseInt(config.acta_Fuera_Protocolo) || 0,
-                    certificacion: parseInt(config.certificado) || 0,
-                    recibo_honorarios: parseInt(config.recibo_Honorarios) || 0,
-                    ratificacion: parseInt(config.ratificacion) || 0,
-                    recibo_general: parseInt(config.recibo_Provisional) || 0,
-                    cotejo: parseInt(config.cotejo) || 0,
+                    expediente: parseInt(config!.expediente) || 0,
+                    acta_fuera_protocolo: parseInt(config!.acta_Fuera_Protocolo) || 0,
+                    certificacion: parseInt(config!.certificado) || 0,
+                    recibo_honorarios: parseInt(config!.recibo_Honorarios) || 0,
+                    ratificacion: parseInt(config!.ratificacion) || 0,
+                    recibo_general: parseInt(config!.recibo_Provisional) || 0,
+                    cotejo: parseInt(config!.cotejo) || 0,
                 });
 
                 // Mapear datos de Cálculos
                 setCalculosData({
-                    iva: parseFloat(config.iva) || 0,
-                    ret_iva: parseFloat(config.retencion_IVA) || 0,
-                    ret_isr: parseFloat(config.isr) || 0,
-                    salario: parseFloat(config.salario) || 0,
-                    uma: parseFloat(config.uma) || 0,
+                    iva: parseFloat(config!.iva) || 0,
+                    ret_iva: parseFloat(config!.retencion_IVA) || 0,
+                    ret_isr: parseFloat(config!.isr) || 0,
+                    salario: parseFloat(config!.salario) || 0,
+                    uma: parseFloat(config!.uma) || 0,
                 });
 
                 // Mapear datos de Folios
                 setFoliosData({
-                    tomo_inicial_instrumentos: parseInt(config.tomo_Inicial_Instrumentos) || 0,
-                    volumenes_por_tomo_instrumentos: parseInt(config.volumen_Tomo_Instrumentos) || 0,
-                    folios_por_volumen_instrumentos: parseInt(config.folio_Volumen_Instrumentos) || 0,
-                    volumen_inicial_instrumentos: parseInt(config.volumen_Inicial_Instrumentos) || 0,
-                    folio_inicial_por_tomo_instrumentos: parseInt(config.folio_Inicial_Tomo_Instrumentos) || 0,
-                    tomo_inicial_certificaciones: parseInt(config.tomo_Inicial_Certificaciones) || 0,
-                    volumenes_por_tomo_certificaciones: parseInt(config.volumen_Tomo_Certificaciones) || 0,
-                    folios_por_volumen_certificaciones: parseInt(config.folios_Volumen_Certificaciones) || 0,
-                    volumen_inicial_certificaciones: parseInt(config.volumen_Inicial_Certificaciones) || 0,
-                    folio_inicial_por_tomo_certificaciones: parseInt(config.folio_Inicial_Tomo_Certificaciones) || 0,
+                    tomo_inicial_instrumentos: parseInt(config!.tomo_Inicial_Instrumentos) || 0,
+                    volumenes_por_tomo_instrumentos: parseInt(config!.volumen_Tomo_Instrumentos) || 0,
+                    folios_por_volumen_instrumentos: parseInt(config!.folio_Volumen_Instrumentos) || 0,
+                    volumen_inicial_instrumentos: parseInt(config!.volumen_Inicial_Instrumentos) || 0,
+                    folio_inicial_por_tomo_instrumentos: parseInt(config!.folio_Inicial_Tomo_Instrumentos) || 0,
+                    tomo_inicial_certificaciones: parseInt(config!.tomo_Inicial_Certificaciones) || 0,
+                    volumenes_por_tomo_certificaciones: parseInt(config!.volumen_Tomo_Certificaciones) || 0,
+                    folios_por_volumen_certificaciones: parseInt(config!.folios_Volumen_Certificaciones) || 0,
+                    volumen_inicial_certificaciones: parseInt(config!.volumen_Inicial_Certificaciones) || 0,
+                    folio_inicial_por_tomo_certificaciones: parseInt(config!.folio_Inicial_Tomo_Certificaciones) || 0,
                 });
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Error al cargar la configuración de control';
@@ -268,7 +298,7 @@ const api = useApi();
         };
 
         fetchConfiguracionControl();
-    }, [addToast]);
+    }, [addToast, api]);
 
     const handleSave = async () => {
         try {
@@ -297,11 +327,19 @@ const api = useApi();
                 console.log('Enviando FormData con imagen:', notariaData.imagenFile.name);
             }
 
-
             const notariaResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
-            if (!notariaResponse.success) {
-                throw new Error(notariaResponse.message);
+            // Verificar si fue 401
+            if (notariaResponse?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
+            const notariaSuccess = notariaResponse?.success !== false;
+
+            if (!notariaSuccess) {
+                throw new Error(notariaResponse?.message || 'Error al guardar la configuración de notaría');
             }
 
             console.log('Configuración de notaría guardada:', notariaResponse);
@@ -342,14 +380,23 @@ const api = useApi();
 
                 const controlResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
 
-                if (!controlResponse.success) {
-                    throw new Error(controlResponse.message);
+                // Verificar si fue 401
+                if (controlResponse?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
+
+                // Verificar si fue éxito
+                const controlSuccess = controlResponse?.success !== false;
+
+                if (!controlSuccess) {
+                    throw new Error(controlResponse?.message || 'Error al guardar la configuración de control');
                 }
                 console.log('Control guardado:', controlResponse);
             }
 
             // Mostrar mensaje del servidor
-            addToast(notariaResponse.message, 'success');
+            addToast(notariaResponse?.message || 'Configuración guardada correctamente', 'success');
             setSaveError(null);
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
@@ -1203,6 +1250,12 @@ const api = useApi();
             </div>
 
         </div>
+
+        <LoginModal
+            isOpen={loginModalOpen}
+            onClose={() => setLoginModalOpen(false)}
+            onSuccess={() => setLoginModalOpen(false)}
+        />
         </>
     );
 }

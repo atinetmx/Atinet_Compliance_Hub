@@ -1,6 +1,11 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users, Lock, Shield, FileText, Clock, CheckCircle } from 'lucide-react';
-import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
+import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,6 +78,9 @@ const defaultUsuarioData: UsuarioData = {
 };
 
 export default function ControlNotarialUsuarios() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<UsuarioBusqueda[]>([]);
@@ -91,33 +99,41 @@ export default function ControlNotarialUsuarios() {
     const [cambiarContraseña, setCambiarContraseña] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
-const api = useApi();
+    const api = useApi();
+
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'warning');
+        },
+    });
 
     // Cargar usuarios al montar (filtro vacío = todos)
     useEffect(() => {
         fetchUsuarios('');
-    }, []);
+    }, [api]);
 
     // Cargar roles al montar
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const data = await api.get('/Catalogos/GetRoles');
-                if (data && data.dataResponse) {
-                    setRoles(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener los roles');
+                const response = await api.get('/Catalogos/GetRoles');
+                const data = await handleControlNotarialResponse(response, {
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
+
+                if (data) {
+                    setRoles(data || []);
                 }
             } catch (error) {
                 console.error('Error cargando roles:', error);
-                const message = error instanceof Error ? error.message : 'Error al cargar los roles';
-                addToast(message, 'error');
             } finally {
                 setIsLoadingRoles(false);
             }
         };
         fetchRoles();
-    }, []);
+    }, [api]);
 
     const fetchUsuarios = async (filtroValue: string) => {
         setIsSearching(true);
@@ -127,15 +143,13 @@ const api = useApi();
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
+            const response = await api.get(endpoint);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
-            // Si data existe, mostrar datos
-            if (data && data.dataResponse) {
-                setResultados(data.dataResponse || []);
-            } else {
-                // Si la API devolvió un mensaje, mostrar ese mensaje
-                setSearchError(data?.message || 'No se pudieron cargar los usuarios.');
-                setResultados([]);
+            if (data) {
+                setResultados(data || []);
             }
         } catch (error) {
             console.error('Error buscando usuarios:', error);
@@ -189,9 +203,16 @@ const api = useApi();
                     observaciones: formData.observaciones,
                     activo: formData.activo,
                 };
-                const resData = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
+                const response = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
+                const responseData = await handleControlNotarialResponse(response, {
+                    onError: (msg) => setSaveError(msg || 'Error al actualizar'),
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
 
-                addToast(resData?.message || resData?.dataResponse?.message || 'Usuario actualizado correctamente', 'success');
+                const isSuccess = response?.success !== false;
+                if (isSuccess) {
+                    addToast(response?.message || 'Usuario actualizado correctamente', 'success');
+                }
                 setFormData(defaultUsuarioData);
                 setIsEditing(false);
                 setActiveTab('busqueda');
@@ -225,9 +246,16 @@ const api = useApi();
                     observaciones: formData.observaciones,
                     activo: formData.activo,
                 };
-                const resData = await api.post('/User/CreateUsuario', payload);
+                const response = await api.post('/User/CreateUsuario', payload);
+                const responseData = await handleControlNotarialResponse(response, {
+                    onError: (msg) => setSaveError(msg || 'Error al crear'),
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
 
-                addToast(resData?.message || resData?.dataResponse?.message || 'Usuario creado correctamente', 'success');
+                const isSuccess = response?.success !== false;
+                if (isSuccess) {
+                    addToast(response?.message || 'Usuario creado correctamente', 'success');
+                }
                 setFormData(defaultUsuarioData);
                 setIsEditing(false);
                 setActiveTab('busqueda');
@@ -245,17 +273,19 @@ const api = useApi();
     const [isLoadingUsuario, setIsLoadingUsuario] = useState(false);
 
     const handleSelectUsuario = async (usuario: UsuarioBusqueda) => {
+        setSaveError(null);
         setIsLoadingUsuario(true);
         setIsEditing(true);
         setCambiarContraseña(false);
-        setSaveError(null);
         setActiveTab('formulario');
         try {
-            const data = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
-            if (!data || !data.dataResponse) {
-                throw new Error(data?.message || 'Error al obtener el usuario');
-            }
-            const u = data.dataResponse;
+            const response = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (!data) return;
+            const u = data;
             setFormData({
                 id: u.id,
                 iniciales: u.iniciales ?? '',
@@ -276,8 +306,6 @@ const api = useApi();
                 activo: u.activo,
             });
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Error al cargar el usuario';
-            addToast(message, 'error');
             setIsEditing(false);
             setActiveTab('busqueda');
         } finally {
@@ -291,6 +319,11 @@ const api = useApi();
         setCambiarContraseña(false);
         setSaveError(null);
         setActiveTab('busqueda');
+    };
+
+    const handleTabChange = (tabValue: string) => {
+        setSaveError(null);
+        setActiveTab(tabValue);
     };
 
     const handleSave = async () => {
@@ -311,7 +344,7 @@ const api = useApi();
             <Head title="Usuarios - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
                         <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
                             <Search className="size-4" />
@@ -773,6 +806,7 @@ const api = useApi();
                     </TabsContent>
                 </Tabs>
             </div>
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
         </>
     );
 }

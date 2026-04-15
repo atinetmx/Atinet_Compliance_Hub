@@ -92,7 +92,7 @@ export async function logout(): Promise<void> {
         const authApi = new ApiService(authApiBaseUrl);
 
         // Llamar al API de logout
-        await authApi.post('/Login/Logout', {});
+        await authApi.post('/api/Login/Logout', {});
 
         // Limpiar el token
         removeToken();

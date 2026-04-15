@@ -2,6 +2,8 @@ import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -135,6 +138,9 @@ const formatCurrency = (value: number): string => {
 };
 
 export default function PresupuestoPrevioIndex() {
+    // --- Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<PresupuestoPrevioBusqueda[]>([]);
@@ -194,6 +200,14 @@ export default function PresupuestoPrevioIndex() {
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
+
     // Cargar presupuestos al montar (filtro vacío = todos)
     useEffect(() => {
         fetchPresupuestos('');
@@ -204,11 +218,16 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const data = await api.get('/Clientes/GetClientes');
-                if (data && data.dataResponse) {
-                    setClientes(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener los clientes');
+                const response = await api.get('/Clientes/GetClientes');
+
+                // ✅ Usar helper para manejar respuesta
+                const datos = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                if (datos) {
+                    setClientes(datos);
                 }
             } catch (error) {
                 console.error('Error cargando clientes:', error);
@@ -226,11 +245,16 @@ export default function PresupuestoPrevioIndex() {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const data = await api.get('/Catalogos/GetOperaciones');
-                if (data && data.dataResponse) {
-                    setOperaciones(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener las operaciones');
+                const response = await api.get('/Catalogos/GetOperaciones');
+
+                // ✅ Usar helper
+                const datos = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                if (datos) {
+                    setOperaciones(datos);
                 }
             } catch (error) {
                 console.error('Error cargando operaciones:', error);
@@ -248,11 +272,16 @@ export default function PresupuestoPrevioIndex() {
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
-                const data = await api.get('/Catalogos/GetZonasMunicipios');
-                if (data && data.dataResponse) {
-                    setZonas(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener las zonas/municipios');
+                const response = await api.get('/Catalogos/GetZonasMunicipios');
+
+                // ✅ Usar helper
+                const datos = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                if (datos) {
+                    setZonas(datos);
                 }
             } catch (error) {
                 console.error('Error cargando zonas:', error);
@@ -660,17 +689,30 @@ export default function PresupuestoPrevioIndex() {
                 ? `/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
                 : '/Presupuestos/CreatePresupuestoPrevio';
 
-            const data = isEditing && formData.id
+            const response = isEditing && formData.id
                 ? await api.put(url, payload)
                 : await api.post(url, payload);
 
-            if (data) {
+            // Verificar si fue 401
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            // Verificar si fue éxito
+            const isSuccess = response?.success !== false;
+
+            if (isSuccess) {
+                addToast(response?.message || `Presupuesto ${isEditing ? 'actualizado' : 'creado'} correctamente`, 'success');
                 setFormData(defaultPresupuestoData);
                 setOperacionFiltro('');
                 setZonaFiltro('');
                 setIsEditing(false);
                 setActiveTab('busqueda');
                 fetchPresupuestos(filtro);
+            } else {
+                setSaveError(response?.message || 'Error al guardar el presupuesto');
+                addToast(response?.message || 'Error al guardar el presupuesto', 'error');
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
@@ -690,13 +732,23 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const data = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
+            const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
 
-            if (!data || !data.dataResponse) {
+            const data_response = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+
+            // Si fue 401, detener aquí
+            if (!data_response && response?.isUnauthorized) {
+                setIsEditing(false);
+                return;
+            }
+
+            if (!data_response) {
                 throw new Error('Error al obtener los detalles del presupuesto');
             }
 
-            const data_response = data.dataResponse;
             const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
 
             // Mapear impuestos y derechos al formato DetalleItem
@@ -1881,6 +1933,12 @@ export default function PresupuestoPrevioIndex() {
                     </div>
                 </div>
             )}
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
         </>
     );
 }

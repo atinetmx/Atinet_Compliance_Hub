@@ -2,6 +2,10 @@ import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building, Users } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
+import { useToast } from '@/contexts/ToastContext';
 // Opciones de ejemplo para los dropdowns
 const TIPO_FACTURA_OPCIONES = [
     { value: 'factura', label: 'Factura' },
@@ -30,7 +34,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import { useToast } from '@/contexts/ToastContext';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -220,11 +223,23 @@ const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlF
 );
 
 export default function ExpedientesIndex() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const { addToast } = useToast();
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<BusquedaResultado[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
+
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
 
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');
@@ -571,7 +586,6 @@ export default function ExpedientesIndex() {
     // Ref para debounce de actualización de documentos individuales
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
 
-    const { addToast } = useToast();
     const api = useApi();
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
@@ -643,11 +657,19 @@ export default function ExpedientesIndex() {
     const fetchPresupuestos = async (expedienteId: number) => {
         setCargandoPresupuestos(true);
         try {
-            const data = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
-            if (data && data.dataResponse) {
-                setPresupuestos(data.dataResponse);
-            } else {
+            const response = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
                 setPresupuestos([]);
+            } else {
+                const data = response?.dataResponse;
+                if (data) {
+                    setPresupuestos(data);
+                } else {
+                    setPresupuestos([]);
+                }
             }
         } catch (error) {
             console.error('Error cargando presupuestos:', error);
@@ -661,10 +683,17 @@ export default function ExpedientesIndex() {
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const data = await api.get('/Catalogos/GetOperaciones');
-            if (data && data.dataResponse) {
-                setOperacionesDisponibles(data.dataResponse);
-                setOperacionesFiltradas(data.dataResponse);
+            const response = await api.get('/Catalogos/GetOperaciones');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setOperacionesDisponibles(data);
+                setOperacionesFiltradas(data);
             }
         } catch (error) {
             console.error('Error cargando operaciones:', error);
@@ -677,10 +706,17 @@ export default function ExpedientesIndex() {
     const fetchMunicipios = async () => {
         setCargandoMunicipios(true);
         try {
-            const data = await api.get('/Catalogos/GetZonasMunicipios');
-            if (data && data.dataResponse) {
-                setMunicipiosDisponibles(data.dataResponse);
-                setMunicipiosFiltrados(data.dataResponse);
+            const response = await api.get('/Catalogos/GetZonasMunicipios');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setMunicipiosDisponibles(data);
+                setMunicipiosFiltrados(data);
             }
         } catch (error) {
             console.error('Error cargando municipios:', error);
@@ -693,9 +729,16 @@ export default function ExpedientesIndex() {
     const fetchUsuarios = async () => {
         setCargandoUsuarios(true);
         try {
-            const data = await api.get('/User/GetRolesUsuarios');
-            if (data && data.dataResponse) {
-                setUsuarios(data.dataResponse);
+            const response = await api.get('/User/GetRolesUsuarios');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setUsuarios(data);
             }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
@@ -708,10 +751,17 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const data = await api.get('/Catalogos/GetDependenciasPublicas');
-            if (data && data.dataResponse) {
-                setDependenciasDisponibles(data.dataResponse);
-                setDependenciasFiltradas(data.dataResponse);
+            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setDependenciasDisponibles(data);
+                setDependenciasFiltradas(data);
             }
         } catch (error) {
             console.error('Error cargando dependencias:', error);
@@ -723,10 +773,17 @@ export default function ExpedientesIndex() {
     const fetchClientes = async () => {
         setCargandoClientes(true);
         try {
-            const data = await api.get('/Clientes/GetClientes');
-            if (data && data.dataResponse) {
-                setClientesDisponibles(data.dataResponse);
-                setClientesFiltrados(data.dataResponse);
+            const response = await api.get('/Clientes/GetClientes');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setClientesDisponibles(data);
+                setClientesFiltrados(data);
             }
         } catch (error) {
             console.error('Error cargando clientes:', error);
@@ -737,23 +794,24 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const data = await api.get('/Catalogos/GetComparecientes');
-            console.log('Respuesta Comparecientes:', data);
-            if (data) {
-                // Manejar diferentes formatos de respuesta
-                const comparecientes = data.dataResponse || data.data || data;
-                if (Array.isArray(comparecientes)) {
-                    setComparecientesDisponibles(comparecientes);
-                    console.log('Comparecientes cargados:', comparecientes);
-                } else {
-                    console.warn('Formato de respuesta inesperado para comparecientes');
-                }
+            const response = await api.get('/Catalogos/GetComparecientes');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            console.log('Respuesta Comparecientes:', response);
+            // Manejar diferentes formatos de respuesta
+            const comparecientes = response?.dataResponse || response?.data || response;
+            if (Array.isArray(comparecientes)) {
+                setComparecientesDisponibles(comparecientes);
+                console.log('Comparecientes cargados:', comparecientes);
             } else {
-                console.error('Error en respuesta del servidor:', data);
+                console.warn('Formato de respuesta inesperado para comparecientes');
             }
         } catch (error) {
             console.error('Error cargando comparecientes:', error);
-            addToast('No se pudieron cargar los comparecientes', 'error', 4000);
         }
     };
 
@@ -761,14 +819,21 @@ export default function ExpedientesIndex() {
     const fetchTiposInmuebles = async () => {
         setCargandoTiposInmuebles(true);
         try {
-            const data = await api.get('/Catalogos/GetTipoInmueble');
-            if (data && data.dataResponse) {
-                setTiposInmuebles(data.dataResponse);
+            const response = await api.get('/Catalogos/GetTipoInmueble');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setTiposInmuebles(data);
 
                 // Filtrar por categoría
-                const factura = data.dataResponse.filter((item: any) => item.categoria === 'FACTURA');
-                const inmueble = data.dataResponse.filter((item: any) => item.categoria === 'INMUEBLE');
-                const declaranot = data.dataResponse.filter((item: any) => item.categoria === 'DECLARANOT');
+                const factura = data.filter((item: any) => item.categoria === 'FACTURA');
+                const inmueble = data.filter((item: any) => item.categoria === 'INMUEBLE');
+                const declaranot = data.filter((item: any) => item.categoria === 'DECLARANOT');
 
                 setTiposFactura(factura.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
                 setTiposInmuebleFiltrados(inmueble.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
@@ -778,7 +843,6 @@ export default function ExpedientesIndex() {
             }
         } catch (error) {
             console.error('Error cargando tipos de inmuebles:', error);
-            addToast('No se pudieron cargar los tipos de inmuebles', 'error', 4000);
         } finally {
             setCargandoTiposInmuebles(false);
         }
@@ -923,7 +987,15 @@ export default function ExpedientesIndex() {
                 ? await api.put(endpoint, payload)
                 : await api.post(endpoint, payload);
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
             setMostrarFormInmueble(false);
             // Limpiar formulario
@@ -974,7 +1046,7 @@ export default function ExpedientesIndex() {
             // Recargar inmuebles
             await fetchInmueblesExpediente(currentExpedienteId);
             } else {
-                addToast(data.message || 'Error al guardar el inmueble', 'error');
+                addToast(data?.message || 'Error al guardar el inmueble', 'error');
             }
         } catch (error) {
             console.error('Error guardando inmueble:', error);
@@ -1210,7 +1282,15 @@ export default function ExpedientesIndex() {
                 documentosPayload
             );
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Documentos actualizados exitosamente', 'success', 4000);
             } else {
                 console.error('Error al actualizar documentos:', data);
@@ -1251,12 +1331,20 @@ export default function ExpedientesIndex() {
                 payload
             );
 
-            if (data) {
-                  addToast('Documento actualizado exitosamente', 'success');
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
+                addToast('Documento actualizado exitosamente', 'success');
                 console.log(`Documento ${docsId} actualizado exitosamente`);
             } else {
-                const errorData = await data.json();
-                console.error(`Error al actualizar documento ${docsId}:`, errorData);
+                addToast(data?.message || 'Error al actualizar documento', 'error');
+                console.error(`Error al actualizar documento ${docsId}:`, data?.message);
             }
         } catch (error) {
             console.error(`Error actualizando documento ${docsId}:`, error);
@@ -1563,12 +1651,23 @@ export default function ExpedientesIndex() {
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
-            if (data) {
-                setResultados(data.dataResponse || []);
-            } else {
-                setSearchError(data?.message || 'No se pudieron cargar los expedientes.');
+            const response = await api.get(endpoint);
+
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            // Si es 401, useAuthGuard maneja el toast
+            if (response?.isUnauthorized) {
                 setResultados([]);
+            } else {
+                const data = response?.dataResponse;
+                if (response?.success !== false && data) {
+                    setResultados(data);
+                } else {
+                    setSearchError(response?.message || 'No se pudieron cargar los expedientes.');
+                    setResultados([]);
+                }
             }
         } catch (error) {
             console.error('Error buscando expedientes:', error);
@@ -1954,7 +2053,15 @@ export default function ExpedientesIndex() {
                 ? await api.put(endpoint, requestPayload)
                 : await api.post(endpoint, requestPayload);
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 const messageAction = isEditing ? 'actualizado' : 'creado';
                 addToast(`Expediente ${messageAction} exitosamente`, 'success', 4000);
 
@@ -2062,8 +2169,8 @@ export default function ExpedientesIndex() {
                 }
             } else {
                 const action = isEditing ? 'actualizar' : 'crear';
-                setSaveError(data.message || `Error al ${action} el expediente`);
-                addToast(data.message || `Error al ${action} el expediente`, 'error');
+                setSaveError(data?.message || `Error al ${action} el expediente`);
+                addToast(data?.message || `Error al ${action} el expediente`, 'error');
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -2354,7 +2461,15 @@ export default function ExpedientesIndex() {
 
             const data = await api.post('/ReciboProvisional/CreateReciboProvisional', payload);
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Recibo generado exitosamente', 'success');
                 // Limpiar formulario
                 setReciboData({ impuestosDerechos: 0, gastosNotariales: 0, honorarios: 0, concepto: '', formaPago: '', observaciones: '', clienteId: null });
@@ -2365,7 +2480,7 @@ export default function ExpedientesIndex() {
                     await fetchRecibosProvisionales(currentExpedienteId);
                 }
             } else {
-                addToast(data.message || 'Error al generar el recibo', 'error');
+                addToast(data?.message || 'Error al generar el recibo', 'error');
             }
         } catch (error) {
             console.error('Error guardando recibo:', error);
@@ -2383,7 +2498,15 @@ export default function ExpedientesIndex() {
             setCargandoReciboDetalle(true);
             const data = await api.put(`/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Recibo pagado exitosamente', 'success');
                 // Recargar los recibos
                 if (currentExpedienteId) {
@@ -2392,7 +2515,7 @@ export default function ExpedientesIndex() {
                     await fetchReciboDetalle(reciboDetalleSeleccionado.numero_Recibo);
                 }
             } else {
-                addToast(data.message || 'Error al pagar el recibo', 'error');
+                addToast(data?.message || 'Error al pagar el recibo', 'error');
             }
         } catch (error) {
             console.error('Error pagando recibo:', error);
@@ -2412,7 +2535,15 @@ export default function ExpedientesIndex() {
             setCargandoReciboDetalle(true);
             const data = await api.put(`/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Recibo cancelado exitosamente', 'success');
                 // Recargar los recibos
                 if (currentExpedienteId) {
@@ -2421,7 +2552,7 @@ export default function ExpedientesIndex() {
                     await fetchReciboDetalle(reciboDetalleSeleccionado.id);
                 }
             } else {
-                addToast(data.message || 'Error al cancelar el recibo', 'error');
+                addToast(data?.message || 'Error al cancelar el recibo', 'error');
             }
         } catch (error) {
             console.error('Error cancelando recibo:', error);
@@ -2465,6 +2596,7 @@ export default function ExpedientesIndex() {
     return (
         <>
             <Head title="Expedientes - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
             <div className="space-y-6 mb-5 px-6 pt-6">
                 {/* <div className="pb-2 border-b">
@@ -5348,7 +5480,7 @@ export default function ExpedientesIndex() {
                                                         <Input
                                                             type="text"
                                                             readOnly
-                                                            value={reciboDetalleSeleccionado?.numero_Recibo || ''}
+                                                            value={reciboDetalleSeleccionado?.id || ''}
                                                             className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                                             placeholder="Auto-generado"
                                                         />
