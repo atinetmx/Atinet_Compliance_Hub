@@ -20,7 +20,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const addToast = useCallback((message: string, type: ToastType, duration = 4000) => {
+    const addToast = useCallback((message: string, type: ToastType, duration = 5000) => {
         const id = Date.now().toString();
         setToasts((prev) => [...prev, { id, message, type, duration }]);
 

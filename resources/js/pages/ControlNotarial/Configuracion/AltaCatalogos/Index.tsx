@@ -1,6 +1,9 @@
 import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Database, FileText, AlertTriangle, Building2, File, Briefcase, DollarSign, Users, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,17 +15,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 // Interfaces para cada tipo de catálogo
 interface CatalogoItem {
@@ -114,7 +110,17 @@ export default function ControlNotarialAltaCatalogos() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
+    const api = useApi();
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -184,21 +190,28 @@ export default function ControlNotarialAltaCatalogos() {
         }
     };
 
-    // Cargar datos al montar y cuando cambia la pestaña activa
+    // Cargar datos cuando cambia la pestaña activa
     useEffect(() => {
-        fetchActividadesVulnerables();
-        fetchDependenciasPublicas();
         cargarCatalogoActual();
+
+        // Cargar solo las dependencias del catálogo que se necesita
+        if (activeTab === 'operaciones') {
+            fetchActividadesVulnerables();
+        }
+        if (activeTab === 'impuestos_derechos') {
+            fetchDependenciasPublicas();
+        }
     }, [activeTab]);
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetActividadesVulnerables', {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await api.get('/Catalogos/GetActividadesVulnerables');
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
             });
-            const data = await response.json();
-            if (response.ok) {
-                setActividadesVulnerablesLista(data.dataResponse || []);
+            if (datos) {
+                setActividadesVulnerablesLista(datos);
             }
         } catch (error) {
             console.error('Error cargando actividades vulnerables:', error);
@@ -207,12 +220,13 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDependenciasPublicas', {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
             });
-            const data = await response.json();
-            if (response.ok) {
-                setDependenciasLista(data.dataResponse || []);
+            if (datos) {
+                setDependenciasLista(datos);
             }
         } catch (error) {
             console.error('Error cargando dependencias públicas:', error);
@@ -224,19 +238,26 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/${endpoint}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            const response = await api.get(`/Catalogos/${endpoint}`);
 
-            // Mostrar resultados si existen en dataResponse, o mostrar el mensaje si no (incluso en 400)
-            if (data.dataResponse && Array.isArray(data.dataResponse)) {
-                setTodosLosResultados(data.dataResponse);
-                setResultados(data.dataResponse);
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => setSearchError(msg),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+
+            // Si fue 401, no mostrar error adicional (ya se maneja en onUnauthorized)
+            if (response?.isUnauthorized) {
+                setTodosLosResultados([]);
+                setResultados([]);
+                return;
+            }
+
+            if (datos && Array.isArray(datos)) {
+                setTodosLosResultados(datos);
+                setResultados(datos);
                 setSearchError(null);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los datos.');
+                setSearchError('No se pudieron cargar los datos.');
                 setTodosLosResultados([]);
                 setResultados([]);
             }
@@ -253,6 +274,11 @@ export default function ControlNotarialAltaCatalogos() {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         cargarCatalogoActual();
+    };
+
+    const handleCatalogChange = (value: string) => {
+        setActiveTab(value);
+        setActiveSubTab('busqueda');
     };
 
     const handleFiltroChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -355,7 +381,9 @@ export default function ControlNotarialAltaCatalogos() {
             payload.actividad_Vulnerable_Id = state.actividad_Vulnerable_Id || 0;
         } else if (activeTab === 'impuestos_derechos') {
             payload.tipo = state.tipo || '';
-            payload.dependencia = state.dependencia || '';
+            // Buscar la descripción de la dependencia seleccionada por ID
+            const dependenciaSeleccionada = dependenciasLista.find(dep => String(dep.id) === String(state.dependencia));
+            payload.dependencia = dependenciaSeleccionada?.descripcion || '';
         }
 
         // Agregar ID si estamos editando
@@ -444,38 +472,33 @@ export default function ControlNotarialAltaCatalogos() {
             setSaveError(null);
 
             const endpoint = isEditing ? getUpdateEndpoint() : getCreateEndpoint();
-            const method = isEditing ? 'PUT' : 'POST';
             const payload = buildPayload(currentState);
 
-            console.log(`[DEBUG] Enviando ${method} a ${endpoint}`, payload);
+            console.log(`[DEBUG] Enviando ${isEditing ? 'PUT' : 'POST'} a Catalogos/${endpoint}`, payload);
 
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/${endpoint}`, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+            const response = isEditing
+                ? await api.put(`/Catalogos/${endpoint}`, payload)
+                : await api.post(`/Catalogos/${endpoint}`, payload);
 
-            console.log(`[DEBUG] Status: ${response.status}, Content-Type: ${response.headers.get('content-type')}`);
+            console.log(`[DEBUG] Response:`, response);
 
-            // Intentar parsear como JSON, pero manejar respuestas vacías
-            let data;
-            const contentType = response.headers.get('content-type');
-            const text = await response.text();
+            // Verificar si fue 401
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
 
-            if (text && contentType?.includes('application/json')) {
-                data = JSON.parse(text);
+            // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
+            const isSuccess = response?.success !== false;
+
+            if (isSuccess) {
+                addToast(response?.message || `Catálogo guardado correctamente`, 'success');
+                handleCancelEdit();
+                cargarCatalogoActual();
             } else {
-                console.warn(`[DEBUG] Respuesta no-JSON o vacía:`, text);
-                data = { message: text || 'Operación completada' };
+                setSaveError(response?.message || 'Error al guardar el catálogo');
+                addToast(response?.message || 'Error al guardar el catálogo', 'error');
             }
-
-            if (!response.ok) {
-                throw new Error(data?.message || `Error al guardar el catálogo (${response.status})`);
-            }
-
-            addToast(data?.message || `Catálogo guardado correctamente`, 'success');
-            handleCancelEdit();
-            cargarCatalogoActual();
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
             console.error('[DEBUG] Error:', message);
@@ -492,28 +515,43 @@ export default function ControlNotarialAltaCatalogos() {
         return (
             <div className="space-y-6">
                 {saveError && (
-                    <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
-                        {saveError}
+                    <div className="bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-red-700 dark:text-red-300 text-sm">{saveError}</p>
                     </div>
                 )}
 
-                {/* Descripción */}
-                <div className="space-y-2">
-                    <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
-                    <textarea
-                        id="descripcion"
-                        name="descripcion"
-                        value={currentState.descripcion}
-                        onChange={handleInputChange}
-                        placeholder="Descripción"
-                        rows={6}
-                        className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                {/* Sección: Información General */}
+                <div className="border-b-2 border-blue-100 dark:border-blue-900/50 pb-6">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Información General
+                    </h3>
+
+                    {/* Descripción - No se muestra en impuestos_derechos */}
+                    {activeTab !== 'impuestos_derechos' && (
+                        <div className="space-y-2">
+                            <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
+                            <textarea
+                                id="descripcion"
+                                name="descripcion"
+                                value={currentState.descripcion}
+                                onChange={handleInputChange}
+                                placeholder="Ingresa la descripción del catálogo..."
+                                rows={4}
+                                className="w-full px-4 py-2 border border-blue-200 dark:border-blue-800 rounded-lg bg-white dark:bg-slate-900/50 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Campos adicionales según el tipo de catálogo */}
                 {activeTab === 'actividades_vulnerables' && (
-                    <>
+                    <div className="border-b-2 border-green-100 dark:border-green-900/50 pb-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            Detalles de Actividad
+                        </h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <RequiredLabel htmlFor="monto">Monto ($)</RequiredLabel>
@@ -525,90 +563,144 @@ export default function ControlNotarialAltaCatalogos() {
                                     value={(currentState as ActividadVulnerable).monto || 0}
                                     onChange={handleInputChange}
                                     placeholder="0.00"
+                                    className="mt-2 bg-white dark:bg-slate-900/50 border-green-200 dark:border-green-800 focus:ring-green-500"
                                 />
                             </div>
-                            <div className="flex items-end">
-                                <label className="flex items-center space-x-2 cursor-pointer">
+                            <div className="flex items-end pb-1">
+                                <label className="flex items-center space-x-3 cursor-pointer p-3 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800/50 hover:bg-green-100/50 dark:hover:bg-green-950/40 transition-colors flex-1">
                                     <input
                                         id="siempre"
                                         name="siempre"
                                         type="checkbox"
                                         checked={(currentState as ActividadVulnerable).siempre || false}
                                         onChange={handleInputChange}
-                                        className="h-4 w-4 border border-primary rounded"
+                                        className="h-5 w-5 border-2 border-green-300 dark:border-green-700 rounded cursor-pointer accent-green-600"
                                     />
-                                    <span>Siempre</span>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">Siempre Reportable</span>
                                 </label>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {activeTab === 'operaciones' && (
-                    <div className="space-y-2">
-                        <RequiredLabel htmlFor="actividad_Vulnerable_Id">Actividad Vulnerable</RequiredLabel>
-                        <Select
-                            value={(currentState as Operacion).actividad_Vulnerable_Id ? String((currentState as Operacion).actividad_Vulnerable_Id) : ''}
-                            onValueChange={(value) => handleSelectChange('actividad_Vulnerable_Id', value)}
-                        >
-                            <SelectTrigger id="actividad_Vulnerable_Id">
-                                <SelectValue placeholder="Selecciona una actividad" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {actividadesVulnerablesLista.map((actividad) => (
-                                    <SelectItem key={actividad.id} value={String(actividad.id)}>
-                                        {actividad.descripcion}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="border-b-2 border-purple-100 dark:border-purple-900/50 pb-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Briefcase className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            Clasificación de Operación
+                        </h3>
+                        <div className="space-y-2">
+                            <RequiredLabel htmlFor="actividad_Vulnerable_Id">Actividad Vulnerable *</RequiredLabel>
+                            <Select
+                                value={(currentState as Operacion).actividad_Vulnerable_Id ? String((currentState as Operacion).actividad_Vulnerable_Id) : ''}
+                                onValueChange={(value) => handleSelectChange('actividad_Vulnerable_Id', value)}
+                            >
+                                <SelectTrigger id="actividad_Vulnerable_Id" className="mt-2 border-purple-200 dark:border-purple-800 bg-white/80 dark:bg-slate-900/50 focus:ring-purple-500">
+                                    <SelectValue placeholder="Selecciona una actividad vulnerable..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-slate-900">
+                                    {actividadesVulnerablesLista.map((actividad) => (
+                                        <SelectItem key={actividad.id} value={String(actividad.id)}>
+                                            {actividad.descripcion}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 )}
 
                 {activeTab === 'impuestos_derechos' && (
-                    <>
-                        <div className="space-y-2">
-                            <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
-                            <Input
-                                id="tipo"
-                                name="tipo"
-                                value={(currentState as ImpuestoDerecho).tipo || ''}
-                                onChange={handleInputChange}
-                                placeholder="Tipo de impuesto o derecho"
-                            />
+                    <div className="space-y-6">
+                        <div className="border-b-2 border-orange-100 dark:border-orange-900/50 pb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <DollarSign className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                                Información del Impuesto o Derecho
+                            </h3>
+                            <div className="space-y-2">
+                                <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
+                                <textarea
+                                    id="descripcion"
+                                    name="descripcion"
+                                    value={currentState.descripcion}
+                                    onChange={handleInputChange}
+                                    placeholder="Ingresa la descripción del impuesto o derecho..."
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-orange-200 dark:border-orange-800 rounded-lg bg-white dark:bg-slate-900/50 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <RequiredLabel htmlFor="dependencia">Dependencia *</RequiredLabel>
-                            <Input
-                                id="dependencia"
-                                name="dependencia"
-                                value={(currentState as ImpuestoDerecho).dependencia || ''}
-                                onChange={handleInputChange}
-                                placeholder="Dependencia relacionada"
-                            />
+                        <div className="border-b-2 border-orange-100 dark:border-orange-900/50 pb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                                Clasificación
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <RequiredLabel htmlFor="dependencia">Dependencia Pública *</RequiredLabel>
+                                    <Select
+                                        value={(currentState as ImpuestoDerecho).dependencia ? String((currentState as ImpuestoDerecho).dependencia) : ''}
+                                        onValueChange={(value) => handleSelectChange('dependencia', value)}
+                                    >
+                                        <SelectTrigger id="dependencia" className="mt-2 border-orange-200 dark:border-orange-800 bg-white/80 dark:bg-slate-900/50 focus:ring-orange-500">
+                                            <SelectValue placeholder="Selecciona..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white dark:bg-slate-900">
+                                            {dependenciasLista.map((dependencia) => (
+                                                <SelectItem key={dependencia.id} value={String(dependencia.id)}>
+                                                    {dependencia.descripcion}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
+                                    <Select
+                                        value={(currentState as ImpuestoDerecho).tipo || ''}
+                                        onValueChange={(value) => handleSelectChange('tipo', value)}
+                                    >
+                                        <SelectTrigger id="tipo" className="mt-2 border-orange-200 dark:border-orange-800 bg-white/80 dark:bg-slate-900/50 focus:ring-orange-500">
+                                            <SelectValue placeholder="Selecciona..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white dark:bg-slate-900">
+                                            <SelectItem value="Posterior">Posterior</SelectItem>
+                                            <SelectItem value="Previo">Previo</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                         </div>
-                    </>
+                    </div>
                 )}
 
-                {/* Activo */}
-                <div className="flex items-center space-x-2">
-                    <input
-                        id="activo"
-                        name="activo"
-                        type="checkbox"
-                        checked={currentState.activo}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 border border-primary rounded"
-                    />
-                    <RequiredLabel htmlFor="activo" className="cursor-pointer">
-                        Activo
-                    </RequiredLabel>
+                {/* Sección: Estado */}
+                <div className="border-t-2 border-blue-100 dark:border-blue-900/50 pt-6">
+                    <div className="flex items-center p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100/50 dark:hover:bg-blue-950/40 transition-colors">
+                        <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                            <input
+                                id="activo"
+                                name="activo"
+                                type="checkbox"
+                                checked={currentState.activo}
+                                onChange={handleInputChange}
+                                className="h-5 w-5 border-2 border-blue-300 dark:border-blue-700 rounded cursor-pointer accent-blue-600"
+                            />
+                            <span className={`font-medium ${currentState.activo ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                                {currentState.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                        </label>
+                    </div>
                 </div>
 
                 {/* Botones */}
-                <div className="flex gap-2 justify-end pt-4 border-t">
+                <div className="flex gap-3 justify-end pt-6 border-t-2 border-blue-100 dark:border-blue-900/50">
                     {isEditing && (
-                        <Button variant="outline" onClick={handleCancelEdit}>
+                        <Button
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                            className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
                             <X className="h-4 w-4 mr-2" />
                             Cancelar
                         </Button>
@@ -616,7 +708,7 @@ export default function ControlNotarialAltaCatalogos() {
                     <Button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="bg-amber-600 hover:bg-amber-700"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6"
                     >
                         {isSaving ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -635,52 +727,30 @@ export default function ControlNotarialAltaCatalogos() {
             <Head title="Alta de Catálogos - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="rounded-lg bg-blue-500 p-3 text-white">
-                            <Database className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Alta de Catálogos</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de catálogos del sistema</p>
-                        </div>
-                    </div>
-                </div>
 
-                {/* Pestañas principales - Con Scroll - ARRIBA */}
-                <div>
-                    <div className="border-b mb-4">
-                        <div className="overflow-x-auto">
-                            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                                <TabsList className="inline-flex h-10 w-max items-center justify-start rounded-none border-0 bg-transparent p-0 text-muted-foreground">
-                                    <TabsTrigger value="etapas_expediente" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Etapas Expediente
-                                    </TabsTrigger>
-                                    <TabsTrigger value="actividades_vulnerables" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Actividades Vulnerables
-                                    </TabsTrigger>
-                                    <TabsTrigger value="dependencias_publicas" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Dependencias Públicas
-                                    </TabsTrigger>
-                                    <TabsTrigger value="recibos_documentos" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Documentos
-                                    </TabsTrigger>
-                                    <TabsTrigger value="operaciones" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Operaciones
-                                    </TabsTrigger>
-                                    <TabsTrigger value="impuestos_derechos" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Impuestos y Derechos
-                                    </TabsTrigger>
-                                    <TabsTrigger value="tipos_comparecientes" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Tipos Comparecientes
-                                    </TabsTrigger>
-                                    <TabsTrigger value="zonas_municipios" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Zonas - Municipios
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
+                {/* Seleccionar Catálogo */}
+                <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-slate-950 shadow-md hover:shadow-lg transition-shadow dark:border-blue-800">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Catálogo</p>
+
                         </div>
                     </div>
+                    <Select value={activeTab} onValueChange={handleCatalogChange}>
+                        <SelectTrigger className="mt-3 border-blue-200 dark:border-blue-800 bg-white/80 dark:bg-slate-900/50 focus:ring-blue-500">
+                            <SelectValue placeholder="Selecciona un catálogo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-slate-900">
+                            <SelectItem value="etapas_expediente">Etapas Expediente</SelectItem>
+                            <SelectItem value="actividades_vulnerables">Actividades Vulnerables</SelectItem>
+                            <SelectItem value="dependencias_publicas">Dependencias Públicas</SelectItem>
+                            <SelectItem value="recibos_documentos">Documentos</SelectItem>
+                            <SelectItem value="operaciones">Operaciones</SelectItem>
+                            <SelectItem value="impuestos_derechos">Impuestos y Derechos</SelectItem>
+                            <SelectItem value="tipos_comparecientes">Tipos Comparecientes</SelectItem>
+                            <SelectItem value="zonas_municipios">Zonas - Municipios</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Pestañas de Búsqueda/Crear - ABAJO */}
@@ -741,103 +811,105 @@ export default function ControlNotarialAltaCatalogos() {
                                 </div>
                             )}
 
-                            <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[470px]">
-                                <div className="overflow-y-auto flex-1">
-                                    <Table>
-                                        <TableHeader className="sticky top-0 bg-background z-10">
-                                            <TableRow>
-                                                <TableHead className="w-16">ID</TableHead>
+                            <div className="border rounded-lg overflow-hidden">
+                                <div className="overflow-x-auto max-h-[670px] overflow-y-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
                                                 {activeTab === 'actividades_vulnerables' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Monto</TableHead>
-                                                        <TableHead>Siempre</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Monto</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Siempre</th>
                                                     </>
                                                 )}
                                                 {activeTab === 'operaciones' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Actividad Vulnerable</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Actividad Vulnerable</th>
                                                     </>
                                                 )}
                                                 {activeTab === 'impuestos_derechos' && (
                                                     <>
-                                                        <TableHead>Descripción</TableHead>
-                                                        <TableHead>Tipo</TableHead>
-                                                        <TableHead>Dependencia</TableHead>
+                                                        <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                                        <th className="px-4 py-2 text-left font-semibold">Dependencia</th>
                                                     </>
                                                 )}
                                                 {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                    <TableHead>Descripción</TableHead>
+                                                    <th className="px-4 py-2 text-left font-semibold">Descripción</th>
                                                 )}
-                                                <TableHead className="w-20 text-center">Activo</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
+                                                <th className="px-4 py-2 text-center font-semibold w-20">ESTATUS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
                                             {isSearching ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                         <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                         Cargando...
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ) : resultados.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                         No se encontraron resultados.
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ) : (
                                                 resultados.map((item) => (
-                                                    <TableRow
+                                                    <tr
                                                         key={item.id}
-                                                        className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                        className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                         onClick={() => handleSelectItem(item)}
                                                     >
-                                                        <TableCell className="font-mono text-sm">{item.id}</TableCell>
+                                                        <td className="px-4 py-2 font-mono text-sm text-blue-500 dark:text-blue-400">{item.id}</td>
                                                         {activeTab === 'actividades_vulnerables' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>${item.monto?.toFixed(2)}</TableCell>
-                                                                <TableCell>
-                                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                                        item.siempre ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">${item.monto?.toFixed(2)}</td>
+                                                                <td className="px-4 py-2">
+                                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                        item.siempre
+                                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                            : 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
                                                                     }`}>
                                                                         {item.siempre ? 'Sí' : 'No'}
                                                                     </span>
-                                                                </TableCell>
+                                                                </td>
                                                             </>
                                                         )}
                                                         {activeTab === 'operaciones' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>{item.actividad_Vulnerable_Id}</TableCell>
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">{item.actividad_Vulnerable_Id}</td>
                                                             </>
                                                         )}
                                                         {activeTab === 'impuestos_derechos' && (
                                                             <>
-                                                                <TableCell>{item.descripcion}</TableCell>
-                                                                <TableCell>{item.tipo}</TableCell>
-                                                                <TableCell>{item.dependencia}</TableCell>
+                                                                <td className="px-4 py-2">{item.descripcion}</td>
+                                                                <td className="px-4 py-2">{item.tipo}</td>
+                                                                <td className="px-4 py-2">{item.dependencia}</td>
                                                             </>
                                                         )}
                                                         {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
-                                                            <TableCell>{item.descripcion}</TableCell>
+                                                            <td className="px-4 py-2">{item.descripcion}</td>
                                                         )}
-                                                        <TableCell className="text-center">
-                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                        <td className="px-4 py-2 text-center">
+                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                                 item.activo
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : 'bg-red-100 text-red-800'
+                                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                             }`}>
-                                                                {item.activo ? 'Sí' : 'No'}
+                                                                {item.activo ? 'Activo' : 'Inactivo'}
                                                             </span>
-                                                        </TableCell>
-                                                    </TableRow>
+                                                        </td>
+                                                    </tr>
                                                 ))
                                             )}
-                                        </TableBody>
-                                    </Table>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -850,13 +922,19 @@ export default function ControlNotarialAltaCatalogos() {
 
                         {/* Pestaña Formulario */}
                         <TabsContent value="formulario">
-                            <div className="border rounded-lg p-6 space-y-6 bg-background/50 backdrop-blur-sm">
+                            <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg transition-shadow dark:border-blue-800 dark:from-blue-950/30 dark:to-slate-950">
                                 {renderFormContent()}
                             </div>
                         </TabsContent>
                     </Tabs>
                 </div>
             </div>
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
         </>
     );
 }

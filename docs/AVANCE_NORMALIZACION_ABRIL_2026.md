@@ -1,7 +1,7 @@
 # 📊 Avance Normalización Base de Datos - Abril 2026
 
-**Fecha:** 15 de Abril, 2026  
-**Fase:** Normalización y Optimización CRM Legacy  
+**Fecha:** 15 de Abril, 2026
+**Fase:** Normalización y Optimización CRM Legacy
 **Estado:** ✅ Catálogos Completados | ⏳ Migración de Datos en Preparación
 
 ---
@@ -108,7 +108,7 @@ CREATE TABLE colonias (
     codigo_postal CHAR(5),
     activo BOOLEAN,
     timestamps,
-    
+
     -- Índices optimizados
     INDEX idx_codigo_postal (codigo_postal),
     INDEX idx_ciudad_cp (ciudad_id, codigo_postal),
@@ -159,25 +159,25 @@ CREATE TABLE cat_regimen_conyugal (
 -- Clientes (0/4,022 - pendiente migración)
 CREATE TABLE clientes (
     id BIGINT PRIMARY KEY,
-    
+
     -- Identificación (5 campos)
     nombre VARCHAR(100),
     apellido_paterno VARCHAR(100),
     apellido_materno VARCHAR(100),
     tipo_cliente_id → FK cat_tipos_cliente.id,
     razon_social VARCHAR(200),
-    
+
     -- Información Fiscal (3 campos)
     rfc VARCHAR(13),
     curp VARCHAR(18),
     regimen_fiscal VARCHAR(50),
-    
+
     -- Contacto (4 campos)
     telefono VARCHAR(20),
     telefono_oficina VARCHAR(20),
     email VARCHAR(100),
     email_alternativo VARCHAR(100),
-    
+
     -- Ubicación Normalizada (8 campos) ⭐
     estado_id → FK estados.id,
     municipio_id → FK municipios.id,
@@ -187,29 +187,29 @@ CREATE TABLE clientes (
     calle VARCHAR(200),
     numero_exterior VARCHAR(20),
     numero_interior VARCHAR(20),
-    
+
     -- Personal (5 campos)
     fecha_nacimiento DATE,
     lugar_nacimiento VARCHAR(100),
     nacionalidad VARCHAR(50),
     estado_civil_id → FK cat_estado_civil.id,
     ocupacion VARCHAR(100),
-    
+
     -- Familiar (2 campos)
     nombre_conyuge VARCHAR(200),
     regimen_conyugal_id → FK cat_regimen_conyugal.id,
-    
+
     -- Corporativa (2 campos)
     representante_legal_id → FK clientes.id (self-reference),
     cargo_representante VARCHAR(100),
-    
+
     -- Auditoría (4 campos)
     activo BOOLEAN DEFAULT TRUE,
     created_by → FK users.id,
     updated_by → FK users.id,
     timestamps,
     softDeletes,
-    
+
     -- Índices
     FULLTEXT(nombre, apellido_paterno, apellido_materno),
     INDEX idx_rfc (rfc),
@@ -230,7 +230,7 @@ CREATE TABLE alarmas (
     notificada BOOLEAN DEFAULT FALSE,
     fecha_notificacion DATETIME,
     timestamps,
-    
+
     INDEX idx_cliente (cliente_id),
     INDEX idx_fecha (fecha_alarma),
     INDEX idx_estado (estado)
@@ -246,7 +246,7 @@ CREATE TABLE seguimientos_atencion (
     tipo_contacto ENUM('llamada', 'email', 'whatsapp', 'presencial'),
     resultado TEXT,
     timestamps,
-    
+
     INDEX idx_cliente (cliente_id),
     INDEX idx_fecha (fecha_contacto)
 );
@@ -264,7 +264,7 @@ CREATE TABLE seguimientos_soporte (
     solucion TEXT,
     fecha_resolucion DATETIME,
     timestamps,
-    
+
     INDEX idx_cliente (cliente_id),
     INDEX idx_estado (estado),
     INDEX idx_fecha (fecha_soporte)
@@ -779,7 +779,7 @@ php artisan vb:migrar-seguimientos
 ✅ **Hacer análisis forense de campos ambiguos**
    - "expediente" parecía número de expediente notarial
    - Análisis confirmó: es cliente_id FK
-   
+
 ✅ **No asumir uso de campos por nombre**
    - 56 campos con nombres descriptivos pero 0% uso
    - Análisis de densidad reveló realidad
@@ -793,7 +793,7 @@ php artisan vb:migrar-seguimientos
 ✅ **Seeders grandes: chunking obligatorio**
    - 202k registros en chunks de 1000
    - Transaction-wrapped para integridad
-   
+
 ✅ **Palabras reservadas SQL**
    - `key` causó error en alias
    - Usar `map_key` u otros nombres seguros
@@ -806,12 +806,12 @@ php artisan vb:migrar-seguimientos
 
 ## 📞 Contacto del Equipo
 
-**Desarrollador Principal:** [Tu Nombre]  
-**Fecha Inicio:** Abril 13, 2026  
-**Fecha Documento:** Abril 15, 2026  
+**Desarrollador Principal:** [Tu Nombre]
+**Fecha Inicio:** Abril 13, 2026
+**Fecha Documento:** Abril 15, 2026
 
-**Repositorio:** spartha1/Atinet_Compliance_Hub  
-**Branch Actual:** master  
+**Repositorio:** spartha1/Atinet_Compliance_Hub
+**Branch Actual:** master
 **Última Sincronización:** Pendiente merge con cambios de Alex
 
 ---
@@ -836,6 +836,6 @@ Ver: `ANALISIS_CAMPOS_UTILES_CRM.txt`
 
 ---
 
-**Última Actualización:** 15 de Abril, 2026 - 18:45 hrs  
-**Estado:** ✅ Catálogos Completados | ⏳ Migración de Datos en Preparación  
+**Última Actualización:** 15 de Abril, 2026 - 18:45 hrs
+**Estado:** ✅ Catálogos Completados | ⏳ Migración de Datos en Preparación
 **Próximo Hito:** Comandos de Migración VB → Laravel

@@ -1,7 +1,11 @@
-import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building } from 'lucide-react';
+import { Head, usePage } from '@inertiajs/react';
+import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building, Users } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
+import { useToast } from '@/contexts/ToastContext';
 // Opciones de ejemplo para los dropdowns
 const TIPO_FACTURA_OPCIONES = [
     { value: 'factura', label: 'Factura' },
@@ -30,7 +34,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import { useToast } from '@/contexts/ToastContext';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -73,6 +76,17 @@ interface Cliente {
     rfc: string;
     curp: string;
     activo: boolean;
+}
+
+interface ClienteBusqueda {
+    id: number;
+    tipo_Cliente: string;
+    alias: string;
+    nombre: string;
+    apellido_Paterno: string;
+    apellido_Materno: string;
+    rfc: string;
+    curp: string;
 }
 
 interface Compareciente {
@@ -209,14 +223,27 @@ const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlF
 );
 
 export default function ExpedientesIndex() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const { addToast } = useToast();
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<BusquedaResultado[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
 
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
+
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');
+    const [activeInternalTab, setActiveInternalTab] = useState('info-general');
 
     // --- Estado pestaña Formulario ---
     const [isEditing, setIsEditing] = useState(false);
@@ -297,6 +324,13 @@ export default function ExpedientesIndex() {
     const [dropdownTipoAbierto, setDropdownTipoAbierto] = useState<Record<string, boolean>>({});
     const [busquedaTipo, setBusquedaTipo] = useState<Record<string, string>>({});
 
+    // Estados para Modal de Búsqueda de Clientes (Comparecientes)
+    const [showClienteModalComparecientes, setShowClienteModalComparecientes] = useState(false);
+    const [clienteResultadosComparecientes, setClienteResultadosComparecientes] = useState<ClienteBusqueda[]>([]);
+    const [isSearchingClientesComparecientes, setIsSearchingClientesComparecientes] = useState(false);
+    const [clienteErrorComparecientes, setClienteErrorComparecientes] = useState<string | null>(null);
+    const [clienteFiltroComparecientes, setClienteFiltroComparecientes] = useState('');
+
     // --- Estados para Documentos ---
     const [mostrarDropdownOtorgante, setMostrarDropdownOtorgante] = useState(false);
     const [busquedaOtorgante, setBusquedaOtorgante] = useState('');
@@ -366,6 +400,7 @@ export default function ExpedientesIndex() {
     const [autorizadoId, setAutorizadoId] = useState<number | null>(null);
     const [municipioId, setMunicipioId] = useState<number | null>(null);
     const [operacionesIds, setOperacionesIds] = useState<number[]>([]);
+    const [operacionesDelExpediente, setOperacionesDelExpediente] = useState<Operacion[]>([]);
 
     // --- Estado para guardar ID del expediente actual ---
     const [currentExpedienteId, setCurrentExpedienteId] = useState<number | null>(null);
@@ -387,7 +422,6 @@ export default function ExpedientesIndex() {
         cliente: '',
         operacion: '',
         zona_municipio: '',
-        observaciones: '',
         valor_operacion: 0,
         valor_avaluo: 0,
         valor_catastral: 0,
@@ -407,6 +441,10 @@ export default function ExpedientesIndex() {
     const [ret_isr_check, setRetISRCheck] = useState(false);
     const [ret_iva_check, setRetIVACheck] = useState(false);
     const [clienteSelectedPresupuesto, setClienteSelectedPresupuesto] = useState<Cliente | null>(null);
+    const [clienteFiltro, setClienteFiltro] = useState('');
+    const [showClienteDropdown, setShowClienteDropdown] = useState(false);
+    const [municipioFiltroPresupuesto, setMunicipioFiltroPresupuesto] = useState('');
+    const [showMunicipioPresupuestoDropdown, setShowMunicipioPresupuestoDropdown] = useState(false);
 
     // --- Estados para Documentos por Cliente (Expediente) ---
     const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
@@ -538,11 +576,19 @@ export default function ExpedientesIndex() {
     const [reciboUrl, setReciboUrl] = useState<string | null>(null);
     const [isLoadingRecibo, setIsLoadingRecibo] = useState(false);
 
+    // Estado para validación del número de escritura
+    const [numeroEscrituraError, setNumeroEscrituraError] = useState<string | null>(null);
+    const [validandoNumeroEscritura, setValidandoNumeroEscritura] = useState(false);
+    const [numeroEscrituraTouched, setNumeroEscrituraTouched] = useState(false);
+    const [numeroEscrituraOriginal, setNumeroEscrituraOriginal] = useState<string>('');
+    const debounceNumeroEscrituraRef = useRef<NodeJS.Timeout | null>(null);
+
     // Ref para debounce de actualización de documentos individuales
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
 
-    const { addToast } = useToast();
     const api = useApi();
+    const { props } = usePage();
+    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
     // Cargar expedientes al montar (filtro vacío = todos)
     useEffect(() => {
@@ -558,18 +604,72 @@ export default function ExpedientesIndex() {
         // Cleanup de timers al desmontar
         return () => {
             Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
+            if (debounceNumeroEscrituraRef.current) clearTimeout(debounceNumeroEscrituraRef.current);
         };
     }, []);
+
+    // Validar número de escritura con debounce
+    useEffect(() => {
+        // Limpiar timer anterior si existe
+        if (debounceNumeroEscrituraRef.current) {
+            clearTimeout(debounceNumeroEscrituraRef.current);
+        }
+
+        // Si el campo está vacío o no fue tocado, limpiar error
+        if (!formData.numeroEscritura || !numeroEscrituraTouched) {
+            setNumeroEscrituraError(null);
+            return;
+        }
+
+        // Crear nuevo timer
+        debounceNumeroEscrituraRef.current = setTimeout(async () => {
+            setValidandoNumeroEscritura(true);
+            try {
+                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+                // Si la respuesta es exitosa, no hay error
+                setNumeroEscrituraError(null);
+
+                // Mostrar toast con el mensaje de la API
+                if (response?.dataResponse == true) {
+                    addToast(response.message, 'success', 4000);
+                }else {
+                         addToast(response.message, 'warning', 4000);
+                }
+            } catch (error: any) {
+                // Si hay error, mostrar el mensaje
+                let errorMessage = 'Error al validar el número de escritura.';
+
+                if (error?.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (error?.message) {
+                    errorMessage = error.message;
+                }
+
+                setNumeroEscrituraError(errorMessage);
+                addToast(errorMessage, 'error', 4000);
+            } finally {
+                setValidandoNumeroEscritura(false);
+            }
+        }, 500);
+    }, [formData.numeroEscritura, api, numeroEscrituraTouched]);
 
     // Cargar presupuestos cuando se carga un expediente
     const fetchPresupuestos = async (expedienteId: number) => {
         setCargandoPresupuestos(true);
         try {
-            const data = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
-            if (data && data.dataResponse) {
-                setPresupuestos(data.dataResponse);
-            } else {
+            const response = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
                 setPresupuestos([]);
+            } else {
+                const data = response?.dataResponse;
+                if (data) {
+                    setPresupuestos(data);
+                } else {
+                    setPresupuestos([]);
+                }
             }
         } catch (error) {
             console.error('Error cargando presupuestos:', error);
@@ -583,10 +683,17 @@ export default function ExpedientesIndex() {
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const data = await api.get('/Catalogos/GetOperaciones');
-            if (data && data.dataResponse) {
-                setOperacionesDisponibles(data.dataResponse);
-                setOperacionesFiltradas(data.dataResponse);
+            const response = await api.get('/Catalogos/GetOperaciones');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setOperacionesDisponibles(data);
+                setOperacionesFiltradas(data);
             }
         } catch (error) {
             console.error('Error cargando operaciones:', error);
@@ -599,10 +706,17 @@ export default function ExpedientesIndex() {
     const fetchMunicipios = async () => {
         setCargandoMunicipios(true);
         try {
-            const data = await api.get('/Catalogos/GetZonasMunicipios');
-            if (data && data.dataResponse) {
-                setMunicipiosDisponibles(data.dataResponse);
-                setMunicipiosFiltrados(data.dataResponse);
+            const response = await api.get('/Catalogos/GetZonasMunicipios');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setMunicipiosDisponibles(data);
+                setMunicipiosFiltrados(data);
             }
         } catch (error) {
             console.error('Error cargando municipios:', error);
@@ -615,9 +729,16 @@ export default function ExpedientesIndex() {
     const fetchUsuarios = async () => {
         setCargandoUsuarios(true);
         try {
-            const data = await api.get('/User/GetRolesUsuarios');
-            if (data && data.dataResponse) {
-                setUsuarios(data.dataResponse);
+            const response = await api.get('/User/GetRolesUsuarios');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setUsuarios(data);
             }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
@@ -630,10 +751,17 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const data = await api.get('/Catalogos/GetDependenciasPublicas');
-            if (data && data.dataResponse) {
-                setDependenciasDisponibles(data.dataResponse);
-                setDependenciasFiltradas(data.dataResponse);
+            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setDependenciasDisponibles(data);
+                setDependenciasFiltradas(data);
             }
         } catch (error) {
             console.error('Error cargando dependencias:', error);
@@ -645,10 +773,17 @@ export default function ExpedientesIndex() {
     const fetchClientes = async () => {
         setCargandoClientes(true);
         try {
-            const data = await api.get('/Clientes/GetClientes');
-            if (data && data.dataResponse) {
-                setClientesDisponibles(data.dataResponse);
-                setClientesFiltrados(data.dataResponse);
+            const response = await api.get('/Clientes/GetClientes');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setClientesDisponibles(data);
+                setClientesFiltrados(data);
             }
         } catch (error) {
             console.error('Error cargando clientes:', error);
@@ -659,23 +794,24 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const data = await api.get('/Catalogos/GetComparecientes');
-            console.log('Respuesta Comparecientes:', data);
-            if (data) {
-                // Manejar diferentes formatos de respuesta
-                const comparecientes = data.dataResponse || data.data || data;
-                if (Array.isArray(comparecientes)) {
-                    setComparecientesDisponibles(comparecientes);
-                    console.log('Comparecientes cargados:', comparecientes);
-                } else {
-                    console.warn('Formato de respuesta inesperado para comparecientes');
-                }
+            const response = await api.get('/Catalogos/GetComparecientes');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            console.log('Respuesta Comparecientes:', response);
+            // Manejar diferentes formatos de respuesta
+            const comparecientes = response?.dataResponse || response?.data || response;
+            if (Array.isArray(comparecientes)) {
+                setComparecientesDisponibles(comparecientes);
+                console.log('Comparecientes cargados:', comparecientes);
             } else {
-                console.error('Error en respuesta del servidor:', data);
+                console.warn('Formato de respuesta inesperado para comparecientes');
             }
         } catch (error) {
             console.error('Error cargando comparecientes:', error);
-            addToast('No se pudieron cargar los comparecientes', 'error');
         }
     };
 
@@ -683,14 +819,21 @@ export default function ExpedientesIndex() {
     const fetchTiposInmuebles = async () => {
         setCargandoTiposInmuebles(true);
         try {
-            const data = await api.get('/Catalogos/GetTipoInmueble');
-            if (data && data.dataResponse) {
-                setTiposInmuebles(data.dataResponse);
+            const response = await api.get('/Catalogos/GetTipoInmueble');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+            if (response?.isUnauthorized) {
+                return;
+            }
+            const data = response?.dataResponse;
+            if (data) {
+                setTiposInmuebles(data);
 
                 // Filtrar por categoría
-                const factura = data.dataResponse.filter((item: any) => item.categoria === 'FACTURA');
-                const inmueble = data.dataResponse.filter((item: any) => item.categoria === 'INMUEBLE');
-                const declaranot = data.dataResponse.filter((item: any) => item.categoria === 'DECLARANOT');
+                const factura = data.filter((item: any) => item.categoria === 'FACTURA');
+                const inmueble = data.filter((item: any) => item.categoria === 'INMUEBLE');
+                const declaranot = data.filter((item: any) => item.categoria === 'DECLARANOT');
 
                 setTiposFactura(factura.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
                 setTiposInmuebleFiltrados(inmueble.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
@@ -700,7 +843,6 @@ export default function ExpedientesIndex() {
             }
         } catch (error) {
             console.error('Error cargando tipos de inmuebles:', error);
-            addToast('No se pudieron cargar los tipos de inmuebles', 'error');
         } finally {
             setCargandoTiposInmuebles(false);
         }
@@ -772,13 +914,13 @@ export default function ExpedientesIndex() {
 
                 // Mostrar el formulario
                 setMostrarFormInmueble(true);
-                addToast('Inmueble cargado para editar', 'success');
+                addToast('Inmueble cargado para editar', 'success', 4000);
             } else {
-                addToast('No se pudieron cargar los datos del inmueble', 'error');
+                addToast('No se pudieron cargar los datos del inmueble', 'error', 4000);
             }
         } catch (error) {
             console.error('Error cargando inmueble:', error);
-            addToast('Error al cargar los datos del inmueble', 'error');
+            addToast('Error al cargar los datos del inmueble', 'error', 4000);
         } finally {
             setCargandoGuardarInmueble(false);
         }
@@ -787,7 +929,7 @@ export default function ExpedientesIndex() {
     // Guardar Inmueble
     const handleGuardarInmueble = async () => {
         if (!currentExpedienteId) {
-            addToast('No hay expediente seleccionado', 'error');
+            addToast('No hay expediente seleccionado', 'error', 4000);
             return;
         }
 
@@ -833,8 +975,8 @@ export default function ExpedientesIndex() {
             // Determinar si es creación o actualización
             const isEditing = inmuebleIdEnEdicion !== null;
             const endpoint = isEditing
-                ? `Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
-                : 'Expediente/CreateInmuebleExpediente';
+                ? `/Expediente/UpdateInmuebleExpediente?inmuebleId=${inmuebleIdEnEdicion}`
+                : '/Expediente/CreateInmuebleExpediente';
 
             // Agregar expediente_Id solo para crear
             if (!isEditing) {
@@ -845,58 +987,66 @@ export default function ExpedientesIndex() {
                 ? await api.put(endpoint, payload)
                 : await api.post(endpoint, payload);
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
-                setMostrarFormInmueble(false);
-                // Limpiar formulario
-                setFormInmueble({
-                    tipoFactura: '',
-                    tipoVulnerable: '',
-                    tipoDeclaranot: '',
-                    medidas: '',
-                    antecedentes: '',
-                    descripcion: '',
-                    claveCatastral: '',
-                    valorAvaluo: '',
-                    valorCatastral: '',
-                    valorOperacion: '',
-                    superficieTerreno: '',
-                    superficieConstruida: '',
-                    ctaAgua: '',
-                    ctaPredial: '',
-                    calle: '',
-                    numeroExt: '',
-                    numeroInt: '',
-                    manzana: '',
-                    lote: '',
-                    pais: '',
-                    estado: '',
-                    municipio: '',
-                    colonia: '',
-                    cp: '',
-                    inscripcion: '',
-                    folioReal: '',
-                    folioInicial: '',
-                    folioFinal: '',
-                    folioElectronico: '',
-                    partida: '',
-                    volumen: '',
-                    seccion: '',
-                    fechaRegistro: '',
-                    fechaEscritura: '',
-                    montoTotal: '',
-                    formaPago: '',
-                    fechaPago: '',
-                    referenciaPago: '',
-                    observacionesPago: '',
-                });
-                // Limpiar estado de edición
-                setInmuebleEnEdicion(null);
-                setInmuebleIdEnEdicion(null);
-                // Recargar inmuebles
-                await fetchInmueblesExpediente(currentExpedienteId);
+            setMostrarFormInmueble(false);
+            // Limpiar formulario
+            setFormInmueble({
+                tipoFactura: '',
+                tipoVulnerable: '',
+                tipoDeclaranot: '',
+                medidas: '',
+                antecedentes: '',
+                descripcion: '',
+                claveCatastral: '',
+                valorAvaluo: '',
+                valorCatastral: '',
+                valorOperacion: '',
+                superficieTerreno: '',
+                superficieConstruida: '',
+                ctaAgua: '',
+                ctaPredial: '',
+                calle: '',
+                numeroExt: '',
+                numeroInt: '',
+                manzana: '',
+                lote: '',
+                pais: '',
+                estado: '',
+                municipio: '',
+                colonia: '',
+                cp: '',
+                inscripcion: '',
+                folioReal: '',
+                folioInicial: '',
+                folioFinal: '',
+                folioElectronico: '',
+                partida: '',
+                volumen: '',
+                seccion: '',
+                fechaRegistro: '',
+                fechaEscritura: '',
+                montoTotal: '',
+                formaPago: '',
+                fechaPago: '',
+                referenciaPago: '',
+                observacionesPago: '',
+            });
+            // Limpiar estado de edición
+            setInmuebleEnEdicion(null);
+            setInmuebleIdEnEdicion(null);
+            // Recargar inmuebles
+            await fetchInmueblesExpediente(currentExpedienteId);
             } else {
-                addToast(data.message || 'Error al guardar el inmueble', 'error');
+                addToast(data?.message || 'Error al guardar el inmueble', 'error');
             }
         } catch (error) {
             console.error('Error guardando inmueble:', error);
@@ -915,11 +1065,11 @@ export default function ExpedientesIndex() {
                 setDocumentosDisponibles(data.dataResponse);
                 setMostrarModalAgregarDocumento(true);
             } else {
-                addToast('No se pudieron cargar los documentos disponibles', 'error');
+                addToast('No se pudieron cargar los documentos disponibles', 'error', 4000);
             }
         } catch (error) {
             console.error('Error cargando documentos disponibles:', error);
-            addToast('Error cargando documentos', 'error');
+            addToast('Error cargando documentos', 'error', 4000);
         } finally {
             setCargandoDocumentosDisponibles(false);
         }
@@ -959,7 +1109,7 @@ export default function ExpedientesIndex() {
                 ]
             }))
         );
-        addToast(`Documento "${documento.descripcion}" agregado a todas las tablas`, 'success');
+        addToast(`Documento "${documento.descripcion}" agregado a todas las tablas`, 'success', 4000);
     };
 
     // Agregar múltiples documentos seleccionados
@@ -967,7 +1117,7 @@ export default function ExpedientesIndex() {
         const documentosAgregar = documentosDisponibles.filter(doc => documentosSeleccionados[doc.id]);
 
         if (documentosAgregar.length === 0) {
-            addToast('Selecciona al menos un documento', 'warning');
+            addToast('Selecciona al menos un documento', 'warning', 4000);
             return;
         }
 
@@ -1041,14 +1191,14 @@ export default function ExpedientesIndex() {
     // Abrir modal y cargar recibo de documentos
     const handleAbrirReciboDocumentos = async () => {
         if (!currentExpedienteId || !clienteSeleccionadoDocumentos) {
-            addToast('Selecciona un cliente para visualizar el recibo', 'warning');
+            addToast('Selecciona un cliente para visualizar el recibo', 'warning', 4000);
             return;
         }
 
         try {
             setIsLoadingRecibo(true);
             const response = await fetch(
-                `${new URL(window.location.href).origin}/api/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
+                `${apiBaseUrl}/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
                 { method: 'GET' }
             );
 
@@ -1060,10 +1210,10 @@ export default function ExpedientesIndex() {
             const url = URL.createObjectURL(blob);
             setReciboUrl(url);
             setShowReciboModal(true);
-            addToast('Recibo cargado correctamente', 'success');
+            addToast('Recibo cargado correctamente', 'success', 4000);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al generar el recibo';
-            addToast(message, 'error');
+            addToast(message, 'error', 4000);
             console.error('Error:', error);
         } finally {
             setIsLoadingRecibo(false);
@@ -1128,12 +1278,20 @@ export default function ExpedientesIndex() {
             });
 
             const data = await api.put(
-                `Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
+                `/Expediente/UpdateDocumentoClienteXExpediente?expedienteId=${expedienteId}`,
                 documentosPayload
             );
 
-            if (data) {
-                addToast('Documentos actualizados exitosamente', 'success');
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
+                addToast('Documentos actualizados exitosamente', 'success', 4000);
             } else {
                 console.error('Error al actualizar documentos:', data);
                 addToast('Error al actualizar documentos: ' + (data?.message || 'Error desconocido'), 'error');
@@ -1159,26 +1317,34 @@ export default function ExpedientesIndex() {
     ) => {
         try {
             const payload = {
-                fecha_Entrega: cambios.fecha_Entrega || null,
+                fecha_Entrega: cambios.fecha_Entrega,
                 usuario_Recibe_Id: cambios.usuario_Recibe ? parseInt(cambios.usuario_Recibe) || 0 : 0,
-                fecha_Recepcion: cambios.fecha_Recepcion || null,
+                fecha_Recepcion: cambios.fecha_Recepcion,
                 usuario_Recepcion_Id: cambios.usuario_Recepcion ? parseInt(cambios.usuario_Recepcion) || 0 : 0,
-                observaciones: cambios.observaciones || null,
+                observaciones: cambios.observaciones,
                 copia: cambios.copia,
                 original: cambios.original,
             };
 
             const data = await api.put(
-                `Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
+                `/Expediente/UpdateDocumentoXExpediente?documentoId=${docsId}`,
                 payload
             );
 
-            if (data) {
-                  addToast('Documento actualizado exitosamente', 'success');
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
+                addToast('Documento actualizado exitosamente', 'success');
                 console.log(`Documento ${docsId} actualizado exitosamente`);
             } else {
-                const errorData = await response.json();
-                console.error(`Error al actualizar documento ${docsId}:`, errorData);
+                addToast(data?.message || 'Error al actualizar documento', 'error');
+                console.error(`Error al actualizar documento ${docsId}:`, data?.message);
             }
         } catch (error) {
             console.error(`Error actualizando documento ${docsId}:`, error);
@@ -1391,6 +1557,16 @@ export default function ExpedientesIndex() {
 
     // Inicializar documentosEditados con valores del documento cuando se cargan
     useEffect(() => {
+        const convertirFecha = (fecha: string | null): string | null => {
+            if (!fecha) return null;
+            // Si viene en formato "dd/mm/yyyy", convertir a "yyyy-mm-dd"
+            const partes = fecha.split('/');
+            if (partes.length === 3) {
+                return `${partes[2]}-${partes[1]}-${partes[0]}`;
+            }
+            return fecha;
+        };
+
         const nuevosEditados: Record<number, any> = {};
         documentosPorCliente.forEach(grupoCliente => {
             grupoCliente.documentos.forEach(doc => {
@@ -1398,9 +1574,9 @@ export default function ExpedientesIndex() {
                     nuevosEditados[doc.id] = {
                         cliente_Id: doc.cliente_Id,
                         documento_Id: doc.documento_Id,
-                        fecha_Entrega: doc.fecha_Entrega,
+                        fecha_Entrega: convertirFecha(doc.fecha_Entrega),
                         usuario_Recibe: doc.usuario_Recibe,
-                        fecha_Recepcion: doc.fecha_Recepcion,
+                        fecha_Recepcion: convertirFecha(doc.fecha_Recepcion),
                         usuario_Recepcion: doc.usuario_Recepcion,
                         observaciones: doc.observaciones,
                         copia: doc.copia,
@@ -1413,6 +1589,23 @@ export default function ExpedientesIndex() {
             setDocumentosEditados(prev => ({ ...prev, ...nuevosEditados }));
         }
     }, [documentosPorCliente]);
+
+    // Convertir fecha de formato DD/MM/YYYY a YYYY-MM-DD para inputs date
+    const convertirFechaAlFormatoISO = (fecha: string | null): string | null => {
+        if (!fecha) return null;
+
+        // Si ya está en formato ISO (contiene guiones), devolverlo tal cual
+        if (fecha.includes('-')) return fecha;
+
+        // Convertir de DD/MM/YYYY a YYYY-MM-DD
+        if (fecha.includes('/')) {
+            const partes = fecha.split('/');
+            if (partes.length === 3) {
+                return `${partes[2]}-${partes[1]}-${partes[0]}`;
+            }
+        }
+        return fecha;
+    };
 
     const fetchDocumentosExpediente = async (expedienteId: number) => {
         setCargandoDocumentosExpediente(true);
@@ -1458,12 +1651,23 @@ export default function ExpedientesIndex() {
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
-            if (data) {
-                setResultados(data.dataResponse || []);
-            } else {
-                setSearchError(data?.message || 'No se pudieron cargar los expedientes.');
+            const response = await api.get(endpoint);
+
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            // Si es 401, useAuthGuard maneja el toast
+            if (response?.isUnauthorized) {
                 setResultados([]);
+            } else {
+                const data = response?.dataResponse;
+                if (response?.success !== false && data) {
+                    setResultados(data);
+                } else {
+                    setSearchError(response?.message || 'No se pudieron cargar los expedientes.');
+                    setResultados([]);
+                }
             }
         } catch (error) {
             console.error('Error buscando expedientes:', error);
@@ -1482,6 +1686,50 @@ export default function ExpedientesIndex() {
         const { name, value, type } = e.target as HTMLInputElement;
         const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
         setFormData(prev => ({ ...prev, [name]: val }));
+    };
+
+    const handleNumeroEscrituraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        handleInputChange(e);
+        setNumeroEscrituraTouched(true);
+    };
+
+    const validateNumeroEscrituraBeforeSave = async (): Promise<boolean> => {
+        // Si no hay número de escritura, no validar
+        if (!formData.numeroEscritura) {
+            return true;
+        }
+
+        // Si el número de escritura no ha sido modificado del original, no validar
+        if (isEditing && formData.numeroEscritura === numeroEscrituraOriginal) {
+            return true;
+        }
+
+        try {
+            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+
+            // Verificar si dataResponse es true
+            if (response?.dataResponse === true) {
+                return true;
+            } else {
+                // Si dataResponse no es true, mostrar error
+                setSaveError(`El número de escritura ${formData.numeroEscritura} no es válido.`);
+                addToast(response?.message, 'warning', 4000);
+                return false;
+            }
+        } catch (error: any) {
+            // Si hay error en la API, mostrar el mensaje de error
+            let errorMessage = 'Error al validar el número de escritura.';
+
+            if (error?.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+
+            setSaveError(errorMessage);
+            addToast(errorMessage, 'error', 4000);
+            return false;
+        }
     };
 
     const handleCancelEdit = () => {
@@ -1527,6 +1775,18 @@ export default function ExpedientesIndex() {
         setMostrarDropdownDependencias(false);
         setDatosDepdencias({});
         setDependenciaSeleccionada(null);
+        setFilasComparecientes([]);
+        setEnabledDates({
+            fechaEscritura: false,
+            fechaFirma: false,
+            fechaElaboracion: false,
+            fechaRevision: false,
+            fechaImpresion: false,
+            firmarTodos: false,
+        });
+        setNumeroEscrituraTouched(false);
+        setNumeroEscrituraOriginal('');
+        setNumeroEscrituraError(null);
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
@@ -1575,6 +1835,9 @@ export default function ExpedientesIndex() {
                 firmarTodos: expediente.fecha_Firma_Todos ? expediente.fecha_Firma_Todos.split('T')[0] : '',
             }));
 
+            // Guardar el valor original del número de escritura para comparación posterior
+            setNumeroEscrituraOriginal(expediente.escritura_Numero?.toString() || '');
+
             // Buscar y establecer IDs de usuarios
             const notarioEncontrado = usuarios.find(u => u.nombre + ' ' + u.apellido_Paterno + ' ' + u.apellido_Materno === expediente.notario);
             if (notarioEncontrado) setNotarioId(notarioEncontrado.id);
@@ -1593,11 +1856,15 @@ export default function ExpedientesIndex() {
                 const operacionesDescripciones = fullData.operaciones.map((op: any) => op.descripcion);
                 setFormData(prev => ({ ...prev, operaciones: operacionesDescripciones }));
 
-                // Obtener IDs de operaciones
+                // Obtener IDs de operaciones y guardar operaciones completas del expediente
                 const opsIds = operacionesDisponibles
                     .filter(op => operacionesDescripciones.includes(op.descripcion))
                     .map(op => op.id);
                 setOperacionesIds(opsIds);
+
+                // Guardar las operaciones completas del expediente para usarlas en presupuestos
+                const operacionesExpediente = operacionesDisponibles.filter(op => opsIds.includes(op.id));
+                setOperacionesDelExpediente(operacionesExpediente);
             }
 
             // Cargar comparecientes (clientes)
@@ -1660,7 +1927,10 @@ export default function ExpedientesIndex() {
             // Activar modo edición y navegación
             setCurrentExpedienteId(expedienteId);
             setIsEditing(true);
+            setNumeroEscrituraTouched(false);
+            setNumeroEscrituraOriginal(expediente.escritura_Numero?.toString() || '');
             setActiveTab('formulario');
+            setActiveInternalTab('info-general');
             setSaveError(null);
 
             // Cargar documentos e inmuebles del expediente
@@ -1697,38 +1967,48 @@ export default function ExpedientesIndex() {
             return;
         }
 
+        // Validar número de escritura antes de guardar
+        const isNumeroEscrituraValid = await validateNumeroEscrituraBeforeSave();
+        if (!isNumeroEscrituraValid) {
+            return;
+        }
+
         setIsSaving(true);
         setSaveError(null);
 
         try {
-            // Construir el payload según la estructura esperada por la API
+            // Construir el payload base (igual para crear y actualizar)
+            const expedientePayload = {
+                observaciones: formData.observaciones || 'NA',
+                referencia: formData.referencia,
+                municipio_Id: municipioId || 1,
+                notario_Id: notarioId,
+                responsable_Id: responsableId || 0,
+                secretaria_Id: secretariaId || 0,
+                autorizado_Id: autorizadoId || 0,
+                credito: 0,
+                tipo_Escritura: formData.tipoEscritura || '',
+                escritura_Numero: parseInt(formData.numeroEscritura) || 0,
+                folio_Inicial: formData.folioInicial || 0,
+                folio_Final: formData.folioFinal || 0,
+                volumen: formData.volumen || 0,
+                tomo: formData.tomo || 0,
+                fojas: 0,
+                monto: 0,
+                fecha_Escritura: formData.fechaEscritura || new Date().toISOString(),
+                fecha_Firma: formData.fechaFirma || new Date().toISOString(),
+                fecha_Elaboracion: formData.fechaElaboracion || new Date().toISOString(),
+                fecha_Revision: formData.fechaRevision || new Date().toISOString(),
+                fecha_Impresion: formData.fechaImpresion || new Date().toISOString(),
+                fecha_Firma_Todos: formData.firmarTodos || new Date().toISOString(),
+                motivo: formData.motivoCancelacion || 'string'
+            };
+
             const requestPayload = {
-                expediente: {
+                expediente: isEditing ? expedientePayload : {
                     tipo_Expediente: 'EXPEDIENTE',
-                    observaciones: formData.observaciones || 'NA',
                     fecha_Apertura: new Date().toISOString(),
-                    referencia: formData.referencia,
-                    municipio_Id: municipioId || 1,
-                    notario_Id: notarioId,
-                    responsable_Id: responsableId || 0,
-                    secretaria_Id: secretariaId || 0,
-                    autorizado_Id: autorizadoId || 0,
-                    credito: 0,
-                    tipo_Escritura: formData.tipoEscritura || '',
-                    escritura_Numero: parseInt(formData.numeroEscritura) || 0,
-                    folio_Inicial: formData.folioInicial || 0,
-                    folio_Final: formData.folioFinal || 0,
-                    volumen: formData.volumen || 0,
-                    tomo: formData.tomo || 0,
-                    fojas: 0,
-                    monto: 0,
-                    fecha_Escritura: formData.fechaEscritura || new Date().toISOString(),
-                    fecha_Firma: formData.fechaFirma || new Date().toISOString(),
-                    fecha_Elaboracion: formData.fechaElaboracion || new Date().toISOString(),
-                    fecha_Revision: formData.fechaRevision || new Date().toISOString(),
-                    fecha_Impresion: formData.fechaImpresion || new Date().toISOString(),
-                    fecha_Firma_Todos: formData.firmarTodos || new Date().toISOString(),
-                    motivo: formData.motivoCancelacion || 'string'
+                    ...expedientePayload
                 },
                 operacion: operacionesIds.map(opId => ({ operacion_Id: opId })),
                 clientes: filasComparecientes.map(comp => ({
@@ -1764,113 +2044,140 @@ export default function ExpedientesIndex() {
                 })
             };
 
-            const data = await api.post('/Expediente/CreateExpediente', requestPayload);
+            // Determinar endpoint y acción
+            const endpoint = isEditing && currentExpedienteId
+                ? `/Expediente/UpdateExpediente?expedienteId=${currentExpedienteId}`
+                : '/Expediente/CreateExpediente';
 
-            if (data) {
-                addToast('Expediente creado exitosamente', 'success');
+            const data = isEditing
+                ? await api.put(endpoint, requestPayload)
+                : await api.post(endpoint, requestPayload);
 
-                // Obtener el ID del expediente creado
-                const expedienteId = data.dataResponse?.id || currentExpedienteId;
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
-                // Actualizar documentos si hay
-                if (expedienteId && documentosPorCliente.length > 0) {
-                    await handleActualizarDocumentosExpediente(expedienteId);
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
+                const messageAction = isEditing ? 'actualizado' : 'creado';
+                addToast(`Expediente ${messageAction} exitosamente`, 'success', 4000);
+
+                // Si es actualización, solo recargar datos y volver a busqueda
+                if (isEditing && currentExpedienteId) {
+                    setIsEditing(false);
+                    setCurrentExpedienteId(null);
+                    setSaveError(null);
+                    setActiveTab('busqueda');
+                    setActiveInternalTab('info-general');
+
+                    // Recargar expedientes
+                    setTimeout(() => {
+                        fetchExpedientes('');
+                    }, 100);
+                } else {
+                    // Si es creación, resetear todo
+                    const nuevoFormData = {
+                        expediente: '',
+                        fecha_creacion: new Date().toISOString().split('T')[0],
+                        referencia: '',
+                        municipio: '',
+                        operaciones: [],
+                        dependencias: [],
+                        observaciones: '',
+                        notario: '',
+                        responsable: '',
+                        secretaria: '',
+                        autorizado: '',
+                        estatus: '',
+                        motivoCancelacion: '',
+                        ultima_etapa: '',
+                        financiamiento_con: false,
+                        financiamiento_monto: 0,
+                        tipoEscritura: '',
+                        numeroEscritura: '',
+                        foliosRequeridos: 0,
+                        folioInicial: 0,
+                        folioFinal: 0,
+                        volumen: 0,
+                        tomo: 0,
+                        foliosInutilizados: 0,
+                        fechaEscritura: '',
+                        fechaFirma: '',
+                        fechaElaboracion: '',
+                        fechaRevision: '',
+                        fechaImpresion: '',
+                        firmarTodos: '',
+                        noPaso: false,
+                        nopasoMotivo: '',
+                    };
+
+                    // Batch de updates para evitar render issues
+                    setFormData(nuevoFormData);
+                    setNotarioId(null);
+                    setResponsableId(null);
+                    setSecretariaId(null);
+                    setAutorizadoId(null);
+                    setOperacionesIds([]);
+                    setFilasComparecientes([]);
+                    setDatosDepdencias({});
+                    setDependenciaSeleccionada(null);
+                    setSaveError(null);
+                    setCheckboxesFecha({});
+                    setFilasDocumentos({});
+                    setClienteSeleccionado(null);
+                    setOtorganteSeleccionado(null);
+                    setClienteBusqueda('');
+                    setBusquedaOtorgante('');
+                    setOperacionBusqueda('');
+                    setMostrarDropdownOperaciones(false);
+                    setMunicipioBusqueda('');
+                    setMostrarDropdownMunicipios(false);
+                    setDependenciaBusqueda('');
+                    setMostrarDropdownDependencias(false);
+                    setDatosDepdencias({});
+                    setDependenciaSeleccionada(null);
+                    setBusquedaNotario('');
+                    setMostrarDropdownNotario(false);
+                    setBusquedaResponsable('');
+                    setMostrarDropdownResponsable(false);
+                    setBusquedaSecretaria('');
+                    setMostrarDropdownSecretaria(false);
+                    setBusquedaAutorizado('');
+                    setMostrarDropdownAutorizado(false);
+                    setMostrarDropdownClientes(false);
+                    setMostrarDropdownOtorgante(false);
+                    setDropdownTipoAbierto({});
+                    setBusquedaTipo({});
+                    setEnabledDates({
+                        fechaEscritura: false,
+                        fechaFirma: false,
+                        fechaElaboracion: false,
+                        fechaRevision: false,
+                        fechaImpresion: false,
+                        firmarTodos: false,
+                    });
+                    setActiveTab('busqueda');
+                    setActiveInternalTab('info-general');
+
+                    // Recargar expedientes en el siguiente ciclo
+                    setTimeout(() => {
+                        fetchExpedientes('');
+                    }, 100);
                 }
-
-                // Resetear todo en un paso
-                const nuevoFormData = {
-                    expediente: '',
-                    fecha_creacion: new Date().toISOString().split('T')[0],
-                    referencia: '',
-                    municipio: '',
-                    operaciones: [],
-                    dependencias: [],
-                    observaciones: '',
-                    notario: '',
-                    responsable: '',
-                    secretaria: '',
-                    autorizado: '',
-                    estatus: '',
-                    motivoCancelacion: '',
-                    ultima_etapa: '',
-                    financiamiento_con: false,
-                    financiamiento_monto: 0,
-                    tipoEscritura: '',
-                    numeroEscritura: '',
-                    foliosRequeridos: 0,
-                    folioInicial: 0,
-                    folioFinal: 0,
-                    volumen: 0,
-                    tomo: 0,
-                    foliosInutilizados: 0,
-                    fechaEscritura: '',
-                    fechaFirma: '',
-                    fechaElaboracion: '',
-                    fechaRevision: '',
-                    fechaImpresion: '',
-                    firmarTodos: '',
-                    noPaso: false,
-                    nopasoMotivo: '',
-                };
-
-                // Batch de updates para evitar render issues
-                setFormData(nuevoFormData);
-                setNotarioId(null);
-                setResponsableId(null);
-                setSecretariaId(null);
-                setAutorizadoId(null);
-                setOperacionesIds([]);
-                setFilasComparecientes([]);
-                setDatosDepdencias({});
-                setDependenciaSeleccionada(null);
-                setSaveError(null);
-                setCheckboxesFecha({});
-                setFilasDocumentos({});
-                setClienteSeleccionado(null);
-                setOtorganteSeleccionado(null);
-                setClienteBusqueda('');
-                setBusquedaOtorgante('');
-                setOperacionBusqueda('');
-                setMostrarDropdownOperaciones(false);
-                setMunicipioBusqueda('');
-                setMostrarDropdownMunicipios(false);
-                setDependenciaBusqueda('');
-                setMostrarDropdownDependencias(false);
-                setBusquedaNotario('');
-                setMostrarDropdownNotario(false);
-                setBusquedaResponsable('');
-                setMostrarDropdownResponsable(false);
-                setBusquedaSecretaria('');
-                setMostrarDropdownSecretaria(false);
-                setBusquedaAutorizado('');
-                setMostrarDropdownAutorizado(false);
-                setMostrarDropdownClientes(false);
-                setMostrarDropdownOtorgante(false);
-                setDropdownTipoAbierto({});
-                setBusquedaTipo({});
-                setEnabledDates({
-                    fechaEscritura: false,
-                    fechaFirma: false,
-                    fechaElaboracion: false,
-                    fechaRevision: false,
-                    fechaImpresion: false,
-                    firmarTodos: false,
-                });
-                setActiveTab('busqueda');
-
-                // Recargar expedientes en el siguiente ciclo
-                setTimeout(() => {
-                    fetchExpedientes('');
-                }, 100);
             } else {
-                setSaveError(data.message || 'Error al crear el expediente');
-                addToast(data.message || 'Error al crear el expediente', 'error');
+                const action = isEditing ? 'actualizar' : 'crear';
+                setSaveError(data?.message || `Error al ${action} el expediente`);
+                addToast(data?.message || `Error al ${action} el expediente`, 'error');
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-            setSaveError(`Error al crear expediente: ${errorMessage}`);
-            addToast(`Error al crear expediente: ${errorMessage}`, 'error');
-            console.error('Error al guardar expediente:', error);
+            const action = isEditing ? 'actualizar' : 'crear';
+            setSaveError(`Error al ${action} expediente: ${errorMessage}`);
+            addToast(`Error al ${action} expediente: ${errorMessage}`, 'error');
+            console.error(`Error al guardar expediente:`, error);
         } finally {
             setIsSaving(false);
         }
@@ -2055,6 +2362,46 @@ export default function ExpedientesIndex() {
         );
     };
 
+    // Función para buscar clientes desde el modal de comparecientes
+    const fetchClientesModal = async (filtroValue: string) => {
+        setIsSearchingClientesComparecientes(true);
+        setClienteErrorComparecientes(null);
+
+        try {
+            const url = `/Clientes/GetClientes?filtro=${encodeURIComponent(filtroValue)}`;
+            const data = await api.get(url);
+
+            if (data && data.dataResponse) {
+                setClienteResultadosComparecientes(data.dataResponse || []);
+            } else {
+                setClienteErrorComparecientes(data?.message || 'No se encontraron clientes.');
+                setClienteResultadosComparecientes([]);
+            }
+        } catch (error) {
+            setClienteErrorComparecientes('No se pudieron cargar los clientes. Verifica la conexión con el servidor.');
+            setClienteResultadosComparecientes([]);
+        } finally {
+            setIsSearchingClientesComparecientes(false);
+        }
+    };
+
+    // Función para seleccionar cliente del modal y agregarlo a la tabla
+    const handleSelectClienteFromModalComparecientes = (cliente: ClienteBusqueda) => {
+        const nuevoCompareciente: FilaCompareciente = {
+            id: Date.now().toString(),
+            cliente_Id: cliente.id,
+            nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
+            tipoCompareciente: '',
+            firmaRequerida: false,
+            fechaFirma: ''
+        };
+        setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
+        setShowClienteModalComparecientes(false);
+        setClienteFiltroComparecientes('');
+        setClienteResultadosComparecientes([]);
+        setClienteErrorComparecientes(null);
+    };
+
     // Cargar Recibos Provisionales del Expediente
     const fetchRecibosProvisionales = async (expedienteId: number) => {
         setCargandoRecibos(true);
@@ -2114,7 +2461,15 @@ export default function ExpedientesIndex() {
 
             const data = await api.post('/ReciboProvisional/CreateReciboProvisional', payload);
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Recibo generado exitosamente', 'success');
                 // Limpiar formulario
                 setReciboData({ impuestosDerechos: 0, gastosNotariales: 0, honorarios: 0, concepto: '', formaPago: '', observaciones: '', clienteId: null });
@@ -2125,7 +2480,7 @@ export default function ExpedientesIndex() {
                     await fetchRecibosProvisionales(currentExpedienteId);
                 }
             } else {
-                addToast(data.message || 'Error al generar el recibo', 'error');
+                addToast(data?.message || 'Error al generar el recibo', 'error');
             }
         } catch (error) {
             console.error('Error guardando recibo:', error);
@@ -2141,9 +2496,17 @@ export default function ExpedientesIndex() {
 
         try {
             setCargandoReciboDetalle(true);
-            const data = await api.put(`ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
+            const data = await api.put(`/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Recibo pagado exitosamente', 'success');
                 // Recargar los recibos
                 if (currentExpedienteId) {
@@ -2152,7 +2515,7 @@ export default function ExpedientesIndex() {
                     await fetchReciboDetalle(reciboDetalleSeleccionado.numero_Recibo);
                 }
             } else {
-                addToast(data.message || 'Error al pagar el recibo', 'error');
+                addToast(data?.message || 'Error al pagar el recibo', 'error');
             }
         } catch (error) {
             console.error('Error pagando recibo:', error);
@@ -2170,9 +2533,17 @@ export default function ExpedientesIndex() {
 
         try {
             setCargandoReciboDetalle(true);
-            const data = await api.put(`ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
+            const data = await api.put(`/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success !== false) {
                 addToast('Recibo cancelado exitosamente', 'success');
                 // Recargar los recibos
                 if (currentExpedienteId) {
@@ -2181,7 +2552,7 @@ export default function ExpedientesIndex() {
                     await fetchReciboDetalle(reciboDetalleSeleccionado.id);
                 }
             } else {
-                addToast(data.message || 'Error al cancelar el recibo', 'error');
+                addToast(data?.message || 'Error al cancelar el recibo', 'error');
             }
         } catch (error) {
             console.error('Error cancelando recibo:', error);
@@ -2194,7 +2565,7 @@ export default function ExpedientesIndex() {
     const handleImprimirRecibo = async (reciboId: number) => {
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`${new URL(window.location.href).origin}/api/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
+            const response = await fetch(`${apiBaseUrl}/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
                 method: 'GET',
             });
 
@@ -2225,8 +2596,9 @@ export default function ExpedientesIndex() {
     return (
         <>
             <Head title="Expedientes - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
-            <div className="space-y-6 px-6 pt-6">
+            <div className="space-y-6 mb-5 px-6 pt-6">
                 {/* <div className="pb-2 border-b">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="rounded-lg bg-blue-600 p-3 text-white">
@@ -2295,52 +2667,64 @@ export default function ExpedientesIndex() {
                                 <span>{searchError}</span>
                             </div>
                         )}
-                        <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-20">ID</TableHead>
-                                        <TableHead>Expediente</TableHead>
-                                        <TableHead>Operación</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Fecha Creación</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isSearching ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                Cargando expedientes...
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : resultados.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                No se encontraron expedientes.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        resultados.map((item) => (
-                                            <TableRow
-                                                key={item.expediente.id}
-                                                className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
-                                                onClick={() => handleLoadExpediente(item.expediente.id)}
-                                            >
-                                                <TableCell className="font-mono text-sm">{item.expediente.id}</TableCell>
-                                                <TableCell className="font-medium">{item.expediente.expediente || '-'}</TableCell>
-                                                <TableCell>
-                                                    <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                        {item.operaciones?.[0]?.descripcion || '-'}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>{item.clientes?.[0]?.nombre || '-'}</TableCell>
-                                                <TableCell className="text-sm">{item.expediente.fecha_Creacion ? new Date(item.expediente.fecha_Creacion).toLocaleDateString('es-MX') : '-'}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Expediente</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Operación</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Cliente</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearching ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Cargando expedientes...
+                                                </td>
+                                            </tr>
+                                        ) : resultados.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron expedientes.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            resultados.map((item) => (
+                                                <tr
+                                                    key={item.expediente.id}
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                                    onClick={() => handleLoadExpediente(item.expediente.id)}
+                                                >
+                                                    <td className="px-4 py-2 font-mono text-sm">{item.expediente.id}</td>
+                                                    <td className="px-4 py-2">{item.expediente.expediente || '-'}</td>
+                                                    <td className="px-4 py-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                                {item.operaciones?.[0]?.descripcion || '-'}
+                                                            </span>
+                                                            {item.operaciones && item.operaciones.length > 1 && (
+                                                                <span
+                                                                    className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800 whitespace-nowrap cursor-help hover:bg-amber-200 transition-colors"
+                                                                    title={item.operaciones.map(op => op.descripcion).join('\n')}
+                                                                >
+                                                                    +{item.operaciones.length - 1} más
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-2">{item.clientes?.[0]?.nombre || '-'}</td>
+                                                    <td className="px-4 py-2 text-sm">{item.expediente.fecha_Creacion ? new Date(item.expediente.fecha_Creacion).toLocaleDateString('es-MX') : '-'}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         {!isSearching && resultados.length > 0 && (
                             <p className="text-sm text-muted-foreground">
@@ -2359,10 +2743,10 @@ export default function ExpedientesIndex() {
                             )}
 
                             {/* TABS INTERNOS: 4 CATEGORÍAS TEMÁTICAS */}
-                            <Tabs defaultValue="info-general" className="w-full">
-                                <TabsList className="grid w-full grid-cols-5 gap-2 bg-transparent mb-4 p-0">
+                            <Tabs value={activeInternalTab} onValueChange={setActiveInternalTab} className="w-full">
+                                <TabsList className="grid w-full grid-cols-5 gap-4 bg-transparent mb-6 p-0 border-b border-slate-200 dark:border-slate-700">
                                     {/* GRUPO 1: INFORMACIÓN GENERAL */}
-                                    <TabsTrigger value="info-general" className="gap-1 data-[state=active]:shadow-neutral-800">
+                                    <TabsTrigger value="info-general" className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent">
                                         <FileText className="h-4 w-4" />
                                         <span className="hidden sm:inline">Info General</span>
                                     </TabsTrigger>
@@ -2370,7 +2754,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 2: DOCUMENTOS */}
                                     <TabsTrigger
                                         value="documentos"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2381,7 +2765,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 3: INMUEBLES */}
                                     <TabsTrigger
                                         value="inmuebles"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2392,7 +2776,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 4: FINANCIERO & CONTROL */}
                                     <TabsTrigger
                                         value="financiero-control"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2403,7 +2787,7 @@ export default function ExpedientesIndex() {
                                     {/* GRUPO 5: PROCESO & TRÁMITES */}
                                     <TabsTrigger
                                         value="proceso-tramites"
-                                        className="gap-1 data-[state=active]:shadow-neutral-800"
+                                        className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!isEditing}
                                         title={!isEditing ? "Guarda el expediente primero para acceder a esta sección" : ""}
                                     >
@@ -2773,13 +3157,37 @@ export default function ExpedientesIndex() {
                                                 </div>
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium">Número de Escritura</label>
-                                                    <Input type="text" name="numeroEscritura" value={formData.numeroEscritura} onChange={handleInputChange} placeholder="Número de escritura" className="text-sm bg-white dark:bg-white" />
+                                                    <div className="relative">
+                                                        <Input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            name="numeroEscritura"
+                                                            value={formData.numeroEscritura}
+                                                            onChange={handleNumeroEscrituraChange}
+                                                            placeholder="Número de escritura"
+                                                            className={`text-sm bg-white dark:bg-white ${numeroEscrituraError ? 'border-red-500 focus:ring-red-500' : ''}`}
+                                                        />
+                                                        {validandoNumeroEscritura && (
+                                                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                                                        )}
+                                                    </div>
+                                                    {numeroEscrituraError && (
+                                                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-1">
+                                                            <AlertCircle className="h-4 w-4 shrink-0" />
+                                                            <span>{numeroEscrituraError}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
                                             {/* APARTADO DE FOLIOS */}
-                                            <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
-                                                <h4 className="font-semibold text-sm mb-4 text-blue-900 dark:text-blue-100">Gestión de Folios</h4>
+                                            <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                                        <Plus className="h-5 w-5" />
+                                                    </div>
+                                                    <h4 className="text-lg font-bold text-gray-900">Gestión de Folios</h4>
+                                                </div>
                                                 <div className="space-y-4">
                                                     {/* Fila 1: Folios requeridos, botón, vacío */}
                                                     <div className="grid grid-cols-4 gap-4 items-end">
@@ -2788,7 +3196,7 @@ export default function ExpedientesIndex() {
                                                             <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
                                                         </div>
                                                         <div className="flex items-end w-full pt-5">
-                                                            <Button className="bg-blue-600 hover:bg-blue-700 h-10 w-24 min-w-0">Asignar</Button>
+                                                            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all h-10 w-24 min-w-0">Asignar</Button>
                                                         </div>
                                                         <div className="w-full"></div>
                                                     </div>
@@ -2825,7 +3233,7 @@ export default function ExpedientesIndex() {
                                             </div>
 
                                             {/* APARTADO DE FECHAS CON CHECKBOXES */}
-                                            <div className="border rounded-lg p-4 bg-purple-50 dark:bg-purple-950/20">
+                                            <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
                                                 <h4 className="font-semibold text-sm mb-4 text-purple-900 dark:text-purple-100">Fechas de Proceso</h4>
                                                 <div className="space-y-3">
                                                     <div className="text-xs text-muted-foreground mb-3">*Para modificar las fechas, activa el checkbox correspondiente</div>
@@ -3001,51 +3409,15 @@ export default function ExpedientesIndex() {
                                         {/* SubTab: Comparecientes */}
                                         <TabsContent value="comparecientes" className="space-y-4">
                                             <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">Agregar Compareciente(s)</h3>
-
-                                                {/* Dropdown de Clientes */}
-                                                <div ref={refDropdownClientes} className="relative mb-4">
-                                                    <div className="relative">
-                                                        <Input
-                                                            type="text"
-                                                            placeholder="Buscar compareciente..."
-                                                            value={clienteBusqueda}
-                                                            onChange={(e) => setClienteBusqueda(e.target.value)}
-                                                            onFocus={() => setMostrarDropdownClientes(true)}
-                                                            className="text-sm pr-8"
-                                                        />
-                                                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                    </div>
-                                                    {mostrarDropdownClientes && (
-                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                                                            {cargandoClientes && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
-                                                            {!cargandoClientes && clientesFiltrados.filter(c => !filasComparecientes.some(f => f.nombreCompareciente === `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`)).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
-                                                            {clientesFiltrados.filter(c => !filasComparecientes.some(f => f.nombreCompareciente === `${c.nombre} ${c.apellido_Paterno} ${c.apellido_Materno}`)).map(cliente => (
-                                                                <div
-                                                                    key={cliente.id}
-                                                                    onClick={() => {
-                                                                        setClienteSeleccionado(cliente);
-                                                                        // Agregar directamente a la tabla
-                                                                        const nuevoCompareciente: FilaCompareciente = {
-                                                                            id: Date.now().toString(),
-                                                                            cliente_Id: cliente.id,
-                                                                            nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
-                                                                            tipoCompareciente: '',
-                                                                            firmaRequerida: false,
-                                                                            fechaFirma: ''
-                                                                        };
-                                                                        setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
-                                                                        setClienteBusqueda('');
-                                                                        setMostrarDropdownClientes(false);
-                                                                    }}
-                                                                    className="px-3 py-3 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                >
-                                                                    <div className="font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</div>
-                                                                    <div className="text-xs text-muted-foreground mt-1">{cliente.tipo_Cliente} - {cliente.curp} - {cliente.rfc}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">Agregar Compareciente(s)</h3>
+                                                    <Button
+                                                        onClick={() => setShowClienteModalComparecientes(true)}
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                    >
+                                                        <Plus className="h-4 w-4 mr-2" />
+                                                        Buscar Cliente
+                                                    </Button>
                                                 </div>
                                             </div>
 
@@ -3214,28 +3586,35 @@ export default function ExpedientesIndex() {
                                                 </div>
 
                                             {formData.dependencias.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden" style={{ maxHeight: '150px', display: 'flex', flexDirection: 'column' }}>
-                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
+                                                <div className="border rounded-lg overflow-hidden">
+                                                    <div className="overflow-x-auto">
                                                         <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
                                                                 <tr>
-                                                                    <th className="px-3 py-2 text-left">#</th>
-                                                                    <th className="px-3 py-2 text-left">Dependencia</th>
-                                                                    <th className="px-3 py-2 text-center">Acciones</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">#</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Dependencia</th>
+                                                                    <th className="px-4 py-2 text-center font-semibold"></th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 {formData.dependencias.map((dep, idx) => (
-                                                                    <tr key={idx} className="border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer transition-colors">
-                                                                        <td className="px-3 py-2">
+                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" onClick={() => setDependenciaSeleccionada(dep)}>
+                                                                        <td className="px-4 py-2">
                                                                             <span className="font-semibold">{idx + 1}</span>
                                                                         </td>
-                                                                        <td className="px-3 py-2 text-sm">
-                                                                            <button onClick={() => setDependenciaSeleccionada(dep)} className="hover:underline text-left">{dep}</button>
+                                                                        <td className="px-4 py-2 text-sm">
+                                                                            <button onClick={(e) => e.stopPropagation()} className="text-left">{dep}</button>
                                                                         </td>
-                                                                        <td className="px-3 py-2 text-center">
-                                                                            <button onClick={() => handleEliminarDependencia(idx)} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                                <X className="h-4 w-4" />
+                                                                        <td className="px-4 py-2 text-right flex items-center justify-end">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleEliminarDependencia(idx);
+                                                                                }}
+                                                                                className="text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-2xl font-bold rounded-md w-8 h-8 flex items-center justify-center leading-none"
+                                                                                aria-label="Eliminar"
+                                                                            >
+                                                                                ×
                                                                             </button>
                                                                         </td>
                                                                     </tr>
@@ -3257,9 +3636,7 @@ export default function ExpedientesIndex() {
                                                 <div className="border rounded-lg p-6 bg-cyan-50 dark:bg-cyan-950/20 mt-6 border-cyan-300">
                                                     <div className="flex items-center justify-between mb-6">
                                                         <h3 className="text-lg font-semibold text-cyan-900 dark:text-cyan-100">Datos de la Dependencia</h3>
-                                                        <button onClick={() => setDependenciaSeleccionada(null)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400">
-                                                            <X className="h-5 w-5" />
-                                                        </button>
+
                                                     </div>
 
                                                     <div className="space-y-4">
@@ -3592,8 +3969,8 @@ export default function ExpedientesIndex() {
                                                                                     <td className="px-2 py-2 text-center">
                                                                                         <input
                                                                                             type="text"
-                                                                                            value={docEditado.usuario_Recibe || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'usuario_Recibe', e.target.value || null)}
+                                                                                            value={doc.usuario_Recibe || ''}
+                                                                                            readOnly
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
@@ -3609,8 +3986,8 @@ export default function ExpedientesIndex() {
                                                                                     <td className="px-2 py-2 text-center">
                                                                                         <input
                                                                                             type="text"
-                                                                                            value={docEditado.usuario_Recepcion || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'usuario_Recepcion', e.target.value || null)}
+                                                                                              value={doc.usuario_Recepcion || ''}
+                                                                                            readOnly
                                                                                             placeholder="-"
                                                                                             className="w-full px-2 py-1 border rounded text-sm bg-background"
                                                                                         />
@@ -4346,6 +4723,7 @@ export default function ExpedientesIndex() {
                                                     onClick={() => {
                                                         setMostrarFormularioPresupuesto(true);
                                                         setClienteSelectedPresupuesto(null);
+                                                        setClienteFiltro('');
                                                         setOperacionFiltro('');
                                                         setRetISRCheck(false);
                                                         setRetIVACheck(false);
@@ -4353,7 +4731,6 @@ export default function ExpedientesIndex() {
                                                             cliente: '',
                                                             operacion: '',
                                                             zona_municipio: '',
-                                                            observaciones: '',
                                                             valor_operacion: 0,
                                                             valor_avaluo: 0,
                                                             valor_catastral: 0,
@@ -4437,147 +4814,216 @@ export default function ExpedientesIndex() {
                                                 </div>
 
                                                 {/* SECCIÓN SUPERIOR: DATOS DEL PRESUPUESTO */}
-                                                <div className="grid grid-cols-3 gap-4">
-                                                    {/* COLUMNA 1: DATOS (2 columnas) */}
-                                                    <div className="border rounded-lg p-4 bg-background/50 space-y-4 col-span-2">
-                                                        <h3 className="text-lg font-bold">Datos del presupuesto</h3>
+                                                <div className="border rounded-lg p-4 bg-background/50">
+                                                    <h3 className="text-lg font-bold mb-4">Datos del presupuesto</h3>
 
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Cliente</label>
-                                                                <div className="flex gap-2">
-                                                                    <Input
-                                                                        readOnly
-                                                                        value={clienteSelectedPresupuesto ? `${clienteSelectedPresupuesto.nombre} ${clienteSelectedPresupuesto.apellido_Paterno}` : 'Selecciona un cliente'}
-                                                                        placeholder="Selecciona un cliente"
-                                                                        className="flex-1"
-                                                                    />
-                                                                    <Button
-                                                                        type="button"
-                                                                        onClick={() => setFormPresupuesto(prev => ({ ...prev, cliente: filasComparecientes.length > 0 ? filasComparecientes[0].cliente_Id.toString() : '' }))}
-                                                                        className="bg-amber-600 hover:bg-amber-700"
-                                                                    >
-                                                                        <ChevronDown className="h-4 w-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="space-y-2 relative">
-                                                                <label className="text-sm font-medium">Operación</label>
-                                                                <div className="relative">
-                                                                    <Input
-                                                                        type="text"
-                                                                        placeholder="Busca o selecciona"
-                                                                        value={operacionFiltro}
-                                                                        onChange={(e) => {
-                                                                            setOperacionFiltro(e.target.value);
-                                                                            setShowOperacionDropdown(true);
-                                                                        }}
-                                                                        onFocus={() => setShowOperacionDropdown(true)}
-                                                                        onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
-                                                                        className="w-full pr-10"
-                                                                    />
-                                                                    {operacionFiltro && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setOperacionFiltro('');
-                                                                                setFormPresupuesto(prev => ({ ...prev, operacion: '' }));
-                                                                                setShowOperacionDropdown(false);
-                                                                            }}
-                                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                                        >
-                                                                            <X className="h-4 w-4" />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                                {showOperacionDropdown && operacionesDisponibles.length > 0 && (
-                                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
-                                                                        {operacionesDisponibles
-                                                                            .filter(op =>
-                                                                                op.descripcion
-                                                                                    .toLowerCase()
-                                                                                    .includes(operacionFiltro.toLowerCase())
-                                                                            )
-                                                                            .map(operacion => (
-                                                                                <button
-                                                                                    key={operacion.id}
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        setFormPresupuesto(prev => ({ ...prev, operacion: operacion.id.toString() }));
-                                                                                        setOperacionFiltro(operacion.descripcion);
-                                                                                        setShowOperacionDropdown(false);
-                                                                                    }}
-                                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
-                                                                                >
-                                                                                    {operacion.descripcion}
-                                                                                </button>
-                                                                            ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Zona o Municipio</label>
+                                                    <div className="grid grid-cols-3 gap-4 mb-6">
+                                                        <div className="space-y-2 relative">
+                                                            <label className="text-sm font-medium">Cliente</label>
+                                                            <div className="relative">
                                                                 <Input
                                                                     type="text"
-                                                                    value={formPresupuesto.zona_municipio}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, zona_municipio: e.target.value }))}
-                                                                    placeholder="Zona o Municipio"
+                                                                    placeholder="Busca o selecciona"
+                                                                    value={clienteFiltro}
+                                                                    onChange={(e) => {
+                                                                        setClienteFiltro(e.target.value);
+                                                                        setShowClienteDropdown(true);
+                                                                    }}
+                                                                    onFocus={() => setShowClienteDropdown(true)}
+                                                                    onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
+                                                                    className="w-full pr-10"
                                                                 />
+                                                                {clienteFiltro && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setClienteFiltro('');
+                                                                            setClienteSelectedPresupuesto(null);
+                                                                            setFormPresupuesto(prev => ({ ...prev, cliente: '' }));
+                                                                            setShowClienteDropdown(false);
+                                                                        }}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Observaciones</label>
-                                                                <textarea
-                                                                    value={formPresupuesto.observaciones}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, observaciones: e.target.value }))}
-                                                                    placeholder="Observaciones adicionales"
-                                                                    rows={2}
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                                                            {showClienteDropdown && filasComparecientes.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                                    {filasComparecientes
+                                                                        .filter(fila =>
+                                                                            fila.nombreCompareciente
+                                                                                .toLowerCase()
+                                                                                .includes(clienteFiltro.toLowerCase())
+                                                                        )
+                                                                        .map(fila => (
+                                                                            <button
+                                                                                key={fila.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const cliente = clientesDisponibles.find(c => c.id === fila.cliente_Id);
+                                                                                    if (cliente) {
+                                                                                        setClienteSelectedPresupuesto(cliente);
+                                                                                        setFormPresupuesto(prev => ({ ...prev, cliente: cliente.id.toString() }));
+                                                                                        setClienteFiltro(`${cliente.nombre} ${cliente.apellido_Paterno}`);
+                                                                                        setShowClienteDropdown(false);
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0 text-sm"
+                                                                            >
+                                                                                {fila.nombreCompareciente}
+                                                                            </button>
+                                                                        ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="space-y-2 relative">
+                                                            <label className="text-sm font-medium">Operación</label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Busca o selecciona"
+                                                                    value={operacionFiltro}
+                                                                    onChange={(e) => {
+                                                                        setOperacionFiltro(e.target.value);
+                                                                        setShowOperacionDropdown(true);
+                                                                    }}
+                                                                    onFocus={() => setShowOperacionDropdown(true)}
+                                                                    onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
+                                                                    className="w-full pr-10"
                                                                 />
+                                                                {operacionFiltro && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setOperacionFiltro('');
+                                                                            setFormPresupuesto(prev => ({ ...prev, operacion: '' }));
+                                                                            setShowOperacionDropdown(false);
+                                                                        }}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
+                                                            {showOperacionDropdown && operacionesDelExpediente.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                                    {operacionesDelExpediente
+                                                                        .filter(op =>
+                                                                            op.descripcion
+                                                                                .toLowerCase()
+                                                                                .includes(operacionFiltro.toLowerCase())
+                                                                        )
+                                                                        .map(operacion => (
+                                                                            <button
+                                                                                key={operacion.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setFormPresupuesto(prev => ({ ...prev, operacion: operacion.id.toString() }));
+                                                                                    setOperacionFiltro(operacion.descripcion);
+                                                                                    setShowOperacionDropdown(false);
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
+                                                                            >
+                                                                                {operacion.descripcion}
+                                                                            </button>
+                                                                        ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="space-y-2 relative">
+                                                            <label className="text-sm font-medium">Zona o Municipio</label>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    type="text"
+                                                                    placeholder="Busca o selecciona"
+                                                                    value={formPresupuesto.zona_municipio || formData.municipio}
+                                                                    onChange={(e) => {
+                                                                        setFormPresupuesto(prev => ({ ...prev, zona_municipio: e.target.value }));
+                                                                        setShowMunicipioPresupuestoDropdown(true);
+                                                                    }}
+                                                                    onFocus={() => setShowMunicipioPresupuestoDropdown(true)}
+                                                                    onBlur={() => setTimeout(() => setShowMunicipioPresupuestoDropdown(false), 200)}
+                                                                    className="w-full pr-10"
+                                                                />
+                                                                {(formPresupuesto.zona_municipio || formData.municipio) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFormPresupuesto(prev => ({ ...prev, zona_municipio: formData.municipio }));
+                                                                            setShowMunicipioPresupuestoDropdown(false);
+                                                                        }}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            {showMunicipioPresupuestoDropdown && municipiosDisponibles.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                                    {municipiosDisponibles
+                                                                        .filter(municipio =>
+                                                                            municipio.descripcion
+                                                                                .toLowerCase()
+                                                                                .includes((formPresupuesto.zona_municipio || formData.municipio || '').toLowerCase())
+                                                                        )
+                                                                        .map(municipio => (
+                                                                            <button
+                                                                                key={municipio.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setFormPresupuesto(prev => ({ ...prev, zona_municipio: municipio.descripcion }));
+                                                                                    setShowMunicipioPresupuestoDropdown(false);
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2 hover:bg-green-50 border-b last:border-b-0 text-sm"
+                                                                            >
+                                                                                {municipio.descripcion}
+                                                                            </button>
+                                                                        ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
+                                                </div>
 
-                                                    {/* COLUMNA 2: VALORES */}
-                                                    <div className="border rounded-lg p-4 bg-background/50 space-y-4">
-                                                        <h3 className="text-lg font-bold">Valores</h3>
-                                                        <div className="space-y-3">
-                                                            <div className="space-y-1">
-                                                                <label className="text-sm font-medium">Valor Operación</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={formPresupuesto.valor_operacion}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_operacion: parseFloat(e.target.value) || 0 }))}
-                                                                    placeholder="0.00"
-                                                                    className="text-right font-bold text-green-600"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <label className="text-sm font-medium">Valor Avalúo</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={formPresupuesto.valor_avaluo}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_avaluo: parseFloat(e.target.value) || 0 }))}
-                                                                    placeholder="0.00"
-                                                                    className="text-right font-bold text-green-600"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <label className="text-sm font-medium">Valor Catastral</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={formPresupuesto.valor_catastral}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_catastral: parseFloat(e.target.value) || 0 }))}
-                                                                    placeholder="0.00"
-                                                                    className="text-right font-bold text-green-600"
-                                                                />
-                                                            </div>
+                                                {/* SECCIÓN: VALORES */}
+                                                <div className="border rounded-lg p-4 bg-background/50">
+                                                    <h3 className="text-lg font-bold mb-4">Valores</h3>
+                                                    <div className="grid grid-cols-3 gap-4">
+                                                        <div className="space-y-1">
+                                                            <label className="text-sm font-medium">Valor Operación</label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={formPresupuesto.valor_operacion}
+                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_operacion: parseFloat(e.target.value) || 0 }))}
+                                                                placeholder="0.00"
+                                                                className="text-right font-bold text-green-600"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-sm font-medium">Valor Avalúo</label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={formPresupuesto.valor_avaluo}
+                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_avaluo: parseFloat(e.target.value) || 0 }))}
+                                                                placeholder="0.00"
+                                                                className="text-right font-bold text-green-600"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-sm font-medium">Valor Catastral</label>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={formPresupuesto.valor_catastral}
+                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_catastral: parseFloat(e.target.value) || 0 }))}
+                                                                placeholder="0.00"
+                                                                className="text-right font-bold text-green-600"
+                                                            />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -4876,8 +5322,10 @@ export default function ExpedientesIndex() {
                                                                 activo: true,
                                                             });
                                                             setOperacionFiltro('');
+                                                            setClienteFiltro('');
                                                             setRetISRCheck(false);
                                                             setRetIVACheck(false);
+                                                            setClienteSelectedPresupuesto(null);
                                                         }}
                                                     >
                                                         Cancelar
@@ -4890,7 +5338,6 @@ export default function ExpedientesIndex() {
                                                                 cliente: '',
                                                                 operacion: '',
                                                                 zona_municipio: '',
-                                                                observaciones: '',
                                                                 valor_operacion: 0,
                                                                 valor_avaluo: 0,
                                                                 valor_catastral: 0,
@@ -4906,8 +5353,10 @@ export default function ExpedientesIndex() {
                                                                 activo: true,
                                                             });
                                                             setOperacionFiltro('');
+                                                            setClienteFiltro('');
                                                             setRetISRCheck(false);
                                                             setRetIVACheck(false);
+                                                            setClienteSelectedPresupuesto(null);
                                                             fetchPresupuestos(currentExpedienteId!);
                                                         }}
                                                         className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
@@ -5031,7 +5480,7 @@ export default function ExpedientesIndex() {
                                                         <Input
                                                             type="text"
                                                             readOnly
-                                                            value={reciboDetalleSeleccionado?.numero_Recibo || ''}
+                                                            value={reciboDetalleSeleccionado?.id || ''}
                                                             className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                                             placeholder="Auto-generado"
                                                         />
@@ -5555,24 +6004,28 @@ export default function ExpedientesIndex() {
                             </Tabs>
 
                         {/* BOTONES DE ACCIÓN */}
-                        <div className="flex gap-2 justify-end pt-6 border-t mt-6">
-                            <Button variant="outline" onClick={handleCancelEdit}>
-                                <X className="h-4 w-4 mr-2" />
-                                Cancelar
-                            </Button>
-                            <Button
-                                onClick={handleSaveExpediente}
-                                disabled={isSaving}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                {isSaving ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                    <Plus className="h-4 w-4 mr-2" />
+                        {activeTab === 'formulario' && (
+                            <div className="flex gap-2 justify-end pt-6 border-t mt-6">
+                                <Button variant="outline" onClick={handleCancelEdit}>
+                                    <X className="h-4 w-4 mr-2" />
+                                    Cerrar
+                                </Button>
+                                {activeInternalTab === 'info-general' && (
+                                    <Button
+                                        onClick={handleSaveExpediente}
+                                        disabled={isSaving}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        {isSaving ? (
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        ) : (
+                                            <Plus className="h-4 w-4 mr-2" />
+                                        )}
+                                        {isEditing ? 'Actualizar' : 'Crear'} Expediente
+                                    </Button>
                                 )}
-                                {isEditing ? 'Actualizar' : 'Guardar'} Expediente
-                            </Button>
-                        </div>
+                            </div>
+                        )}
                     </div>
                     </TabsContent>
                 </Tabs>
@@ -5655,6 +6108,133 @@ export default function ExpedientesIndex() {
                             >
                                 Cerrar
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE BÚSQUEDA DE CLIENTES PARA COMPARECIENTES */}
+            {showClienteModalComparecientes && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-background border rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="border-b px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                Búsqueda de Clientes
+                            </h2>
+                            <button
+                                onClick={() => setShowClienteModalComparecientes(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Body - Búsqueda */}
+                        <div className="border-b px-6 py-4 space-y-3">
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        value={clienteFiltroComparecientes}
+                                        onChange={(e) => setClienteFiltroComparecientes(e.target.value)}
+                                        placeholder="Buscar por nombre, RFC, CURP..."
+                                        className="pr-10 bg-white dark:bg-slate-900/50"
+                                    />
+                                    {clienteFiltroComparecientes && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setClienteFiltroComparecientes('');
+                                                setClienteResultadosComparecientes([]);
+                                                setClienteErrorComparecientes(null);
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                                <Button
+                                    onClick={() => fetchClientesModal(clienteFiltroComparecientes)}
+                                    disabled={isSearchingClientesComparecientes}
+                                    className="bg-amber-600 hover:bg-amber-700"
+                                >
+                                    {isSearchingClientesComparecientes ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Search className="h-4 w-4" />
+                                    )}
+                                    <span className="ml-2">Buscar</span>
+                                </Button>
+                            </div>
+                            {clienteErrorComparecientes && (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-red-50 border-red-200 text-red-800 text-sm">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <span>{clienteErrorComparecientes}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Table */}
+                        <div className="border rounded-lg overflow-hidden m-2">
+                            <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                            <th className="px-4 py-2 text-left font-semibold">RFC</th>
+                                            <th className="px-4 py-2 text-left font-semibold">CURP</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Seleccionar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearchingClientesComparecientes ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Buscando clientes...
+                                                </td>
+                                            </tr>
+                                        ) : clienteResultadosComparecientes.filter(c => !filasComparecientes.some(f => f.cliente_Id === c.id)).length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron clientes disponibles.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            clienteResultadosComparecientes.filter(c => !filasComparecientes.some(f => f.cliente_Id === c.id)).map((cliente) => (
+                                                <tr key={cliente.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer">
+                                                    <td className="px-4 py-2 font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</td>
+                                                    <td className="px-4 py-2 font-mono text-sm">{cliente.rfc}</td>
+                                                    <td className="px-4 py-2 font-mono text-sm">{cliente.curp}</td>
+                                                    <td className="px-4 py-2">{cliente.tipo_Cliente}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <Button
+                                                            onClick={() => handleSelectClienteFromModalComparecientes(cliente)}
+                                                            size="sm"
+                                                            className="bg-green-600 hover:bg-green-700"
+                                                        >
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t px-6 py-4 flex justify-end gap-2">
+                            <Button
+                                onClick={() => setShowClienteModalComparecientes(false)}
+                                variant="outline"
+                            >
+                                Cerrar
+                            </Button>
                         </div>
                     </div>
                 </div>

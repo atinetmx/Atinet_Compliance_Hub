@@ -96,11 +96,19 @@ class ControlNotarialController extends Controller
     }
 
     /**
-     * Display configuración module
+     * Display configuración module (Dashboard)
      */
     public function configuracion(): Response
     {
         return Inertia::render('ControlNotarial/Configuracion/Index');
+    }
+
+    /**
+     * Display notaría data within configuración
+     */
+    public function notaria(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/Notaria/Index');
     }
 
     /**
@@ -136,11 +144,11 @@ class ControlNotarialController extends Controller
     }
 
     /**
-     * Display notaría configuration module
+     * Display configuraciones tarifarias module
      */
-    public function notaria(): Response
+    public function configuracionesTarifarias(): Response
     {
-        return Inertia::render('ControlNotarial/Configuracion/Notaria/Index');
+        return Inertia::render('ControlNotarial/Configuracion/ConfiguracionesTarifarias/Index');
     }
 
     /**

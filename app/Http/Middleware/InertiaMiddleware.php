@@ -2,8 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use Closure;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Symfony\Component\HttpFoundation\Response;
 
 class InertiaMiddleware extends Middleware
 {
@@ -17,7 +19,7 @@ class InertiaMiddleware extends Middleware
     /**
      * Determines the current asset version.
      */
-    public function version(Request $request): ?string
+    public function version(Request $request): string|null
     {
         return parent::version($request);
     }

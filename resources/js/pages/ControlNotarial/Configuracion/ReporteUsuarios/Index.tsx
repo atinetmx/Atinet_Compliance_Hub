@@ -1,6 +1,10 @@
 import { Head } from '@inertiajs/react';
 import { BarChart3, Download, Filter, MapPin } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { removeToken } from '@/services/authService';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +29,11 @@ const getTodayDate = () => {
 };
 
 export default function ControlNotarialReporteUsuarios() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     const { addToast } = useToast();
+    const api = useApi();
     const [userId, setUserId] = useState('all');
     const [usuarios, setUsuarios] = useState<any[]>([]);
     const [filtroUsuario, setFiltroUsuario] = useState('');
@@ -36,6 +44,14 @@ export default function ControlNotarialReporteUsuarios() {
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(false);
 
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
+
     // Cargar usuarios al montar el componente
     useEffect(() => {
         cargarUsuarios('');
@@ -44,14 +60,23 @@ export default function ControlNotarialReporteUsuarios() {
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : ''), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
+            const endpoint = '/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : '');
+            const response = await api.get(endpoint);
+
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
 
-            const data = await response.json();
-            if (data.dataResponse && Array.isArray(data.dataResponse)) {
-                setUsuarios(data.dataResponse);
+            // Si es 401, useAuthGuard maneja el toast
+            if (response?.isUnauthorized) {
+                setUsuarios([]);
+            } else {
+                const data = response?.dataResponse || [];
+                if (response?.success !== false && Array.isArray(data)) {
+                    setUsuarios(data);
+                } else {
+                    addToast(response?.message || 'Error al cargar usuarios', 'error');
+                }
             }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
@@ -76,31 +101,47 @@ export default function ControlNotarialReporteUsuarios() {
                 return fecha.replace(/-/g, '/');
             };
 
-// Construir URL con parámetros, omitiendo operacion si es 'all'
-            let url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Bitacora/GenerateReporteBitacora?';
-            const params = [];
-
-            params.push(`userId=${encodeURIComponent(userId && userId !== 'all' ? userId : '0')}`);
+            // Construir URL con parámetros, omitiendo operacion si es 'all'
+            const params = new URLSearchParams();
+            params.append('userId', userId && userId !== 'all' ? userId : '0');
             if (operacion && operacion !== 'all') {
-                params.push(`operacion=${encodeURIComponent(operacion)}`);
+                params.append('operacion', operacion);
             }
-            params.push(`fechaInicio=${encodeURIComponent(convertirFecha(fechaInicio))}`);
-            params.push(`fechaFin=${encodeURIComponent(convertirFecha(fechaFin))}`);
+            params.append('fechaInicio', convertirFecha(fechaInicio));
+            params.append('fechaFin', convertirFecha(fechaFin));
 
-            url += params.join('&');
+            const endpoint = `/Bitacora/GenerateReporteBitacora?${params.toString()}`;
+            console.log(`[DEBUG] Solicitando PDF a: ${endpoint}`);
 
-            console.log(`[DEBUG] Solicitando PDF a: ${url}`);
+            // Hacer fetch directo para obtener el PDF como blob
+            // (Esta es una llamada especial que devuelve binario, no JSON)
+            const token = localStorage.getItem('auth_token');
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
 
-            const response = await fetch(url, {
+            const responseBlob = await fetch(api.baseUrl + endpoint, {
                 method: 'GET',
+                headers,
             });
 
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            // Detectar 401
+            if (responseBlob.status === 401) {
+                removeToken();
+                setLoginModalOpen(true);
+                addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+                return;
+            }
+
+            if (!responseBlob.ok) {
+                throw new Error(`Error ${responseBlob.status}: ${responseBlob.statusText}`);
             }
 
             // Obtener el PDF como blob
-            const pdfBlob = await response.blob();
+            const pdfBlob = await responseBlob.blob();
             console.log(`[DEBUG] PDF recibido, tamaño: ${pdfBlob.size} bytes`);
 
             // Crear una URL para el blob
@@ -134,19 +175,10 @@ export default function ControlNotarialReporteUsuarios() {
     return (
         <>
             <Head title="Reporte de Bitácora - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
               <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="rounded-lg bg-orange-500 p-3 text-white">
-                            <BarChart3 className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Reporte de Bitácora</h1>
-                            <p className="text-muted-foreground text-xs">Análisis de operaciones y actividades del sistema</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <div>
                     {/* Sección de Filtros */}
@@ -276,3 +308,4 @@ ControlNotarialReporteUsuarios.layout = (page: React.ReactNode) => (
         {page}
     </AppLayout>
 );
+

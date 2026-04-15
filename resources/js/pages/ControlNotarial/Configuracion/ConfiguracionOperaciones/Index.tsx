@@ -1,6 +1,10 @@
 import { Head } from '@inertiajs/react';
 import { X, AlertCircle, Search, Loader2, Building2, Save, Settings, SettingsIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,7 +67,11 @@ interface ImpuestoDerechoOperacion {
 }
 
 export default function ControlNotarialConfiguracionOperacionesIndex() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     const { addToast } = useToast();
+    const api = useApi();
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -100,6 +108,14 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     const [isLoadingSubTab, setIsLoadingSubTab] = useState(false);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
 
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
+
     // Cargar operaciones al montar (filtro vacío = todas)
     useEffect(() => {
         fetchOperaciones('');
@@ -109,25 +125,31 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetOperaciones', {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            const response = await api.get('/Catalogos/GetOperaciones');
 
-            if (response.ok) {
-                const todos = data.dataResponse || data || [];
-                // Filtrar si hay texto de búsqueda
-                if (filtroValue.trim()) {
-                    const filtradas = todos.filter((op: Operacion) =>
-                        op.descripcion.toLowerCase().includes(filtroValue.toLowerCase())
-                    );
-                    setOperaciones(filtradas);
-                } else {
-                    setOperaciones(todos);
-                }
-            } else {
-                setSearchError(data.message || 'No se pudieron cargar las operaciones.');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (response?.isUnauthorized) {
+                // useAuthGuard maneja el toast, no mostrar searchError
                 setOperaciones([]);
+            } else {
+                const data = response?.dataResponse || [];
+                if (response?.success !== false && data) {
+                    // Filtrar si hay texto de búsqueda
+                    if (filtroValue.trim()) {
+                        const filtradas = data.filter((op: Operacion) =>
+                            op.descripcion.toLowerCase().includes(filtroValue.toLowerCase())
+                        );
+                        setOperaciones(filtradas);
+                    } else {
+                        setOperaciones(data);
+                    }
+                } else {
+                    setSearchError(response?.message || 'No se pudieron cargar las operaciones.');
+                    setOperaciones([]);
+                }
             }
         } catch (error) {
             console.error('Error buscando operaciones:', error);
@@ -153,75 +175,70 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
 
         try {
             // Cargar etapas configuradas
-            const responseEtapasConfiguradasURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`;
-            const responseEtapasConfiguradas = await fetch(responseEtapasConfiguradasURL, {
-                headers: { 'Content-Type': 'application/json' },
+            const responseEtapasConfiguradas = await api.get(`/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`);
+            await handleControlNotarialResponse(responseEtapasConfiguradas, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
-            const dataEtapasConfiguradas = await responseEtapasConfiguradas.json();
-            // Si la respuesta es exitosa, usar los datos; si no, usar array vacío
-            if (responseEtapasConfiguradas.ok && dataEtapasConfiguradas.dataResponse) {
-                setEtapasConfiguradasOperacion(dataEtapasConfiguradas.dataResponse);
+            if (!responseEtapasConfiguradas?.isUnauthorized && responseEtapasConfiguradas?.success !== false && responseEtapasConfiguradas?.dataResponse) {
+                setEtapasConfiguradasOperacion(responseEtapasConfiguradas.dataResponse);
             } else {
-                // No hay etapas configuradas (estado normal al inicio)
                 setEtapasConfiguradasOperacion([]);
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetEtapas', {
-                headers: { 'Content-Type': 'application/json' },
+            const responseEtapasDisponibles = await api.get('/Catalogos/GetEtapas');
+            await handleControlNotarialResponse(responseEtapasDisponibles, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
-            const dataEtapasDisponibles = await responseEtapasDisponibles.json();
-            setEtapasDisponibles(dataEtapasDisponibles.dataResponse || dataEtapasDisponibles || []);
+            setEtapasDisponibles(responseEtapasDisponibles?.dataResponse || []);
             setEtapasSeleccionadas([]);
             setEtapasRemovidasOperacion([]);
 
             // Cargar documentos configurados
-            const responseDocumentosConfiguradosURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`;
-            const responseDocumentosConfigurados = await fetch(responseDocumentosConfiguradosURL, {
-                headers: { 'Content-Type': 'application/json' },
+            const responseDocumentosConfigurados = await api.get(`/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`);
+            await handleControlNotarialResponse(responseDocumentosConfigurados, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
-            const dataDocumentosConfigurados = await responseDocumentosConfigurados.json();
-            if (responseDocumentosConfigurados.ok && dataDocumentosConfigurados.dataResponse) {
-                setDocumentosConfiguradosOperacion(dataDocumentosConfigurados.dataResponse);
+            if (!responseDocumentosConfigurados?.isUnauthorized && responseDocumentosConfigurados?.success !== false && responseDocumentosConfigurados?.dataResponse) {
+                setDocumentosConfiguradosOperacion(responseDocumentosConfigurados.dataResponse);
             } else {
                 setDocumentosConfiguradosOperacion([]);
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetDocumentos', {
-                headers: { 'Content-Type': 'application/json' },
+            const responseDocumentosDisponibles = await api.get('/Catalogos/GetDocumentos');
+            await handleControlNotarialResponse(responseDocumentosDisponibles, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
-            const dataDocumentosDisponibles = await responseDocumentosDisponibles.json();
-            setDocumentosDisponibles(dataDocumentosDisponibles.dataResponse || dataDocumentosDisponibles || []);
+            setDocumentosDisponibles(responseDocumentosDisponibles?.dataResponse || []);
             setDocumentosSeleccionados([]);
             setDocumentosRemovidosOperacion([]);
 
             // Cargar impuestos configurados
-            const responseImpuestosConfiguradosURL = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`;
-            const responseImpuestosConfigurados = await fetch(responseImpuestosConfiguradosURL, {
-                headers: { 'Content-Type': 'application/json' },
+            const responseImpuestosConfigurados = await api.get(`/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`);
+            await handleControlNotarialResponse(responseImpuestosConfigurados, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
-            const dataImpuestosConfigurados = await responseImpuestosConfigurados.json();
-            console.log('Impuestos Configurados:', dataImpuestosConfigurados.dataResponse);
-            if (dataImpuestosConfigurados.dataResponse && dataImpuestosConfigurados.dataResponse.length > 0) {
-                console.log('Primer impuesto configurado (estructura):', dataImpuestosConfigurados.dataResponse[0]);
+            console.log('Impuestos Configurados:', responseImpuestosConfigurados?.dataResponse);
+            if (responseImpuestosConfigurados?.dataResponse && responseImpuestosConfigurados.dataResponse.length > 0) {
+                console.log('Primer impuesto configurado (estructura):', responseImpuestosConfigurados.dataResponse[0]);
             }
-            if (responseImpuestosConfigurados.ok && dataImpuestosConfigurados.dataResponse) {
-                setImpuestosConfiguradosOperacion(dataImpuestosConfigurados.dataResponse);
+            if (!responseImpuestosConfigurados?.isUnauthorized && responseImpuestosConfigurados?.success !== false && responseImpuestosConfigurados?.dataResponse) {
+                setImpuestosConfiguradosOperacion(responseImpuestosConfigurados.dataResponse);
             } else {
                 setImpuestosConfiguradosOperacion([]);
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetImpuestosDerechos', {
-                headers: { 'Content-Type': 'application/json' },
+            const responseImpuestosDisponibles = await api.get('/Catalogos/GetImpuestosDerechos');
+            await handleControlNotarialResponse(responseImpuestosDisponibles, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
-            const dataImpuestosDisponibles = await responseImpuestosDisponibles.json();
-            console.log('Impuestos Disponibles:', dataImpuestosDisponibles.dataResponse);
-            if (dataImpuestosDisponibles.dataResponse && dataImpuestosDisponibles.dataResponse.length > 0) {
-                console.log('Primer impuesto disponible (estructura):', dataImpuestosDisponibles.dataResponse[0]);
+            console.log('Impuestos Disponibles:', responseImpuestosDisponibles?.dataResponse);
+            if (responseImpuestosDisponibles?.dataResponse && responseImpuestosDisponibles.dataResponse.length > 0) {
+                console.log('Primer impuesto disponible (estructura):', responseImpuestosDisponibles.dataResponse[0]);
             }
-            setImpuestosDisponibles(dataImpuestosDisponibles.dataResponse || dataImpuestosDisponibles || []);
+            setImpuestosDisponibles(responseImpuestosDisponibles?.dataResponse || []);
             setImpuestosSeleccionados([]);
             setImpuestosRemovidosOperacion([]);
         } catch (error) {
@@ -315,7 +332,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddEtapasOperacion';
+            url = '/ConfiguracionOperacion/AddEtapasOperacion';
         } else if (activeSubTab === 'documentos') {
             const documentosMantenidos = documentosConfiguradosOperacion
                 .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
@@ -330,7 +347,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddDocumentoOperacion';
+            url = '/ConfiguracionOperacion/AddDocumentoOperacion';
         } else if (activeSubTab === 'impuestos') {
             const impuestosMantenidos = impuestosConfiguradosOperacion
                 .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
@@ -351,7 +368,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            url = 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+            url = '/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
         }
 
         setIsSavingConfig(true);
@@ -362,16 +379,20 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 lista_N: listaFinal,
             };
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+            const response = await api.post(url, payload);
+
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
 
-            const data = await response.json();
+            // Si es 401, useAuthGuard maneja el toast, no mostrar nada más
+            if (response?.isUnauthorized) {
+                return;
+            }
 
-            if (response.ok) {
-                addToast(data.message || 'Configuración guardada correctamente', 'success');
+            const isSuccess = response?.success !== false;
+            if (isSuccess) {
+                addToast(response?.message || 'Configuración guardada correctamente', 'success');
 
                 // Actualizar estado local inmediatamente
                 if (activeSubTab === 'etapas') {
@@ -426,7 +447,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 setImpuestosSeleccionados([]);
                 setImpuestosRemovidosOperacion([]);
             } else {
-                addToast(data.message || 'Error al guardar la configuración', 'error');
+                addToast(response?.message || 'Error al guardar la configuración', 'error');
             }
         } catch (error) {
             console.error('Error guardando configuración:', error);
@@ -439,19 +460,10 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     return (
         <>
             <Head title="Configuración Operaciones - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-amber-500 p-3 text-white">
-                            <Building2 className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Configuración Operaciones</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de operaciones y elementos asociados</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -507,53 +519,53 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg bg-background/50 backdrop-blur-sm flex flex-col max-h-[500px]">
-                            <div className="overflow-y-auto flex-1">
-                                <Table>
-                                    <TableHeader className="sticky top-0 bg-background z-10">
-                                        <TableRow>
-                                            <TableHead className="w-16">ID</TableHead>
-                                            <TableHead>Descripción</TableHead>
-                                            <TableHead className="w-20 text-center">Activa</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                            <th className="px-4 py-2 text-center font-semibold">Estatus</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         {isSearching ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                            <tr>
+                                                <td colSpan={3} className="text-center py-8 text-muted-foreground px-4">
                                                     <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                     Cargando operaciones...
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ) : operaciones.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                            <tr>
+                                                <td colSpan={3} className="text-center py-8 text-muted-foreground px-4">
                                                     No se encontraron operaciones.
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ) : (
                                             operaciones.map((op) => (
-                                                <TableRow
+                                                <tr
                                                     key={op.id}
-                                                    className="cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                     onClick={() => handleSelectOperacion(op)}
                                                 >
-                                                    <TableCell className="font-mono text-sm">{op.id}</TableCell>
-                                                    <TableCell>{op.descripcion}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    <td className="px-4 py-3 font-mono text-sm text-blue-500 dark:text-blue-400">{op.id}</td>
+                                                    <td className="px-4 py-3">{op.descripcion}</td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                             op.activo
-                                                                ? 'bg-green-100 text-green-800'
-                                                                : 'bg-red-100 text-red-800'
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                         }`}>
-                                                            {op.activo ? 'Sí' : 'No'}
+                                                            {op.activo ? 'ACTIVO' : 'INACTIVO'}
                                                         </span>
-                                                    </TableCell>
-                                                </TableRow>
+                                                    </td>
+                                                </tr>
                                             ))
                                         )}
-                                    </TableBody>
-                                </Table>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         {!isSearching && operaciones.length > 0 && (
@@ -573,26 +585,24 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                         ) : operacionSeleccionada ? (
                             <div className="space-y-6">
                                 {/* Datos de la operación seleccionada */}
-                                <div className="border rounded-lg p-4 space-y-2 bg-background/50 backdrop-blur-sm">
-                                    <div className="grid grid-cols-2 gap-4">
+                                <div className="border-2 rounded-lg p-5 space-y-3 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-slate-950 shadow-md hover:shadow-lg transition-shadow border-blue-200 dark:border-blue-800">
+                                    <div className="flex items-center justify-between pb-3 border-b-2 border-blue-300 dark:border-blue-700">
                                         <div className="space-y-1">
-                                            <RequiredLabel className="text-xs font-medium text-muted-foreground">Descripción</RequiredLabel>
-                                            <div className="text-sm font-medium">{operacionSeleccionada.descripcion}</div>
+                                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Operación Seleccionada</p>
+                                            <h2 className="text-lg font-bold text-blue-900 dark:text-blue-100">{operacionSeleccionada.descripcion}</h2>
                                         </div>
-                                        <div className="flex items-end">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setOperacionSeleccionada(null);
-                                                    setActiveTab('busqueda');
-                                                }}
-                                                className="w-full"
-                                            >
-                                                <X className="h-4 w-4 mr-2" />
-                                                Cambiar Operación
-                                            </Button>
-                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                setOperacionSeleccionada(null);
+                                                setActiveTab('busqueda');
+                                            }}
+                                            className="border-blue-300 hover:bg-blue-100 dark:border-blue-700 dark:hover:bg-blue-900/40"
+                                        >
+                                            <X className="h-4 w-4 mr-2" />
+                                            Cambiar
+                                        </Button>
                                     </div>
                                 </div>
 
@@ -623,30 +633,38 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                         ) : (
                                             <div className="grid grid-cols-2 gap-4">
                                                 {/* Tabla izquierda: Configuradas + Seleccionadas */}
-                                                <div className="border rounded-lg p-4 space-y-3 bg-background/50 backdrop-blur-sm">
-                                                    <h3 className="font-semibold text-sm">Etapas Asignadas</h3>
+                                                <div className="border-2 rounded-lg p-4 space-y-3 bg-gradient-to-br from-background to-background/80 dark:from-slate-950 dark:to-slate-900 shadow-md hover:shadow-lg transition-shadow">
+                                                    <div className="flex items-center justify-between pb-3 border-b-2 border-green-500">
+                                                        <h3 className="uppercase font-bold text-sm text-slate-700 dark:text-slate-300">Etapas Asignadas</h3>
+                                                        <span className="text-xs bg-green-600 text-white rounded-full px-2.5 py-1 font-medium">
+                                                            {etapasConfiguradasOperacion.filter((e) => !etapasRemovidasOperacion.includes(e.etapa_Id)).length + etapasSeleccionadas.length}
+                                                        </span>
+                                                    </div>
                                                     {etapasConfiguradasOperacion.length === 0 && etapasSeleccionadas.length === 0 ? (
-                                                        <p className="text-xs text-muted-foreground text-center py-4">
-                                                            Selecciona etapas del catálogo →
-                                                        </p>
+                                                        <div className="text-center py-8 space-y-2">
+                                                            <SettingsIcon className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+                                                            <p className="text-xs text-muted-foreground font-medium">
+                                                                Selecciona elementos del catálogo →
+                                                            </p>
+                                                        </div>
                                                     ) : (
-                                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                                        <div className="h-[400px] overflow-y-auto space-y-2">
                                                             {/* Mostrar etapas ya configuradas */}
                                                             {etapasConfiguradasOperacion
                                                                 .filter((etapa) => !etapasRemovidasOperacion.includes(etapa.etapa_Id))
                                                                 .map((etapa) => (
                                                                     <div
                                                                         key={`config-${etapa.id}`}
-                                                                        className="px-3 py-2 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-xs text-green-800 dark:text-green-300 font-medium flex items-center justify-between"
+                                                                        className="group px-4 py-2.5 rounded-lg border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/30 text-xs text-green-800 dark:text-green-300 font-medium flex items-center justify-between hover:bg-green-100/50 dark:hover:bg-green-900/40 transition-colors"
                                                                     >
                                                                         <span>✓ {etapa.descripcion || 'Sin descripción'}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => toggleEtapaRemovida(etapa.etapa_Id)}
-                                                                            className="text-green-600 hover:text-green-800 ml-2"
+                                                                            className="text-green-600 hover:text-red-600 hover:bg-red-100/30 rounded-full p-1 transition-all ml-2 opacity-0 group-hover:opacity-100"
                                                                             title="Remover"
                                                                         >
-                                                                            <X className="h-3 w-3" />
+                                                                            <X className="h-6 w-6" />
                                                                         </button>
                                                                     </div>
                                                                 ))}
@@ -657,16 +675,16 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                                 return etapa ? (
                                                                     <div
                                                                         key={`new-${etapa.id}`}
-                                                                        className="px-3 py-2 rounded border border-amber-300/50 bg-amber-50/30 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between"
+                                                                        className="group px-4 py-2.5 rounded-lg border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/40 transition-colors"
                                                                     >
                                                                         <span>+ {etapa.descripcion}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => toggleEtapaSeleccion(etapa.id)}
-                                                                            className="text-amber-600 hover:text-amber-800 ml-2"
+                                                                            className="text-amber-600 hover:text-red-600 hover:bg-red-100/30 rounded-full p-1 transition-all ml-2 opacity-0 group-hover:opacity-100"
                                                                             title="Quitar"
                                                                         >
-                                                                            <X className="h-3 w-3" />
+                                                                            <X className="h-6 w-6" />
                                                                         </button>
                                                                     </div>
                                                                 ) : null;
@@ -676,14 +694,27 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                 </div>
 
                                                 {/* Tabla derecha: Disponibles sin seleccionados */}
-                                                <div className="border rounded-lg p-4 space-y-3 bg-background/50 backdrop-blur-sm">
-                                                    <h3 className="font-semibold text-sm">Catálogo de Etapas</h3>
+                                                <div className="border-2 rounded-lg p-4 space-y-3 bg-gradient-to-br from-background to-background/80 dark:from-slate-950 dark:to-slate-900 shadow-md hover:shadow-lg transition-shadow">
+                                                    <div className="flex items-center justify-between pb-3 border-b-2 border-blue-500">
+                                                        <h3 className="uppercase font-bold text-sm text-slate-700 dark:text-slate-300">Catálogo de Etapas</h3>
+                                                        <span className="text-xs bg-blue-600 text-white rounded-full px-2.5 py-1 font-medium">
+                                                            {etapasDisponibles.filter((e) => {
+                                                                const isNewlySelected = etapasSeleccionadas.includes(e.id);
+                                                                const isConfigured = etapasConfiguradasOperacion.some((et) => et.etapa_Id === e.id);
+                                                                const isRemoved = etapasRemovidasOperacion.includes(e.id);
+                                                                return !isNewlySelected && (!isConfigured || isRemoved);
+                                                            }).length}
+                                                        </span>
+                                                    </div>
                                                     {etapasDisponibles.length === 0 ? (
-                                                        <p className="text-xs text-muted-foreground text-center py-4">
-                                                            No hay etapas disponibles
-                                                        </p>
+                                                        <div className="text-center py-8 space-y-2">
+                                                            <SettingsIcon className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+                                                            <p className="text-xs text-muted-foreground font-medium">
+                                                                No hay etapas disponibles
+                                                            </p>
+                                                        </div>
                                                     ) : (
-                                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                                        <div className="h-[400px] overflow-y-auto space-y-2">
                                                             {etapasDisponibles
                                                                 .filter((etapa) => {
                                                                     const isNewlySelected = etapasSeleccionadas.includes(etapa.id);
@@ -694,15 +725,15 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                                 .map((etapa) => (
                                                                     <label
                                                                         key={etapa.id}
-                                                                        className="flex items-center gap-2 px-3 py-2 rounded border border-sidebar-border/30 bg-background/30 cursor-pointer hover:bg-accent/50 transition-colors"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group"
                                                                     >
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={etapasSeleccionadas.includes(etapa.id)}
                                                                             onChange={() => toggleEtapaSeleccion(etapa.id)}
-                                                                            className="h-3 w-3 rounded"
+                                                                            className="h-4 w-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
                                                                         />
-                                                                        <span className="text-xs flex-1">{etapa.descripcion}</span>
+                                                                        <span className="text-xs flex-1 group-hover:text-blue-700 dark:group-hover:text-blue-300">{etapa.descripcion}</span>
                                                                     </label>
                                                                 ))}
                                                         </div>
@@ -722,30 +753,38 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                         ) : (
                                             <div className="grid grid-cols-2 gap-4">
                                                 {/* Tabla izquierda: Configurados + Seleccionados */}
-                                                <div className="border rounded-lg p-4 space-y-3 bg-background/50 backdrop-blur-sm">
-                                                    <h3 className="font-semibold text-sm">Documentos Asignados</h3>
+                                                <div className="border-2 rounded-lg p-4 space-y-3 bg-gradient-to-br from-background to-background/80 dark:from-slate-950 dark:to-slate-900 shadow-md hover:shadow-lg transition-shadow">
+                                                    <div className="flex items-center justify-between pb-3 border-b-2 border-green-500">
+                                                        <h3 className="uppercase font-bold text-sm text-slate-700 dark:text-slate-300">Documentos Asignados</h3>
+                                                        <span className="text-xs bg-green-600 text-white rounded-full px-2.5 py-1 font-medium">
+                                                            {documentosConfiguradosOperacion.filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id)).length + documentosSeleccionados.length}
+                                                        </span>
+                                                    </div>
                                                     {documentosConfiguradosOperacion.length === 0 && documentosSeleccionados.length === 0 ? (
-                                                        <p className="text-xs text-muted-foreground text-center py-4">
-                                                            Selecciona documentos del catálogo →
-                                                        </p>
+                                                        <div className="text-center py-8 space-y-2">
+                                                            <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+                                                            <p className="text-xs text-muted-foreground font-medium">
+                                                                Selecciona elementos del catálogo →
+                                                            </p>
+                                                        </div>
                                                     ) : (
-                                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                                        <div className="h-[400px] overflow-y-auto space-y-2">
                                                             {/* Mostrar documentos ya configurados */}
                                                             {documentosConfiguradosOperacion
                                                                 .filter((doc) => !documentosRemovidosOperacion.includes(doc.documento_Id))
                                                                 .map((doc) => (
                                                                     <div
                                                                         key={`config-${doc.id}`}
-                                                                        className="px-3 py-2 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-xs text-green-800 dark:text-green-300 font-medium flex items-center justify-between"
+                                                                        className="group px-4 py-2.5 rounded-lg border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/30 text-xs text-green-800 dark:text-green-300 font-medium flex items-center justify-between hover:bg-green-100/50 dark:hover:bg-green-900/40 transition-colors"
                                                                     >
                                                                         <span>✓ {doc.descripcion || 'Sin descripción'}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => toggleDocumentoRemovido(doc.documento_Id)}
-                                                                            className="text-green-600 hover:text-green-800 ml-2"
+                                                                            className="text-green-600 hover:text-red-600 hover:bg-red-100/30 rounded-full p-1 transition-all ml-2 opacity-0 group-hover:opacity-100"
                                                                             title="Remover"
                                                                         >
-                                                                            <X className="h-3 w-3" />
+                                                                            <X className="h-6 w-6" />
                                                                         </button>
                                                                     </div>
                                                                 ))}
@@ -756,16 +795,16 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                                 return doc ? (
                                                                     <div
                                                                         key={`new-${doc.id}`}
-                                                                        className="px-3 py-2 rounded border border-amber-300/50 bg-amber-50/30 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between"
+                                                                        className="group px-4 py-2.5 rounded-lg border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/40 transition-colors"
                                                                     >
                                                                         <span>+ {doc.descripcion}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => toggleDocumentoSeleccion(doc.id)}
-                                                                            className="text-amber-600 hover:text-amber-800 ml-2"
+                                                                            className="text-amber-600 hover:text-red-600 hover:bg-red-100/30 rounded-full p-1 transition-all ml-2 opacity-0 group-hover:opacity-100"
                                                                             title="Quitar"
                                                                         >
-                                                                            <X className="h-3 w-3" />
+                                                                            <X className="h-6 w-6" />
                                                                         </button>
                                                                     </div>
                                                                 ) : null;
@@ -775,14 +814,27 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                 </div>
 
                                                 {/* Tabla derecha: Disponibles sin seleccionados */}
-                                                <div className="border rounded-lg p-4 space-y-3 bg-background/50 backdrop-blur-sm">
-                                                    <h3 className="font-semibold text-sm">Catálogo de Documentos</h3>
+                                                <div className="border-2 rounded-lg p-4 space-y-3 bg-gradient-to-br from-background to-background/80 dark:from-slate-950 dark:to-slate-900 shadow-md hover:shadow-lg transition-shadow">
+                                                    <div className="flex items-center justify-between pb-3 border-b-2 border-blue-500">
+                                                        <h3 className="uppercase font-bold text-base text-slate-700 dark:text-slate-300">Catálogo de Documentos</h3>
+                                                        <span className="text-sm bg-blue-600 text-white rounded-full px-2.5 py-1 font-medium">
+                                                            {documentosDisponibles.filter((d) => {
+                                                                const isNewlySelected = documentosSeleccionados.includes(d.id);
+                                                                const isConfigured = documentosConfiguradosOperacion.some((doc) => doc.documento_Id === d.id);
+                                                                const isRemoved = documentosRemovidosOperacion.includes(d.id);
+                                                                return !isNewlySelected && (!isConfigured || isRemoved);
+                                                            }).length}
+                                                        </span>
+                                                    </div>
                                                     {documentosDisponibles.length === 0 ? (
-                                                        <p className="text-xs text-muted-foreground text-center py-4">
-                                                            No hay documentos disponibles
-                                                        </p>
+                                                        <div className="text-center py-8 space-y-2">
+                                                            <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+                                                            <p className="text-sm text-muted-foreground font-medium">
+                                                                No hay documentos disponibles
+                                                            </p>
+                                                        </div>
                                                     ) : (
-                                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                                        <div className="h-[400px] overflow-y-auto space-y-2">
                                                             {documentosDisponibles
                                                                 .filter((doc) => {
                                                                     const isNewlySelected = documentosSeleccionados.includes(doc.id);
@@ -793,15 +845,15 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                                 .map((doc) => (
                                                                     <label
                                                                         key={doc.id}
-                                                                        className="flex items-center gap-2 px-3 py-2 rounded border border-sidebar-border/30 bg-background/30 cursor-pointer hover:bg-accent/50 transition-colors"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group"
                                                                     >
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={documentosSeleccionados.includes(doc.id)}
                                                                             onChange={() => toggleDocumentoSeleccion(doc.id)}
-                                                                            className="h-3 w-3 rounded"
+                                                                            className="h-4 w-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
                                                                         />
-                                                                        <span className="text-xs flex-1">{doc.descripcion}</span>
+                                                                        <span className="text-xs flex-1 group-hover:text-blue-700 dark:group-hover:text-blue-300">{doc.descripcion}</span>
                                                                     </label>
                                                                 ))}
                                                         </div>
@@ -821,30 +873,38 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                         ) : (
                                             <div className="grid grid-cols-2 gap-4">
                                                 {/* Tabla izquierda: Configurados + Seleccionados */}
-                                                <div className="border rounded-lg p-4 space-y-3 bg-background/50 backdrop-blur-sm">
-                                                    <h3 className="font-semibold text-sm">Impuestos y Derechos Asignados</h3>
+                                                <div className="border-2 rounded-lg p-4 space-y-3 bg-gradient-to-br from-background to-background/80 dark:from-slate-950 dark:to-slate-900 shadow-md hover:shadow-lg transition-shadow">
+                                                    <div className="flex items-center justify-between pb-3 border-b-2 border-green-500">
+                                                        <h3 className="uppercase font-bold text-sm text-slate-700 dark:text-slate-300">Impuestos y Derechos Asignados</h3>
+                                                        <span className="text-xs bg-green-600 text-white rounded-full px-2.5 py-1 font-medium">
+                                                            {impuestosConfiguradosOperacion.filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id)).length + impuestosSeleccionados.length}
+                                                        </span>
+                                                    </div>
                                                     {impuestosConfiguradosOperacion.length === 0 && impuestosSeleccionados.length === 0 ? (
-                                                        <p className="text-xs text-muted-foreground text-center py-4">
-                                                            Selecciona impuestos y derechos del catálogo →
-                                                        </p>
+                                                        <div className="text-center py-8 space-y-2">
+                                                            <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+                                                            <p className="text-xs text-muted-foreground font-medium">
+                                                                Selecciona elementos del catálogo →
+                                                            </p>
+                                                        </div>
                                                     ) : (
-                                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                                        <div className="h-[400px] overflow-y-auto space-y-2">
                                                             {/* Mostrar impuestos ya configurados */}
                                                             {impuestosConfiguradosOperacion
                                                                 .filter((imp) => !impuestosRemovidosOperacion.includes(imp.impuestos_derechos_Id))
                                                                 .map((imp) => (
                                                                     <div
                                                                         key={`config-${imp.id}`}
-                                                                        className="px-3 py-2 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-xs text-green-800 dark:text-green-300 font-medium flex items-center justify-between"
+                                                                        className="group px-4 py-2.5 rounded-lg border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/30 text-xs text-green-800 dark:text-green-300 font-medium flex items-center justify-between hover:bg-green-100/50 dark:hover:bg-green-900/40 transition-colors"
                                                                     >
                                                                         <span>✓ {imp.descripcion || 'Sin descripción'}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => toggleImpuestoRemovido(imp.impuestos_derechos_Id)}
-                                                                            className="text-green-600 hover:text-green-800 ml-2"
+                                                                            className="text-green-600 hover:text-red-600 hover:bg-red-100/30 rounded-full p-1 transition-all ml-2 opacity-0 group-hover:opacity-100"
                                                                             title="Remover"
                                                                         >
-                                                                            <X className="h-3 w-3" />
+                                                                            <X className="h-6 w-6" />
                                                                         </button>
                                                                     </div>
                                                                 ))}
@@ -855,16 +915,16 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                                 return imp ? (
                                                                     <div
                                                                         key={`new-${imp.id}`}
-                                                                        className="px-3 py-2 rounded border border-amber-300/50 bg-amber-50/30 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400 flex items-center justify-between"
+                                                                        className="group px-4 py-2.5 rounded-lg border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between hover:bg-amber-100/50 dark:hover:bg-amber-900/40 transition-colors"
                                                                     >
                                                                         <span>+ {imp.descripcion}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => toggleImpuestoSeleccion(imp.id)}
-                                                                            className="text-amber-600 hover:text-amber-800 ml-2"
+                                                                            className="text-amber-600 hover:text-red-600 hover:bg-red-100/30 rounded-full p-1 transition-all ml-2 opacity-0 group-hover:opacity-100"
                                                                             title="Quitar"
                                                                         >
-                                                                            <X className="h-3 w-3" />
+                                                                            <X className="h-6 w-6" />
                                                                         </button>
                                                                     </div>
                                                                 ) : null;
@@ -874,14 +934,27 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                 </div>
 
                                                 {/* Tabla derecha: Disponibles sin seleccionados */}
-                                                <div className="border rounded-lg p-4 space-y-3 bg-background/50 backdrop-blur-sm">
-                                                    <h3 className="font-semibold text-sm">Catálogo de Impuestos y Derechos</h3>
+                                                <div className="border-2 rounded-lg p-4 space-y-3 bg-gradient-to-br from-background to-background/80 dark:from-slate-950 dark:to-slate-900 shadow-md hover:shadow-lg transition-shadow">
+                                                    <div className="flex items-center justify-between pb-3 border-b-2 border-blue-500">
+                                                        <h3 className="uppercase font-bold text-sm text-slate-700 dark:text-slate-300">Catálogo de Impuestos y Derechos</h3>
+                                                        <span className="text-xs bg-blue-600 text-white rounded-full px-2.5 py-1 font-medium">
+                                                            {impuestosDisponibles.filter((imp) => {
+                                                                const isNewlySelected = impuestosSeleccionados.includes(imp.id);
+                                                                const isConfigured = impuestosConfiguradosOperacion.some((i) => i.impuestos_derechos_Id === imp.id);
+                                                                const isRemoved = impuestosRemovidosOperacion.includes(imp.id);
+                                                                return !isNewlySelected && (!isConfigured || isRemoved);
+                                                            }).length}
+                                                        </span>
+                                                    </div>
                                                     {impuestosDisponibles.length === 0 ? (
-                                                        <p className="text-xs text-muted-foreground text-center py-4">
-                                                            No hay impuestos y derechos disponibles
-                                                        </p>
+                                                        <div className="text-center py-8 space-y-2">
+                                                            <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto opacity-50" />
+                                                            <p className="text-xs text-muted-foreground font-medium">
+                                                                No hay impuestos y derechos disponibles
+                                                            </p>
+                                                        </div>
                                                     ) : (
-                                                        <div className="max-h-64 overflow-y-auto space-y-1">
+                                                        <div className="h-[400px] overflow-y-auto space-y-2">
                                                             {impuestosDisponibles
                                                                 .filter((imp) => {
                                                                     const isNewlySelected = impuestosSeleccionados.includes(imp.id);
@@ -892,15 +965,15 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                                                                 .map((imp) => (
                                                                     <label
                                                                         key={imp.id}
-                                                                        className="flex items-center gap-2 px-3 py-2 rounded border border-sidebar-border/30 bg-background/30 cursor-pointer hover:bg-accent/50 transition-colors"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group"
                                                                     >
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={impuestosSeleccionados.includes(imp.id)}
                                                                             onChange={() => toggleImpuestoSeleccion(imp.id)}
-                                                                            className="h-3 w-3 rounded"
+                                                                            className="h-4 w-4 rounded border-slate-300 accent-blue-600 cursor-pointer"
                                                                         />
-                                                                        <span className="text-xs flex-1">{imp.descripcion}</span>
+                                                                        <span className="text-xs flex-1 group-hover:text-blue-700 dark:group-hover:text-blue-300">{imp.descripcion}</span>
                                                                     </label>
                                                                 ))}
                                                         </div>
@@ -962,3 +1035,4 @@ ControlNotarialConfiguracionOperacionesIndex.layout = (page: React.ReactNode) =>
         {page}
     </AppLayout>
 );
+

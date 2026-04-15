@@ -1,6 +1,9 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -90,6 +94,20 @@ interface ImpuestoDerechoAPI {
     observaciones?: string;
 }
 
+interface ZonaMunicipio {
+    id: number;
+    descripcion: string;
+    activo: boolean;
+}
+
+interface ImpuestoDerechoItem {
+    id: number;
+    descripcion: string;
+    tipo: string;
+    dependencia_Publica: string;
+    activo: boolean;
+}
+
 const defaultPresupuestoData: PresupuestoPrevioData = {
     cliente: '',
     operacion: '',
@@ -120,6 +138,9 @@ const formatCurrency = (value: number): string => {
 };
 
 export default function PresupuestoPrevioIndex() {
+    // --- Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<PresupuestoPrevioBusqueda[]>([]);
@@ -132,10 +153,13 @@ export default function PresupuestoPrevioIndex() {
     // --- Estado pestaña Formulario ---
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [operaciones, setOperaciones] = useState<Operacion[]>([]);
+    const [zonas, setZonas] = useState<ZonaMunicipio[]>([]);
     const [formData, setFormData] = useState<PresupuestoPrevioData>(defaultPresupuestoData);
     const [isLoadingClientes, setIsLoadingClientes] = useState(false);
     const [isLoadingOperaciones, setIsLoadingOperaciones] = useState(false);
+    const [isLoadingZonas, setIsLoadingZonas] = useState(false);
     const [isLoadingImpuestos, setIsLoadingImpuestos] = useState(false);
+    const [isLoadingHonorarios, setIsLoadingHonorarios] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -144,6 +168,7 @@ export default function PresupuestoPrevioIndex() {
     const [showPdfViewer, setShowPdfViewer] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+    const [impuestosCalculados, setImpuestosCalculados] = useState(false);
 
     // --- Modal de búsqueda de clientes ---
     const [showClienteModal, setShowClienteModal] = useState(false);
@@ -157,7 +182,31 @@ export default function PresupuestoPrevioIndex() {
     const [operacionFiltro, setOperacionFiltro] = useState('');
     const [showOperacionDropdown, setShowOperacionDropdown] = useState(false);
 
+    // --- Filtro de zonas/municipios ---
+    const [zonaFiltro, setZonaFiltro] = useState('');
+    const [showZonaDropdown, setShowZonaDropdown] = useState(false);
+
+    // --- Modal de búsqueda de impuestos y derechos ---
+    const [showImpuestosModal, setShowImpuestosModal] = useState(false);
+    const [impuestosFiltro, setImpuestosFiltro] = useState('');
+    const [impuestosResultados, setImpuestosResultados] = useState<ImpuestoDerechoItem[]>([]);
+    const [isSearchingImpuestos, setIsSearchingImpuestos] = useState(false);
+    const [impuestosError, setImpuestosError] = useState<string | null>(null);
+    const [dependenciasUnicas, setDependenciasUnicas] = useState<string[]>([]);
+    const [activeDependenciaTab, setActiveDependenciaTab] = useState<string>('');
+
     const { addToast } = useToast();
+    const api = useApi();
+    const { props } = usePage();
+    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
 
     // Cargar presupuestos al montar (filtro vacío = todos)
     useEffect(() => {
@@ -169,14 +218,17 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes', {
-                    headers: { 'Content-Type': 'application/json' },
+                const response = await api.get('/Clientes/GetClientes');
+
+                // ✅ Usar helper para manejar respuesta
+                const datos = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
                 });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data?.message || 'Error al obtener los clientes');
+
+                if (datos) {
+                    setClientes(datos);
                 }
-                setClientes(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando clientes:', error);
                 const message = error instanceof Error ? error.message : 'Error al cargar los clientes';
@@ -186,21 +238,24 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchClientes();
-    }, [addToast]);
+    }, [addToast, api]);
 
     // Cargar operaciones al montar
     useEffect(() => {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await fetch('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Catalogos/GetOperaciones', {
-                    headers: { 'Content-Type': 'application/json' },
+                const response = await api.get('/Catalogos/GetOperaciones');
+
+                // ✅ Usar helper
+                const datos = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
                 });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data?.message || 'Error al obtener las operaciones');
+
+                if (datos) {
+                    setOperaciones(datos);
                 }
-                setOperaciones(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando operaciones:', error);
                 const message = error instanceof Error ? error.message : 'Error al cargar las operaciones';
@@ -210,7 +265,34 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchOperaciones();
-    }, [addToast]);
+    }, [addToast, api]);
+
+    // Cargar zonas/municipios al montar
+    useEffect(() => {
+        const fetchZonas = async () => {
+            try {
+                setIsLoadingZonas(true);
+                const response = await api.get('/Catalogos/GetZonasMunicipios');
+
+                // ✅ Usar helper
+                const datos = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                if (datos) {
+                    setZonas(datos);
+                }
+            } catch (error) {
+                console.error('Error cargando zonas:', error);
+                const message = error instanceof Error ? error.message : 'Error al cargar las zonas';
+                addToast(message, 'error');
+            } finally {
+                setIsLoadingZonas(false);
+            }
+        };
+        fetchZonas();
+    }, [addToast, api]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {
@@ -221,23 +303,179 @@ export default function PresupuestoPrevioIndex() {
         return () => clearTimeout(debounceTimer);
     }, [filtro]);
 
+    // Cargar impuestos y derechos por operación
+    useEffect(() => {
+        const fetchImpuestosPorOperacion = async () => {
+            // Si estamos editando un presupuesto existente (tiene ID), no ejecutar esta llamada
+            // Los impuestos ya vienen cargados de la base de datos
+            if (isEditing && formData.id) {
+                return;
+            }
+
+            const operacionId = formData.operacion ? Number(formData.operacion) : null;
+
+            // Solo si está seleccionada operación
+            if (!operacionId) {
+                setFormData(prev => ({
+                    ...prev,
+                    impuestos_derechos: []
+                }));
+                return;
+            }
+
+            try {
+                setIsLoadingImpuestos(true);
+                const data = await api.get(`/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionId}`);
+
+                if (data && data.dataResponse) {
+                    // Cargar impuestos sin importes
+                    const impuestosFormato = data.dataResponse.map((item: any) => ({
+                        id: item.impuestos_derechos_Id.toString(),
+                        descripcion: item.descripcion,
+                        importe: 0,
+                        observaciones: ''
+                    }));
+
+                    setFormData(prev => ({
+                        ...prev,
+                        impuestos_derechos: impuestosFormato
+                    }));
+                    setImpuestosCalculados(false);
+                } else {
+                    setFormData(prev => ({
+                        ...prev,
+                        impuestos_derechos: []
+                    }));
+                }
+            } catch (error) {
+                console.error('Error cargando conceptos:', error);
+                setFormData(prev => ({
+                    ...prev,
+                    impuestos_derechos: []
+                }));
+            } finally {
+                setIsLoadingImpuestos(false);
+            }
+        };
+
+        const debounceTimer = setTimeout(() => {
+            fetchImpuestosPorOperacion();
+        }, 500);
+
+        return () => clearTimeout(debounceTimer);
+    }, [formData.operacion, formData.id, isEditing, api]);
+
+    const handleCalcularHonorarios = async () => {
+        const zonaMunicipioId = formData.zona_municipio ? Number(formData.zona_municipio) : null;
+        const operacionId = formData.operacion ? Number(formData.operacion) : null;
+
+        if (!zonaMunicipioId || !operacionId) {
+            addToast('Selecciona zona/municipio y operación para calcular honorarios', 'error');
+            return;
+        }
+
+        try {
+            setIsLoadingHonorarios(true);
+            const data = await api.post(
+                `/ConfiguracionTarifaria/CalcularHonorariosPrePrevio?zonaMunicipioId=${zonaMunicipioId}&operacionId=${operacionId}`,
+                {}
+            );
+
+            if (data && data.dataResponse !== undefined) {
+                const honorarios = data.dataResponse;
+                setFormData(prev => ({
+                    ...prev,
+                    honorarios: honorarios
+                }));
+                addToast('Honorarios calculados exitosamente', 'success');
+            } else {
+                addToast('No se pudo calcular los honorarios', 'error');
+            }
+        } catch (error) {
+            addToast(error instanceof Error ? error.message : 'Error al calcular honorarios', 'error');
+        } finally {
+            setIsLoadingHonorarios(false);
+        }
+    };
+
+    const handleCalcularImpuestos = async () => {
+        const zonaMunicipioId = formData.zona_municipio ? Number(formData.zona_municipio) : null;
+        const valOperacion = formData.valor_operacion;
+        const valAvaluo = formData.valor_avaluo;
+        const valCatastral = formData.valor_catastral;
+
+        if (!zonaMunicipioId || (valOperacion === 0 && valAvaluo === 0 && valCatastral === 0)) {
+            addToast('Completa todos los datos: Zona/Municipio y al menos un valor', 'error');
+            return;
+        }
+
+        if (formData.impuestos_derechos.length === 0) {
+            addToast('Agrega al menos un trámite para calcular importes', 'error');
+            return;
+        }
+
+        try {
+            setIsLoadingImpuestos(true);
+
+            // Preparar lista de trámites actuales
+            const listaImpuestos = formData.impuestos_derechos.map(item => ({
+                impuestos_Derechos_Id: Number(item.id),
+                importe: 0
+            }));
+
+            const queryParams = new URLSearchParams({
+                zonaMunicipioId: zonaMunicipioId.toString(),
+                valOperacion: valOperacion.toString(),
+                valAvaluo: valAvaluo.toString(),
+                valCatastral: valCatastral.toString(),
+            });
+
+            const data = await api.post(
+                `/ConfiguracionTarifaria/CalcularImpuestosDerechosPrePrevio?${queryParams.toString()}`,
+                listaImpuestos
+            );
+
+            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
+                // Actualizar importes con los valores calculados
+                setFormData(prev => ({
+                    ...prev,
+                    impuestos_derechos: prev.impuestos_derechos.map(item => {
+                        const calculado = data.dataResponse.find(
+                            (calc: any) => Number(calc.impuestos_Derechos_Id) === Number(item.id)
+                        );
+                        return {
+                            ...item,
+                            importe: calculado ? calculado.importe : 0
+                        };
+                    })
+                }));
+                setImpuestosCalculados(true);
+                addToast('Importes calculados exitosamente', 'success');
+            } else {
+                addToast('No se pudieron calcular los importes', 'info');
+            }
+        } catch (error) {
+            console.error('Error calculando importes:', error);
+            const message = error instanceof Error ? error.message : 'Error al calcular importes';
+            addToast(message, 'error');
+        } finally {
+            setIsLoadingImpuestos(false);
+        }
+    };
+
     const fetchPresupuestos = async (filtroValue: string) => {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/GetPresupuestosPrevios');
+            let endpoint = '/Presupuestos/GetPresupuestosPrevios';
             if (filtroValue) {
-                url.searchParams.append('filtro', filtroValue);
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const response = await fetch(url.toString(), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok) {
+            const data = await api.get(endpoint);
+            if (data) {
                 setResultados(data.dataResponse || []);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los presupuestos previos.');
+                setSearchError(data?.message || 'No se pudieron cargar los presupuestos previos.');
                 setResultados([]);
             }
         } catch (error) {
@@ -262,64 +500,70 @@ export default function PresupuestoPrevioIndex() {
     const handleSelectChange = async (name: string, value: string) => {
         // Si es cliente u operación, convertir a número
         let actualValue: string | number = value;
-        if ((name === 'operacion' || name === 'cliente') && value) {
+        if ((name === 'operacion' || name === 'cliente' || name === 'zona_municipio') && value) {
             actualValue = Number(value);
         }
         setFormData(prev => ({ ...prev, [name]: actualValue }));
+        // La carga de impuestos se maneja automáticamente mediante el useEffect
+    };
 
-        // Si se selecciona una operación, cargar impuestos y derechos
-        if (name === 'operacion' && value) {
-            const operacionSeleccionada = operaciones.find(op => op.id === Number(value));
-            if (operacionSeleccionada) {
-                try {
-                    setIsLoadingImpuestos(true);
-                    const url = `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacionSeleccionada.id}`;
-                    const response = await fetch(url, {
-                        headers: { 'Content-Type': 'application/json' },
-                    });
-                    const data = await response.json();
-
-                    if (response.ok && data.dataResponse) {
-                        // Mapear los datos del API al formato de impuestos_derechos
-                        const impuestosFormato = data.dataResponse.map((item: ImpuestoDerechoAPI) => ({
-                            id: item.impuestos_derechos_Id.toString(),
-                            descripcion: item.descripcion,
-                            importe: item.importe || 0,
-                            observaciones: item.observaciones || ''
-                        }));
-
-                        setFormData(prev => ({
-                            ...prev,
-                            impuestos_derechos: impuestosFormato
-                        }));
-                        addToast('Impuestos y derechos cargados exitosamente', 'success');
-                    } else {
-                        addToast('No se encontraron impuestos para esta operación', 'info');
-                        setFormData(prev => ({
-                            ...prev,
-                            impuestos_derechos: []
-                        }));
-                    }
-                } catch (error) {
-                    console.error('Error cargando impuestos:', error);
-                    const message = error instanceof Error ? error.message : 'Error al cargar impuestos';
-                    addToast(message, 'error');
-                    setFormData(prev => ({
-                        ...prev,
-                        impuestos_derechos: []
-                    }));
-                } finally {
-                    setIsLoadingImpuestos(false);
-                }
+    const fetchImpuestosDerechos = async () => {
+        setIsSearchingImpuestos(true);
+        setImpuestosError(null);
+        try {
+            const data = await api.get('/Catalogos/GetImpuestosDerechos');
+            if (data && data.dataResponse) {
+                setImpuestosResultados(data.dataResponse || []);
+                // Extraer dependencias únicas
+                const deps = Array.from(new Set(data.dataResponse.map((item: any) => item.dependencia_Publica)));
+                const allDeps = ['Todas', ...deps.filter(d => d) as string[]];
+                setDependenciasUnicas(allDeps);
+                setActiveDependenciaTab('Todas');
+            } else {
+                setImpuestosError(data?.message || 'No se pudieron cargar los impuestos');
             }
+        } catch (error) {
+            console.error('Error cargando impuestos:', error);
+            setImpuestosError('No se pudieron cargar los impuestos. Verifica la conexión.');
+        } finally {
+            setIsSearchingImpuestos(false);
+        }
+    };
+
+    const handleSelectImpuesto = (impuesto: ImpuestoDerechoItem) => {
+        setFormData(prev => {
+            const existe = prev.impuestos_derechos.some(item => item.id === impuesto.id.toString());
+
+            if (existe) {
+                // Si existe, eliminarlo
+                const nuevo = prev.impuestos_derechos.filter(item => item.id !== impuesto.id.toString());
+                return { ...prev, impuestos_derechos: nuevo };
+            } else {
+                // Si no existe, agregarlo
+                return {
+                    ...prev,
+                    impuestos_derechos: [...prev.impuestos_derechos, {
+                        id: impuesto.id.toString(),
+                        descripcion: impuesto.descripcion,
+                        importe: 0,
+                        observaciones: ''
+                    }]
+                };
+            }
+        });
+
+        // Toast después de actualizar el estado
+        const existe = formData.impuestos_derechos.some(item => item.id === impuesto.id.toString());
+        if (existe) {
+            addToast(`Trámite "${impuesto.descripcion}" eliminado`, 'info');
+        } else {
+            addToast(`Trámite "${impuesto.descripcion}" agregado`, 'success');
         }
     };
 
     const addImpuestoDerechos = () => {
-        setFormData(prev => ({
-            ...prev,
-            impuestos_derechos: [...prev.impuestos_derechos, { id: Date.now().toString(), descripcion: '', importe: 0 }]
-        }));
+        setShowImpuestosModal(true);
+        fetchImpuestosDerechos();
     };
 
     const removeImpuestoDerechos = (id: string) => {
@@ -380,9 +624,10 @@ export default function PresupuestoPrevioIndex() {
 
         const totalImpuestos = formData.impuestos_derechos.reduce((sum, item) => sum + item.importe, 0);
         const totalGastos = formData.gastos_notariales.reduce((sum, item) => sum + item.importe, 0);
-        const totalPresupuesto = subtotalHonorarios + ivaCalculado + totalImpuestos + totalGastos - retISR - retIVA;
+        const totalHonorarios = subtotalHonorarios + ivaCalculado - retISR - retIVA;
+        const totalPresupuesto = totalHonorarios + totalImpuestos + totalGastos;
 
-        return { subtotalHonorarios, ivaCalculado, retISR, retIVA, totalImpuestos, totalGastos, totalPresupuesto };
+        return { subtotalHonorarios, ivaCalculado, retISR, retIVA, totalImpuestos, totalGastos, totalHonorarios, totalPresupuesto };
     };
 
     const handleAddPresupuesto = async () => {
@@ -425,6 +670,9 @@ export default function PresupuestoPrevioIndex() {
                     parametro: formData.parametro,
                     honorarios: formData.honorarios,
                     descuento: formData.descuento,
+                    chkIVA: formData.incluir_iva,
+                    chkRetISR: ret_isr_check,
+                    chkRetIVA: ret_iva_check,
                 },
                 presupuestoPrevioImpuestosDerechos: formData.impuestos_derechos.map(item => ({
                     impuestos_Derechos_Id: Number(item.id),
@@ -438,28 +686,34 @@ export default function PresupuestoPrevioIndex() {
             };
 
             const url = isEditing && formData.id
-                ? `https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
-                : 'https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/CreatePresupuestoPrevio';
+                ? `/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
+                : '/Presupuestos/CreatePresupuestoPrevio';
 
-            const method = isEditing && formData.id ? 'PUT' : 'POST';
+            const response = isEditing && formData.id
+                ? await api.put(url, payload)
+                : await api.post(url, payload);
 
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            const resData = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-                throw new Error(resData?.message || 'Error al guardar el presupuesto');
+            // Verificar si fue 401
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
             }
 
-            addToast(resData?.message || 'Presupuesto guardado correctamente', 'success');
-            setFormData(defaultPresupuestoData);
-            setIsEditing(false);
-            setActiveTab('busqueda');
-            fetchPresupuestos(filtro);
+            // Verificar si fue éxito
+            const isSuccess = response?.success !== false;
+
+            if (isSuccess) {
+                addToast(response?.message || `Presupuesto ${isEditing ? 'actualizado' : 'creado'} correctamente`, 'success');
+                setFormData(defaultPresupuestoData);
+                setOperacionFiltro('');
+                setZonaFiltro('');
+                setIsEditing(false);
+                setActiveTab('busqueda');
+                fetchPresupuestos(filtro);
+            } else {
+                setSaveError(response?.message || 'Error al guardar el presupuesto');
+                addToast(response?.message || 'Error al guardar el presupuesto', 'error');
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
             setSaveError(message);
@@ -478,16 +732,24 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`, {
-                headers: { 'Content-Type': 'application/json' },
+            const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
+
+            const data_response = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
             });
 
-            if (!response.ok) {
+            // Si fue 401, detener aquí
+            if (!data_response && response?.isUnauthorized) {
+                setIsEditing(false);
+                return;
+            }
+
+            if (!data_response) {
                 throw new Error('Error al obtener los detalles del presupuesto');
             }
 
-            const data = await response.json();
-            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data.dataResponse;
+            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
 
             // Mapear impuestos y derechos al formato DetalleItem
             const impuestosFormato = impuestosDerechos.map((item: any) => ({
@@ -531,6 +793,12 @@ export default function PresupuestoPrevioIndex() {
                 setOperacionFiltro(operacionSeleccionada.descripcion);
             }
 
+            // Establecer el filtro de zona/municipio con el nombre seleccionado
+            const zonaSeleccionada = zonas.find(z => z.id === presupuestoPrevio.zona_Municipio_Id);
+            if (zonaSeleccionada) {
+                setZonaFiltro(zonaSeleccionada.descripcion);
+            }
+
             addToast('Presupuesto cargado correctamente', 'success');
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar el presupuesto';
@@ -545,6 +813,7 @@ export default function PresupuestoPrevioIndex() {
     const handleCancelEdit = () => {
         setFormData(defaultPresupuestoData);
         setOperacionFiltro('');
+        setZonaFiltro('');
         setIsEditing(false);
         setSaveError(null);
         setActiveTab('busqueda');
@@ -554,19 +823,15 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingClientes(true);
         setClienteError(null);
         try {
-            const url = new URL('https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Clientes/GetClientes');
+            let endpoint = '/Clientes/GetClientes';
             if (filtroValue) {
-                url.searchParams.append('filtro', filtroValue);
+                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const response = await fetch(url.toString(), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
-
-            if (response.ok) {
+            const data = await api.get(endpoint);
+            if (data) {
                 setClienteResultados(data.dataResponse || []);
             } else {
-                setClienteError(data.message || 'No se encontraron clientes.');
+                setClienteError(data?.message || 'No se encontraron clientes.');
                 setClienteResultados([]);
             }
         } catch (error) {
@@ -592,7 +857,7 @@ export default function PresupuestoPrevioIndex() {
 
         try {
             setIsLoadingPdf(true);
-            const response = await fetch(`https://lauran-parthenocarpic-albertina.ngrok-free.dev/api/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
+            const response = await fetch(`${apiBaseUrl}/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
                 method: 'GET',
             });
 
@@ -641,17 +906,7 @@ export default function PresupuestoPrevioIndex() {
             <Head title="Presupuesto Previo - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-                <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-green-600 p-3 text-white">
-                            <DollarSign className="size-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Presupuesto Previo</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de presupuestos previos de expedientes</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -710,60 +965,62 @@ export default function PresupuestoPrevioIndex() {
                             </div>
                         )}
 
-                        <div className="border rounded-lg overflow-hidden bg-background/50 backdrop-blur-sm">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-20">ID</TableHead>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>Operación</TableHead>
-                                        <TableHead>Fecha Creación</TableHead>
-                                        <TableHead className="w-20 text-center">Activo</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isSearching ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                Cargando presupuestos previos...
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : resultados.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                No se encontraron presupuestos previos.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        resultados.map((presupuesto) => (
-                                            <TableRow
-                                                key={presupuesto.id}
-                                                className="cursor-pointer hover:bg-green-50 dark:hover:bg-green-950/20 transition-colors"
-                                                onClick={() => handleSelectPresupuesto(presupuesto)}
-                                            >
-                                                <TableCell className="font-mono text-sm">{presupuesto.id}</TableCell>
-                                                <TableCell className="font-medium">{presupuesto.nombre} {presupuesto.apellido_Paterno} {presupuesto.apellido_Materno}</TableCell>
-                                                <TableCell>
-                                                    <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                        {presupuesto.operacion}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-sm">{presupuesto.fecha_Creacion}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                        presupuesto.activo
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {presupuesto.activo ? 'Sí' : 'No'}
-                                                    </span>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Operación</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Estatus</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {isSearching ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                                    Cargando presupuestos previos...
+                                                </td>
+                                            </tr>
+                                        ) : resultados.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
+                                                    No se encontraron presupuestos previos.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            resultados.map((presupuesto) => (
+                                                <tr
+                                                    key={presupuesto.id}
+                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                                                    onClick={() => handleSelectPresupuesto(presupuesto)}
+                                                >
+                                                    <td className="px-4 py-2 font-mono text-sm">{presupuesto.id}</td>
+                                                    <td className="px-4 py-2">{presupuesto.nombre} {presupuesto.apellido_Paterno} {presupuesto.apellido_Materno}</td>
+                                                    <td className="px-4 py-2">
+                                                        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                            {presupuesto.operacion}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-2 text-sm">{presupuesto.fecha_Creacion}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                            presupuesto.activo
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                        }`}>
+                                                            {presupuesto.activo ? 'Activo' : 'Inactivo'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         {!isSearching && resultados.length > 0 && (
                             <p className="text-sm text-muted-foreground">
@@ -792,9 +1049,13 @@ export default function PresupuestoPrevioIndex() {
                                 {/* SECCIÓN SUPERIOR: DOS COLUMNAS */}
                                 <div className="grid grid-cols-3 gap-4">
                                     {/* COLUMNA 1: DATOS DEL PRESUPUESTO */}
-                                    <div className="border rounded-lg p-4 bg-background/50 space-y-4 col-span-2">
-                                        <h3 className="text-lg font-bold">Datos del presupuesto</h3>
-
+                                <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4 col-span-2">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                            <Plus className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Datos del presupuesto</h3>
+                                    </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <RequiredLabel htmlFor="cliente">Cliente</RequiredLabel>
@@ -808,7 +1069,7 @@ export default function PresupuestoPrevioIndex() {
                                                                 : 'Selecciona un cliente'
                                                         }
                                                         placeholder="Selecciona un cliente"
-                                                        className="flex-1"
+                                                        className="flex-1 bg-white dark:bg-slate-900/50"
                                                     />
                                                     <Button
                                                         type="button"
@@ -840,7 +1101,7 @@ export default function PresupuestoPrevioIndex() {
                                                         onFocus={() => setShowOperacionDropdown(true)}
                                                         onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
                                                         disabled={isLoadingOperaciones}
-                                                        className="w-full pr-10"
+                                                        className="w-full pr-10 bg-white dark:bg-slate-900/50"
                                                     />
                                                     {operacionFiltro && (
                                                         <button
@@ -884,15 +1145,59 @@ export default function PresupuestoPrevioIndex() {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
+                                            <div className="space-y-2 relative">
                                                 <SimpleLabel htmlFor="zona_municipio">Zona o Municipio</SimpleLabel>
-                                                <Input
-                                                    id="zona_municipio"
-                                                    name="zona_municipio"
-                                                    value={formData.zona_municipio}
-                                                    onChange={handleInputChange}
-                                                    placeholder="Zona o Municipio"
-                                                />
+                                                <div className="relative">
+                                                    <Input
+                                                        id="zona_municipio"
+                                                        value={zonaFiltro}
+                                                        onChange={(e) => {
+                                                            setZonaFiltro(e.target.value);
+                                                            setShowZonaDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowZonaDropdown(true)}
+                                                        placeholder="Buscar zona o municipio..."
+                                                        disabled={isLoadingZonas}
+                                                        className="bg-white dark:bg-slate-900/50"
+                                                    />
+                                                    {zonaFiltro && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setZonaFiltro('');
+                                                                handleSelectChange('zona_municipio', '');
+                                                                setShowZonaDropdown(false);
+                                                            }}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {showZonaDropdown && zonas.length > 0 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
+                                                        {zonas
+                                                            .filter(zona =>
+                                                                zona.descripcion
+                                                                    .toLowerCase()
+                                                                    .includes(zonaFiltro.toLowerCase())
+                                                            )
+                                                            .map(zona => (
+                                                                <button
+                                                                    key={zona.id}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        handleSelectChange('zona_municipio', zona.id.toString());
+                                                                        setZonaFiltro(zona.descripcion);
+                                                                        setShowZonaDropdown(false);
+                                                                    }}
+                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
+                                                                >
+                                                                    {zona.descripcion}
+                                                                </button>
+                                                            ))}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="space-y-2">
                                                 <SimpleLabel htmlFor="observaciones">Observaciones</SimpleLabel>
@@ -903,26 +1208,31 @@ export default function PresupuestoPrevioIndex() {
                                                     onChange={handleInputChange}
                                                     placeholder="Observaciones adicionales"
                                                     rows={2}
-                                                    className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                                    className="w-full px-3 py-2 border rounded-md bg-white dark:bg-slate-900/50 border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                                 />
                                             </div>
                                         </div>
                                 </div>
 
                                 {/* COLUMNA 2: VALORES DE LA OPERACIÓN */}
-                                <div className="border rounded-lg p-4 bg-background/50 space-y-4">
-                                        <h3 className="text-lg font-bold">Valores</h3>
+                                <div className="border-2 border-green-200 rounded-lg p-5 bg-gradient-to-br from-green-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="bg-green-600 text-white p-3 rounded-lg">
+                                                <DollarSign className="h-5 w-5" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-900">Valores</h3>
+                                        </div>
                                         <div className="space-y-3">
                                             <div className="space-y-1">
                                                 <label className="text-sm font-medium">Valor Operación</label>
                                                 <Input
                                                     name="valor_operacion"
                                                     type="number"
-                                                    step="0.01"
+                                                    step="1"
                                                     value={formData.valor_operacion}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
-                                                    className="text-right font-bold text-green-600"
+                                                    className="text-right font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -930,11 +1240,11 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_avaluo"
                                                     type="number"
-                                                    step="0.01"
+                                                    step="1"
                                                     value={formData.valor_avaluo}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
-                                                    className="text-right font-bold text-green-600"
+                                                    className="text-right font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -942,11 +1252,11 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_catastral"
                                                     type="number"
-                                                    step="0.01"
+                                                    step="1"
                                                     value={formData.valor_catastral}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
-                                                    className="text-right font-bold text-green-600"
+                                                    className="text-right font-bold text-green-600 bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -954,8 +1264,24 @@ export default function PresupuestoPrevioIndex() {
                                 </div>
 
                                 {/* SECCIÓN MEDIA: HONORARIOS */}
-                                <div className="border rounded-lg p-4 bg-background/50">
-                                    <h3 className="text-lg font-bold mb-4">Detalles Honorarios</h3>
+                                <div className="border-2 border-amber-200 rounded-lg p-5 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-amber-600 text-white p-3 rounded-lg">
+                                                <DollarSign className="h-5 w-5" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-900">Detalles Honorarios</h3>
+                                        </div>
+                                        <Button
+                                            onClick={handleCalcularHonorarios}
+                                            size="sm"
+                                            disabled={isLoadingHonorarios}
+                                            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+                                        >
+                                            {isLoadingHonorarios ? (<Loader2 className="h-3 w-3 mr-1 animate-spin" />) : null}
+                                            Calcular
+                                        </Button>
+                                    </div>
 
                                     {/* FILA 1: HONORARIOS - DESCUENTO - SUBTOTAL */}
                                     <div className="grid grid-cols-3 gap-4 mb-4">
@@ -968,7 +1294,7 @@ export default function PresupuestoPrevioIndex() {
                                                     step="0.01"
                                                     value={formData.honorarios}
                                                     onChange={handleInputChange}
-                                                    className="text-right font-bold border-0 rounded-none"
+                                                    className="text-right font-bold border-0 rounded-none bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -982,7 +1308,7 @@ export default function PresupuestoPrevioIndex() {
                                                     step="0.01"
                                                     value={formData.descuento}
                                                     onChange={handleInputChange}
-                                                    className="text-right font-bold border-0 rounded-none"
+                                                    className="text-right font-bold border-0 rounded-none bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -994,7 +1320,7 @@ export default function PresupuestoPrevioIndex() {
                                                     step="0.01"
                                                     value={(formData.honorarios - formData.descuento).toFixed(2)}
                                                     readOnly
-                                                    className="text-right font-bold text-green-600 border-0 rounded-none"
+                                                    className="text-right font-bold text-green-600 border-0 rounded-none bg-white dark:bg-slate-900/50"
                                                 />
                                             </div>
                                         </div>
@@ -1018,7 +1344,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={formatCurrency(formData.incluir_iva ? ((formData.honorarios - formData.descuento) * 0.16) : 0)}
-                                                className="text-right font-bold text-red-600 border"
+                                                className="text-right font-bold text-red-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                         <div className="space-y-1">
@@ -1026,7 +1352,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={formatCurrency(formData.incluir_iva ? ((formData.honorarios - formData.descuento) * 1.16) : (formData.honorarios - formData.descuento))}
-                                                className="text-right font-bold text-blue-600 border"
+                                                className="text-right font-bold text-blue-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                     </div>
@@ -1047,7 +1373,7 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={ret_isr_check ? formatCurrency(calcularTotales().retISR) : formatCurrency(0)}
-                                                className="text-right font-bold text-green-600 border"
+                                                className="text-right font-bold text-green-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                         <div className="space-y-1">
@@ -1064,148 +1390,163 @@ export default function PresupuestoPrevioIndex() {
                                             <Input
                                                 readOnly
                                                 value={ret_iva_check && formData.incluir_iva ? formatCurrency(calcularTotales().retIVA) : formatCurrency(0)}
-                                                className="text-right font-bold text-green-600 border"
+                                                className="text-right font-bold text-green-600 border bg-white dark:bg-slate-900/50"
                                             />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-sm font-medium">Total Honorarios</label>
                                             <div className="px-3 py-2 border rounded-md text-right font-bold text-yellow-500">
-                                                {formatCurrency(calcularTotales().totalPresupuesto)}
+                                                {(() => {
+                                                    const t = calcularTotales();
+                                                    return formatCurrency(t.subtotalHonorarios + t.ivaCalculado - t.retISR - t.retIVA);
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* SECCIÓN: IMPUESTOS Y DERECHOS */}
-                                <div className="border rounded-lg p-4 bg-background/50">
+                                <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
                                     <div className="flex justify-between items-center mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-lg font-bold">Impuestos y Derechos</h3>
-                                            {isLoadingImpuestos && <Loader2 className="h-4 w-4 animate-spin" />}
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-purple-600 text-white p-3 rounded-lg">
+                                                <Plus className="h-5 w-5" />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-gray-900">Impuestos y Derechos</h3>
+                                                {isLoadingImpuestos && <Loader2 className="h-4 w-4 animate-spin" />}
+                                            </div>
                                         </div>
-                                        <Button onClick={addImpuestoDerechos} size="sm" variant="outline" disabled={isLoadingImpuestos}>
-                                            <Plus className="h-3 w-3 mr-1" /> Agregar Concepto
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button onClick={addImpuestoDerechos} size="sm" disabled={isLoadingImpuestos} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-md hover:shadow-lg transition-all">
+                                                <Plus className="h-3 w-3 mr-1" /> Agregar Trámite
+                                            </Button>
+                                            <Button onClick={handleCalcularImpuestos} size="sm" disabled={isLoadingImpuestos} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all">
+                                                {isLoadingImpuestos ? (<Loader2 className="h-3 w-3 mr-1 animate-spin" />) : null}
+                                                Calcular
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     {formData.impuestos_derechos.length === 0 ? (
-                                        <p className="text-center text-muted-foreground py-4">No hay conceptos agregados</p>
+                                        <p className="text-center text-muted-foreground py-8">No hay conceptos agregados</p>
                                     ) : (
                                         <div className="border rounded-lg overflow-hidden">
-                                            <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted border-b">
-                                                <div className="col-span-5">
-                                                    <p className="text-xs font-medium">Concepto</p>
-                                                </div>
-                                                <div className="col-span-3">
-                                                    <p className="text-xs font-medium">Importe</p>
-                                                </div>
-                                                <div className="col-span-3">
-                                                    <p className="text-xs font-medium">Observaciones</p>
-                                                </div>
-                                                <div className="col-span-1"></div>
-                                            </div>
-                                            <div className="max-h-64 overflow-y-auto">
-                                                {formData.impuestos_derechos.map((item) => (
-                                                    <div key={item.id} className="grid grid-cols-12 gap-2 p-2 border-b last:border-b-0 bg-background hover:bg-muted/50">
-                                                        <div className="col-span-5">
-                                                            <Input
-                                                                value={item.descripcion}
-                                                                placeholder="Concepto"
-                                                                readOnly
-                                                                className="w-full  text-sm h-8"
-                                                            />
-                                                        </div>
-                                                        <div className="col-span-3">
-                                                            <Input
-                                                                type="text"
-                                                                value={formatCurrency(item.importe)}
-                                                                readOnly
-                                                                className="text-right text-sm h-8 font-bold text-green-600"
-                                                            />
-                                                        </div>
-                                                        <div className="col-span-3">
-                                                            <Input
-                                                                value={item.observaciones || ''}
-                                                                onChange={(e) => updateImpuestoDerechos(item.id, 'observaciones', e.target.value)}
-                                                                placeholder="Observaciones"
-                                                                className="w-full text-sm h-8"
-                                                            />
-                                                        </div>
-                                                        <div className="col-span-1 flex items-center justify-center">
-                                                            <Button
-                                                                onClick={() => removeImpuestoDerechos(item.id)}
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                className="h-6 w-6 p-0"
-                                                            >
-                                                                <X className="h-2 w-2" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-gradient-to-r from-purple-600 to-purple-700 text-white sticky top-0">
+                                                        <tr>
+                                                            <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                                            <th className="px-4 py-3 text-right font-semibold w-32">Importe</th>
+                                                            <th className="px-4 py-3 text-left font-semibold flex-1">Observaciones</th>
+                                                            <th className="px-4 py-3 text-center font-semibold w-12">Acciones</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {formData.impuestos_derechos.map((item) => (
+                                                            <tr key={item.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                                                <td className="px-4 py-3 text-sm">
+                                                                    {item.descripcion}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <Input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        value={item.importe}
+                                                                        onChange={(e) => updateImpuestoDerechos(item.id, 'importe', e.target.value)}
+                                                                        placeholder="0.00"
+                                                                        className="text-right text-sm h-8 font-bold text-green-600 bg-white dark:bg-slate-900/50"
+                                                                    />
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <Input
+                                                                        value={item.observaciones || ''}
+                                                                        onChange={(e) => updateImpuestoDerechos(item.id, 'observaciones', e.target.value)}
+                                                                        placeholder="Observaciones"
+                                                                        className="w-full text-sm h-8 bg-white dark:bg-slate-900/50"
+                                                                    />
+                                                                </td>
+                                                                <td className="px-4 py-3 text-center">
+                                                                    <Button
+                                                                        onClick={() => removeImpuestoDerechos(item.id)}
+                                                                        size="sm"
+                                                                        variant="destructive"
+                                                                        className="h-6 w-6 p-0"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </Button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* SECCIÓN: GASTOS NOTARIALES */}
-                                <div className="border rounded-lg p-4 bg-background/50">
+                                <div className="border-2 border-cyan-200 rounded-lg p-5 bg-gradient-to-br from-cyan-50 to-white shadow-sm hover:shadow-md transition-shadow">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-bold">Gastos Notariales</h3>
-                                        <Button onClick={addGastoNotarial} size="sm" variant="outline">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-cyan-600 text-white p-3 rounded-lg">
+                                                <Plus className="h-5 w-5" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-900">Gastos Notariales</h3>
+                                        </div>
+                                        <Button onClick={addGastoNotarial} size="sm" className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold shadow-md hover:shadow-lg transition-all">
                                             <Plus className="h-3 w-3 mr-1" /> Agregar Concepto
                                         </Button>
                                     </div>
 
                                     {formData.gastos_notariales.length === 0 ? (
-                                        <p className="text-center text-muted-foreground py-4">No hay conceptos agregados</p>
+                                        <p className="text-center text-muted-foreground py-8">No hay conceptos agregados</p>
                                     ) : (
-                                        <div className="border rounded-lg overflow-hidden">
-                                            <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted border-b">
-                                                <div className="col-span-9">
-                                                    <p className="text-xs font-medium">Concepto</p>
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <p className="text-xs font-medium">Importe</p>
-                                                </div>
-                                                <div className="col-span-1"></div>
-                                            </div>
-                                            <div className="max-h-64 overflow-y-auto">
-                                                {formData.gastos_notariales.map((item) => (
-                                                    <div key={item.id} className="grid grid-cols-12 gap-2 p-2 border-b last:border-b-0 bg-background hover:bg-muted/50">
-                                                        <div className="col-span-9">
-                                                            <Input
-                                                                value={item.descripcion}
-                                                                onChange={(e) => updateGastoNotarial(item.id, 'descripcion', e.target.value)}
-                                                                placeholder="Concepto"
-                                                                className="w-full text-sm h-8"
-                                                            />
-                                                        </div>
-                                                        <div className="col-span-2">
-                                                            <div className="flex items-center border rounded-md bg-background h-8 px-2">
-                                                                <span className="text-sm font-bold text-foreground mr-1">$</span>
-                                                                <Input
-                                                                    type="number"
-                                                                    step="0.01"
-                                                                    value={item.importe}
-                                                                    onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
-                                                                    placeholder="0.00"
-                                                                    className="text-right flex-1 text-sm h-6 border-0 focus-visible:ring-0 p-0 bg-transparent"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="col-span-1 flex items-center justify-center">
-                                                            <Button
-                                                                onClick={() => removeGastoNotarial(item.id)}
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                className="h-6 w-6 p-0"
-                                                            >
-                                                                <X className="h-2 w-2" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                        <div className="border-2 border-cyan-300 rounded-lg overflow-hidden">
+                                            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-gradient-to-r from-cyan-600 to-cyan-700 text-white sticky top-0">
+                                                        <tr>
+                                                            <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                                            <th className="px-4 py-3 text-right font-semibold w-32">Importe</th>
+                                                            <th className="px-4 py-3 text-center font-semibold w-12">Acciones</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {formData.gastos_notariales.map((item) => (
+                                                            <tr key={item.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                                                <td className="px-4 py-3">
+                                                                    <Input
+                                                                        value={item.descripcion}
+                                                                        onChange={(e) => updateGastoNotarial(item.id, 'descripcion', e.target.value)}
+                                                                        placeholder="Concepto"
+                                                                        className="w-full text-sm h-8 bg-white dark:bg-slate-900/50"
+                                                                    />
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <Input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        value={item.importe}
+                                                                        onChange={(e) => updateGastoNotarial(item.id, 'importe', e.target.value)}
+                                                                        placeholder="0.00"
+                                                                        className="text-right text-sm h-8 font-bold text-green-600 bg-white dark:bg-slate-900/50"
+                                                                    />
+                                                                </td>
+                                                                <td className="px-4 py-3 text-center">
+                                                                    <Button
+                                                                        onClick={() => removeGastoNotarial(item.id)}
+                                                                        size="sm"
+                                                                        variant="destructive"
+                                                                        className="h-6 w-6 p-0"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </Button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
                                     )}
@@ -1215,22 +1556,28 @@ export default function PresupuestoPrevioIndex() {
                                 {(() => {
                                     const totales = calcularTotales();
                                     return (
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="border rounded-lg p-4 bg-background/50">
-                                                <p className="text-sm font-medium text-muted-foreground">Total Gastos Notaría</p>
-                                                <p className="text-2xl font-bold text-yellow-500">
+                                        <div className="grid grid-cols-4 gap-4">
+                                            <div className="border-2 border-yellow-400 rounded-lg p-5 bg-gradient-to-br from-yellow-50 to-yellow-100 shadow-lg hover:shadow-xl transition-shadow">
+                                                <p className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Total Gastos Notariales</p>
+                                                <p className="text-2xl font-bold text-yellow-900 mt-2">
                                                     {formatCurrency(totales.totalGastos)}
                                                 </p>
                                             </div>
-                                            <div className="border rounded-lg p-4 bg-background/50">
-                                                <p className="text-sm font-medium text-muted-foreground">Total Impuestos y Derechos</p>
-                                                <p className="text-2xl font-bold text-yellow-500">
+                                            <div className="border-2 border-blue-400 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg hover:shadow-xl transition-shadow">
+                                                <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Total Impuestos</p>
+                                                <p className="text-2xl font-bold text-blue-900 mt-2">
                                                     {formatCurrency(totales.totalImpuestos)}
                                                 </p>
                                             </div>
-                                            <div className="border rounded-lg p-4 bg-red-50">
-                                                <p className="text-sm font-medium text-muted-foreground">TOTAL PRESUPUESTO</p>
-                                                <p className="text-3xl font-bold text-red-600">
+                                            <div className="border-2 border-green-400 rounded-lg p-5 bg-gradient-to-br from-green-50 to-green-100 shadow-lg hover:shadow-xl transition-shadow">
+                                                <p className="text-xs font-bold text-green-800 uppercase tracking-wide">Total Honorarios</p>
+                                                <p className="text-2xl font-bold text-green-900 mt-2">
+                                                    {formatCurrency(totales.totalHonorarios)}
+                                                </p>
+                                            </div>
+                                            <div className="border-4 border-red-500 rounded-lg p-5 bg-gradient-to-br from-red-50 to-red-100 shadow-xl hover:shadow-2xl transition-shadow">
+                                                <p className="text-xs font-bold text-red-900 uppercase tracking-wide">TOTAL PRESUPUESTO</p>
+                                                <p className="text-3xl font-bold text-red-700 mt-2">
                                                     {formatCurrency(totales.totalPresupuesto)}
                                                 </p>
                                             </div>
@@ -1239,17 +1586,22 @@ export default function PresupuestoPrevioIndex() {
                                 })()}
 
                                 {/* BOTONES DE ACCIÓN */}
-                                <div className="flex gap-2 justify-end pt-6 pb-6 border-t">
+                                <div className="flex gap-3 justify-end pt-6 pb-6 border-t-2 border-gray-200">
                                     {isEditing && (
                                         <>
-                                            <Button variant="outline" onClick={handleCancelEdit}>
+                                            <Button
+                                                onClick={handleCancelEdit}
+                                                className="border-2 border-gray-400 text-gray-700 hover:bg-gray-100 font-semibold shadow-md hover:shadow-lg transition-all"
+                                                variant="outline"
+                                            >
                                                 <X className="h-4 w-4 mr-2" />
                                                 Cancelar
                                             </Button>
                                             <Button
-                                                variant="outline"
                                                 onClick={handleViewPdf}
                                                 disabled={isLoadingPdf || !formData.id}
+                                                className="border-2 border-blue-400 text-blue-700 hover:bg-blue-50 font-semibold shadow-md hover:shadow-lg transition-all"
+                                                variant="outline"
                                             >
                                                 {isLoadingPdf ? (
                                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1263,7 +1615,7 @@ export default function PresupuestoPrevioIndex() {
                                     <Button
                                         onClick={handleAddPresupuesto}
                                         disabled={isSaving}
-                                        className="bg-green-600 hover:bg-green-700"
+                                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold shadow-lg hover:shadow-xl transition-all px-6"
                                     >
                                         {isSaving ? (
                                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1285,7 +1637,9 @@ export default function PresupuestoPrevioIndex() {
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
                         <div className="bg-white rounded-lg shadow-lg w-[95vw] h-[95vh] flex flex-col">
                             <div className="flex justify-between items-center p-3 border-b bg-gray-50">
-                                <h2 className="text-lg font-bold">Impresión - Presupuesto Previo</h2>
+                                <h2 className="text-lg font-bold">
+
+                                    Presupuesto Previo</h2>
                                 <button
                                     onClick={closePdfViewer}
                                     className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
@@ -1348,7 +1702,7 @@ export default function PresupuestoPrevioIndex() {
                                         value={clienteFiltro}
                                         onChange={(e) => setClienteFiltro(e.target.value)}
                                         placeholder="Buscar por nombre, RFC, CURP..."
-                                        className="pr-10"
+                                        className="pr-10 bg-white dark:bg-slate-900/50"
                                     />
                                     {clienteFiltro && (
                                         <button
@@ -1386,39 +1740,41 @@ export default function PresupuestoPrevioIndex() {
                         </div>
 
                         {/* Table */}
-                        <div className="flex-1 overflow-y-auto px-6 py-4">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="sticky top-0 bg-background">
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>RFC</TableHead>
-                                        <TableHead>CURP</TableHead>
-                                        <TableHead>Tipo</TableHead>
-                                        <TableHead className="w-16 text-center">Seleccionar</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
+                        <div className="border rounded-lg overflow-hidden m-2
+                        ">
+                            <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
+                                <table className="w-full text-sm">
+                                <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left font-semibold">Nombre</th>
+                                        <th className="px-4 py-2 text-left font-semibold">RFC</th>
+                                        <th className="px-4 py-2 text-left font-semibold">CURP</th>
+                                        <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                        <th className="px-4 py-2 text-center font-semibold w-20">Seleccionar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                     {isSearchingClientes ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                 <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
                                                 Buscando clientes...
-                                            </TableCell>
-                                        </TableRow>
+                                            </td>
+                                        </tr>
                                     ) : clienteResultados.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
                                                 No se encontraron clientes.
-                                            </TableCell>
-                                        </TableRow>
+                                            </td>
+                                        </tr>
                                     ) : (
                                         clienteResultados.map((cliente) => (
-                                            <TableRow key={cliente.id} className="hover:bg-amber-50">
-                                                <TableCell className="font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</TableCell>
-                                                <TableCell className="font-mono text-sm">{cliente.rfc}</TableCell>
-                                                <TableCell className="font-mono text-sm">{cliente.curp}</TableCell>
-                                                <TableCell>{cliente.tipo_Cliente}</TableCell>
-                                                <TableCell className="text-center">
+                                            <tr key={cliente.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer">
+                                                <td className="px-4 py-2 font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</td>
+                                                <td className="px-4 py-2 font-mono text-sm">{cliente.rfc}</td>
+                                                <td className="px-4 py-2 font-mono text-sm">{cliente.curp}</td>
+                                                <td className="px-4 py-2">{cliente.tipo_Cliente}</td>
+                                                <td className="px-4 py-2 text-center">
                                                     <Button
                                                         onClick={() => handleSelectClienteFromModal(cliente)}
                                                         size="sm"
@@ -1426,12 +1782,13 @@ export default function PresupuestoPrevioIndex() {
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                     </Button>
-                                                </TableCell>
-                                            </TableRow>
+                                                </td>
+                                            </tr>
                                         ))
                                     )}
-                                </TableBody>
-                            </Table>
+                                </tbody>
+                            </table>
+                            </div>
                         </div>
 
                         {/* Footer */}
@@ -1446,6 +1803,142 @@ export default function PresupuestoPrevioIndex() {
                     </div>
                 </div>
             )}
+
+            {/* MODAL DE BÚSQUEDA DE IMPUESTOS Y DERECHOS */}
+            {showImpuestosModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-background border rounded-lg shadow-lg w-full max-w-5xl max-h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="border-b px-6 py-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold flex items-center gap-2">
+                                Agregar Tramite
+                            </h2>
+                            <button
+                                onClick={() => setShowImpuestosModal(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Body - Búsqueda */}
+                        <div className="border-b px-6 py-4 space-y-3">
+                            <div className="flex gap-2">
+                                <div className="relative flex-1 max-w-sm">
+                                    <Input
+                                        value={impuestosFiltro}
+                                        onChange={(e) => setImpuestosFiltro(e.target.value)}
+                                        placeholder="Filtrar por descripción..."
+                                        className="bg-white dark:bg-slate-900/50"
+                                    />
+                                    {impuestosFiltro && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setImpuestosFiltro('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            {impuestosError && (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-red-50 border-red-200 text-red-800 text-sm">
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <span>{impuestosError}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Tabs por dependencia */}
+                        {dependenciasUnicas.length > 0 && (
+                            <div className="border-b px-6 pt-4 overflow-x-auto">
+                                <Tabs value={activeDependenciaTab} onValueChange={setActiveDependenciaTab}>
+                                    <TabsList className="inline-flex w-max bg-transparent">
+                                        {dependenciasUnicas.map((dep) => (
+                                            <TabsTrigger key={dep} value={dep} className="rounded-none border-b-2 border-b-transparent data-[state=active]:border-b-amber-600 data-[state=active]:shadow-none whitespace-nowrap">
+                                                <span className="truncate text-xs sm:text-sm">{dep}</span>
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                </Tabs>
+                            </div>
+                        )}
+
+                        {/* Table */}
+                        <div className="border rounded-lg overflow-hidden m-2">
+                            <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
+                                {isSearchingImpuestos ? (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                        Cargando trámites...
+                                    </div>
+                                ) : (
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold w-12">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Tipo</th>
+                                            <th className="px-4 py-2 text-center font-semibold w-20">Agregar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {impuestosResultados
+                                            .filter((item) => {
+                                                const matchesFiltro = impuestosFiltro === '' || item.descripcion.toLowerCase().includes(impuestosFiltro.toLowerCase());
+                                                const matchesDependencia = activeDependenciaTab === 'Todas' || item.dependencia_Publica === activeDependenciaTab;
+                                                return matchesFiltro && matchesDependencia;
+                                            })
+                                            .map((impuesto) => (
+                                                <tr key={impuesto.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer">
+                                                    <td className="px-4 py-2 font-mono text-sm">{impuesto.id}</td>
+                                                    <td className="px-4 py-2 font-medium">{impuesto.descripcion}</td>
+                                                    <td className="px-4 py-2">{impuesto.tipo}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        {(() => {
+                                                            const existe = formData.impuestos_derechos.some(item => item.id === impuesto.id.toString());
+                                                            return (
+                                                                <Button
+                                                                    onClick={() => handleSelectImpuesto(impuesto)}
+                                                                    size="sm"
+                                                                    className={existe ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
+                                                                >
+                                                                    {existe ? (
+                                                                        <X className="h-4 w-4" />
+                                                                    ) : (
+                                                                        <Plus className="h-4 w-4" />
+                                                                    )}
+                                                                </Button>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t px-6 py-4 flex justify-end gap-2">
+                            <Button
+                                onClick={() => setShowImpuestosModal(false)}
+                                variant="outline"
+                            >
+                                Cerrar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
         </>
     );
 }
