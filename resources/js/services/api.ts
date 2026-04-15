@@ -22,6 +22,23 @@ class ApiService {
     }
 
     /**
+     * Obtiene los headers base incluyendo el token JWT si existe
+     */
+    private getHeaders(baseHeaders: Record<string, string> = {}): Record<string, string> {
+        const headers = { ...baseHeaders };
+
+        // Agregar token JWT si existe en localStorage
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+        }
+
+        return headers;
+    }
+
+    /**
      * Normaliza la respuesta del servidor a una estructura estándar
      */
     private normalizeResponse<T = any>(data: any): ApiResponse<T> {
@@ -69,12 +86,14 @@ class ApiService {
      */
     async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
+        const headers = this.getHeaders({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        });
+
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
+            headers,
         });
 
         const data = await response.json();
@@ -87,15 +106,17 @@ class ApiService {
     async post<T = any>(endpoint: string, body: any): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
         const isFormData = body instanceof FormData;
-        const headers: Record<string, string> = {
+        const baseHeaders: Record<string, string> = {
             'Accept': 'application/json',
         };
 
         // Solo establecer Content-Type para JSON, no para FormData
         // El navegador establece automáticamente multipart/form-data para FormData
         if (!isFormData) {
-            headers['Content-Type'] = 'application/json';
+            baseHeaders['Content-Type'] = 'application/json';
         }
+
+        const headers = this.getHeaders(baseHeaders);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -122,15 +143,17 @@ class ApiService {
     async put<T = any>(endpoint: string, body: any): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
         const isFormData = body instanceof FormData;
-        const headers: Record<string, string> = {
+        const baseHeaders: Record<string, string> = {
             'Accept': 'application/json',
         };
 
         // Solo establecer Content-Type para JSON, no para FormData
         // El navegador establece automáticamente multipart/form-data para FormData
         if (!isFormData) {
-            headers['Content-Type'] = 'application/json';
+            baseHeaders['Content-Type'] = 'application/json';
         }
+
+        const headers = this.getHeaders(baseHeaders);
 
         const response = await fetch(url, {
             method: 'PUT',
@@ -156,12 +179,14 @@ class ApiService {
      */
     async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
+        const headers = this.getHeaders({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        });
+
         const response = await fetch(url, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
+            headers,
         });
 
         const data = await response.json();
