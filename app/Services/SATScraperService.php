@@ -258,6 +258,7 @@ class SATScraperService
                             'error_message' => $errorMessage,
                         ]);
                         sleep($delay);
+
                         continue; // Retry
                     }
 
@@ -280,6 +281,7 @@ class SATScraperService
                             'status' => $statusCode,
                         ]);
                         sleep($delay);
+
                         continue; // Retry
                     }
 
@@ -293,15 +295,15 @@ class SATScraperService
 
                     if (json_last_error() === JSON_ERROR_NONE && is_array($structuredData)) {
                         Log::info('Gemini procesó exitosamente', ['attempt' => $attempt]);
+
                         return $structuredData;
                     }
                 }
 
                 throw new Exception('No se pudo procesar la respuesta de Gemini');
-
             } catch (Exception $e) {
                 // Si es el último intento o no es un error de sobrecarga, lanzar error
-                if ($attempt >= $maxRetries || !str_contains($e->getMessage(), 'saturado')) {
+                if ($attempt >= $maxRetries || ! str_contains($e->getMessage(), 'saturado')) {
                     Log::error('Error structuring data with Gemini', [
                         'error' => $e->getMessage(),
                         'raw_data_count' => count($rawData),

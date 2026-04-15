@@ -195,9 +195,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion-notaria');
         Route::get('clientes', [\App\Http\Controllers\ControlNotarialController::class, 'clientes'])->name('clientes');
         Route::get('configuracion-operaciones', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionOperaciones'])->name('configuracion-operaciones');
+        Route::get('configuraciones-tarifarias', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionesTarifarias'])->name('configuraciones-tarifarias');
         Route::get('usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'usuarios'])->name('usuarios');
         Route::get('alta-catalogos', [\App\Http\Controllers\ControlNotarialController::class, 'altaCatalogos'])->name('alta-catalogos');
         Route::get('reporte-usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'reporteUsuarios'])->name('reporte-usuarios');
+        Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion.notaria');
     });
 
     // === MÓDULO REGISTRO WEB ===
@@ -219,7 +221,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'store'])->name('store');
         Route::get('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'show'])->name('show');
         Route::delete('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'destroy'])->name('destroy');
-        
+
         // Acciones sobre documentos
         Route::post('{documento}/analyze', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'analyze'])->name('analyze');
         Route::get('{documento}/download/{formato}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'download'])

@@ -176,7 +176,6 @@ class GeminiVisionService
             }
 
             throw new Exception('No se pudo procesar la respuesta de Gemini Vision API');
-
         } catch (Exception $e) {
             Log::error('Error analyzing image with Gemini Vision', [
                 'error' => $e->getMessage(),
@@ -251,7 +250,7 @@ class GeminiVisionService
     protected function buildINEPrompt(string $side): string
     {
         if ($side === 'front') {
-            return <<<PROMPT
+            return <<<'PROMPT'
 Analiza esta imagen de la CREDENCIAL PARA VOTAR (INE) mexicana - LADO FRONTAL.
 
 Extrae y estructura los siguientes datos en formato JSON con estas claves exactas:
@@ -285,7 +284,7 @@ PROMPT;
         }
 
         // side === 'back'
-        return <<<PROMPT
+        return <<<'PROMPT'
 Analiza esta imagen de la CREDENCIAL PARA VOTAR (INE) mexicana - LADO REVERSO.
 
 Extrae y estructura los siguientes datos en formato JSON con estas claves exactas:
@@ -308,7 +307,7 @@ PROMPT;
      */
     protected function buildCURPPrompt(): string
     {
-        return <<<PROMPT
+        return <<<'PROMPT'
 Analiza esta imagen de un DOCUMENTO DE CURP (Clave Única de Registro de Población) mexicano.
 
 Extrae y estructura los siguientes datos en formato JSON con estas claves exactas:
@@ -339,7 +338,7 @@ PROMPT;
      */
     protected function buildActaPrompt(): string
     {
-        return <<<PROMPT
+        return <<<'PROMPT'
 Analiza esta imagen de un ACTA DE NACIMIENTO mexicana.
 
 Extrae y estructura los siguientes datos en formato JSON con estas claves exactas:

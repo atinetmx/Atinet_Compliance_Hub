@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
-$app = require_once __DIR__ . '/bootstrap/app.php';
+require_once __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 use App\Models\Notaria;
@@ -23,7 +23,7 @@ $notariasSinSuscripcion = Notaria::whereDoesntHave('subscripciones', function ($
     $query->whereIn('status', ['activa', 'trial']);
 })->get();
 
-echo "📊 Notarías SIN suscripción activa/trial: " . $notariasSinSuscripcion->count() . "\n";
+echo '📊 Notarías SIN suscripción activa/trial: '.$notariasSinSuscripcion->count()."\n";
 foreach ($notariasSinSuscripcion as $notaria) {
     echo "   - {$notaria->nombre} (ID: {$notaria->id})\n";
 }
@@ -35,7 +35,7 @@ $notariasConSuscripcion = Notaria::whereHas('subscripciones', function ($query) 
     $query->whereIn('status', ['activa', 'trial']);
 })->with('subscripciones')->get();
 
-echo "📊 Notarías CON suscripción activa/trial: " . $notariasConSuscripcion->count() . "\n";
+echo '📊 Notarías CON suscripción activa/trial: '.$notariasConSuscripcion->count()."\n";
 foreach ($notariasConSuscripcion as $notaria) {
     $subs = $notaria->subscripciones->whereIn('status', ['activa', 'trial']);
     foreach ($subs as $sub) {

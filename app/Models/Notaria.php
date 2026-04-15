@@ -186,6 +186,15 @@ class Notaria extends Model
     }
 
     /**
+     * Alias de serviceUsages() para compatibilidad con API .NET de Control Notarial
+     * (mantiene convención singular usada por módulos externos)
+     */
+    public function serviceUsage(): HasMany
+    {
+        return $this->serviceUsages();
+    }
+
+    /**
      * Scope para notarías activas
      */
     public function scopeActivas($query)
@@ -280,6 +289,7 @@ class Notaria extends Model
     /**
      * Obtener TODOS los servicios disponibles (combinación de todas las suscripciones activas + trial)
      * REGLA: Unión (OR) de servicios de todas las suscripciones
+     * FILTRO: Solo servicios IMPLEMENTADOS y ACTIVOS
      */
     public function getAllAvailableServices()
     {
@@ -298,8 +308,9 @@ class Notaria extends Model
             }
         }
 
-        // Eliminar duplicados por ID
-        return $servicios->unique('id');
+        // Eliminar duplicados por ID y FILTRAR solo implementados y activos
+        return $servicios->unique('id')
+            ->filter(fn ($service) => $service->implementation_status === 'implemented' && $service->is_active);
     }
 
     /**
@@ -336,5 +347,82 @@ class Notaria extends Model
             'limite_usuarios' => $suscripcionPrincipal->plan->limite_usuarios,
             'limite_busquedas_mes' => $suscripcionPrincipal->plan->limite_busquedas_mes,
         ];
+    }
+
+    /**
+     * Obtener servicios agrupados por categoría para el dashboard
+     * Solo servicios IMPLEMENTADOS y ACTIVOS
+     */
+    public function getServiciosPorCategoria(): array
+    {
+        $servicios = $this->getAllAvailableServices();
+
+        return $servicios->groupBy('category')
+            ->map(fn ($group) => $group->values())
+            ->toArray();
+    }
+
+    /**
+     * Obtener límite de uso para un servicio específico
+     * Combina límite del plan + overrides de tenant_services
+     */
+    public function getLimiteServicio(string $serviceCode): ?int
+    {
+        // 1. Verificar si existe override en tenant_services
+        $tenantService = $this->services()
+            ->where('code', $serviceCode)
+            ->first();
+
+        if ($tenantService && $tenantService->pivot->custom_limit !== null) {
+            return $tenantService->pivot->custom_limit;
+        }
+
+        // 2. Obtener del plan en la suscripción activa
+        $suscripcion = $this->subscripcionActiva;
+        if (! $suscripcion || ! $suscripcion->plan) {
+            return null;
+        }
+
+        $planService = $suscripcion->plan->services()
+            ->where('code', $serviceCode)
+            ->first();
+
+        return $planService?->pivot->usage_limit;
+    }
+
+    /**
+     * Obtener uso actual de un servicio en el mes
+     */
+    public function getUsoServicioMesActual(string $serviceCode): int
+    {
+        return $this->serviceUsages()
+            ->whereHas('service', fn ($q) => $q->where('code', $serviceCode))
+            ->whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
+    }
+
+    /**
+     * Verificar si puede usar un servicio (no ha excedido límite)
+     */
+    public function puedeUsarServicio(string $serviceCode): bool
+    {
+        // 1. Verificar si tiene acceso al servicio
+        if (! $this->tieneAccesoServicio($serviceCode)) {
+            return false;
+        }
+
+        // 2. Obtener límite
+        $limite = $this->getLimiteServicio($serviceCode);
+
+        // 3. Si es ilimitado (null), siempre puede usar
+        if ($limite === null) {
+            return true;
+        }
+
+        // 4. Verificar uso actual vs límite
+        $usoActual = $this->getUsoServicioMesActual($serviceCode);
+
+        return $usoActual < $limite;
     }
 }

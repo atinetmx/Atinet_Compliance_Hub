@@ -21,6 +21,7 @@
  *   php generar_reporte_busquedas_gator.php --export=json
  *
  * @version 1.0
+ *
  * @date 2026-04-06
  */
 
@@ -38,7 +39,7 @@ if (isset($argv[1]) && strpos($argv[1], '--export=') === 0) {
 echo "==================================================================\n";
 echo "  REPORTE DE BÚSQUEDAS - BASE DE DATOS REMOTA GATOR\n";
 echo "  Base de datos: atinet65_aplicativos\n";
-echo "  Fecha: ".date('Y-m-d H:i:s')."\n";
+echo '  Fecha: '.date('Y-m-d H:i:s')."\n";
 echo "==================================================================\n\n";
 
 try {
@@ -62,9 +63,9 @@ try {
         ->distinct('TIPO_BUSQUEDA')
         ->count('TIPO_BUSQUEDA');
 
-    echo "   • Total de búsquedas registradas: ".number_format($totalBusquedas)."\n";
-    echo "   • Notarías activas: ".number_format($totalNotarias)."\n";
-    echo "   • Tipos de búsqueda diferentes: ".number_format($totalTipos)."\n\n";
+    echo '   • Total de búsquedas registradas: '.number_format($totalBusquedas)."\n";
+    echo '   • Notarías activas: '.number_format($totalNotarias)."\n";
+    echo '   • Tipos de búsqueda diferentes: '.number_format($totalTipos)."\n\n";
 
     // ========================================================================
     // 2. BÚSQUEDAS POR NOTARÍA
@@ -86,7 +87,7 @@ try {
 
     printf("   %-30s %15s %12s %12s\n",
         'NOTARÍA', 'BÚSQUEDAS', 'PRIMERA', 'ÚLTIMA');
-    echo "   ".str_repeat('─', 64)."\n";
+    echo '   '.str_repeat('─', 64)."\n";
 
     foreach ($busquedasPorNotaria as $notaria) {
         printf("   %-30s %15s %12s %12s\n",
@@ -125,7 +126,7 @@ try {
 
     printf("   %-35s %15s %15s\n",
         'TIPO DE BÚSQUEDA', 'TOTAL', 'NOTARÍAS');
-    echo "   ".str_repeat('─', 64)."\n";
+    echo '   '.str_repeat('─', 64)."\n";
 
     foreach ($tiposBusqueda as $tipo) {
         $porcentaje = ($totalBusquedas > 0)
@@ -173,7 +174,7 @@ try {
                 echo "\n";
             }
             $notariaActual = $detalle->NOTARIA;
-            echo "   📍 ".substr($detalle->NOTARIA, 0, 50)."\n";
+            echo '   📍 '.substr($detalle->NOTARIA, 0, 50)."\n";
         }
 
         printf("      ├─ %-35s: %s búsquedas\n",
@@ -209,12 +210,12 @@ try {
         ->distinct('NOTARIA')
         ->count('NOTARIA');
 
-    echo "   • Búsquedas en últimos 30 días: ".number_format($busquedasRecientes)."\n";
-    echo "   • Notarías activas (últimos 30 días): ".number_format($notariasActivas)."\n\n";
+    echo '   • Búsquedas en últimos 30 días: '.number_format($busquedasRecientes)."\n";
+    echo '   • Notarías activas (últimos 30 días): '.number_format($notariasActivas)."\n\n";
 
     if ($busquedasRecientes > 0) {
         echo "   Top 10 Notarías más activas (últimos 30 días):\n";
-        echo "   ".str_repeat('─', 60)."\n";
+        echo '   '.str_repeat('─', 60)."\n";
 
         $topRecientes = DB::connection('aplicativos')
             ->table('busquedas')
@@ -337,8 +338,8 @@ try {
 
 } catch (Exception $e) {
     echo "\n❌ ERROR AL GENERAR REPORTE\n";
-    echo "   Mensaje: ".$e->getMessage()."\n";
-    echo "   Archivo: ".$e->getFile()."\n";
-    echo "   Línea: ".$e->getLine()."\n\n";
+    echo '   Mensaje: '.$e->getMessage()."\n";
+    echo '   Archivo: '.$e->getFile()."\n";
+    echo '   Línea: '.$e->getLine()."\n\n";
     exit(1);
 }

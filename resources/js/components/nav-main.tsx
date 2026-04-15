@@ -11,15 +11,11 @@ import {
     SidebarMenuSubItem,
     SidebarMenuBadge,
 } from '@/components/ui/sidebar';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { useCurrentUrl, type IsCurrentUrlFn } from '@/hooks/use-current-url';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { NavItem } from '@/types';
 
-function hasActiveChild(item: NavItem, isCurrentUrl: IsCurrentUrlFn): boolean {
+function hasActiveChild(item: NavItem, isCurrentUrl: (url: string) => boolean): boolean {
     if (!item.items) return false;
     return item.items.some((child) => {
         if (isCurrentUrl(child.href)) return true;
@@ -27,7 +23,7 @@ function hasActiveChild(item: NavItem, isCurrentUrl: IsCurrentUrlFn): boolean {
     });
 }
 
-function renderMenuItems(items: NavItem[], isCurrentUrl: IsCurrentUrlFn, level: number = 0): React.ReactNode {
+function renderMenuItems(items: NavItem[], isCurrentUrl: (url: string) => boolean, level: number = 0): React.ReactNode {
     return items.map((item) => {
         // Si el item tiene subitems, renderizar como Collapsible
         if (item.items && item.items.length > 0) {

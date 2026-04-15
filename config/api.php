@@ -7,12 +7,15 @@ return [
     |--------------------------------------------------------------------------
     |
     | This URL defines the base endpoint for all API calls from the frontend.
-    | Use environment variables to manage different URLs for dev and production.
+    | Currently points to Control Notarial C# API (Alex - migrated from VB6).
     |
-    | Default (development): https://localhost:44327/api
-    | Production: http://api.atinet.com.mx:5000/api
+    | Development: https://localhost:44327/api
+    | Production: https://srvatinet.atinet.com.mx:7443/api
+    |
+    | NOTE: This is temporary. Once Gateway is implemented, frontend will call
+    | Laravel endpoints and Laravel will proxy to C# API server-to-server.
     |
     */
 
-    'base_url' => env('API_BASE_URL', 'https://localhost:44327/api'),
+    'base_url' => env('CONTROL_NOTARIAL_API_URL', env('API_BASE_URL', 'https://srvatinet.atinet.com.mx:7443/api')),
 ];

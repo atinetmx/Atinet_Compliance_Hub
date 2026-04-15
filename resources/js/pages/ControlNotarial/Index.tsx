@@ -1,8 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings, LogOut } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
+import LoginModal from '@/components/Modals/LoginModal';
+import { Button } from '@/components/ui/button';
+import { isAuthenticated, logout } from '@/services/authService';
 
 interface Task {
     total: number;
@@ -42,7 +45,29 @@ export default function ControlNotarialIndex({
     phase,
     tasks,
 }: Props) {
-    const breadcrumbs: BreadcrumbItem[] = [
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+    const [logoutProcessing, setLogoutProcessing] = useState(false);
+
+    // Mostrar modal de login al cargar la página si no está autenticado
+    useEffect(() => {
+        if (!isAuthenticated()) {
+            setLoginModalOpen(true);
+        }
+    }, []);
+
+    const handleLogout = async () => {
+        setLogoutProcessing(true);
+        try {
+            await logout();
+            // Mostrar modal de login nuevamente
+            setLoginModalOpen(true);
+        } catch (error) {
+            console.error('Error en logout:', error);
+        } finally {
+            setLogoutProcessing(false);
+        }
+    };
+    const breadcrumbs = [
         {
             title: 'Dashboard',
             href: '/dashboard',
@@ -80,17 +105,63 @@ export default function ControlNotarialIndex({
 
             <div className="min-h-screen space-y-6 p-6">
                 {/* Hero Section */}
-                <div className="relative overflow-hidden rounded-xl border border-sidebar-border/70 bg-linear-to-br from-amber-500/10 to-orange-500/10 p-8 dark:border-sidebar-border">
-                    <h1 className="text-3xl font-bold text-foreground">
-                        Control Notarial
-                    </h1>
-                    <p className="mt-2 text-lg text-muted-foreground">
-                        Sistema de gestión y control para operaciones notariales
-                    </p>
+                <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 dark:border-amber-800 dark:from-amber-950/50 dark:via-yellow-950/30 dark:to-orange-950/20">
+                    {/* Botón Logout */}
+                    {isAuthenticated() && (
+                        <div className="absolute top-4 right-4 z-20">
+                            <Button
+                                onClick={handleLogout}
+                                disabled={logoutProcessing}
+                                variant="destructive"
+                                size="sm"
+                                className="flex items-center gap-2"
+                            >
+                                <LogOut className="size-4" />
+                                {logoutProcessing ? 'Cerrando...' : 'Cerrar Sesión'}
+                            </Button>
+                        </div>
+                    )}
+
+                    <div className="relative z-10">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="rounded-lg bg-amber-500 p-3 text-white shadow-lg">
+                                <FolderOpen className="size-8" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold text-amber-900 dark:text-amber-100">
+                                    Sistema Control Notarial
+                                </h1>
+                                <p className="text-sm text-amber-700 dark:text-amber-300">
+                                    Migración VB6 → Laravel + React
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex items-center gap-4">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-orange-300 bg-orange-100 px-4 py-2 text-sm font-medium text-orange-900 dark:border-orange-700 dark:bg-orange-900/30 dark:text-orange-200">
+                                <Clock className="size-4" />
+                                {status === 'development' ? 'En Desarrollo' : 'Estado'}
+                            </div>
+                            <div className="text-sm text-amber-700 dark:text-amber-300">
+                                {message}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Decorative background */}
+                    <div className="absolute right-0 top-0 opacity-10">
+                        <svg width="400" height="200" viewBox="0 0 200 200">
+                            <path
+                                fill="currentColor"
+                                d="M40,80 Q60,20 80,80 T120,80 Q140,120 160,80"
+                                className="text-amber-500"
+                            />
+                        </svg>
+                    </div>
                 </div>
 
                 {/* Acceso Rápido - Botones Principales */}
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                     {/* Botón Expedientes */}
                     <Link href="/admin/control-notarial/expedientes" prefetch>
                         <div className="group cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-8 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200">
@@ -131,6 +202,15 @@ export default function ControlNotarialIndex({
                 </div>
 
             </div>
+
+            {/* Modal de Login */}
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => {
+                    setLoginModalOpen(false);
+                }}
+            />
         </AppLayout>
     );
 }

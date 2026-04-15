@@ -1,0 +1,179 @@
+================================================================================
+ESTRUCTURA DE BASE DE DATOS: sistemaatinet
+Sistema VB CRM - Gestión de Clientes
+================================================================================
+
+
+================================================================================
+TABLA: clientes
+================================================================================
+
+CREATE TABLE `clientes` (
+  `Id` int(11) NOT NULL auto_increment,
+  `Cliente` int(11) NOT NULL default '0',
+  `apartado` int(11) default '0',
+  `Codigo` varchar(255) default NULL,
+  `Nombre` varchar(255) default NULL,
+  `Direccion` varchar(255) default NULL,
+  `Telefono` varchar(255) default NULL,
+  `RFC` varchar(255) default NULL,
+  `Originario` varchar(255) default NULL,
+  `Ocupacion` varchar(255) default NULL,
+  `EdoCivil` varchar(255) default NULL,
+  `Conyuge` varchar(255) default NULL,
+  `CURP` varchar(255) default NULL,
+  `TipoCliente` varchar(255) default NULL,
+  `Colonia` varchar(255) default NULL,
+  `FechaNacimiento` datetime default '0000-00-00 00:00:00',
+  `Representante` varchar(255) default NULL,
+  `Nacionalidad` varchar(255) default NULL,
+  `Estado` varchar(255) default NULL,
+  `Municipio` varchar(255) default NULL,
+  `Nombre1` varchar(255) default NULL,
+  `ApellidoPat` varchar(255) default NULL,
+  `ApellidoMat` varchar(255) default NULL,
+  `MunicipioNac` varchar(255) default NULL,
+  `EstadoNac` varchar(255) default NULL,
+  `PaisNac` varchar(255) default NULL,
+  `Edad` varchar(255) default NULL,
+  `Calle` varchar(255) default NULL,
+  `Numero` varchar(255) default NULL,
+  `Pais` varchar(255) default NULL,
+  `RegimenCon` varchar(255) default NULL,
+  `DocIden` varchar(255) default NULL,
+  `IFE` varchar(255) default NULL,
+  `NumForMig` varchar(255) default NULL,
+  `NumPasaporte` varchar(255) default NULL,
+  `TelOfic` varchar(255) default NULL,
+  `TelParticular` varchar(255) default NULL,
+  `Email` varchar(255) default NULL,
+  `PagWeb` varchar(255) default NULL,
+  `Ciudad` varchar(255) default NULL,
+  `CiudadNac` varchar(255) default NULL,
+  `Sexo` varchar(255) default NULL,
+  `Apodo` varchar(255) default NULL,
+  `NumeroInt` varchar(255) default NULL,
+  `TipoForMig` varchar(255) default NULL,
+  `NoDocIden` varchar(255) default NULL,
+  `NomPadre` varchar(255) default NULL,
+  `NomMadre` varchar(255) default NULL,
+  `FinadoMadre` tinyint(1) unsigned default '0',
+  `FinadoPadre` tinyint(1) unsigned default '0',
+  `LugarNac` longtext,
+  `DomicilioIngles` varchar(255) default NULL,
+  `NacionalidadIngles` varchar(255) default NULL,
+  `OcupacionIngles` varchar(255) default NULL,
+  `DocIdenIngles` varchar(255) default NULL,
+  `TipoPasaporteIngles` varchar(255) default NULL,
+  `TipoForMigIngles` varchar(255) default NULL,
+  `NacPadres` varchar(255) default NULL,
+  `NombreSocial` varchar(255) default NULL,
+  `Tipo` varchar(255) default NULL,
+  `Entidad` varchar(255) default NULL,
+  `Poblacion` varchar(255) default NULL,
+  `Predio` varchar(255) default NULL,
+  `Lote` varchar(255) default NULL,
+  `Manzana` varchar(255) default NULL,
+  PRIMARY KEY  (`Cliente`),
+  KEY `Cliente` (`Id`),
+  KEY `Id` (`Nombre`(200)),
+  KEY `Nombre` (`TipoCliente`(200))
+) ENGINE=MyISAM AUTO_INCREMENT=4023 DEFAULT CHARSET=utf8;
+
+-- Registros: 4,022
+
+
+================================================================================
+TABLA: alarmas
+================================================================================
+
+CREATE TABLE `alarmas` (
+  `Indice` int(11) NOT NULL auto_increment,
+  `Concepto` varchar(255) default NULL,
+  `Dia` datetime default '0000-00-00 00:00:00',
+  `Tiempo` int(11) default '0',
+  `DiaRegistro` datetime default '0000-00-00 00:00:00',
+  `Hora` datetime default '0000-00-00 00:00:00',
+  `alarma` int(11) default '0',
+  `Expediente` varchar(255) default NULL,
+  `Tramite` varchar(255) default NULL,
+  `NoTramite` int(11) default '0',
+  `FechaSalidaTramite` datetime default '0000-00-00 00:00:00',
+  `Usuario` varchar(255) default NULL,
+  `AlarmaOK` tinyint(1) unsigned default '0',
+  `NOperacion` int(11) default '0',
+  `Cancelada` tinyint(1) unsigned default '0',
+  PRIMARY KEY  (`Indice`),
+  KEY `Indice` (`Concepto`(200)),
+  KEY `Concepto` (`DiaRegistro`),
+  KEY `DiaRegistro` (`Hora`)
+) ENGINE=MyISAM AUTO_INCREMENT=6086 DEFAULT CHARSET=utf8;
+
+-- Registros: 391
+
+
+================================================================================
+TABLA: seguimientosatencion
+================================================================================
+
+CREATE TABLE `seguimientosatencion` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `concepto` longtext NOT NULL,
+  `fechallamada` datetime NOT NULL,
+  `expediente` varchar(255) NOT NULL,
+  `usuario` varchar(50) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Registros: 7,682
+
+
+================================================================================
+TABLA: seguimientossoporte
+================================================================================
+
+CREATE TABLE `seguimientossoporte` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `concepto` longtext NOT NULL,
+  `fechasoporte` datetime NOT NULL,
+  `expediente` varchar(255) NOT NULL,
+  `usuario` varchar(50) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Registros: 656
+
+
+================================================================================
+TABLA: chat
+================================================================================
+
+CREATE TABLE `chat` (
+  `Id` int(11) NOT NULL auto_increment,
+  `Mensaje` longtext,
+  `Usuario` varchar(255) default NULL,
+  `Fecha` datetime default '0000-00-00 00:00:00',
+  `Para` varchar(255) default NULL,
+  `Grupo` tinyint(1) unsigned default '0',
+  `Todos` tinyint(1) unsigned default '0',
+  PRIMARY KEY  (`Id`)
+) ENGINE=MyISAM AUTO_INCREMENT=240 DEFAULT CHARSET=utf8;
+
+-- Registros: 157
+
+
+================================================================================
+TABLA: chatgrupo
+================================================================================
+
+CREATE TABLE `chatgrupo` (
+  `Id` int(11) NOT NULL auto_increment,
+  `UsuarioGrupo` varchar(255) default NULL,
+  `FechaCreacion` datetime default '0000-00-00 00:00:00',
+  `Grupo` varchar(255) default NULL,
+  `Admin` varchar(255) default NULL,
+  PRIMARY KEY  (`Id`)
+) ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
+
+-- Registros: 3
+

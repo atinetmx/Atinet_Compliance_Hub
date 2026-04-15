@@ -108,54 +108,49 @@ export function AppSidebar() {
                           {
                               title: 'Expedientes',
                               href: '/admin/control-notarial/expedientes',
-                              icon: FileText,
                               items: [
                                   {
                                       title: 'Alta Expedientes',
-                                      href: '/admin/control-notarial/expedientes/alta-expedientes',
-                                      icon: FileText,
+                                      href: '/admin/control-notarial/expedientes/alta-expedientes'
                                   },
                                   {
                                       title: 'Presupuesto Previo',
-                                      href: '/admin/control-notarial/expedientes/presupuesto-previo',
-                                      icon: DollarSign,
+                                      href: '/admin/control-notarial/expedientes/presupuesto-previo'
                                   },
                               ],
                           },
                           {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
-                              icon: Settings,
                               items: [
                                   {
                                       title: 'Notaria',
-                                      href: '/admin/control-notarial/configuracion/notaria',
-                                      icon: Settings,
+                                      href: '/admin/control-notarial/configuracion/notaria'
                                   },
                                   {
                                       title: 'Clientes',
-                                      href: '/admin/control-notarial/clientes',
-                                      icon: Users,
+                                      href: '/admin/control-notarial/clientes'
                                   },
                                   {
                                       title: 'Usuarios',
-                                      href: '/admin/control-notarial/usuarios',
-                                      icon: Settings,
+                                      href: '/admin/control-notarial/usuarios'
                                   },
                                   {
                                       title: 'Alta Catalogos',
-                                      href: '/admin/control-notarial/alta-catalogos',
-                                      icon: Settings,
+                                      href: '/admin/control-notarial/alta-catalogos'
                                   },
                                   {
                                       title: 'Reporte Usuarios',
-                                      href: '/admin/control-notarial/reporte-usuarios',
-                                      icon: BarChart3,
+                                      href: '/admin/control-notarial/reporte-usuarios'
                                   },
                                   {
-                                      title: 'Cfg Operaciones',
-                                      href: '/admin/control-notarial/configuracion-operaciones',
-                                      icon: Settings,
+                                      title: 'Config Operaciones',
+                                      href: '/admin/control-notarial/configuracion-operaciones'
+                                  },
+                                  {
+                                      title: 'Config Tarifarias',
+                                      href: '/admin/control-notarial/configuraciones-tarifarias'
+
                                   },
                               ],
                           },
@@ -241,6 +236,11 @@ export function AppSidebar() {
                                       title: 'Configuración Operaciones',
                                       href: '/admin/control-notarial/configuracion-operaciones',
                                       icon: Settings,
+                                  },
+                                  {
+                                      title: 'Configuraciones Tarifarias',
+                                      href: '/admin/control-notarial/configuraciones-tarifarias',
+                                      icon: DollarSign,
                                   },
                               ],
                           },

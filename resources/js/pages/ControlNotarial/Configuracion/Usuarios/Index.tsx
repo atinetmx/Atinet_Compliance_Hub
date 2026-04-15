@@ -1,6 +1,11 @@
 import { Head } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, Users } from 'lucide-react';
-import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
+import { X, Plus, AlertCircle, Search, Loader2, Users, Lock, Shield, FileText, Clock, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,6 +78,9 @@ const defaultUsuarioData: UsuarioData = {
 };
 
 export default function ControlNotarialUsuarios() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<UsuarioBusqueda[]>([]);
@@ -91,35 +99,41 @@ export default function ControlNotarialUsuarios() {
     const [cambiarContraseña, setCambiarContraseña] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const { addToast } = useToast();
-const api = useApi();
+    const api = useApi();
+
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'warning');
+        },
+    });
 
     // Cargar usuarios al montar (filtro vacío = todos)
     useEffect(() => {
         fetchUsuarios('');
-    }, []);
+    }, [api]);
 
     // Cargar roles al montar
     useEffect(() => {
         const fetchRoles = async () => {
             try {
-                const response = await await api.get('Catalogos/GetRoles', {
-                    headers: { 'Content-Type': 'application/json' },
+                const response = await api.get('/Catalogos/GetRoles');
+                const data = await handleControlNotarialResponse(response, {
+                    onUnauthorized: () => setLoginModalOpen(true),
                 });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data?.message || 'Error al obtener los roles');
+
+                if (data) {
+                    setRoles(data || []);
                 }
-                setRoles(data.dataResponse || []);
             } catch (error) {
                 console.error('Error cargando roles:', error);
-                const message = error instanceof Error ? error.message : 'Error al cargar los roles';
-                addToast(message, 'error');
             } finally {
                 setIsLoadingRoles(false);
             }
         };
         fetchRoles();
-    }, []);
+    }, [api]);
 
     const fetchUsuarios = async (filtroValue: string) => {
         setIsSearching(true);
@@ -129,15 +143,13 @@ const api = useApi();
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
+            const response = await api.get(endpoint);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
-            // Si data existe, mostrar datos
-            if (data && data.dataResponse) {
-                setResultados(data.dataResponse || []);
-            } else {
-                // Si la API devolvió un mensaje, mostrar ese mensaje
-                setSearchError(data?.message || 'No se pudieron cargar los usuarios.');
-                setResultados([]);
+            if (data) {
+                setResultados(data || []);
             }
         } catch (error) {
             console.error('Error buscando usuarios:', error);
@@ -191,9 +203,16 @@ const api = useApi();
                     observaciones: formData.observaciones,
                     activo: formData.activo,
                 };
-                const resData = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
+                const response = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
+                const responseData = await handleControlNotarialResponse(response, {
+                    onError: (msg) => setSaveError(msg || 'Error al actualizar'),
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
 
-                addToast(resData?.message || resData?.dataResponse?.message || 'Usuario actualizado correctamente', 'success');
+                const isSuccess = response?.success !== false;
+                if (isSuccess) {
+                    addToast(response?.message || 'Usuario actualizado correctamente', 'success');
+                }
                 setFormData(defaultUsuarioData);
                 setIsEditing(false);
                 setActiveTab('busqueda');
@@ -227,9 +246,16 @@ const api = useApi();
                     observaciones: formData.observaciones,
                     activo: formData.activo,
                 };
-                const resData = await api.post('/User/CreateUsuario', payload);
+                const response = await api.post('/User/CreateUsuario', payload);
+                const responseData = await handleControlNotarialResponse(response, {
+                    onError: (msg) => setSaveError(msg || 'Error al crear'),
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
 
-                addToast(resData?.message || resData?.dataResponse?.message || 'Usuario creado correctamente', 'success');
+                const isSuccess = response?.success !== false;
+                if (isSuccess) {
+                    addToast(response?.message || 'Usuario creado correctamente', 'success');
+                }
                 setFormData(defaultUsuarioData);
                 setIsEditing(false);
                 setActiveTab('busqueda');
@@ -247,17 +273,19 @@ const api = useApi();
     const [isLoadingUsuario, setIsLoadingUsuario] = useState(false);
 
     const handleSelectUsuario = async (usuario: UsuarioBusqueda) => {
+        setSaveError(null);
         setIsLoadingUsuario(true);
         setIsEditing(true);
         setCambiarContraseña(false);
-        setSaveError(null);
         setActiveTab('formulario');
         try {
-            const data = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
-            if (!data || !data.dataResponse) {
-                throw new Error(data?.message || 'Error al obtener el usuario');
-            }
-            const u = data.dataResponse;
+            const response = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
+            const data = await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (!data) return;
+            const u = data;
             setFormData({
                 id: u.id,
                 iniciales: u.iniciales ?? '',
@@ -278,8 +306,6 @@ const api = useApi();
                 activo: u.activo,
             });
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Error al cargar el usuario';
-            addToast(message, 'error');
             setIsEditing(false);
             setActiveTab('busqueda');
         } finally {
@@ -293,6 +319,11 @@ const api = useApi();
         setCambiarContraseña(false);
         setSaveError(null);
         setActiveTab('busqueda');
+    };
+
+    const handleTabChange = (tabValue: string) => {
+        setSaveError(null);
+        setActiveTab(tabValue);
     };
 
     const handleSave = async () => {
@@ -313,8 +344,7 @@ const api = useApi();
             <Head title="Usuarios - Control Notarial" />
 
             <div className="space-y-6 px-6 pt-6">
-
-                                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
                         <TabsTrigger value="busqueda" className="gap-2 data-[state=active]:shadow-neutral-800">
                             <Search className="size-4" />
@@ -327,106 +357,116 @@ const api = useApi();
                             </span>
                         </TabsTrigger>
                     </TabsList>
+                    <div className="pb-3"/>
 
                     {/* ── PESTAÑA 1: BÚSQUEDA ── */}
                     <TabsContent value="busqueda" className="space-y-4">
                         <form onSubmit={handleSearch} className="flex gap-2">
-                            <div className="relative flex-1 max-w-sm">
-                                <Input
-                                    value={filtro}
-                                    onChange={(e) => setFiltro(e.target.value)}
-                                    placeholder="Buscar por nombre, usuario, rol..."
-                                    className="pr-10"
-                                />
-                                {filtro && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setFiltro('');
-                                            setSearchError(null);
-                                            setResultados([]);
-                                        }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Limpiar búsqueda"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                            <Button type="submit" disabled={isSearching} className="bg-amber-600 hover:bg-amber-700">
-                                {isSearching ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Search className="h-4 w-4" />
-                                )}
-                                <span className="ml-2">Buscar</span>
-                            </Button>
-                        </form>
+                                <div className="relative flex-1 max-w-sm">
+                                    <Input
+                                        value={filtro}
+                                        onChange={(e) => setFiltro(e.target.value)}
+                                        placeholder="Buscar por nombre, usuario, rol..."
+                                    className="bg-white pr-10"
+                                    />
+                                    {filtro && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFiltro('');
+                                                setSearchError(null);
+                                                setResultados([]);
+                                            }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                            title="Limpiar búsqueda"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                                <Button type="submit" disabled={isSearching} className="bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-shadow font-medium">
+                                    {isSearching ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Search className="h-4 w-4" />
+                                    )}
+                                    <span className="ml-2">Buscar</span>
+                                </Button>
+                            </form>
 
                         {searchError && (
-                            <div className="flex items-center gap-3 px-4 py-3 rounded-md border bg-red-50 border-red-200 text-red-800">
+                            <div className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-red-200 bg-red-50 text-red-800 shadow-sm">
                                 <AlertCircle className="h-5 w-5 shrink-0" />
-                                <span>{searchError}</span>
+                                <span className="font-medium">{searchError}</span>
                             </div>
                         )}
 
-                        <div className="border rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Usuario</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Rol</th>
-                                            <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {isSearching ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
-                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                    Cargando usuarios...
-                                                </td>
-                                            </tr>
-                                        ) : resultados.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
-                                                    No se encontraron usuarios.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            resultados.map((usuario) => (
-                                                <tr
-                                                    key={usuario.id}
-                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                                                    onClick={() => handleSelectUsuario(usuario)}
-                                                >
-                                                    <td className="px-4 py-2 font-mono text-sm">{usuario.id}</td>
-                                                    <td className="px-4 py-2">{[usuario.nombre, usuario.apellido_Paterno, usuario.apellido_Materno].filter(Boolean).join(' ')}</td>
-                                                    <td className="px-4 py-2 font-mono text-sm">{usuario.usuario}</td>
-                                                    <td className="px-4 py-2">{usuario.rol}</td>
-                                                    <td className="px-4 py-2 text-center">
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                            usuario.activo
-                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                        }`}>
-                                                            {usuario.activo ? 'Sí' : 'No'}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                            {isSearching ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground">
+                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
+                                    Cargando usuarios...
+                                </div>
+                            ) : resultados.length === 0 ? (
+                                <div className="col-span-full text-center py-8 text-muted-foreground">
+                                    No se encontraron usuarios.
+                                </div>
+                            ) : (
+                                resultados.map((usuario) => (
+                                    <div
+                                        key={usuario.id}
+                                        onClick={() => handleSelectUsuario(usuario)}
+                                        className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer space-y-4"
+                                    >
+                                        {/* Avatar + Info Básica */}
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-md">
+                                                {usuario.iniciales}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-sm font-bold text-gray-900 truncate">
+                                                    {[usuario.nombre, usuario.apellido_Paterno, usuario.apellido_Materno].filter(Boolean).join(' ')}
+                                                </h3>
+                                                <p className="text-xs text-gray-500 truncate">ID: {usuario.id}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Divider */}
+                                        <div className="border-t border-gray-200"></div>
+
+                                        {/* Detalles */}
+                                        <div className="space-y-2">
+                                            <div>
+                                                <p className="text-xs text-gray-500 font-medium">Usuario</p>
+                                                <p className="text-sm font-mono font-semibold text-gray-900">{usuario.usuario}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 font-medium">Rol</p>
+                                                <p className="text-sm font-semibold text-shadow-teal-700">{usuario.rol}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* estado Badge */}
+                                        <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                                usuario.activo
+                                                    ? 'bg-green-100 text-green-700 shadow-sm'
+                                                    : 'bg-red-100 text-red-700 shadow-sm'
+                                            }`}>
+                                                {usuario.activo ? 'Activo' : 'Inactivo'}
+                                            </span>
+                                            <button className="text-blue-600 hover:text-blue-700 text-sm font-semibold transition-colors hover:underline">
+                                                Editar →
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                         {!isSearching && resultados.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                                {resultados.length} usuario(s) encontrado(s) — <span className="text-amber-600">haz clic en un usuario para editarlo</span>
-                            </p>
+                            <div className="px-4 py-3  text-sm">
+                                <span className="font-medium">{resultados.length} usuario(s) encontrado(s)</span> — <span className="font-semibold">haz clic en un usuario para editarlo</span>
+                            </div>
                         )}
                     </TabsContent>
 
@@ -440,240 +480,310 @@ const api = useApi();
                                 </p>
                             </div>
                         ) : (
-                            <div className="border rounded-lg p-6 space-y-6 bg-background/50 backdrop-blur-sm">
+                            <div className="space-y-6 mt-6">
                                 {saveError && (
-                                    <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
-                                        {saveError}
+                                    <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-sm flex items-center gap-2">
+                                        <AlertCircle className="h-5 w-5" />
+                                        <span className="font-medium">{saveError}</span>
                                     </div>
                                 )}
 
-                                {/* Fila 1: Iniciales, Rol */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="iniciales">Iniciales</RequiredLabel>
-                                        <Input
-                                            id="iniciales"
-                                            name="iniciales"
-                                            value={formData.iniciales}
-                                            onChange={handleInputChange}
-                                            placeholder="Ej. JDM"
-                                            maxLength={10}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="rol">Rol</RequiredLabel>
-                                        <Select
-                                            value={formData.rol}
-                                            onValueChange={(value) => handleSelectChange('rol', value)}
-                                        >
-                                            <SelectTrigger id="rol">
-                                                <SelectValue placeholder="Selecciona un rol" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {roles.map((role) => (
-                                                    <SelectItem key={role.id} value={String(role.id)}>
-                                                        {role.nombre}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-
-                                {/* Fila 2: Nombre, Apellido Paterno, Apellido Materno */}
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="nombre">Nombre</RequiredLabel>
-                                        <Input
-                                            id="nombre"
-                                            name="nombre"
-                                            value={formData.nombre}
-                                            onChange={handleInputChange}
-                                            placeholder="Nombre"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="apellido_paterno">Apellido Paterno</RequiredLabel>
-                                        <Input
-                                            id="apellido_paterno"
-                                            name="apellido_paterno"
-                                            value={formData.apellido_paterno}
-                                            onChange={handleInputChange}
-                                            placeholder="Apellido Paterno"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="apellido_materno">Apellido Materno</RequiredLabel>
-                                        <Input
-                                            id="apellido_materno"
-                                            name="apellido_materno"
-                                            value={formData.apellido_materno}
-                                            onChange={handleInputChange}
-                                            placeholder="Apellido Materno"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Fila 3: Correo, Usuario */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="correo" className="text-sm font-medium">Correo</label>
-                                        <Input
-                                            id="correo"
-                                            name="correo"
-                                            type="email"
-                                            value={formData.correo}
-                                            onChange={handleInputChange}
-                                            placeholder="correo@example.com"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="usuario">Usuario</RequiredLabel>
-                                        <Input
-                                            id="usuario"
-                                            name="usuario"
-                                            value={formData.usuario}
-                                            onChange={handleInputChange}
-                                            placeholder="usuario"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Fila Contraseña */}
-                                {isEditing ? (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                id="cambiarContraseña"
-                                                checked={cambiarContraseña}
-                                                onChange={(e) => setCambiarContraseña(e.target.checked)}
-                                                className="rounded border-gray-300 cursor-pointer"
-                                            />
-                                            <label htmlFor="cambiarContraseña" className="text-sm font-medium cursor-pointer">
-                                                Cambiar contraseña
-                                            </label>
+                                {/* ──── SECCIÓN 1: DATOS PERSONALES ──── */}
+                                <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                            <Users className="h-5 w-5" />
                                         </div>
-                                        {cambiarContraseña && (
-                                            <div className="space-y-2">
-                                                <RequiredLabel htmlFor="contraseña">Nueva Contraseña</RequiredLabel>
-                                                <Input
-                                                    id="contraseña"
-                                                    name="contraseña"
-                                                    type="password"
-                                                    value={formData.contraseña}
-                                                    onChange={handleInputChange}
-                                                    placeholder="••••••••"
+                                        <h3 className="text-lg font-bold text-gray-900">Datos Personales</h3>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <RequiredLabel htmlFor="nombre">Nombre</RequiredLabel>
+                                            <Input
+                                                id="nombre"
+                                                name="nombre"
+                                                value={formData.nombre}
+                                                onChange={handleInputChange}
+                                                placeholder="Nombre"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <RequiredLabel htmlFor="apellido_paterno">Apellido Paterno</RequiredLabel>
+                                            <Input
+                                                id="apellido_paterno"
+                                                name="apellido_paterno"
+                                                value={formData.apellido_paterno}
+                                                onChange={handleInputChange}
+                                                placeholder="Apellido Paterno"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <RequiredLabel htmlFor="apellido_materno">Apellido Materno</RequiredLabel>
+                                            <Input
+                                                id="apellido_materno"
+                                                name="apellido_materno"
+                                                value={formData.apellido_materno}
+                                                onChange={handleInputChange}
+                                                placeholder="Apellido Materno"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label htmlFor="curp" className="text-sm font-medium">CURP</label>
+                                            <Input
+                                                id="curp"
+                                                name="curp"
+                                                value={formData.curp}
+                                                onChange={handleInputChange}
+                                                placeholder="CURP"
+                                                maxLength={18}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="rfc" className="text-sm font-medium">RFC</label>
+                                            <Input
+                                                id="rfc"
+                                                name="rfc"
+                                                value={formData.rfc}
+                                                onChange={handleInputChange}
+                                                placeholder="RFC"
+                                                maxLength={13}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ──── SECCIÓN 2: DATOS DE ACCESO ──── */}
+                                <div className="border-2 border-purple-200 rounded-lg p-6 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-purple-600 text-white p-3 rounded-lg">
+                                            <Lock className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Datos de Acceso</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <RequiredLabel htmlFor="usuario">Usuario</RequiredLabel>
+                                            <Input
+                                                id="usuario"
+                                                name="usuario"
+                                                value={formData.usuario}
+                                                onChange={handleInputChange}
+                                                placeholder="usuario"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="correo" className="text-sm font-medium">Correo</label>
+                                            <Input
+                                                id="correo"
+                                                name="correo"
+                                                type="email"
+                                                value={formData.correo}
+                                                onChange={handleInputChange}
+                                                placeholder="correo@example.com"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {isEditing ? (
+                                        <div className="space-y-3 col-span-2">
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id="cambiarContraseña"
+                                                    checked={cambiarContraseña}
+                                                    onChange={(e) => setCambiarContraseña(e.target.checked)}
+                                                    className="rounded border-gray-300 cursor-pointer"
                                                 />
+                                                <label htmlFor="cambiarContraseña" className="text-sm font-medium cursor-pointer">
+                                                    Cambiar contraseña
+                                                </label>
                                             </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <RequiredLabel htmlFor="contraseña">Contraseña</RequiredLabel>
-                                        <Input
-                                            id="contraseña"
-                                            name="contraseña"
-                                            type="password"
-                                            value={formData.contraseña}
-                                            onChange={handleInputChange}
-                                            placeholder="••••••••"
-                                        />
-                                    </div>
-                                )}
+                                            {cambiarContraseña && (
+                                                <div className="space-y-2">
+                                                    <RequiredLabel htmlFor="contraseña">Nueva Contraseña</RequiredLabel>
+                                                    <Input
+                                                        id="contraseña"
+                                                        name="contraseña"
+                                                        type="password"
+                                                        value={formData.contraseña}
+                                                        onChange={handleInputChange}
+                                                        placeholder="••••••••"
+                                                        className="bg-white"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2 col-span-2">
+                                            <RequiredLabel htmlFor="contraseña">Contraseña</RequiredLabel>
+                                            <Input
+                                                id="contraseña"
+                                                name="contraseña"
+                                                type="password"
+                                                value={formData.contraseña}
+                                                onChange={handleInputChange}
+                                                placeholder="••••••••"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
 
-                                {/* Fila 4: CURP, RFC */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="curp" className="text-sm font-medium">CURP</label>
-                                        <Input
-                                            id="curp"
-                                            name="curp"
-                                            value={formData.curp}
-                                            onChange={handleInputChange}
-                                            placeholder="CURP"
-                                            maxLength={18}
-                                        />
+                                {/* ──── SECCIÓN 3: ROL E IDENTIFICACIÓN ──── */}
+                                <div className="border-2 border-indigo-200 rounded-lg p-6 bg-gradient-to-br from-indigo-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-indigo-600 text-white p-3 rounded-lg">
+                                            <Shield className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Rol e Identificación</h3>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <RequiredLabel htmlFor="rol">Rol</RequiredLabel>
+                                            <Select
+                                                value={formData.rol}
+                                                onValueChange={(value) => handleSelectChange('rol', value)}
+                                            >
+                                                <SelectTrigger id="rol">
+                                                    <SelectValue placeholder="Selecciona un rol" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {roles.map((role) => (
+                                                        <SelectItem key={role.id} value={String(role.id)}>
+                                                            {role.nombre}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <RequiredLabel htmlFor="iniciales">Iniciales</RequiredLabel>
+                                            <Input
+                                                id="iniciales"
+                                                name="iniciales"
+                                                value={formData.iniciales}
+                                                onChange={handleInputChange}
+                                                placeholder="Ej. JDM"
+                                                maxLength={10}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="numero_notaria" className="text-sm font-medium">Número Notaría</label>
+                                            <Input
+                                                id="numero_notaria"
+                                                name="numero_notaria"
+                                                value={formData.numero_notaria}
+                                                onChange={handleInputChange}
+                                                placeholder="Número"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ──── SECCIÓN 4: INFORMACIÓN ADMINISTRATIVA ──── */}
+                                <div className="border-2 border-amber-200 rounded-lg p-6 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow space-y-4">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-amber-600 text-white p-3 rounded-lg">
+                                            <FileText className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Información Administrativa</h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <label htmlFor="adscripcion" className="text-sm font-medium">Adscripción</label>
+                                            <Input
+                                                id="adscripcion"
+                                                name="adscripcion"
+                                                value={formData.adscripcion}
+                                                onChange={handleInputChange}
+                                                placeholder="Adscripción"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="tipo" className="text-sm font-medium">Tipo</label>
+                                            <Input
+                                                id="tipo"
+                                                name="tipo"
+                                                value={formData.tipo}
+                                                onChange={handleInputChange}
+                                                placeholder="Tipo"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="procedencia" className="text-sm font-medium">Procedencia</label>
+                                            <Input
+                                                id="procedencia"
+                                                name="procedencia"
+                                                value={formData.procedencia}
+                                                onChange={handleInputChange}
+                                                placeholder="Procedencia"
+                                                className="bg-white"
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label htmlFor="rfc" className="text-sm font-medium">RFC</label>
-                                        <Input
-                                            id="rfc"
-                                            name="rfc"
-                                            value={formData.rfc}
+                                        <label htmlFor="observaciones" className="text-sm font-medium">Observaciones</label>
+                                        <textarea
+                                            id="observaciones"
+                                            name="observaciones"
+                                            value={formData.observaciones}
                                             onChange={handleInputChange}
-                                            placeholder="RFC"
-                                            maxLength={13}
+                                            placeholder="Observaciones adicionales"
+                                            rows={3}
+                                            className="w-full px-3 py-2 border rounded-md bg-white border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                         />
                                     </div>
                                 </div>
 
-                                {/* Fila 5: Adscripción, Tipo, Procedencia */}
-                                <div className="grid grid-cols-3 gap-3">
-
-                                    <div className="space-y-2">
-                                        <label htmlFor="adscripcion" className="text-sm font-medium">Adscripción</label>
-                                        <Input
-                                            id="adscripcion"
-                                            name="adscripcion"
-                                            value={formData.adscripcion}
-                                            onChange={handleInputChange}
-                                            placeholder="Adscripción"
-                                        />
+                                {/* ──── SECCIÓN 5: ESTADO ──── */}
+                                <div className={`border-2 rounded-lg p-6 bg-gradient-to-br shadow-sm hover:shadow-md transition-shadow space-y-4 ${
+                                    formData.activo
+                                        ? 'border-green-200 from-green-50 to-white'
+                                        : 'border-red-200 from-red-50 to-white'
+                                }`}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={`text-white p-3 rounded-lg ${
+                                            formData.activo ? 'bg-green-600' : 'bg-red-600'
+                                        }`}>
+                                            <CheckCircle className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Estado del Usuario</h3>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="tipo" className="text-sm font-medium">Tipo</label>
-                                        <Input
-                                            id="tipo"
-                                            name="tipo"
-                                            value={formData.tipo}
+                                    <div className="flex items-center space-x-3">
+                                        <input
+                                            id="activo"
+                                            name="activo"
+                                            type="checkbox"
+                                            checked={formData.activo}
                                             onChange={handleInputChange}
-                                            placeholder="Tipo"
+                                            className={`h-5 w-5 border-2 rounded cursor-pointer ${
+                                                formData.activo ? 'border-green-300' : 'border-red-300'
+                                            }`}
                                         />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label htmlFor="procedencia" className="text-sm font-medium">Procedencia</label>
-                                        <Input
-                                            id="procedencia"
-                                            name="procedencia"
-                                            value={formData.procedencia}
-                                            onChange={handleInputChange}
-                                            placeholder="Procedencia"
-                                        />
+                                        <label htmlFor="activo" className="text-sm font-semibold cursor-pointer text-gray-700">
+                                            Usuario Activo
+                                        </label>
                                     </div>
                                 </div>
 
-                                {/* Fila 6: Observaciones */}
-                                <div className="space-y-2">
-                                    <label htmlFor="observaciones" className="text-sm font-medium">Observaciones</label>
-                                    <textarea
-                                        id="observaciones"
-                                        name="observaciones"
-                                        value={formData.observaciones}
-                                        onChange={handleInputChange}
-                                        placeholder="Observaciones adicionales"
-                                        rows={4}
-                                        className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                                    />
-                                </div>
-
-                                {/* Fila 7: Activo */}
-                                <div className="flex items-center space-x-2">
-                                    <input
-                                        id="activo"
-                                        name="activo"
-                                        type="checkbox"
-                                        checked={formData.activo}
-                                        onChange={handleInputChange}
-                                        className="h-4 w-4 border border-primary rounded"
-                                    />
-                                    <label htmlFor="activo" className="text-sm font-medium cursor-pointer">Activo</label>
-                                </div>
-
-                                {/* Botones */}
-                                <div className="flex gap-2 justify-end pt-4 border-t">
+                                {/* ──── BOTONES DE ACCIÓN ──── */}
+                                <div className="flex gap-3 justify-end pt-6 border-t border-gray-200 mt-6">
                                     {isEditing && (
-                                        <Button variant="outline" onClick={handleCancelEdit}>
+                                        <Button variant="outline" onClick={handleCancelEdit} className="border-2 border-gray-300 hover:bg-gray-50 shadow-sm hover:shadow-md transition-shadow">
                                             <X className="h-4 w-4 mr-2" />
                                             Cancelar
                                         </Button>
@@ -681,7 +791,7 @@ const api = useApi();
                                     <Button
                                         onClick={handleAddUsuario}
                                         disabled={isSaving}
-                                        className="bg-amber-600 hover:bg-amber-700"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-shadow font-medium"
                                     >
                                         {isSaving ? (
                                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -696,6 +806,7 @@ const api = useApi();
                     </TabsContent>
                 </Tabs>
             </div>
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
         </>
     );
 }

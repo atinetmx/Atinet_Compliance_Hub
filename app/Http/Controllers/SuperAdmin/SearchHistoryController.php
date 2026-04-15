@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
-use Inertia\Response as InertiaResponse;
 
 class SearchHistoryController extends Controller
 {

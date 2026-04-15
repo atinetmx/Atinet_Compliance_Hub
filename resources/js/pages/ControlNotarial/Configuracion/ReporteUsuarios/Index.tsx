@@ -1,6 +1,11 @@
 import { Head } from '@inertiajs/react';
 import { BarChart3, Download, Filter, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { removeToken } from '@/services/authService';
+import LoginModal from '@/components/Modals/LoginModal';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RequiredLabel } from '@/components/ui/label';
@@ -24,8 +29,11 @@ const getTodayDate = () => {
 };
 
 export default function ControlNotarialReporteUsuarios() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     const { addToast } = useToast();
-const api = useApi();
+    const api = useApi();
     const [userId, setUserId] = useState('all');
     const [usuarios, setUsuarios] = useState<any[]>([]);
     const [filtroUsuario, setFiltroUsuario] = useState('');
@@ -36,6 +44,14 @@ const api = useApi();
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(false);
 
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
+
     // Cargar usuarios al montar el componente
     useEffect(() => {
         cargarUsuarios('');
@@ -44,10 +60,23 @@ const api = useApi();
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
         try {
-            const endpoint = 'User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : '');
-            const data = await api.get(endpoint);
-            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
-                setUsuarios(data.dataResponse);
+            const endpoint = '/User/GetUsuarios' + (filtro ? `?filtro=${encodeURIComponent(filtro)}` : '');
+            const response = await api.get(endpoint);
+
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            // Si es 401, useAuthGuard maneja el toast
+            if (response?.isUnauthorized) {
+                setUsuarios([]);
+            } else {
+                const data = response?.dataResponse || [];
+                if (response?.success !== false && Array.isArray(data)) {
+                    setUsuarios(data);
+                } else {
+                    addToast(response?.message || 'Error al cargar usuarios', 'error');
+                }
             }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
@@ -84,9 +113,28 @@ const api = useApi();
             const endpoint = `/Bitacora/GenerateReporteBitacora?${params.toString()}`;
             console.log(`[DEBUG] Solicitando PDF a: ${endpoint}`);
 
+            // Hacer fetch directo para obtener el PDF como blob
+            // (Esta es una llamada especial que devuelve binario, no JSON)
+            const token = localStorage.getItem('auth_token');
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const responseBlob = await fetch(api.baseUrl + endpoint, {
                 method: 'GET',
+                headers,
             });
+
+            // Detectar 401
+            if (responseBlob.status === 401) {
+                removeToken();
+                setLoginModalOpen(true);
+                addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+                return;
+            }
 
             if (!responseBlob.ok) {
                 throw new Error(`Error ${responseBlob.status}: ${responseBlob.statusText}`);
@@ -127,6 +175,7 @@ const api = useApi();
     return (
         <>
             <Head title="Reporte de Bitácora - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
               <div className="space-y-6 px-6 pt-6">
 

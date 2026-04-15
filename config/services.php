@@ -79,4 +79,35 @@ return [
         'max_tokens' => (int) env('OPENAI_MAX_TOKENS', 4096),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Control Notarial API (C# - Sistema Legacy)
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for Control Notarial C# API (migrated from VB 6.0).
+    | Developed by Alex, already in production with Swagger-tested endpoints.
+    |
+    | Current Implementation (Temporary):
+    | - Frontend calls API C# directly with JWT in localStorage
+    | - User logs in twice (Laravel + API C#)
+    |
+    | Future Implementation (Gateway - 2 weeks):
+    | - Laravel acts as proxy/gateway
+    | - JWT server-to-server only
+    | - Single sign-on with Laravel Fortify
+    | - Multitenant working across entire system
+    |
+    | See docs/ARQUITECTURA_HIBRIDA_SISTEMA.md for details.
+    |
+    */
+
+    'control_notarial' => [
+        'api_url' => env('CONTROL_NOTARIAL_API_URL', 'https://srvatinet.atinet.com.mx:7443/api'),
+        
+        // Future Gateway configuration (not used yet)
+        'server_user' => env('CONTROL_NOTARIAL_SERVER_USER'),
+        'server_password' => env('CONTROL_NOTARIAL_SERVER_PASSWORD'),
+        'token_cache_ttl' => (int) env('CONTROL_NOTARIAL_TOKEN_CACHE', 3600),
+    ],
+
 ];

@@ -6,11 +6,20 @@ import {
     Calculator,
     File,
     Save,
-    X
+    X,
+    Phone,
+    MapPin,
+    Image,
+    BarChart3,
+    BookOpen,
+    Mail
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,71 +108,68 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const defaultNotariaData: NotariaData = {
-    nombre: 'DR. MARIO BALCAZAR DE LA FUENTE',
-    domicilio: 'Calle Conocida #999',
-    telefono: '55 59 64 23 17',
-    municipio: 'NUEVA ROSITA',
-    estado: 'Coahuila de Zaragoza',
-    ciudad: 'NUEVA ROSITA',
-    notaria_numero: '15',
-    codigo_postal: '54850',
-    imagen: null,
-};
-
-const defaultControlData: ControlData = {
-    expediente: 110,
-    acta_fuera_protocolo: 2,
-    certificacion: 10,
-    recibo_honorarios: 7,
-    ratificacion: 8,
-    recibo_general: 243,
-    cotejo: 2,
-};
-
-const defaultServidorData: ServidorData = {
-    ruta: '\\\\Srvaitinet.atinet.Sistema de Control Notarial',
-};
-
-const defaultCorreoData: CorreoData = {
-    servidor_correo: 'mail.atinet.com.mx',
-    usuario_correo: 'recepcion@atinet.com.mx',
-    password_correo: '••••••••••••',
-    asunto_correo: 'CORREO DE AVISO PARA RECOLECCION DE FIRMA',
-    puerto: '587',
-    ssl_enabled: true,
-};
-
-const defaultCalculosData: CalculosData = {
-    iva: 16,
-    ret_iva: 10.666667,
-    ret_isr: 10,
-    salario: 248.93,
-    uma: 113.14,
-};
-
-const defaultFoliosData: FoliosData = {
-    tomo_inicial_instrumentos: 66,
-    volumenes_por_tomo_instrumentos: 10,
-    folios_por_volumen_instrumentos: 200,
-    volumen_inicial_instrumentos: 10,
-    folio_inicial_por_tomo_instrumentos: 16000,
-    tomo_inicial_certificaciones: 50,
-    volumenes_por_tomo_certificaciones: 5,
-    folios_por_volumen_certificaciones: 200,
-    volumen_inicial_certificaciones: 100,
-    folio_inicial_por_tomo_certificaciones: 12000,
-};
-
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
-const api = useApi();
-    const [notariaData, setNotariaData] = useState<NotariaData>(defaultNotariaData);
-    const [controlData, setControlData] = useState<ControlData>(defaultControlData);
-    const [servidorData, setServidorData] = useState<ServidorData>(defaultServidorData);
-    const [correoData, setCorreoData] = useState<CorreoData>(defaultCorreoData);
-    const [calculosData, setCalculosData] = useState<CalculosData>(defaultCalculosData);
-    const [foliosData, setFoliosData] = useState<FoliosData>(defaultFoliosData);
+    const api = useApi();
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
+    const [notariaData, setNotariaData] = useState<NotariaData>({
+        nombre: '',
+        domicilio: '',
+        telefono: '',
+        municipio: '',
+        estado: '',
+        ciudad: '',
+        notaria_numero: '',
+        codigo_postal: '',
+        imagen: null,
+    });
+    const [controlData, setControlData] = useState<ControlData>({
+        expediente: 0,
+        acta_fuera_protocolo: 0,
+        certificacion: 0,
+        recibo_honorarios: 0,
+        ratificacion: 0,
+        recibo_general: 0,
+        cotejo: 0,
+    });
+    const [servidorData, setServidorData] = useState<ServidorData>({
+        ruta: '',
+    });
+    const [correoData, setCorreoData] = useState<CorreoData>({
+        servidor_correo: '',
+        usuario_correo: '',
+        password_correo: '',
+        asunto_correo: '',
+        puerto: '',
+        ssl_enabled: false,
+    });
+    const [calculosData, setCalculosData] = useState<CalculosData>({
+        iva: 0,
+        ret_iva: 0,
+        ret_isr: 0,
+        salario: 0,
+        uma: 0,
+    });
+    const [foliosData, setFoliosData] = useState<FoliosData>({
+        tomo_inicial_instrumentos: 0,
+        volumenes_por_tomo_instrumentos: 0,
+        folios_por_volumen_instrumentos: 0,
+        volumen_inicial_instrumentos: 0,
+        folio_inicial_por_tomo_instrumentos: 0,
+        tomo_inicial_certificaciones: 0,
+        volumenes_por_tomo_certificaciones: 0,
+        folios_por_volumen_certificaciones: 0,
+        volumen_inicial_certificaciones: 0,
+        folio_inicial_por_tomo_certificaciones: 0,
+    });
     const [isSaved, setIsSaved] = useState(false);
     const [activeTab, setActiveTab] = useState('datos');
     const [isLoading, setIsLoading] = useState(true);
@@ -177,101 +183,122 @@ const api = useApi();
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
-                const data = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
+                const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
-                if (!data) {
-                    throw new Error('Error al obtener la configuración');
+                const notaria = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
+                if (!notaria && !response?.isUnauthorized) {
+                    throw new Error('Error al obtener la configuracion');
                 }
 
-                const notaria = data.dataResponse;
+                // Si fue 401, detener aquí
+                if (!notaria && response?.isUnauthorized) {
+                    return;
+                }
 
                 // Capturar el ID (puede ser id, idConfiguracionNotaria, configuracionId, etc.)
-                const id = notaria.id || notaria.idConfiguracionNotaria || notaria.configuracionId || notaria.numero_Notaria;
+                const id = notaria!.id || notaria!.idConfiguracionNotaria || notaria!.configuracionId || notaria!.numero_Notaria;
                 setConfigId(id);
 
-                console.log('Datos completos de la API:', notaria); // Para debugging
+                console.log('Datos completos de la API:', notaria);
 
                 // Mapear los datos de la API a los campos del formulario
                 setNotariaData({
-                    nombre: notaria.nombre_Notario || defaultNotariaData.nombre,
-                    domicilio: notaria.domicilio || defaultNotariaData.domicilio,
-                    telefono: notaria.telefono || defaultNotariaData.telefono,
-                    municipio: notaria.municipio || defaultNotariaData.municipio,
-                    estado: notaria.estado || defaultNotariaData.estado,
-                    ciudad: notaria.ciudad || defaultNotariaData.ciudad,
-                    notaria_numero: notaria.numero_Notaria || defaultNotariaData.notaria_numero,
-                    codigo_postal: notaria.codigo_Postal || defaultNotariaData.codigo_postal,
-                    imagen: notaria.logotipo ? `data:image/png;base64,${notaria.logotipo}` : null,
+                    nombre: notaria!.nombre_Notario || '',
+                    domicilio: notaria!.domicilio || '',
+                    telefono: notaria!.telefono || '',
+                    municipio: notaria!.municipio || '',
+                    estado: notaria!.estado || '',
+                    ciudad: notaria!.ciudad || '',
+                    notaria_numero: notaria!.numero_Notaria || '',
+                    codigo_postal: notaria!.codigo_Postal || '',
+                    imagen: notaria!.logotipo ? `data:image/png;base64,${notaria!.logotipo}` : null,
                 });
+
             } catch (error) {
-                console.error('Error al cargar la configuración de la notaría:', error);
-                // Si hay error, mantener los datos por defecto
-                setNotariaData(defaultNotariaData);
+                const errorMessage = error instanceof Error ? error.message : 'Error al cargar la configuración';
+                console.error('Error:', errorMessage);
+                addToast(errorMessage, 'error');
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchConfiguracionNotaria();
-    }, []); // Se ejecuta solo una vez al montar el componente
+    }, [addToast, api]);
 
     // Cargar datos de Control, Cálculos y Folios
     useEffect(() => {
         const fetchConfiguracionControl = async () => {
             try {
-                const data = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
+                const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
 
-                if (!data) {
+                const config = handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
+                });
+
+                // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
+                if (!config && !response?.isUnauthorized) {
                     throw new Error('Error al obtener la configuración de control');
                 }
 
-                const config = data.dataResponse;
+                // Si fue 401, detener aquí
+                if (!config && response?.isUnauthorized) {
+                    return;
+                }
 
                 console.log('Datos de Control, Cálculos y Folios:', config);
 
                 // Capturar el ID del control
-                setControlConfigId(config.id);
+                setControlConfigId(config!.id);
 
                 // Mapear datos de Control
                 setControlData({
-                    expediente: parseInt(config.expediente) || defaultControlData.expediente,
-                    acta_fuera_protocolo: parseInt(config.acta_Fuera_Protocolo) || defaultControlData.acta_fuera_protocolo,
-                    certificacion: parseInt(config.certificado) || defaultControlData.certificacion,
-                    recibo_honorarios: parseInt(config.recibo_Honorarios) || defaultControlData.recibo_honorarios,
-                    ratificacion: parseInt(config.ratificacion) || defaultControlData.ratificacion,
-                    recibo_general: parseInt(config.recibo_Provisional) || defaultControlData.recibo_general,
-                    cotejo: parseInt(config.cotejo) || defaultControlData.cotejo,
+                    expediente: parseInt(config!.expediente) || 0,
+                    acta_fuera_protocolo: parseInt(config!.acta_Fuera_Protocolo) || 0,
+                    certificacion: parseInt(config!.certificado) || 0,
+                    recibo_honorarios: parseInt(config!.recibo_Honorarios) || 0,
+                    ratificacion: parseInt(config!.ratificacion) || 0,
+                    recibo_general: parseInt(config!.recibo_Provisional) || 0,
+                    cotejo: parseInt(config!.cotejo) || 0,
                 });
 
                 // Mapear datos de Cálculos
                 setCalculosData({
-                    iva: parseFloat(config.iva) || defaultCalculosData.iva,
-                    ret_iva: parseFloat(config.retencion_IVA) || defaultCalculosData.ret_iva,
-                    ret_isr: parseFloat(config.isr) || defaultCalculosData.ret_isr,
-                    salario: parseFloat(config.salario) || defaultCalculosData.salario,
-                    uma: parseFloat(config.uma) || defaultCalculosData.uma,
+                    iva: parseFloat(config!.iva) || 0,
+                    ret_iva: parseFloat(config!.retencion_IVA) || 0,
+                    ret_isr: parseFloat(config!.isr) || 0,
+                    salario: parseFloat(config!.salario) || 0,
+                    uma: parseFloat(config!.uma) || 0,
                 });
 
                 // Mapear datos de Folios
                 setFoliosData({
-                    tomo_inicial_instrumentos: parseInt(config.tomo_Inicial_Instrumentos) || defaultFoliosData.tomo_inicial_instrumentos,
-                    volumenes_por_tomo_instrumentos: parseInt(config.volumen_Tomo_Instrumentos) || defaultFoliosData.volumenes_por_tomo_instrumentos,
-                    folios_por_volumen_instrumentos: parseInt(config.folio_Volumen_Instrumentos) || defaultFoliosData.folios_por_volumen_instrumentos,
-                    volumen_inicial_instrumentos: parseInt(config.volumen_Inicial_Instrumentos) || defaultFoliosData.volumen_inicial_instrumentos,
-                    folio_inicial_por_tomo_instrumentos: parseInt(config.folio_Inicial_Tomo_Instrumentos) || defaultFoliosData.folio_inicial_por_tomo_instrumentos,
-                    tomo_inicial_certificaciones: parseInt(config.tomo_Inicial_Certificaciones) || defaultFoliosData.tomo_inicial_certificaciones,
-                    volumenes_por_tomo_certificaciones: parseInt(config.volumen_Tomo_Certificaciones) || defaultFoliosData.volumenes_por_tomo_certificaciones,
-                    folios_por_volumen_certificaciones: parseInt(config.folios_Volumen_Certificaciones) || defaultFoliosData.folios_por_volumen_certificaciones,
-                    volumen_inicial_certificaciones: parseInt(config.volumen_Inicial_Certificaciones) || defaultFoliosData.volumen_inicial_certificaciones,
-                    folio_inicial_por_tomo_certificaciones: parseInt(config.folio_Inicial_Tomo_Certificaciones) || defaultFoliosData.folio_inicial_por_tomo_certificaciones,
+                    tomo_inicial_instrumentos: parseInt(config!.tomo_Inicial_Instrumentos) || 0,
+                    volumenes_por_tomo_instrumentos: parseInt(config!.volumen_Tomo_Instrumentos) || 0,
+                    folios_por_volumen_instrumentos: parseInt(config!.folio_Volumen_Instrumentos) || 0,
+                    volumen_inicial_instrumentos: parseInt(config!.volumen_Inicial_Instrumentos) || 0,
+                    folio_inicial_por_tomo_instrumentos: parseInt(config!.folio_Inicial_Tomo_Instrumentos) || 0,
+                    tomo_inicial_certificaciones: parseInt(config!.tomo_Inicial_Certificaciones) || 0,
+                    volumenes_por_tomo_certificaciones: parseInt(config!.volumen_Tomo_Certificaciones) || 0,
+                    folios_por_volumen_certificaciones: parseInt(config!.folios_Volumen_Certificaciones) || 0,
+                    volumen_inicial_certificaciones: parseInt(config!.volumen_Inicial_Certificaciones) || 0,
+                    folio_inicial_por_tomo_certificaciones: parseInt(config!.folio_Inicial_Tomo_Certificaciones) || 0,
                 });
             } catch (error) {
-                console.error('Error al cargar la configuración de control:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Error al cargar la configuración de control';
+                console.error('Error:', errorMessage);
+                addToast(errorMessage, 'error');
             }
         };
 
         fetchConfiguracionControl();
-    }, []);
+    }, [addToast, api]);
 
     const handleSave = async () => {
         try {
@@ -282,13 +309,10 @@ const api = useApi();
                 throw new Error('ID de configuración no disponible');
             }
 
-            // Crear FormData en lugar de JSON
+            // Siempre usar FormData (el servidor lo espera así)
             const formData = new FormData();
 
-            // Agregar el ID
             formData.append('id', String(configId));
-
-            // Agregar campos de texto
             formData.append('numero_Notaria', notariaData.notaria_numero);
             formData.append('nombre_Notario', notariaData.nombre);
             formData.append('telefono', notariaData.telefono);
@@ -297,21 +321,28 @@ const api = useApi();
             formData.append('estado', notariaData.estado);
             formData.append('codigo_Postal', notariaData.codigo_postal);
 
-            // Si hay archivo de imagen, agregarlo directamente
+            // Si hay archivo de imagen, agregarlo
             if (notariaData.imagenFile) {
                 formData.append('fileLogo', notariaData.imagenFile);
-                console.log('Enviando archivo de imagen:', notariaData.imagenFile.name);
+                console.log('Enviando FormData con imagen:', notariaData.imagenFile.name);
             }
 
-            console.log('Enviando FormData con ID:', configId);
+            const notariaResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
-            const data = await api.post('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
-
-            if (!data) {
-                throw new Error('Error en la respuesta de la API');
+            // Verificar si fue 401
+            if (notariaResponse?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
             }
 
-            console.log('Configuración guardada:', data);
+            // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
+            const notariaSuccess = notariaResponse?.success !== false;
+
+            if (!notariaSuccess) {
+                throw new Error(notariaResponse?.message || 'Error al guardar la configuración de notaría');
+            }
+
+            console.log('Configuración de notaría guardada:', notariaResponse);
 
             // Ahora guardar los datos de Control, Cálculos y Folios
             if (controlConfigId) {
@@ -347,20 +378,25 @@ const api = useApi();
 
                 console.log('Enviando datos de Control con ID:', controlConfigId);
 
-                const controlData2 = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
+                const controlResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
 
-                if (!controlData2) {
-                    throw new Error(controlData2?.message || `Error al guardar configuración de control`);
+                // Verificar si fue 401
+                if (controlResponse?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
                 }
-                console.log('Control guardado:', controlData2);
+
+                // Verificar si fue éxito
+                const controlSuccess = controlResponse?.success !== false;
+
+                if (!controlSuccess) {
+                    throw new Error(controlResponse?.message || 'Error al guardar la configuración de control');
+                }
+                console.log('Control guardado:', controlResponse);
             }
 
-            // Extraer mensaje del dataResponse si existe
-            const message = data.dataResponse?.message || data.message || 'Configuración guardada exitosamente';
-            console.log('Mensaje de la API:', message);
-
-            // Mostrar toast de éxito con el mensaje del servidor
-            addToast(message, 'success');
+            // Mostrar mensaje del servidor
+            addToast(notariaResponse?.message || 'Configuración guardada correctamente', 'success');
             setSaveError(null);
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
@@ -368,7 +404,6 @@ const api = useApi();
             const errorMessage = error instanceof Error ? error.message : 'Error al guardar la configuración';
             console.error('Error al guardar:', errorMessage);
             setSaveError(errorMessage);
-            // Mostrar toast de error
             addToast(errorMessage, 'error');
             setTimeout(() => setSaveError(null), 5000);
         } finally {
@@ -377,12 +412,56 @@ const api = useApi();
     };
 
     const handleReset = () => {
-        setNotariaData(defaultNotariaData);
-        setControlData(defaultControlData);
-        setServidorData(defaultServidorData);
-        setCorreoData(defaultCorreoData);
-        setCalculosData(defaultCalculosData);
-        setFoliosData(defaultFoliosData);
+        setNotariaData({
+            nombre: '',
+            domicilio: '',
+            telefono: '',
+            municipio: '',
+            estado: '',
+            ciudad: '',
+            notaria_numero: '',
+            codigo_postal: '',
+            imagen: null,
+        });
+        setControlData({
+            expediente: 0,
+            acta_fuera_protocolo: 0,
+            certificacion: 0,
+            recibo_honorarios: 0,
+            ratificacion: 0,
+            recibo_general: 0,
+            cotejo: 0,
+        });
+        setServidorData({
+            ruta: '',
+        });
+        setCorreoData({
+            servidor_correo: '',
+            usuario_correo: '',
+            password_correo: '',
+            asunto_correo: '',
+            puerto: '',
+            ssl_enabled: false,
+        });
+        setCalculosData({
+            iva: 0,
+            ret_iva: 0,
+            ret_isr: 0,
+            salario: 0,
+            uma: 0,
+        });
+        setFoliosData({
+            tomo_inicial_instrumentos: 0,
+            volumenes_por_tomo_instrumentos: 0,
+            folios_por_volumen_instrumentos: 0,
+            volumen_inicial_instrumentos: 0,
+            folio_inicial_por_tomo_instrumentos: 0,
+            tomo_inicial_certificaciones: 0,
+            volumenes_por_tomo_certificaciones: 0,
+            folios_por_volumen_certificaciones: 0,
+            volumen_inicial_certificaciones: 0,
+            folio_inicial_por_tomo_certificaciones: 0,
+        });
     };
 
     return (
@@ -432,8 +511,13 @@ const api = useApi();
                             ) : (
                             <div className="grid gap-6">
                                 {/* Sección 1: Información Principal */}
-                                <div >
-                                    <h3 className="mb-4 text-lg font-semibold">Información Principal</h3>
+                                <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                            <Building2 className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Información Principal</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
                                             <RequiredLabel htmlFor="notaria_numero">Nº Notaría</RequiredLabel>
@@ -446,7 +530,7 @@ const api = useApi();
                                                         notaria_numero: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -460,15 +544,20 @@ const api = useApi();
                                                         nombre: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Sección 2: Contacto */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Contacto</h3>
+                                <div className="border-2 border-green-200 rounded-lg p-5 bg-gradient-to-br from-green-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-green-600 text-white p-3 rounded-lg">
+                                            <Phone className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Contacto</h3>
+                                    </div>
                                     <div className="grid gap-4">
                                         <div>
                                             <RequiredLabel htmlFor="telefono">Teléfono</RequiredLabel>
@@ -481,15 +570,20 @@ const api = useApi();
                                                         telefono: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Sección 3: Ubicación */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Ubicación</h3>
+                                <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-purple-600 text-white p-3 rounded-lg">
+                                            <MapPin className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Ubicación</h3>
+                                    </div>
                                     <div className="grid gap-4">
                                         <div>
                                             <RequiredLabel htmlFor="domicilio">Domicilio</RequiredLabel>
@@ -502,7 +596,7 @@ const api = useApi();
                                                         domicilio: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-3">
@@ -517,7 +611,7 @@ const api = useApi();
                                                             estado: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -531,7 +625,7 @@ const api = useApi();
                                                             municipio: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -545,7 +639,7 @@ const api = useApi();
                                                             codigo_postal: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                         </div>
@@ -553,8 +647,13 @@ const api = useApi();
                                 </div>
 
                                 {/* Sección 4: Imagen */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Foto de la Notaría</h3>
+                                <div className="border-2 border-amber-200 rounded-lg p-5 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-amber-600 text-white p-3 rounded-lg">
+                                            <Image className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Foto de la Notaría</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div>
                                             <RequiredLabel htmlFor="imagen">Subir Imagen</RequiredLabel>
@@ -584,7 +683,7 @@ const api = useApi();
                                                 <RequiredLabel>Vista Previa</RequiredLabel>
                                                 <img
                                                     src={notariaData.imagen}
-                                                    alt="Foto de la notaría"
+                                                    alt="Foto de la notarÃƒÂ­a"
                                                     className="mt-2 h-110 w-full rounded-lg border border-gray-300 object-contain shadow-lg"
                                                 />
                                             </div>
@@ -595,10 +694,15 @@ const api = useApi();
                             )}
                         </TabsContent>
 
-                        {/* Pestaña 2: Control */}
+                        {/* PestaÃƒÂ±a 2: Control */}
                         <TabsContent value="control" className="space-y-6">
-                            <div>
-                                <h3 className="mb-4 text-lg font-semibold">Contador de Documentos</h3>
+                            <div className="border-2 border-orange-200 rounded-lg p-5 bg-gradient-to-br from-orange-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-orange-600 text-white p-3 rounded-lg">
+                                        <BarChart3 className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Contador de Documentos</h3>
+                                </div>
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                                     <div>
                                         <RequiredLabel htmlFor="expediente">Expediente</RequiredLabel>
@@ -612,7 +716,7 @@ const api = useApi();
                                                     expediente: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -627,7 +731,7 @@ const api = useApi();
                                                     acta_fuera_protocolo: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -642,7 +746,7 @@ const api = useApi();
                                                     certificacion: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -657,7 +761,7 @@ const api = useApi();
                                                     recibo_honorarios: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -672,7 +776,7 @@ const api = useApi();
                                                     ratificacion: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -687,7 +791,7 @@ const api = useApi();
                                                     recibo_general: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -702,7 +806,7 @@ const api = useApi();
                                                     cotejo: parseInt(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                 </div>
@@ -713,8 +817,13 @@ const api = useApi();
                         <TabsContent value="servidor" className="space-y-6">
                             <div className="grid gap-6">
                                 {/* Sección de Ruta */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Configuración del Servidor</h3>
+                                <div className="border-2 border-red-200 rounded-lg p-5 bg-gradient-to-br from-red-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-red-600 text-white p-3 rounded-lg">
+                                            <Server className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Configuración del Servidor</h3>
+                                    </div>
                                     <div>
                                         <RequiredLabel htmlFor="ruta">Ruta del Servidor</RequiredLabel>
                                         <Input
@@ -726,7 +835,7 @@ const api = useApi();
                                                     ruta: e.target.value,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                 </div>
@@ -737,8 +846,13 @@ const api = useApi();
                         <TabsContent value="correo" className="space-y-6">
                             <div className="grid gap-6">
                                 {/* Sección de Correo */}
-                                <div>
-                                    <h3 className="mb-4 text-lg font-semibold">Configuración de Correo</h3>
+                                <div className="border-2 border-indigo-200 rounded-lg p-5 bg-gradient-to-br from-indigo-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-indigo-600 text-white p-3 rounded-lg">
+                                            <Mail className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Configuración de Correo</h3>
+                                    </div>
                                     <div className="grid gap-4">
                                         <div>
                                             <RequiredLabel htmlFor="correo_servidor">Servidor SMTP</RequiredLabel>
@@ -751,7 +865,7 @@ const api = useApi();
                                                         servidor_correo: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div className="grid gap-4 md:grid-cols-2">
@@ -766,7 +880,7 @@ const api = useApi();
                                                             usuario_correo: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -781,7 +895,7 @@ const api = useApi();
                                                             password_correo: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                         </div>
@@ -797,7 +911,7 @@ const api = useApi();
                                                             puerto: e.target.value,
                                                         })
                                                     }
-                                                    className="mt-2"
+                                                    className="mt-2 bg-white"
                                                 />
                                             </div>
                                             <div>
@@ -830,7 +944,7 @@ const api = useApi();
                                                         asunto_correo: e.target.value,
                                                     })
                                                 }
-                                                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="mt-2 w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                 rows={4}
                                             />
                                         </div>
@@ -839,8 +953,13 @@ const api = useApi();
                             </div>
                         </TabsContent>
                         <TabsContent value="calculos" className="space-y-6">
-                            <div>
-                                <h3 className="mb-4 text-lg font-semibold">Configuración de Cálculos</h3>
+                            <div className="border-2 border-emerald-200 rounded-lg p-5 bg-gradient-to-br from-emerald-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-emerald-600 text-white p-3 rounded-lg">
+                                        <Calculator className="h-5 w-5" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900">Configuración de Cálculos</h3>
+                                </div>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div>
                                         <RequiredLabel htmlFor="iva">IVA (%)</RequiredLabel>
@@ -855,7 +974,7 @@ const api = useApi();
                                                     iva: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -871,7 +990,7 @@ const api = useApi();
                                                     ret_iva: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -887,7 +1006,7 @@ const api = useApi();
                                                     ret_isr: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -903,7 +1022,7 @@ const api = useApi();
                                                     salario: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                     <div>
@@ -919,19 +1038,24 @@ const api = useApi();
                                                     uma: parseFloat(e.target.value) || 0,
                                                 })
                                             }
-                                            className="mt-2"
+                                            className="mt-2 bg-white"
                                         />
                                     </div>
                                 </div>
                             </div>
                         </TabsContent>
 
-                        {/* Pestaña 6: Folios */}
+                        {/* PestaÃƒÂ±a 6: Folios */}
                         <TabsContent value="folios" className="space-y-6">
                             <div className="grid gap-6">
                                 {/* Folios de Instrumentos */}
-                                <div className="rounded-lg border border-sidebar-border p-6">
-                                    <h3 className="mb-6 text-lg font-semibold">Folios de Instrumentos</h3>
+                                <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                            <BookOpen className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Folios de Instrumentos</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                         <div>
                                             <RequiredLabel htmlFor="tomo_inicial_inst">Tomo Inicial</RequiredLabel>
@@ -945,7 +1069,7 @@ const api = useApi();
                                                         tomo_inicial_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -960,7 +1084,7 @@ const api = useApi();
                                                         volumenes_por_tomo_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -975,7 +1099,7 @@ const api = useApi();
                                                         folios_por_volumen_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -990,7 +1114,7 @@ const api = useApi();
                                                         volumen_inicial_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1005,15 +1129,20 @@ const api = useApi();
                                                         folio_inicial_por_tomo_instrumentos: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Folios de Certificaciones */}
-                                <div className="rounded-lg border border-sidebar-border p-6">
-                                    <h3 className="mb-6 text-lg font-semibold">Folios de Certificaciones</h3>
+                                <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                            <BookOpen className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900">Folios de Certificaciones</h3>
+                                    </div>
                                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                         <div>
                                             <RequiredLabel htmlFor="tomo_inicial_cert">Tomo Inicial</RequiredLabel>
@@ -1027,7 +1156,7 @@ const api = useApi();
                                                         tomo_inicial_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1042,7 +1171,7 @@ const api = useApi();
                                                         volumenes_por_tomo_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1057,7 +1186,7 @@ const api = useApi();
                                                         folios_por_volumen_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1072,7 +1201,7 @@ const api = useApi();
                                                         volumen_inicial_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                         <div>
@@ -1087,7 +1216,7 @@ const api = useApi();
                                                         folio_inicial_por_tomo_certificaciones: parseInt(e.target.value) || 0,
                                                     })
                                                 }
-                                                className="mt-2"
+                                                className="mt-2 bg-white"
                                             />
                                         </div>
                                     </div>
@@ -1098,16 +1227,8 @@ const api = useApi();
                     </Tabs>
 
                 {/* Action Buttons */}
-                <div className="pt-3 flex gap-3 justify-end">
-                    <Button
-                        variant="outline"
-                        onClick={handleReset}
-                        className="gap-2"
-                        disabled={isSaving}
-                    >
-                        <X className="size-4" />
-                        Cancelar
-                    </Button>
+                <div className="pt-3 flex mb-3 gap-3 justify-end">
+
                     <Button
                         onClick={handleSave}
                         className="gap-2"
@@ -1121,7 +1242,7 @@ const api = useApi();
                         ) : (
                             <>
                                 <Save className="size-4" />
-                                {isSaved ? 'Guardado ✓' : 'Guardar'}
+                                {isSaved ? 'Guardado ✓' : 'Actualizar'}
                             </>
                         )}
                     </Button>
@@ -1129,6 +1250,12 @@ const api = useApi();
             </div>
 
         </div>
+
+        <LoginModal
+            isOpen={loginModalOpen}
+            onClose={() => setLoginModalOpen(false)}
+            onSuccess={() => setLoginModalOpen(false)}
+        />
         </>
     );
 }
@@ -1144,11 +1271,12 @@ ControlNotarialConfiguracionIndex.layout = (page: React.ReactNode) => (
             href: '/admin/control-notarial',
         },
         {
-            title: 'Configuración',
+            title: 'Configuraciónn',
             href: '/admin/control-notarial/configuracion',
         },
     ]}>
         {page}
     </AppLayout>
 );
+
 

@@ -5,6 +5,7 @@ import {
     UserCheck,
     Tags,
     BarChart3,
+    Settings,
 } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
@@ -44,7 +45,7 @@ export default function ControlNotarialConfiguracionIndex() {
                 </div>
 
                 {/* Acceso Rápido - Botones Principales */}
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                     {/* Datos de Notaría */}
                     <Link href="/admin/control-notarial/configuracion/notaria" prefetch>
                         <div className="group cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-8 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200">
@@ -134,6 +135,44 @@ export default function ControlNotarialConfiguracionIndex() {
                                     </h3>
                                     <p className="text-sm text-rose-700 dark:text-rose-300">
                                         Visualiza estadísticas de usuarios
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+
+                    {/* Configuración de Operaciones */}
+                    <Link href="/admin/control-notarial/configuracion-operaciones" prefetch>
+                        <div className="group cursor-pointer rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100 p-8 hover:shadow-lg hover:border-indigo-400 dark:border-indigo-800 dark:from-indigo-950/50 dark:to-indigo-900/30 transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-indigo-500 p-3 text-white shadow-md group-hover:bg-indigo-600 transition-colors">
+                                    <Settings className="size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-indigo-900 dark:text-indigo-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-200">
+                                        Configuración de Operaciones
+                                    </h3>
+                                    <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                                        Configura etapas, documentos e impuestos
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+
+                    {/* Configuraciones Tarifarias */}
+                    <Link href="/admin/control-notarial/configuraciones-tarifarias" prefetch>
+                        <div className="group cursor-pointer rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-teal-100 p-8 hover:shadow-lg hover:border-teal-400 dark:border-teal-800 dark:from-teal-950/50 dark:to-teal-900/30 transition-all duration-200">
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-teal-500 p-3 text-white shadow-md group-hover:bg-teal-600 transition-colors">
+                                    <BarChart3 className="size-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-teal-900 dark:text-teal-100 group-hover:text-teal-600 dark:group-hover:text-teal-200">
+                                        Configuraciones Tarifarias
+                                    </h3>
+                                    <p className="text-sm text-teal-700 dark:text-teal-300">
+                                        Administra las tarifas y servicios
                                     </p>
                                 </div>
                             </div>

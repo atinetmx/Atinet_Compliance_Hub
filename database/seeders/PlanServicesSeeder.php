@@ -39,21 +39,19 @@ class PlanServicesSeeder extends Seeder
         }
 
         $services = [
-            // Servicios incluidos ilimitados
-            'SISTEMA_NOTARIAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 1],
-            'EXPEDIENTES_QR' => ['is_included' => true, 'usage_limit' => null, 'priority' => 2],
-            'DASHBOARD_BASICO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 3],
-            'STORAGE_BASICO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 4],
+            // ✅ MÓDULOS CORE INCLUIDOS
+            'CONTROL_NOTARIAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 1],
+            'AGENDA_WEB' => ['is_included' => true, 'usage_limit' => null, 'priority' => 2],
 
-            // Servicios con límite
-            'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => 50, 'priority' => 5],
-            'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => 50, 'priority' => 6],
-            'CONSULTA_EMPRESA' => ['is_included' => true, 'usage_limit' => 30, 'priority' => 7],
+            // ✅ REGISTRO WEB - Con límite de registros
+            'REGISTRO_WEB' => ['is_included' => true, 'usage_limit' => 50, 'priority' => 3],
 
-            // Servicios NO incluidos pero disponibles por pago
-            'LIST_PEP' => ['is_included' => false, 'extra_price' => 10.00, 'priority' => 8],
-            'LIST_LAVADO' => ['is_included' => false, 'extra_price' => 12.00, 'priority' => 9],
-            'API_CAPTURA_DOCS' => ['is_included' => false, 'extra_price' => 2.00, 'priority' => 10],
+            // ✅ BÚSQUEDAS - Con límite
+            'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => 50, 'priority' => 4],
+            'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => 50, 'priority' => 5],
+
+            // ✅ ESCÁNER INTELIGENTE - Con límite
+            'ESCANER_INTELIGENTE' => ['is_included' => true, 'usage_limit' => 20, 'priority' => 6],
         ];
 
         $this->attachServicesToPlan($plan, $services);
@@ -74,27 +72,19 @@ class PlanServicesSeeder extends Seeder
         }
 
         $services = [
-            // Servicios incluidos ilimitados
-            'SISTEMA_NOTARIAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 1],
-            'EXPEDIENTES_QR' => ['is_included' => true, 'usage_limit' => null, 'priority' => 2],
-            'DASHBOARD_BASICO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 3],
-            'DASHBOARD_AVANZADO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 4],
-            'STORAGE_BASICO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 5],
-            'WEBHOOK_NOTIFICATIONS' => ['is_included' => true, 'usage_limit' => null, 'priority' => 6],
+            // ✅ MÓDULOS CORE ILIMITADOS
+            'CONTROL_NOTARIAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 1],
+            'AGENDA_WEB' => ['is_included' => true, 'usage_limit' => null, 'priority' => 2],
 
-            // Búsquedas ilimitadas
-            'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => null, 'priority' => 7],
-            'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => null, 'priority' => 8],
-            'CONSULTA_EMPRESA' => ['is_included' => true, 'usage_limit' => null, 'priority' => 9],
+            // ✅ REGISTRO WEB - Mayor límite
+            'REGISTRO_WEB' => ['is_included' => true, 'usage_limit' => 200, 'priority' => 3],
 
-            // Servicios con límite
-            'LIST_PEP' => ['is_included' => true, 'usage_limit' => 100, 'priority' => 10],
-            'API_CAPTURA_DOCS' => ['is_included' => true, 'usage_limit' => 500, 'priority' => 11],
-            'API_OCR' => ['is_included' => true, 'usage_limit' => 100, 'priority' => 12],
+            // ✅ BÚSQUEDAS ILIMITADAS
+            'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => null, 'priority' => 4],
+            'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => null, 'priority' => 5],
 
-            // Servicios con precio extra reducido
-            'LIST_LAVADO' => ['is_included' => false, 'extra_price' => 10.00, 'priority' => 13],
-            'REPORTES_PERSONALIZADOS' => ['is_included' => false, 'extra_price' => 12.00, 'priority' => 14],
+            // ✅ ESCÁNER INTELIGENTE - Mayor límite
+            'ESCANER_INTELIGENTE' => ['is_included' => true, 'usage_limit' => 100, 'priority' => 6],
         ];
 
         $this->attachServicesToPlan($plan, $services);
@@ -115,22 +105,13 @@ class PlanServicesSeeder extends Seeder
         }
 
         $services = [
-            // TODO ILIMITADO
-            'SISTEMA_NOTARIAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 1],
-            'EXPEDIENTES_QR' => ['is_included' => true, 'usage_limit' => null, 'priority' => 2],
-            'DASHBOARD_BASICO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 3],
-            'DASHBOARD_AVANZADO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 4],
-            'STORAGE_BASICO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 5],
-            'WEBHOOK_NOTIFICATIONS' => ['is_included' => true, 'usage_limit' => null, 'priority' => 6],
-            'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => null, 'priority' => 7],
-            'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => null, 'priority' => 8],
-            'CONSULTA_EMPRESA' => ['is_included' => true, 'usage_limit' => null, 'priority' => 9],
-            'LIST_PEP' => ['is_included' => true, 'usage_limit' => null, 'priority' => 10],
-            'LIST_LAVADO' => ['is_included' => true, 'usage_limit' => null, 'priority' => 11],
-            'API_CAPTURA_DOCS' => ['is_included' => true, 'usage_limit' => null, 'priority' => 12],
-            'API_OCR' => ['is_included' => true, 'usage_limit' => null, 'priority' => 13],
-            'API_FIRMA_DIGITAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 14],
-            'REPORTES_PERSONALIZADOS' => ['is_included' => true, 'usage_limit' => null, 'priority' => 15],
+            // ✅ TODO ILIMITADO
+            'CONTROL_NOTARIAL' => ['is_included' => true, 'usage_limit' => null, 'priority' => 1],
+            'AGENDA_WEB' => ['is_included' => true, 'usage_limit' => null, 'priority' => 2],
+            'REGISTRO_WEB' => ['is_included' => true, 'usage_limit' => null, 'priority' => 3],
+            'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => null, 'priority' => 4],
+            'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => null, 'priority' => 5],
+            'ESCANER_INTELIGENTE' => ['is_included' => true, 'usage_limit' => null, 'priority' => 6],
         ];
 
         $this->attachServicesToPlan($plan, $services);

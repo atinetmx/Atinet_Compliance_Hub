@@ -2,6 +2,8 @@ import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Database, FileText, AlertTriangle, Building2, File, Briefcase, DollarSign, Users, MapPin } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 // Interfaces para cada tipo de catálogo
 interface CatalogoItem {
@@ -107,8 +110,17 @@ export default function ControlNotarialAltaCatalogos() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
     const api = useApi();
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -178,18 +190,28 @@ export default function ControlNotarialAltaCatalogos() {
         }
     };
 
-    // Cargar datos al montar y cuando cambia la pestaña activa
+    // Cargar datos cuando cambia la pestaña activa
     useEffect(() => {
-        fetchActividadesVulnerables();
-        fetchDependenciasPublicas();
         cargarCatalogoActual();
+
+        // Cargar solo las dependencias del catálogo que se necesita
+        if (activeTab === 'operaciones') {
+            fetchActividadesVulnerables();
+        }
+        if (activeTab === 'impuestos_derechos') {
+            fetchDependenciasPublicas();
+        }
     }, [activeTab]);
 
     const fetchActividadesVulnerables = async () => {
         try {
-            const data = await api.get('/Catalogos/GetActividadesVulnerables');
-            if (data) {
-                setActividadesVulnerablesLista(data.dataResponse || []);
+            const response = await api.get('/Catalogos/GetActividadesVulnerables');
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+            if (datos) {
+                setActividadesVulnerablesLista(datos);
             }
         } catch (error) {
             console.error('Error cargando actividades vulnerables:', error);
@@ -198,9 +220,13 @@ export default function ControlNotarialAltaCatalogos() {
 
     const fetchDependenciasPublicas = async () => {
         try {
-            const data = await api.get('/Catalogos/GetDependenciasPublicas');
-            if (data) {
-                setDependenciasLista(data.dataResponse || []);
+            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+            if (datos) {
+                setDependenciasLista(datos);
             }
         } catch (error) {
             console.error('Error cargando dependencias públicas:', error);
@@ -212,15 +238,26 @@ export default function ControlNotarialAltaCatalogos() {
         setSearchError(null);
         try {
             const endpoint = getCatalogoEndpoint();
-            const data = await api.get(`/Catalogos/${endpoint}`);
+            const response = await api.get(`/Catalogos/${endpoint}`);
 
-            // Mostrar resultados si existen en dataResponse, o mostrar el mensaje si no (incluso en 400)
-            if (data && data.dataResponse && Array.isArray(data.dataResponse)) {
-                setTodosLosResultados(data.dataResponse);
-                setResultados(data.dataResponse);
+            const datos = handleControlNotarialResponse(response, {
+                onError: (msg) => setSearchError(msg),
+                onUnauthorized: () => setLoginModalOpen(true)
+            });
+
+            // Si fue 401, no mostrar error adicional (ya se maneja en onUnauthorized)
+            if (response?.isUnauthorized) {
+                setTodosLosResultados([]);
+                setResultados([]);
+                return;
+            }
+
+            if (datos && Array.isArray(datos)) {
+                setTodosLosResultados(datos);
+                setResultados(datos);
                 setSearchError(null);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los datos.');
+                setSearchError('No se pudieron cargar los datos.');
                 setTodosLosResultados([]);
                 setResultados([]);
             }
@@ -237,6 +274,11 @@ export default function ControlNotarialAltaCatalogos() {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         cargarCatalogoActual();
+    };
+
+    const handleCatalogChange = (value: string) => {
+        setActiveTab(value);
+        setActiveSubTab('busqueda');
     };
 
     const handleFiltroChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,7 +381,9 @@ export default function ControlNotarialAltaCatalogos() {
             payload.actividad_Vulnerable_Id = state.actividad_Vulnerable_Id || 0;
         } else if (activeTab === 'impuestos_derechos') {
             payload.tipo = state.tipo || '';
-            payload.dependencia = state.dependencia || '';
+            // Buscar la descripción de la dependencia seleccionada por ID
+            const dependenciaSeleccionada = dependenciasLista.find(dep => String(dep.id) === String(state.dependencia));
+            payload.dependencia = dependenciaSeleccionada?.descripcion || '';
         }
 
         // Agregar ID si estamos editando
@@ -432,15 +476,29 @@ export default function ControlNotarialAltaCatalogos() {
 
             console.log(`[DEBUG] Enviando ${isEditing ? 'PUT' : 'POST'} a Catalogos/${endpoint}`, payload);
 
-            const data = isEditing
+            const response = isEditing
                 ? await api.put(`/Catalogos/${endpoint}`, payload)
                 : await api.post(`/Catalogos/${endpoint}`, payload);
 
-            console.log(`[DEBUG] Response:`, data);
+            console.log(`[DEBUG] Response:`, response);
 
-            addToast(data?.message || `Catálogo guardado correctamente`, 'success');
-            handleCancelEdit();
-            cargarCatalogoActual();
+            // Verificar si fue 401
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
+            const isSuccess = response?.success !== false;
+
+            if (isSuccess) {
+                addToast(response?.message || `Catálogo guardado correctamente`, 'success');
+                handleCancelEdit();
+                cargarCatalogoActual();
+            } else {
+                setSaveError(response?.message || 'Error al guardar el catálogo');
+                addToast(response?.message || 'Error al guardar el catálogo', 'error');
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
             console.error('[DEBUG] Error:', message);
@@ -457,28 +515,43 @@ export default function ControlNotarialAltaCatalogos() {
         return (
             <div className="space-y-6">
                 {saveError && (
-                    <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md">
-                        {saveError}
+                    <div className="bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-red-700 dark:text-red-300 text-sm">{saveError}</p>
                     </div>
                 )}
 
-                {/* Descripción */}
-                <div className="space-y-2">
-                    <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
-                    <textarea
-                        id="descripcion"
-                        name="descripcion"
-                        value={currentState.descripcion}
-                        onChange={handleInputChange}
-                        placeholder="Descripción"
-                        rows={6}
-                        className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                {/* Sección: Información General */}
+                <div className="border-b-2 border-blue-100 dark:border-blue-900/50 pb-6">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        Información General
+                    </h3>
+
+                    {/* Descripción - No se muestra en impuestos_derechos */}
+                    {activeTab !== 'impuestos_derechos' && (
+                        <div className="space-y-2">
+                            <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
+                            <textarea
+                                id="descripcion"
+                                name="descripcion"
+                                value={currentState.descripcion}
+                                onChange={handleInputChange}
+                                placeholder="Ingresa la descripción del catálogo..."
+                                rows={4}
+                                className="w-full px-4 py-2 border border-blue-200 dark:border-blue-800 rounded-lg bg-white dark:bg-slate-900/50 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Campos adicionales según el tipo de catálogo */}
                 {activeTab === 'actividades_vulnerables' && (
-                    <>
+                    <div className="border-b-2 border-green-100 dark:border-green-900/50 pb-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            Detalles de Actividad
+                        </h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <RequiredLabel htmlFor="monto">Monto ($)</RequiredLabel>
@@ -490,90 +563,144 @@ export default function ControlNotarialAltaCatalogos() {
                                     value={(currentState as ActividadVulnerable).monto || 0}
                                     onChange={handleInputChange}
                                     placeholder="0.00"
+                                    className="mt-2 bg-white dark:bg-slate-900/50 border-green-200 dark:border-green-800 focus:ring-green-500"
                                 />
                             </div>
-                            <div className="flex items-end">
-                                <label className="flex items-center space-x-2 cursor-pointer">
+                            <div className="flex items-end pb-1">
+                                <label className="flex items-center space-x-3 cursor-pointer p-3 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800/50 hover:bg-green-100/50 dark:hover:bg-green-950/40 transition-colors flex-1">
                                     <input
                                         id="siempre"
                                         name="siempre"
                                         type="checkbox"
                                         checked={(currentState as ActividadVulnerable).siempre || false}
                                         onChange={handleInputChange}
-                                        className="h-4 w-4 border border-primary rounded"
+                                        className="h-5 w-5 border-2 border-green-300 dark:border-green-700 rounded cursor-pointer accent-green-600"
                                     />
-                                    <span>Siempre</span>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">Siempre Reportable</span>
                                 </label>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {activeTab === 'operaciones' && (
-                    <div className="space-y-2">
-                        <RequiredLabel htmlFor="actividad_Vulnerable_Id">Actividad Vulnerable</RequiredLabel>
-                        <Select
-                            value={(currentState as Operacion).actividad_Vulnerable_Id ? String((currentState as Operacion).actividad_Vulnerable_Id) : ''}
-                            onValueChange={(value) => handleSelectChange('actividad_Vulnerable_Id', value)}
-                        >
-                            <SelectTrigger id="actividad_Vulnerable_Id">
-                                <SelectValue placeholder="Selecciona una actividad" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {actividadesVulnerablesLista.map((actividad) => (
-                                    <SelectItem key={actividad.id} value={String(actividad.id)}>
-                                        {actividad.descripcion}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="border-b-2 border-purple-100 dark:border-purple-900/50 pb-6">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Briefcase className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                            Clasificación de Operación
+                        </h3>
+                        <div className="space-y-2">
+                            <RequiredLabel htmlFor="actividad_Vulnerable_Id">Actividad Vulnerable *</RequiredLabel>
+                            <Select
+                                value={(currentState as Operacion).actividad_Vulnerable_Id ? String((currentState as Operacion).actividad_Vulnerable_Id) : ''}
+                                onValueChange={(value) => handleSelectChange('actividad_Vulnerable_Id', value)}
+                            >
+                                <SelectTrigger id="actividad_Vulnerable_Id" className="mt-2 border-purple-200 dark:border-purple-800 bg-white/80 dark:bg-slate-900/50 focus:ring-purple-500">
+                                    <SelectValue placeholder="Selecciona una actividad vulnerable..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white dark:bg-slate-900">
+                                    {actividadesVulnerablesLista.map((actividad) => (
+                                        <SelectItem key={actividad.id} value={String(actividad.id)}>
+                                            {actividad.descripcion}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 )}
 
                 {activeTab === 'impuestos_derechos' && (
-                    <>
-                        <div className="space-y-2">
-                            <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
-                            <Input
-                                id="tipo"
-                                name="tipo"
-                                value={(currentState as ImpuestoDerecho).tipo || ''}
-                                onChange={handleInputChange}
-                                placeholder="Tipo de impuesto o derecho"
-                            />
+                    <div className="space-y-6">
+                        <div className="border-b-2 border-orange-100 dark:border-orange-900/50 pb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <DollarSign className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                                Información del Impuesto o Derecho
+                            </h3>
+                            <div className="space-y-2">
+                                <RequiredLabel htmlFor="descripcion">Descripción *</RequiredLabel>
+                                <textarea
+                                    id="descripcion"
+                                    name="descripcion"
+                                    value={currentState.descripcion}
+                                    onChange={handleInputChange}
+                                    placeholder="Ingresa la descripción del impuesto o derecho..."
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-orange-200 dark:border-orange-800 rounded-lg bg-white dark:bg-slate-900/50 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <RequiredLabel htmlFor="dependencia">Dependencia *</RequiredLabel>
-                            <Input
-                                id="dependencia"
-                                name="dependencia"
-                                value={(currentState as ImpuestoDerecho).dependencia || ''}
-                                onChange={handleInputChange}
-                                placeholder="Dependencia relacionada"
-                            />
+                        <div className="border-b-2 border-orange-100 dark:border-orange-900/50 pb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                                Clasificación
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <RequiredLabel htmlFor="dependencia">Dependencia Pública *</RequiredLabel>
+                                    <Select
+                                        value={(currentState as ImpuestoDerecho).dependencia ? String((currentState as ImpuestoDerecho).dependencia) : ''}
+                                        onValueChange={(value) => handleSelectChange('dependencia', value)}
+                                    >
+                                        <SelectTrigger id="dependencia" className="mt-2 border-orange-200 dark:border-orange-800 bg-white/80 dark:bg-slate-900/50 focus:ring-orange-500">
+                                            <SelectValue placeholder="Selecciona..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white dark:bg-slate-900">
+                                            {dependenciasLista.map((dependencia) => (
+                                                <SelectItem key={dependencia.id} value={String(dependencia.id)}>
+                                                    {dependencia.descripcion}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <RequiredLabel htmlFor="tipo">Tipo *</RequiredLabel>
+                                    <Select
+                                        value={(currentState as ImpuestoDerecho).tipo || ''}
+                                        onValueChange={(value) => handleSelectChange('tipo', value)}
+                                    >
+                                        <SelectTrigger id="tipo" className="mt-2 border-orange-200 dark:border-orange-800 bg-white/80 dark:bg-slate-900/50 focus:ring-orange-500">
+                                            <SelectValue placeholder="Selecciona..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white dark:bg-slate-900">
+                                            <SelectItem value="Posterior">Posterior</SelectItem>
+                                            <SelectItem value="Previo">Previo</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                         </div>
-                    </>
+                    </div>
                 )}
 
-                {/* Activo */}
-                <div className="flex items-center space-x-2">
-                    <input
-                        id="activo"
-                        name="activo"
-                        type="checkbox"
-                        checked={currentState.activo}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 border border-primary rounded"
-                    />
-                    <RequiredLabel htmlFor="activo" className="cursor-pointer">
-                        Activo
-                    </RequiredLabel>
+                {/* Sección: Estado */}
+                <div className="border-t-2 border-blue-100 dark:border-blue-900/50 pt-6">
+                    <div className="flex items-center p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100/50 dark:hover:bg-blue-950/40 transition-colors">
+                        <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                            <input
+                                id="activo"
+                                name="activo"
+                                type="checkbox"
+                                checked={currentState.activo}
+                                onChange={handleInputChange}
+                                className="h-5 w-5 border-2 border-blue-300 dark:border-blue-700 rounded cursor-pointer accent-blue-600"
+                            />
+                            <span className={`font-medium ${currentState.activo ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                                {currentState.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                        </label>
+                    </div>
                 </div>
 
                 {/* Botones */}
-                <div className="flex gap-2 justify-end pt-4 border-t">
+                <div className="flex gap-3 justify-end pt-6 border-t-2 border-blue-100 dark:border-blue-900/50">
                     {isEditing && (
-                        <Button variant="outline" onClick={handleCancelEdit}>
+                        <Button
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                            className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
                             <X className="h-4 w-4 mr-2" />
                             Cancelar
                         </Button>
@@ -581,7 +708,7 @@ export default function ControlNotarialAltaCatalogos() {
                     <Button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="bg-amber-600 hover:bg-amber-700"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6"
                     >
                         {isSaving ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -601,40 +728,29 @@ export default function ControlNotarialAltaCatalogos() {
 
             <div className="space-y-6 px-6 pt-6">
 
-                {/* Pestañas principales - Con Scroll - ARRIBA */}
-                <div>
-                    <div className="border-b mb-4">
-                        <div className="overflow-x-auto">
-                            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                                <TabsList className="inline-flex h-10 w-max items-center justify-start rounded-none border-0 bg-transparent p-0 text-muted-foreground">
-                                    <TabsTrigger value="etapas_expediente" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Etapas Expediente
-                                    </TabsTrigger>
-                                    <TabsTrigger value="actividades_vulnerables" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Actividades Vulnerables
-                                    </TabsTrigger>
-                                    <TabsTrigger value="dependencias_publicas" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Dependencias Públicas
-                                    </TabsTrigger>
-                                    <TabsTrigger value="recibos_documentos" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Documentos
-                                    </TabsTrigger>
-                                    <TabsTrigger value="operaciones" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Operaciones
-                                    </TabsTrigger>
-                                    <TabsTrigger value="impuestos_derechos" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Impuestos y Derechos
-                                    </TabsTrigger>
-                                    <TabsTrigger value="tipos_comparecientes" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Tipos Comparecientes
-                                    </TabsTrigger>
-                                    <TabsTrigger value="zonas_municipios" className="rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-2 pt-2 font-medium data-[state=active]:border-b-amber-600 data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap">
-                                        Zonas - Municipios
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
+                {/* Seleccionar Catálogo */}
+                <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/30 dark:to-slate-950 shadow-md hover:shadow-lg transition-shadow dark:border-blue-800">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Catálogo</p>
+
                         </div>
                     </div>
+                    <Select value={activeTab} onValueChange={handleCatalogChange}>
+                        <SelectTrigger className="mt-3 border-blue-200 dark:border-blue-800 bg-white/80 dark:bg-slate-900/50 focus:ring-blue-500">
+                            <SelectValue placeholder="Selecciona un catálogo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-slate-900">
+                            <SelectItem value="etapas_expediente">Etapas Expediente</SelectItem>
+                            <SelectItem value="actividades_vulnerables">Actividades Vulnerables</SelectItem>
+                            <SelectItem value="dependencias_publicas">Dependencias Públicas</SelectItem>
+                            <SelectItem value="recibos_documentos">Documentos</SelectItem>
+                            <SelectItem value="operaciones">Operaciones</SelectItem>
+                            <SelectItem value="impuestos_derechos">Impuestos y Derechos</SelectItem>
+                            <SelectItem value="tipos_comparecientes">Tipos Comparecientes</SelectItem>
+                            <SelectItem value="zonas_municipios">Zonas - Municipios</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Pestañas de Búsqueda/Crear - ABAJO */}
@@ -696,9 +812,9 @@ export default function ControlNotarialAltaCatalogos() {
                             )}
 
                             <div className="border rounded-lg overflow-hidden">
-                                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                <div className="overflow-x-auto max-h-[670px] overflow-y-auto">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                        <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
                                             <tr>
                                                 <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
                                                 {activeTab === 'actividades_vulnerables' && (
@@ -724,7 +840,7 @@ export default function ControlNotarialAltaCatalogos() {
                                                 {!['actividades_vulnerables', 'operaciones', 'impuestos_derechos'].includes(activeTab) && (
                                                     <th className="px-4 py-2 text-left font-semibold">Descripción</th>
                                                 )}
-                                                <th className="px-4 py-2 text-center font-semibold w-20">Activo</th>
+                                                <th className="px-4 py-2 text-center font-semibold w-20">ESTATUS</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -748,7 +864,7 @@ export default function ControlNotarialAltaCatalogos() {
                                                         className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
                                                         onClick={() => handleSelectItem(item)}
                                                     >
-                                                        <td className="px-4 py-2 font-mono text-sm">{item.id}</td>
+                                                        <td className="px-4 py-2 font-mono text-sm text-blue-500 dark:text-blue-400">{item.id}</td>
                                                         {activeTab === 'actividades_vulnerables' && (
                                                             <>
                                                                 <td className="px-4 py-2">{item.descripcion}</td>
@@ -786,7 +902,7 @@ export default function ControlNotarialAltaCatalogos() {
                                                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                                                     : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                             }`}>
-                                                                {item.activo ? 'Sí' : 'No'}
+                                                                {item.activo ? 'Activo' : 'Inactivo'}
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -806,13 +922,19 @@ export default function ControlNotarialAltaCatalogos() {
 
                         {/* Pestaña Formulario */}
                         <TabsContent value="formulario">
-                            <div className="border rounded-lg p-6 space-y-6 bg-background/50 backdrop-blur-sm">
+                            <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-md hover:shadow-lg transition-shadow dark:border-blue-800 dark:from-blue-950/30 dark:to-slate-950">
                                 {renderFormContent()}
                             </div>
                         </TabsContent>
                     </Tabs>
                 </div>
             </div>
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
         </>
     );
 }
