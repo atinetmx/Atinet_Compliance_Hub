@@ -1,0 +1,335 @@
+================================================================================
+ANALISIS DE CAMPOS ÚTILES PARA CRM DE NOTARÍA
+================================================================================
+
+De los 65 campos en clientes VB, 56 están prácticamente vacíos (0-0.6% poblados).
+Pero la pregunta NO es "¿cuáles usó el VB?", sino "¿cuáles DEBERÍA usar un CRM
+de notaría moderno optimizado?"
+
+
+================================================================================
+PARTE 1: CAMPOS OBLIGATORIOS (Siempre necesarios)
+================================================================================
+
+1. IDENTIFICACIÓN BÁSICA
+-------------------------
+✓ Cliente (ID único) → id (Laravel auto-increment)
+✓ Nombre → nombre_completo
+✓ ApellidoPat → apellido_paterno
+✓ ApellidoMat → apellido_materno
+
+Decisión: MIGRAR CON NORMALIZACIÓN
+  - nombre_completo → generado automáticamente
+  - apellido_paterno → NOT NULL (68% poblado, debería ser 100%)
+  - apellido_materno → nullable (57% poblado)
+
+
+2. CONTACTO
+-----------
+✓ Email → email
+✓ TelOfic → telefono_principal
+○ TelParticular → telefono_secundario (vacío en VB, pero útil)
+○ PagWeb → pagina_web (vacío en VB, pero útil para empresas)
+
+Decisión: MIGRAR Y EXPANDIR
+  - Crear tabla 'telefonos' separada (1:N)
+  - Tipos: principal, secundario, móvil, oficina
+  - email → único, validado, nullable
+
+
+3. IDENTIFICACIÓN FISCAL/LEGAL (CRÍTICO PARA NOTARÍA)
+-------------------------------------------------------
+✓ RFC → rfc (solo 0.2% en VB, pero OBLIGATORIO en notaría)
+✓ CURP → curp (solo 0.0% en VB, pero REQUERIDO)
+○ IFE → identificacion_oficial_numero
+○ NumPasaporte → pasaporte_numero
+○ NumForMig → forma_migratoria_numero
+○ TipoForMig → forma_migratoria_tipo
+
+Decisión: MIGRAR TODOS (aunque estén vacíos)
+  - Notaría REQUIERE RFC y CURP por ley
+  - IFE/INE necesario para identificación
+  - Pasaporte y FM necesarios para extranjeros
+  - Crear validaciones estrictas en Laravel
+
+
+================================================================================
+PARTE 2: CAMPOS IMPORTANTES (Útiles pero no obligatorios)
+================================================================================
+
+4. UBICACIÓN GEOGRÁFICA (NORMALIZAR CON CATALOGOS)
+---------------------------------------------------
+✓ Estado → estado_id (FK -> estados)
+✓ Municipio → municipio_id (FK -> municipios)
+✓ Ciudad → ciudad_id (FK -> ciudades)
+✓ Colonia → colonia_id (FK -> colonias)
+✓ Codigo (CP) → codigo_postal
+✓ Calle → calle
+✓ Numero → numero_exterior
+✓ NumeroInt → numero_interior
+✓ Direccion → direccion_completa (generada)
+
+Decisión: NORMALIZAR COMPLETO
+  - Usar cat_cp para poblar datos faltantes
+  - FK a tablas separadas (estados, municipios, ciudades, colonias)
+  - codigo_postal → índice, usado para búsqueda en cat_cp
+
+
+5. INFORMACIÓN PERSONAL
+-----------------------
+✓ FechaNacimiento → fecha_nacimiento
+✓ Edad → edad (calculada, no guardada)
+✓ Sexo → sexo (enum: M, F)
+✓ EdoCivil → estado_civil_id (FK -> cat_estado_civil)
+✓ Nacionalidad → nacionalidad_id (FK -> cat_nacionalidad)
+✓ Ocupacion → ocupacion
+
+Decisión: MIGRAR CON VALIDACIÓN
+  - fecha_nacimiento → date, nullable
+  - sexo → enum o tabla catalogo
+  - estado_civil → tabla catalogo (Soltero, Casado, Divorciado, Viudo, Unión Libre)
+  - nacionalidad → ya existe en cat_nacionalidad
+  - ocupacion → string libre o tabla catalogo
+
+
+6. TIPO DE CLIENTE/PERSONALIDAD LEGAL
+--------------------------------------
+✓ TipoCliente → tipo_cliente_id (FK -> cat_tipos_cliente)
+
+Decisión: CREAR CATALOGO ROBUSTO
+  - Físicas: Persona Física, Menor de Edad, etc.
+  - Morales: S.A., S. de R.L., A.C., S.C., etc.
+  - Govt: Dependencia, Organismo, etc.
+  - Ya existe en VB como 'personalidades' (13 registros)
+
+
+================================================================================
+PARTE 3: CAMPOS PARA PERSONAS FÍSICAS
+================================================================================
+
+7. INFORMACIÓN FAMILIAR (Para actos jurídicos)
+-----------------------------------------------
+✓ Conyuge → conyuge_nombre
+○ RegimenCon → regimen_conyugal_id (Separación bienes, Sociedad conyugal, etc.)
+✓ NomPadre → nombre_padre
+✓ NomMadre → nombre_madre
+✓ FinadoPadre → padre_finado (boolean)
+✓ FinadoMadre → madre_finado (boolean)
+
+Decisión: MIGRAR (importante para escrituras)
+  - Muchas escrituras requieren datos de padres
+  - Régimen conyugal necesario para bienes inmuebles
+  - Crear tabla separada 'familiares' si crece
+
+
+8. LUGAR DE NACIMIENTO
+-----------------------
+✓ Originario (texto libre en VB) → DEPRECADO
+✓ PaisNac → pais_nacimiento_id (FK -> catpaises)
+✓ EstadoNac → estado_nacimiento_id (FK -> estados)
+✓ MunicipioNac → municipio_nacimiento_id (FK -> municipios)
+✓ CiudadNac → ciudad_nacimiento_id (FK -> ciudades)
+✓ LugarNac (longtext en VB) → DEPRECADO
+
+Decisión: NORMALIZAR
+  - Usar mismas tablas de ubicación que dirección actual
+  - Desechar campos de texto libre (Originario, LugarNac)
+
+
+9. DOCUMENTOS DE IDENTIDAD
+--------------------------
+✓ DocIden → tipo_identificacion (enum o catalogo)
+✓ NoDocIden → numero_identificacion
+
+Decisión: CREAR CATALOGO
+  - Tipos: INE, Pasaporte, Cédula Profesional, Cartilla Militar
+  - Crear tabla 'documentos_identidad' (1:N)
+
+
+================================================================================
+PARTE 4: CAMPOS PARA PERSONAS MORALES (EMPRESAS)
+================================================================================
+
+10. DATOS CORPORATIVOS
+----------------------
+✓ NombreSocial → razon_social
+✓ Representante → representante_legal_id (FK -> clientes)
+
+Decisión: MIGRAR CON NORMALIZACIÓN
+  - razon_social → requerido si tipo_cliente = Moral
+  - representante_legal → FK a la misma tabla clientes (self-referencing)
+
+
+================================================================================
+PARTE 5: CAMPOS A DEPRECAR/NO MIGRAR
+================================================================================
+
+11. CAMPOS REDUNDANTES O INNECESARIOS
+--------------------------------------
+✗ Id → redundante con Cliente
+✗ apartado → (0% poblado, uso desconocido)
+✗ Codigo (si se maneja con Codigo Postal)
+✗ Telefono → redundante con TelOfic/TelParticular
+✗ Apodo → innecesario en contexto notarial
+✗ Direccion → se genera automáticamente de componentes
+✗ Edad → se calcula de fecha_nacimiento
+✗ Tipo → ambiguo, redundante con TipoCliente
+✗ Entidad → ambiguo, parece duplicar Estado
+
+
+12. CAMPOS DE BIENES INMUEBLES (Deberían ser tabla separada)
+-------------------------------------------------------------
+✗ Lote
+✗ Manzana
+✗ Predio
+✗ Poblacion
+
+Decisión: NO MIGRAR A CLIENTES
+  - Estos son datos de PROPIEDADES, no de clientes
+  - Crear tabla 'inmuebles' separada en Fase 2 (Notaria)
+
+
+13. CAMPOS EN INGLÉS (Traducciones innecesarias)
+-------------------------------------------------
+✗ DomicilioIngles
+✗ NacionalidadIngles
+✗ OcupacionIngles
+✗ DocIdenIngles
+✗ TipoPasaporteIngles
+✗ TipoForMigIngles
+
+Decisión: NO MIGRAR
+  - No justificado para CRM de notaría mexicana
+  - Laravel puede traducir con i18n si es necesario
+
+
+14. CAMPO EXTRA SIN SENTIDO
+---------------------------
+✗ NacPadres → (nacionalidad padres? ambiguo y no usado)
+
+
+================================================================================
+RESUMEN EJECUTIVO
+================================================================================
+
+CAMPOS A MIGRAR POR CATEGORÍA:
+-------------------------------
+
+OBLIGATORIOS (siempre NOT NULL):
+  - id (auto)
+  - nombre_completo
+  - apellido_paterno
+  - tipo_cliente_id
+  - created_at, updated_at
+
+IMPORTANTES (nullable pero recomendados):
+  - apellido_materno
+  - rfc (validación formato)
+  - curp (validación formato)
+  - email (validación formato, único)
+  - telefono_principal
+
+UBICACIÓN (normalizada, nullable):
+  - codigo_postal
+  - estado_id, municipio_id, ciudad_id, colonia_id
+  - calle, numero_exterior, numero_interior
+
+PERSONALES (nullable):
+  - fecha_nacimiento
+  - sexo
+  - estado_civil_id
+  - nacionalidad_id
+  - ocupacion
+
+FAMILIARES (nullable, para escrituras):
+  - conyuge_nombre
+  - regimen_conyugal_id
+  - nombre_padre, nombre_madre
+  - padre_finado, madre_finado
+
+NACIMIENTO (nullable):
+  - pais_nacimiento_id
+  - estado_nacimiento_id (si país = México)
+
+IDENTIFICACIÓN (nullable):
+  - identificacion_oficial_tipo
+  - identificacion_oficial_numero
+  - pasaporte_numero
+  - forma_migratoria_numero
+
+CORPORATIVAS (nullable, solo si tipo_cliente = Moral):
+  - razon_social
+  - representante_legal_id
+
+TOTAL: ~35 campos (vs 65 del VB, eliminamos 30 campos innecesarios)
+
+
+CAMPOS DEPRECADOS/NO MIGRAR: 30
+  - Redundantes: Id, Telefono, Codigo (duplicado), Direccion, Edad
+  - Ambiguos: apartado, Tipo, Entidad
+  - Inmuebles: Lote, Manzana, Predio, Poblacion
+  - Traducciones: 6 campos *Ingles
+  - Texto libre reemplazado por FK: Originario, LugarNac
+
+
+================================================================================
+ESTRUCTURA PROPUESTA DE TABLAS
+================================================================================
+
+1. clientes (tabla principal)
+   - ~35 campos esenciales
+   - FK a catálogos normalizados
+   - timestamps, soft deletes
+
+2. cat_tipos_cliente (catálogo)
+   - Persona Física
+   - Persona Moral
+   - Menor de Edad
+   - S.A., S.C., A.C., etc.
+
+3. cat_estado_civil (catálogo nuevo)
+   - Soltero/a
+   - Casado/a
+   - Divorciado/a
+   - Viudo/a
+   - Unión Libre
+
+4. cat_regimen_conyugal (catálogo nuevo)
+   - Separación de Bienes
+   - Sociedad Conyugal
+   - Sociedad Legal
+
+5. estados, municipios, ciudades, colonias (normalizado de cat_cp)
+
+6. telefonos (relación 1:N con clientes)
+   - cliente_id
+   - tipo (principal, secundario, móvil, oficina, casa)
+   - numero
+   - extension
+
+7. documentos_identidad (relación 1:N)
+   - cliente_id
+   - tipo (INE, Pasaporte, Cédula, etc.)
+   - numero
+   - vigencia
+
+
+================================================================================
+PRÓXIMOS PASOS
+================================================================================
+
+1. Crear migrations para tablas normalizadas de catálogos
+2. Crear seeders para poblar catálogos desde:
+   - cat_cp → estados, municipios, ciudades, colonias
+   - cat_nacionalidad (ya existe)
+   - catpaises (ya existe)
+   - Nuevos: cat_tipos_cliente, cat_estado_civil, cat_regimen_conyugal
+3. Crear migration para tabla 'clientes' normalizada
+4. Crear comando artisan para migración inteligente:
+   - Importar datos del VB
+   - Normalizar ubicación geográfica
+   - Enriquecer con cat_cp cuando hay CP
+   - Validar RFC/CURP
+   - Generar reportes de calidad
+5. Implementar Fase 1: Alarmas + Clientes + Seguimientos
+

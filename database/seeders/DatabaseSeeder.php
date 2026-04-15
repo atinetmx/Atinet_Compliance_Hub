@@ -13,9 +13,14 @@ class DatabaseSeeder extends Seeder
     {
         // Ejecutar seeders en orden correcto
         $this->call([
-            UserRoleExamplesSeeder::class,  // 1. Planes + Super Admin
-            ServicesSeeder::class,           // 2. Catálogo de servicios (16 servicios)
-            PlanServicesSeeder::class,       // 3. Asignar servicios a planes
+            // Catálogos Base (CRM)
+            CatalogosNegocioSeeder::class,   // 0. Tipos cliente, estado civil, régimen conyugal
+            CatalogosGeografiaSeeder::class, // 1. Estados, municipios, ciudades, colonias (SEPOMEX)
+            
+            // Sistema Existente
+            UserRoleExamplesSeeder::class,  // 2. Planes + Super Admin
+            ServicesSeeder::class,           // 3. Catálogo de servicios (16 servicios)
+            PlanServicesSeeder::class,       // 4. Asignar servicios a planes
         ]);
 
         $this->command->info('');

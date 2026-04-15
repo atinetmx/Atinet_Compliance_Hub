@@ -1,0 +1,85 @@
+================================================================================
+PLAN DE NORMALIZACION - Clientes VB a Laravel
+================================================================================
+
+CAMPOS CON ALTO USO (>80% poblados):
+--------------------------------------------------------------------------------
+  Id                             100.0%
+  Cliente                        100.0%
+  Nombre                         100.0%
+  NumeroInt                      100.0%
+  Nombre1                         99.8%
+
+
+CAMPOS CON USO MEDIO (30-80% poblados):
+--------------------------------------------------------------------------------
+  ApellidoPat                     68.0%
+  ApellidoMat                     57.0%
+
+
+CAMPOS CASI VACIOS (<5% poblados):
+--------------------------------------------------------------------------------
+  Direccion                        0.6%
+  Calle                            0.5%
+  Numero                           0.5%
+  Estado                           0.4%
+  Colonia                          0.3%
+  Municipio                        0.3%
+  Codigo                           0.2%
+  RFC                              0.2%
+  Pais                             0.2%
+  Ciudad                           0.2%
+  FechaNacimiento                  0.1%
+  Edad                             0.1%
+  Lote                             0.1%
+  apartado                         0.0%
+  Telefono                         0.0%
+  Originario                       0.0%
+  Ocupacion                        0.0%
+  EdoCivil                         0.0%
+  Conyuge                          0.0%
+  CURP                             0.0%
+  TipoCliente                      0.0%
+  Representante                    0.0%
+  Nacionalidad                     0.0%
+  MunicipioNac                     0.0%
+  EstadoNac                        0.0%
+  PaisNac                          0.0%
+  RegimenCon                       0.0%
+  DocIden                          0.0%
+  IFE                              0.0%
+  NumForMig                        0.0%
+  NumPasaporte                     0.0%
+  TelParticular                    0.0%
+  PagWeb                           0.0%
+  CiudadNac                        0.0%
+  Sexo                             0.0%
+  Apodo                            0.0%
+  TipoForMig                       0.0%
+  NoDocIden                        0.0%
+  NomPadre                         0.0%
+  NomMadre                         0.0%
+  FinadoMadre                      0.0%
+  FinadoPadre                      0.0%
+  LugarNac                         0.0%
+  DomicilioIngles                  0.0%
+  NacionalidadIngles               0.0%
+  OcupacionIngles                  0.0%
+  DocIdenIngles                    0.0%
+  TipoPasaporteIngles              0.0%
+  TipoForMigIngles                 0.0%
+  NacPadres                        0.0%
+  NombreSocial                     0.0%
+  Tipo                             0.0%
+  Entidad                          0.0%
+  Poblacion                        0.0%
+  Predio                           0.0%
+  Manzana                          0.0%
+
+
+RECOMENDACIONES:
+--------------------------------------------------------------------------------
+1. Migrar solo campos con >5% de datos
+2. Normalizar: Estado, Municipio, Ciudad, Colonia -> FK
+3. Usar atinet65_catalogos para llenar datos faltantes
+4. Crear script de enriquecimiento basado en CP

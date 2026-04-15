@@ -1,0 +1,23 @@
+RESUMEN DE RELACIONES - sistemaatinet
+================================================================================
+
+FOREIGN KEYS EXPLICITAS: Ninguna
+
+CAMPOS EN 'clientes' QUE POD RIAN SER FK:
+--------------------------------------------------------------------------------
+TipoCliente (varchar(255)) -> personalidades [EXISTE]
+Colonia (varchar(255)) -> colonia [EXISTE]
+Nacionalidad (varchar(255)) -> cat_nacionalidad [EXISTE]
+Estado (varchar(255)) -> estado [EXISTE]
+Municipio (varchar(255)) -> municipio [EXISTE]
+MunicipioNac (varchar(255)) -> municipio [EXISTE]
+EstadoNac (varchar(255)) -> estado [EXISTE]
+PaisNac (varchar(255)) -> catpaises [EXISTE]
+Pais (varchar(255)) -> catpaises [EXISTE]
+Ciudad (varchar(255)) -> ciudad [EXISTE]
+CiudadNac (varchar(255)) -> ciudad [EXISTE]
+
+
+DECISION NECESARIA:
+- Los campos Estado, Municipio, Ciudad son VARCHAR, no FK
+- Durante migracion: mantener textos o normalizar?
