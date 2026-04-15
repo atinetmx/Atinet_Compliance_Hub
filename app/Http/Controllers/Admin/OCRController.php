@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\GeminiVisionService;
+use App\Services\OCRParserService;
+use App\Services\SATScraperService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
- * OCR Controller - Fase 4
+ * OCR Controller
  *
- * Procesa imágenes de documentos y extrae datos usando Gemini Vision API
- * TODO: Implementar GeminiVisionService y OCRParserService en Fase 4
+ * Procesa imágenes de documentos y extrae datos usando Gemini Vision API.
+ * Soporta: INE, CURP, Acta de Nacimiento, y QR del SAT.
  */
 class OCRController extends Controller
 {
@@ -26,36 +30,42 @@ class OCRController extends Controller
             'side' => 'required|in:front,back', // frente o reverso
         ]);
 
-        // TODO: Implementar en Fase 4
-        // $image = $request->file('image');
-        // $side = $request->input('side');
-        //
-        // $geminiService = new GeminiVisionService();
-        // $rawData = $geminiService->analyzeINE($image, $side);
-        //
-        // $parser = new OCRParserService();
-        // $parsedData = $parser->parseINE($rawData);
+        try {
+            $image = $request->file('image');
+            $side = $request->input('side');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'OCR para INE pendiente de implementación (Fase 4)',
-            'data' => [
-                'nombre' => '',
-                'apellidopat' => '',
-                'apellidomat' => '',
-                'curp' => '',
-                'rfc' => '',
-                'dia' => '',
-                'calle' => '',
-                'no_exterior' => '',
-                'colonia' => '',
-                'municipio' => '',
-                'estado' => '',
-                'cp' => '',
-                'no_identificacion' => '',
-                'vigiencia_de_ine' => '',
-            ],
-        ], 501); // Not Implemented
+            // Analizar imagen con Gemini Vision
+            $visionService = app(GeminiVisionService::class);
+            $rawData = $visionService->analyzeINE($image, $side);
+
+            // Parsear y normalizar datos
+            $parser = app(OCRParserService::class);
+            $parsedData = $parser->parseINE($rawData, $side);
+
+            Log::info('INE procesada exitosamente', [
+                'side' => $side,
+                'curp' => $parsedData['curp'] ?? 'N/A',
+                'nombre' => $parsedData['nombre'] ?? 'N/A',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'INE procesada correctamente',
+                'data' => $parsedData,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando INE', [
+                'side' => $request->input('side'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar INE: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -69,28 +79,39 @@ class OCRController extends Controller
             'image' => 'required|image|max:10240',
         ]);
 
-        // TODO: Implementar en Fase 4
-        // $image = $request->file('image');
-        //
-        // $geminiService = new GeminiVisionService();
-        // $rawData = $geminiService->analyzeCURP($image);
-        //
-        // $parser = new OCRParserService();
-        // $parsedData = $parser->parseCURP($rawData);
+        try {
+            $image = $request->file('image');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'OCR para CURP pendiente de implementación (Fase 4)',
-            'data' => [
-                'curp' => '',
-                'nombre' => '',
-                'apellidopat' => '',
-                'apellidomat' => '',
-                'dia' => '',
-                'genero' => '',
-                'estado_nac' => '',
-            ],
-        ], 501);
+            // Analizar imagen con Gemini Vision
+            $visionService = app(GeminiVisionService::class);
+            $rawData = $visionService->analyzeCURP($image);
+
+            // Parsear y normalizar datos
+            $parser = app(OCRParserService::class);
+            $parsedData = $parser->parseCURP($rawData);
+
+            Log::info('CURP procesado exitosamente', [
+                'curp' => $parsedData['curp'] ?? 'N/A',
+                'nombre' => $parsedData['nombre'] ?? 'N/A',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'CURP procesado correctamente',
+                'data' => $parsedData,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando CURP', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar CURP: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -104,37 +125,99 @@ class OCRController extends Controller
             'image' => 'required|image|max:10240',
         ]);
 
-        // TODO: Implementar en Fase 4
-        // $image = $request->file('image');
-        //
-        // $geminiService = new GeminiVisionService();
-        // $rawData = $geminiService->analyzeActaNacimiento($image);
-        //
-        // $parser = new OCRParserService();
-        // $parsedData = $parser->parseActa($rawData);
+        try {
+            $image = $request->file('image');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'OCR para Acta de Nacimiento pendiente de implementación (Fase 4)',
-            'data' => [
-                'nombre' => '',
-                'apellidopat' => '',
-                'apellidomat' => '',
-                'dia' => '',
-                'ciudad_nac' => '',
-                'municipio_nac' => '',
-                'estado_nac' => '',
-                'paisnac' => '',
-                'padre_nombre' => '',
-                'madre_nombre' => '',
-            ],
-        ], 501);
+            // Analizar imagen con Gemini Vision
+            $visionService = app(GeminiVisionService::class);
+            $rawData = $visionService->analyzeActaNacimiento($image);
+
+            // Parsear y normalizar datos
+            $parser = app(OCRParserService::class);
+            $parsedData = $parser->parseActa($rawData);
+
+            Log::info('Acta de Nacimiento procesada exitosamente', [
+                'nombre' => $parsedData['nombre'] ?? 'N/A',
+                'curp' => $parsedData['curp'] ?? 'N/A',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Acta de Nacimiento procesada correctamente',
+                'data' => $parsedData,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando Acta de Nacimiento', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar Acta de Nacimiento: '.$e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
-     * Procesar QR Code de INE
+     * Procesar QR del SAT (Constancia Fiscal)
      *
-     * Extrae datos del QR en formato MRZ de credenciales INE
+     * Extrae datos de la constancia fiscal del SAT a partir de la URL del QR.
+     * Este endpoint hace scraping del sitio del SAT y usa Gemini para estructurar
+     * los datos extraídos.
+     */
+    public function processSATQR(Request $request): JsonResponse
+    {
+        $request->validate([
+            'url' => 'required|url|string|max:500',
+        ]);
+
+        $qrUrl = $request->input('url');
+
+        // Validar que sea URL del SAT
+        if (! str_contains($qrUrl, 'siat.sat.gob.mx')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La URL no corresponde a una constancia del SAT',
+            ], 400);
+        }
+
+        try {
+            $scraper = app(SATScraperService::class);
+            $data = $scraper->processQRUrl($qrUrl);
+
+            Log::info('QR SAT procesado exitosamente', [
+                'url' => $qrUrl,
+                'rfc' => $data['rfc'] ?? 'N/A',
+                'persona' => $data['Persona'] ?? 'N/A',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'message' => 'Datos de constancia fiscal extraídos correctamente',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando QR SAT', [
+                'url' => $qrUrl,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Procesar QR Code genérico (CURP, Acta, INE)
+     *
+     * Extrae datos de QR codes con formatos estándar mexicanos.
+     * Nota: Este método es diferente de processSATQR() que requiere scraping.
      */
     public function processQR(Request $request): JsonResponse
     {

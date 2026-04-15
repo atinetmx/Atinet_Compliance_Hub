@@ -150,7 +150,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usage-trends', [\App\Http\Controllers\Admin\ReportsController::class, 'usageTrends'])->name('usage-trends');
         Route::get('top-services', [\App\Http\Controllers\Admin\ReportsController::class, 'topServices'])->name('top-services');
         Route::get('near-limit', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasNearLimit'])->name('near-limit');
-        Route::get('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
+        Route::post('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
     });
 
     // Rutas para gestión de contraseñas
@@ -212,11 +212,27 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::delete('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'destroy'])->name('destroy');
     });
 
+    // === MÓDULO ESCÁNER INTELIGENTE DE DOCUMENTOS ===
+    // Sistema para escanear, convertir y analizar documentos con OpenAI
+    Route::prefix('escaner-inteligente')->name('escaner-inteligente.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'store'])->name('store');
+        Route::get('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'show'])->name('show');
+        Route::delete('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'destroy'])->name('destroy');
+        
+        // Acciones sobre documentos
+        Route::post('{documento}/analyze', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'analyze'])->name('analyze');
+        Route::get('{documento}/download/{formato}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'download'])
+            ->name('download')
+            ->where('formato', 'original|pdf|word|texto');
+    });
+
     // === APIs para OCR y Scanners ===
     Route::prefix('ocr')->name('ocr.')->group(function () {
         Route::post('ine', [\App\Http\Controllers\Admin\OCRController::class, 'processINE'])->name('ine');
         Route::post('curp', [\App\Http\Controllers\Admin\OCRController::class, 'processCURP'])->name('curp');
         Route::post('acta', [\App\Http\Controllers\Admin\OCRController::class, 'processActa'])->name('acta');
+        Route::post('sat-qr', [\App\Http\Controllers\Admin\OCRController::class, 'processSATQR'])->name('sat-qr');
         Route::post('qr', [\App\Http\Controllers\Admin\OCRController::class, 'processQR'])->name('qr');
     });
 
@@ -265,6 +281,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
+    });
+
+    // Exportación a Excel de resultados de búsqueda
+    // NOTA: Los exportes NO consumen límites porque son resultado de búsquedas ya realizadas
+    Route::prefix('export')->name('export.')->middleware(['subscription'])->group(function () {
+        Route::post('ofac', [\App\Http\Controllers\Admin\ExportController::class, 'exportOfac'])->name('ofac');
+        Route::post('sat', [\App\Http\Controllers\Admin\ExportController::class, 'exportSat'])->name('sat');
+        Route::post('combined', [\App\Http\Controllers\Admin\ExportController::class, 'exportCombined'])->name('combined');
+        Route::post('history', [\App\Http\Controllers\Admin\ExportController::class, 'exportHistory'])->name('history');
     });
 
     // === HISTORIAL DE BÚSQUEDAS EN LISTAS NEGRAS ===

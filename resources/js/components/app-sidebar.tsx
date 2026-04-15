@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode } from 'lucide-react';
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode, ScanSearch } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -94,6 +94,11 @@ export function AppSidebar() {
                       title: 'Registro Web',
                       href: '/admin/registro-web',
                       icon: QrCode,
+                  },
+                  {
+                      title: 'Escáner Inteligente',
+                      href: '/admin/escaner-inteligente',
+                      icon: ScanSearch,
                   },
                   {
                       title: 'Control Notarial',
@@ -247,7 +252,7 @@ export function AppSidebar() {
 
     const footerNavItems: NavItem[] = [
 
-        // Boton para repositorio laravel. 
+        // Boton para repositorio laravel.
         // {
         //     title: 'Repository',
         //     href: 'https://github.com/laravel/react-starter-kit',

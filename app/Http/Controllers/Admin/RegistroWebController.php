@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreRegistroRequest;
 use App\Models\LegacyRegistro;
 use App\Models\RegistroPersona;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -73,122 +75,115 @@ class RegistroWebController extends Controller
 
     /**
      * Guardar NUEVO registro (en BD NUEVA)
+     *
+     * Usa StoreRegistroRequest que valida:
+     * - CURP: 18 caracteres con regex específico (solo persona física)
+     * - RFC: 12-13 caracteres con regex específico
+     * - Validación diferenciada según tipo de persona
+     * - 85 campos completos
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreRegistroRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            // Metadata
-            'persona' => 'required|in:fisica,moral',
+        // Los datos ya están validados por StoreRegistroRequest
+        $validated = $request->validated();
 
-            // Datos personales
-            'nombre' => 'required|string|max:30',
-            'apellidopat' => 'required_if:persona,fisica|nullable|string|max:30',
-            'apellidomat' => 'nullable|string|max:30',
-            'alias' => 'nullable|string|max:100',
-            'curp' => 'nullable|string|size:18',
-            'rfc' => 'required|string|max:13',
-            'dia' => 'required|date',
-            'genero' => 'required_if:persona,fisica|nullable|string|max:50',
-            'paisnac' => 'nullable|string|max:100',
-            'nacionalidad' => 'nullable|string|max:100',
-            'estado_nac' => 'nullable|string|max:100',
-            'ciudad_nac' => 'nullable|string|max:100',
-            'municipio_nac' => 'nullable|string|max:100',
-            'ocupacion' => 'nullable|string|max:100',
-            'edo_civil' => 'nullable|string|max:100',
-            'conyuge' => 'nullable|string|max:100',
+        // Detectar si ya existe registro con mismo CURP o RFC (auto-update)
+        $existente = null;
 
-            // Datos del cónyuge
-            'nombre_conyuge' => 'nullable|string|max:50',
-            'apellido_paterno_conyuge' => 'nullable|string|max:50',
-            'apellido_materno_conyuge' => 'nullable|string|max:50',
-            'doc_identificacion' => 'nullable|string|max:100',
-            'num_doc_identificacion' => 'nullable|integer',
-            'autoridad_emisora' => 'nullable|string|max:100',
+        if (! empty($validated['curp'])) {
+            $existente = RegistroPersona::where('curp', $validated['curp'])->first();
+        }
 
-            // Domicilio particular
-            'calle' => 'nullable|string|max:100',
-            'no_exterior' => 'nullable|string|max:100',
-            'no_interior' => 'nullable|string|max:100',
-            'manzana' => 'nullable|string|max:100',
-            'lote' => 'nullable|string|max:100',
-            'cp' => 'nullable|integer',
-            'colonia' => 'nullable|string|max:100',
-            'municipio' => 'nullable|string|max:100',
-            'estado' => 'nullable|string|max:100',
-            'ciudad' => 'nullable|string|max:100',
-            'pais' => 'nullable|string|max:100',
+        if (! $existente && ! empty($validated['rfc'])) {
+            $existente = RegistroPersona::where('rfc', $validated['rfc'])->first();
+        }
 
-            // Domicilio fiscal
-            'calle_fiscal' => 'nullable|string|max:100',
-            'no_exterior_fiscal' => 'nullable|string|max:100',
-            'no_interior_fiscal' => 'nullable|string|max:100',
-            'manzana_fiscal' => 'nullable|string|max:100',
-            'lote_fiscal' => 'nullable|string|max:100',
-            'cp_fiscal' => 'nullable|integer',
-            'colonia_fiscal' => 'nullable|string|max:100',
-            'municipio_fiscal' => 'nullable|string|max:100',
-            'estado_fiscal' => 'nullable|string|max:100',
-            'ciudad_fiscal' => 'nullable|string|max:100',
-            'pais_fiscal' => 'nullable|string|max:100',
-
-            // Contacto
-            'telefono' => 'nullable|string|max:50',
-            'telefonos' => 'nullable|string|max:100',
-            'telefono_oficina' => 'nullable|string|max:20',
-            'telefono_movil' => 'nullable|string|max:20',
-            'correo' => 'nullable|email|max:150',
-            'gmail2' => 'nullable|email|max:225',
-
-            // Identificación
-            'documento' => 'nullable|string|max:100',
-            'no_identificacion' => 'nullable|string|max:100',
-            'vigiencia_de_ine' => 'nullable|date',
-            'autoridad_emisora_usuario' => 'nullable|string|max:225',
-
-            // Información adicional
-            'regimen_fiscal' => 'nullable|string|max:225',
-            'servicios_medicos' => 'nullable|string|max:225',
-            'id_y_cartainmigracion' => 'nullable|string|max:225',
-            'observaciones_adicionales' => 'nullable|string|max:500',
-
-            // Datos del testador
-            'sabe_escribir' => 'nullable|string|max:10',
-            'sabe_leer' => 'nullable|string|max:10',
-            'padre_nombre' => 'nullable|string|max:255',
-            'padre_vive' => 'nullable|string|max:10',
-            'madre_nombre' => 'nullable|string|max:255',
-            'madre_vive' => 'nullable|string|max:10',
-            'hijos' => 'nullable|string|max:200',
-            'herederos' => 'nullable|string|max:200',
-            'herederos_sustitutos' => 'nullable|string',
-            'albacea' => 'nullable|string|max:45',
-            'albacea_sustituto' => 'nullable|string|max:255',
-            'tutor_tutriz' => 'nullable|string|max:255',
-            'tutor_sustituto' => 'nullable|string|max:255',
-            'observaciones' => 'nullable|string|max:45',
-        ]);
+        // Normalizar datos (convertir a MAYÚSCULAS según PHP original)
+        $validated = $this->normalizeData($validated);
 
         // Agregar metadata automática
-        $validated['dia_registro'] = now()->toDateString();
-        $validated['notaria'] = Auth::user()->notaria_code ?? Auth::user()->notaria->legacy_identifier ?? '';
-        $validated['envio_de_correo'] = false;
+        $validated['dia_registro'] = $validated['dia_registro'] ?? now()->toDateString();
+        $validated['notaria'] = $validated['notaria'] ?? Auth::user()->notaria_code ?? Auth::user()->notaria->legacy_identifier ?? '';
+        $validated['envio_de_correo'] = $validated['envio_de_correo'] ?? false;
 
-        // Valores por defecto
+        // Valores por defecto (si no vienen del request)
         $validated['alias'] = $validated['alias'] ?? '';
         $validated['pais'] = $validated['pais'] ?? 'MEXICO';
         $validated['pais_fiscal'] = $validated['pais_fiscal'] ?? 'MEXICO';
         $validated['paisnac'] = $validated['paisnac'] ?? 'MEXICO';
         $validated['nacionalidad'] = $validated['nacionalidad'] ?? 'MEXICANA';
 
-        // Guardar en BD NUEVA (registro_web)
-        $registro = RegistroPersona::create($validated);
+        // INSERT o UPDATE según detección de duplicados
+        if ($existente) {
+            $existente->update($validated);
+            $accion = 'actualizado';
+            $registro = $existente;
+
+            Log::info('Registro actualizado por duplicado', [
+                'id' => $existente->id,
+                'curp' => $validated['curp'] ?? null,
+                'rfc' => $validated['rfc'],
+            ]);
+        } else {
+            $registro = RegistroPersona::create($validated);
+            $accion = 'creado';
+
+            Log::info('Registro creado', [
+                'id' => $registro->id,
+                'persona' => $validated['persona'],
+                'curp' => $validated['curp'] ?? null,
+                'rfc' => $validated['rfc'],
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => "Registro #{$registro->id} creado correctamente",
+            'message' => "Registro #{$registro->id} {$accion} correctamente",
             'data' => $registro,
+            'action' => $accion, // 'creado' o 'actualizado'
         ]);
+    }
+
+    /**
+     * Normalizar datos según sistema PHP original
+     * Convierte a MAYÚSCULAS y ajusta tipos de datos
+     */
+    protected function normalizeData(array $data): array
+    {
+        // Campos que deben ir en MAYÚSCULAS
+        $camposMayusculas = [
+            'nombre', 'apellidopat', 'apellidomat', 'curp', 'rfc',
+            'nombre_conyuge', 'apellido_paterno_conyuge', 'apellido_materno_conyuge',
+            'calle', 'colonia', 'municipio', 'estado', 'ciudad', 'pais',
+            'calle_fiscal', 'colonia_fiscal', 'municipio_fiscal', 'estado_fiscal', 'ciudad_fiscal', 'pais_fiscal',
+            'calle_notificaciones', 'colonia_notificaciones', 'municipio_notificaciones', 'estado_notificaciones', 'ciudad_notificaciones', 'pais_notificaciones',
+            'paisnac', 'nacionalidad', 'estado_nac', 'ciudad_nac', 'municipio_nac',
+            'padre_nombre', 'madre_nombre', 'autoridad_emisora', 'autoridad_emisora_usuario',
+        ];
+
+        foreach ($camposMayusculas as $campo) {
+            if (isset($data[$campo]) && is_string($data[$campo])) {
+                $data[$campo] = mb_strtoupper(trim($data[$campo]), 'UTF-8');
+            }
+        }
+
+        // Convertir códigos postales a entero (si vienen)
+        if (isset($data['cp']) && ! empty($data['cp'])) {
+            $data['cp'] = (int) $data['cp'];
+        }
+        if (isset($data['cp_fiscal']) && ! empty($data['cp_fiscal'])) {
+            $data['cp_fiscal'] = (int) $data['cp_fiscal'];
+        }
+        if (isset($data['cp_notificaciones']) && ! empty($data['cp_notificaciones'])) {
+            $data['cp_notificaciones'] = (int) $data['cp_notificaciones'];
+        }
+
+        // Convertir num_doc_identificacion a entero si viene
+        if (isset($data['num_doc_identificacion']) && ! empty($data['num_doc_identificacion'])) {
+            $data['num_doc_identificacion'] = (int) $data['num_doc_identificacion'];
+        }
+
+        return $data;
     }
 
     /**
@@ -213,24 +208,46 @@ class RegistroWebController extends Controller
 
     /**
      * Actualizar registro (solo registros nuevos)
+     *
+     * Usa la misma validación y normalización que store()
+     * para mantener consistencia en el formato de datos
      */
-    public function update(Request $request, int $id): JsonResponse
+    public function update(StoreRegistroRequest $request, int $id): JsonResponse
     {
         $registro = RegistroPersona::findOrFail($id);
 
-        $validated = $request->validate([
-            // Same validation rules as store
-            'persona' => 'required|in:fisica,moral',
-            'nombre' => 'required|string|max:30',
-            // ... (same fields as store)
-        ]);
+        // Obtener datos validados
+        $validated = $request->validated();
 
+        // Normalizar datos (MAYÚSCULAS, tipos)
+        $validated = $this->normalizeData($validated);
+
+        // Aplicar defaults si no vienen
+        $validated['dia_registro'] = $validated['dia_registro'] ?? $registro->dia_registro ?? now()->toDateString();
+        $validated['notaria'] = $validated['notaria'] ?? $registro->notaria ?? Auth::user()->notaria->legacy_identifier ?? '';
+        $validated['envio_de_correo'] = $validated['envio_de_correo'] ?? $registro->envio_de_correo ?? false;
+
+        // Defaults de ubicación
+        $validated['pais'] = $validated['pais'] ?? 'MEXICO';
+        $validated['pais_fiscal'] = $validated['pais_fiscal'] ?? 'MEXICO';
+        $validated['paisnac'] = $validated['paisnac'] ?? 'MEXICO';
+        $validated['nacionalidad'] = $validated['nacionalidad'] ?? 'MEXICANA';
+
+        // Actualizar registro
         $registro->update($validated);
+
+        Log::info('Registro actualizado', [
+            'id' => $registro->id,
+            'curp' => $validated['curp'] ?? null,
+            'rfc' => $validated['rfc'] ?? null,
+            'persona' => $validated['persona'] ?? null,
+            'updated_by' => Auth::id(),
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => "Registro #{$registro->id} actualizado correctamente",
-            'data' => $registro,
+            'data' => $registro->fresh(),
         ]);
     }
 
@@ -250,16 +267,27 @@ class RegistroWebController extends Controller
 
     /**
      * Buscar por CURP (busca en AMBAS tablas)
+     * Valida formato según sistema PHP original: 18 caracteres con patrón específico
      */
     public function searchCurp(Request $request): JsonResponse
     {
-        $curp = strtoupper($request->query('curp', ''));
+        $curp = strtoupper(trim($request->query('curp', '')));
 
         if (empty($curp)) {
             return response()->json([
                 'found' => false,
                 'message' => 'CURP no proporcionado',
             ], 400);
+        }
+
+        // Validar formato CURP (18 caracteres): 4 letras + 6 dígitos + H/M + 5 letras + 1 alfanumérico + 1 dígito
+        if (! preg_match('/^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d$/', $curp)) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Formato de CURP inválido. Debe tener 18 caracteres alfanuméricos con el patrón: 4 letras + 6 dígitos + H/M + 5 letras + 1 alfanumérico + 1 dígito',
+                'curp_recibido' => $curp,
+                'longitud' => strlen($curp),
+            ], 422);
         }
 
         // Buscar primero en BD nueva
@@ -289,21 +317,33 @@ class RegistroWebController extends Controller
         return response()->json([
             'found' => false,
             'message' => 'No se encontró ningún registro con ese CURP',
+            'curp_buscado' => $curp,
         ]);
     }
 
     /**
      * Buscar por RFC (busca en AMBAS tablas)
+     * Valida formato según sistema PHP original: 12-13 caracteres con patrón específico
      */
     public function searchRfc(Request $request): JsonResponse
     {
-        $rfc = strtoupper($request->query('rfc', ''));
+        $rfc = strtoupper(trim($request->query('rfc', '')));
 
         if (empty($rfc)) {
             return response()->json([
                 'found' => false,
                 'message' => 'RFC no proporcionado',
             ], 400);
+        }
+
+        // Validar formato RFC (12-13 caracteres): 3-4 letras + 6 dígitos + 2-3 alfanuméricos
+        if (! preg_match('/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3}$/u', $rfc)) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Formato de RFC inválido. Debe tener 12-13 caracteres con el patrón: 3-4 letras + 6 dígitos + 2-3 alfanuméricos',
+                'rfc_recibido' => $rfc,
+                'longitud' => strlen($rfc),
+            ], 422);
         }
 
         // Buscar primero en BD nueva
@@ -333,6 +373,7 @@ class RegistroWebController extends Controller
         return response()->json([
             'found' => false,
             'message' => 'No se encontró ningún registro con ese RFC',
+            'rfc_buscado' => $rfc,
         ]);
     }
 }

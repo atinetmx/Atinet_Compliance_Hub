@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
@@ -115,9 +116,27 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                 // Agregar título y metadata
                 $sheet->insertNewRowBefore(1, 5);
 
-                $sheet->setCellValue('A1', 'RESULTADOS DE BÚSQUEDA - LISTA NEGRA SAT');
-                $sheet->mergeCells('A1:I1');
-                $sheet->getStyle('A1')->applyFromArray([
+                // Agregar logo de Atinet
+                $logoPath = public_path('images/logo-atinet.png');
+                if (file_exists($logoPath)) {
+                    $drawing = new Drawing();
+                    $drawing->setName('Atinet Logo');
+                    $drawing->setDescription('Logo Atinet Compliance Hub');
+                    $drawing->setPath($logoPath);
+                    $drawing->setHeight(80);
+                    $drawing->setCoordinates('A1');
+                    $drawing->setOffsetX(10);
+                    $drawing->setOffsetY(5);
+                    $drawing->setWorksheet($sheet);
+                }
+
+                // Ajustar altura de las primeras filas para el logo
+                $sheet->getRowDimension(1)->setRowHeight(60);
+
+                // Título principal (alineado a la derecha junto al logo)
+                $sheet->setCellValue('D1', 'RESULTADOS DE BÚSQUEDA - LISTA NEGRA SAT');
+                $sheet->mergeCells('D1:I1');
+                $sheet->getStyle('D1')->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'size' => 16,
@@ -129,9 +148,9 @@ class SatSearchResultsExport implements FromArray, WithColumnWidths, WithEvents,
                     ],
                 ]);
 
-                $sheet->setCellValue('A2', 'Atinet Compliance Hub');
-                $sheet->mergeCells('A2:I2');
-                $sheet->getStyle('A2')->applyFromArray([
+                $sheet->setCellValue('D2', 'Atinet Compliance Hub');
+                $sheet->mergeCells('D2:I2');
+                $sheet->getStyle('D2')->applyFromArray([
                     'font' => ['size' => 11, 'italic' => true],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
