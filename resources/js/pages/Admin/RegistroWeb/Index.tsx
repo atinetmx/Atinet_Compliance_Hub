@@ -26,7 +26,6 @@ import { ImageOCRScanner } from '@/components/Admin/RegistroWeb/ImageOCRScanner'
 import { MissingFieldsModal } from '@/components/Admin/RegistroWeb/MissingFieldsModal';
 import { DocumentSelectorModal } from '@/components/Admin/RegistroWeb/DocumentSelectorModal';
 import { procesarDatosQR, type ParsedQRData } from '@/utils/qr-parser';
-import { processSATQR } from '@/actions/App/Http/Controllers/Admin/OCRController';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AtinetLoader } from '@/components/ui/AtinetLoader';
 import {
@@ -44,6 +43,8 @@ interface Props {
         total_legacy: number;
     };
 }
+
+const PROCESS_SAT_QR_URL = '/admin/ocr/sat-qr';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -356,7 +357,7 @@ export default function Index({ notaria, stats }: Props) {
                         loaderInstance = await AtinetLoader.showCompletando();
 
                         try {
-                            const satResponse = await fetch(processSATQR().url, {
+                            const satResponse = await fetch(PROCESS_SAT_QR_URL, {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -443,7 +444,7 @@ export default function Index({ notaria, stats }: Props) {
             if (parsedData.urlSAT) {
                 loaderInstance = await AtinetLoader.showSAT();
 
-                const satResponse = await fetch(processSATQR().url, {
+                const satResponse = await fetch(PROCESS_SAT_QR_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
