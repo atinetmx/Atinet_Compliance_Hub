@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToNotaria;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SearchHistory extends Model
 {
     /** @use HasFactory<\Database\Factories\SearchHistoryFactory> */
-    use HasFactory;
+    use BelongsToNotaria, HasFactory;
 
     protected $fillable = [
         'user_id',
@@ -28,6 +29,8 @@ class SearchHistory extends Model
         ];
     }
 
+    // notaria() viene del trait BelongsToNotaria
+
     /**
      * Relación con el usuario que realizó la búsqueda
      */
@@ -37,27 +40,11 @@ class SearchHistory extends Model
     }
 
     /**
-     * Relación con la notaría
-     */
-    public function notaria(): BelongsTo
-    {
-        return $this->belongsTo(Notaria::class);
-    }
-
-    /**
      * Scope para filtrar por usuario
      */
     public function scopeForUser($query, User $user)
     {
         return $query->where('user_id', $user->id);
-    }
-
-    /**
-     * Scope para filtrar por notaría
-     */
-    public function scopeForNotaria($query, $notariaId)
-    {
-        return $query->where('notaria_id', $notariaId);
     }
 
     /**
