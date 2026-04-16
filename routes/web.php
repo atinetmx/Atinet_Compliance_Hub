@@ -184,6 +184,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // === MÓDULO CONTROL NOTARIAL ===
     // Sistema de gestión notarial (migración desde VB6)
+    // Auto-login gateway para módulo CN (devuelve JWT de C# sin doble login)
+    Route::post('control-notarial/auto-login', [\App\Http\Controllers\ControlNotarialController::class, 'autoLogin'])->name('control-notarial.auto-login');
+
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');

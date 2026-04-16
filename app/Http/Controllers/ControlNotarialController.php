@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ControlNotarialApiService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -157,5 +161,60 @@ class ControlNotarialController extends Controller
     public function clientes(): Response
     {
         return Inertia::render('ControlNotarial/Configuracion/Clientes/Index');
+    }
+
+    /**
+     * Auto-login gateway: obtiene JWT de C# para el usuario autenticado en Laravel.
+     * El frontend lo llama al entrar a cualquier módulo CN, evitando el doble login.
+     */
+    public function autoLogin(): JsonResponse
+    {
+        $user = Auth::user();
+
+        if (! $user->cn_usuario_id || ! $user->cn_password) {
+            return response()->json([
+                'success' => false,
+                'error' => 'El usuario no tiene cuenta en Control Notarial.',
+            ], 403);
+        }
+
+        try {
+            $cnUsuario = DB::table('tbl_cat_usuarios')
+                ->where('Id', $user->cn_usuario_id)
+                ->value('Usuario');
+
+            if (! $cnUsuario) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Usuario Control Notarial no encontrado.',
+                ], 404);
+            }
+
+            // Resetear sesión activa bloqueante antes de autenticar
+            DB::table('tbl_cat_usuarios')
+                ->where('Id', $user->cn_usuario_id)
+                ->update(['Sesion_Iniciada' => 0]);
+
+            $plainPassword = decrypt($user->cn_password);
+
+            $token = app(ControlNotarialApiService::class)->loginUser($cnUsuario, $plainPassword);
+
+            if (! $token) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se pudo autenticar en Control Notarial.',
+                ], 502);
+            }
+
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno al obtener token CN.',
+            ], 500);
+        }
     }
 }

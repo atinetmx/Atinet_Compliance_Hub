@@ -1,90 +1,93 @@
 import { useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
-import { isAuthenticated, removeToken } from '@/services/authService';
+import { isAuthenticated, removeToken, saveToken } from '@/services/authService';
 
 /**
- * Hook que valida el token en cada página del Control Notarial
- * Si el token no es válido, limpia la sesión y muestra el login
- *
- * @param options Configuración del hook
- * @param options.onUnauthorized Callback cuando detecta 401 (token inválido)
- * @param options.validateOnMount Si true, hace una llamada al servidor para validar (opcional)
- *
- * @example
- * export default function MiPagina() {
- *   const [showLoginModal, setShowLoginModal] = useState(false);
- *
- *   useAuthGuard({
- *     onUnauthorized: () => setShowLoginModal(true)
- *   });
- *
- *   // El resto del componente...
- * }
+ * Llama al endpoint de Laravel que obtiene el JWT del usuario en C#.
+ * Guarda el token en localStorage. Retorna true si se obtuvo correctamente.
+ */
+async function gatewayAutoLogin(): Promise<boolean> {
+    try {
+        // El meta csrf-token lo inserta Laravel en el <head> en app.tsx / layout
+        const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
+        const response = await fetch('/control-notarial/auto-login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
+            },
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        if (data.success && data.token) {
+            saveToken(data.token);
+            return true;
+        }
+        return false;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Hook que valida el token en cada página del Control Notarial.
+ * Si no hay token (o el actual es inválido) intenta obtener uno automáticamente
+ * vía el gateway de Laravel, sin mostrar ningún modal de login.
+ * Solo en caso de fallo llama a `onUnauthorized` como fallback.
  */
 export function useAuthGuard(options: {
     onUnauthorized?: () => void;
-    validateOnMount?: boolean;  // Si true, valida con servidor
+    validateOnMount?: boolean;
 } = {}) {
     const { onUnauthorized, validateOnMount = false } = options;
     const api = useApi();
     const hasChecked = useRef(false);
 
     useEffect(() => {
-        // Solo ejecutar UNA VEZ al montar el componente
         if (hasChecked.current) return;
         hasChecked.current = true;
 
         const validateAuth = async () => {
-            // 1️⃣ Verificar si hay token en localStorage
+            // Sin token → pedir uno automáticamente al gateway
             if (!isAuthenticated()) {
-                removeToken();
-                onUnauthorized?.();
+                const ok = await gatewayAutoLogin();
+                if (!ok) {
+                    onUnauthorized?.();
+                }
                 return;
             }
 
-            // 2️⃣ Si validateOnMount es true, hacer una llamada al servidor
+            // Con token y validateOnMount → verificar con servidor
             if (validateOnMount) {
                 try {
-                    // Llamar un endpoint seguro para validar el token
                     const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
-
-                    // Si es 401, el token es inválido
                     if (response.isUnauthorized) {
                         removeToken();
+                        // Token expirado → renovar automáticamente
+                        const ok = await gatewayAutoLogin();
+                        if (!ok) {
+                            onUnauthorized?.();
+                        }
+                    }
+                } catch {
+                    removeToken();
+                    const ok = await gatewayAutoLogin();
+                    if (!ok) {
                         onUnauthorized?.();
                     }
-                } catch (error) {
-                    console.error('Error validando token:', error);
-                    removeToken();
-                    onUnauthorized?.();
                 }
             }
         };
 
         validateAuth();
-    }, []);  // Array de dependencias vacío - solo se ejecuta al montar
+    }, []);
 
     return { hasChecked: hasChecked.current };
 }
 
 /**
- * Hook que intercepta respuestas 401 y redirige al login automáticamente
- * Útil para manejar cuando el token expira durante el uso
- *
- * @param options Configuración
- * @param options.onTokenExpired Callback cuando detecta 401 durante una operación
- *
- * @example
- * export default function MiPagina() {
- *   const [showLoginModal, setShowLoginModal] = useState(false);
- *
- *   useAuthInterceptor({
- *     onTokenExpired: () => {
- *       setShowLoginModal(true);
- *       addToast('Tu sesión ha expirado. Por favor inicia sesión nuevamente.', 'warning');
- *     }
- *   });
- * }
+ * Hook que intercepta respuestas 401 y renueva el token automáticamente.
  */
 export function useAuthInterceptor(options: {
     onTokenExpired?: () => void;
@@ -92,14 +95,15 @@ export function useAuthInterceptor(options: {
 } = {}) {
     const { onTokenExpired, showErrorToast } = options;
 
-    // Este hook simplemente expone la funcionalidad
-    // El manejo real ocurre cuando la API retorna isUnauthorized: true
-
     return {
-        handleUnauthorized: () => {
+        handleUnauthorized: async () => {
             removeToken();
-            onTokenExpired?.();
-            showErrorToast?.('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+            const ok = await gatewayAutoLogin();
+            if (!ok) {
+                onTokenExpired?.();
+                showErrorToast?.('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+            }
         },
     };
 }
+

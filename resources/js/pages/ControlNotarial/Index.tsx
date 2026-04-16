@@ -1,11 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings, LogOut } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
-import LoginModal from '@/components/Modals/LoginModal';
-import { Button } from '@/components/ui/button';
-import { isAuthenticated, logout } from '@/services/authService';
 
 interface Task {
     total: number;
@@ -45,28 +41,6 @@ export default function ControlNotarialIndex({
     phase,
     tasks,
 }: Props) {
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
-    const [logoutProcessing, setLogoutProcessing] = useState(false);
-
-    // Mostrar modal de login al cargar la página si no está autenticado
-    useEffect(() => {
-        if (!isAuthenticated()) {
-            setLoginModalOpen(true);
-        }
-    }, []);
-
-    const handleLogout = async () => {
-        setLogoutProcessing(true);
-        try {
-            await logout();
-            // Mostrar modal de login nuevamente
-            setLoginModalOpen(true);
-        } catch (error) {
-            console.error('Error en logout:', error);
-        } finally {
-            setLogoutProcessing(false);
-        }
-    };
     const breadcrumbs = [
         {
             title: 'Dashboard',
@@ -106,22 +80,6 @@ export default function ControlNotarialIndex({
             <div className="min-h-screen space-y-6 p-6">
                 {/* Hero Section */}
                 <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-8 dark:border-amber-800 dark:from-amber-950/50 dark:via-yellow-950/30 dark:to-orange-950/20">
-                    {/* Botón Logout */}
-                    {isAuthenticated() && (
-                        <div className="absolute top-4 right-4 z-20">
-                            <Button
-                                onClick={handleLogout}
-                                disabled={logoutProcessing}
-                                variant="destructive"
-                                size="sm"
-                                className="flex items-center gap-2"
-                            >
-                                <LogOut className="size-4" />
-                                {logoutProcessing ? 'Cerrando...' : 'Cerrar Sesión'}
-                            </Button>
-                        </div>
-                    )}
-
                     <div className="relative z-10">
                         <div className="mb-4 flex items-center gap-3">
                             <div className="rounded-lg bg-amber-500 p-3 text-white shadow-lg">
@@ -203,14 +161,5 @@ export default function ControlNotarialIndex({
 
             </div>
 
-            {/* Modal de Login */}
-            <LoginModal
-                isOpen={loginModalOpen}
-                onClose={() => setLoginModalOpen(false)}
-                onSuccess={() => {
-                    setLoginModalOpen(false);
-                }}
-            />
-        </AppLayout>
     );
 }
