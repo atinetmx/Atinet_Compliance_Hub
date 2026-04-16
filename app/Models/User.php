@@ -29,6 +29,8 @@ class User extends Authenticatable
         'notaria_id',
         'tipo_cuenta',
         'recoverable_password',
+        'cn_usuario_id',
+        'cn_rol_id',
     ];
 
     /**
