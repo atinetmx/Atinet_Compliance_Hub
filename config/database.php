@@ -64,6 +64,26 @@ return [
         ],
 
         // =========================================================
+        // CONEXIÓN BD CONTROL NOTARIAL (sistema de Alex)
+        // Origen de migración: bd_sistemacontrolnotarial_principal
+        // =========================================================
+        'controlnotarial' => [
+            'driver' => 'mysql',
+            'host' => env('CN_DB_HOST', '127.0.0.1'),
+            'port' => env('CN_DB_PORT', '3307'),
+            'database' => env('CN_DB_DATABASE', 'bd_sistemacontrolnotarial_principal'),
+            'username' => env('CN_DB_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('CN_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
+        // =========================================================
         // CONEXIONES LOCALES (Lectura rápida para búsquedas)
         // =========================================================
 

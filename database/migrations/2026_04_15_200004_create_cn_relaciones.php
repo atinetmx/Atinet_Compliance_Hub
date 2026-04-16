@@ -97,7 +97,7 @@ return new class extends Migration
             $table->dateTime('Fecha_Conclusion')->nullable();
             $table->text('Observaciones')->nullable()->charset('utf8mb4')->collation('utf8mb4_unicode_ci');
             $table->boolean('Activo')->nullable();
-            $table->dateTime('Fecha_Creacion')->useCurrent();
+            $table->dateTime('Fecha_Creacion')->nullable(); // nullable: hay registros legacy con NULL
 
             $table->foreign('Expediente_Id')->references('Id')->on('tbl_ope_expedientes');
             $table->foreign('Dependencia_Id')->references('Id')->on('tbl_cat_dependencias_publicas');
