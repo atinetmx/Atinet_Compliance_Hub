@@ -126,30 +126,23 @@ php artisan optimize:clear
 
 ## Notas para el Desarrollador Alex
 
-### Cambio de BD objetivo
+### Cambio de BD objetivo — COMPLETADO (Sesión 4)
 
-El API C# (`bd_sistemacontrolnotarial_principal`) **eventualmente** deberá apuntar a `atinet_compliance_hub`. Esto requiere:
+El API C# en `C:\SCN` fue actualizado exitosamente para apuntar a `atinet_compliance_hub`:
 
-1. Cambiar el `ConnectionString` en `appsettings.json` del API .NET para apuntar a `atinet_compliance_hub`.
-2. Verificar que el usuario de BD tenga permisos en la nueva BD.
-3. Las tablas `tbl_*` ya están creadas en `atinet_compliance_hub` (vacías) — el API puede conectarse sin pérdida de datos si se migran los datos antes.
+- **Archivo modificado:** `C:\SCN\appsettings.json`
+- **Backup creado:** `C:\SCN\appsettings.json.bak`
+- **Sitio IIS:** `SCN` (reiniciado para aplicar cambios)
 
-### Migración de datos (pendiente)
+```json
+// ANTES:
+"mySqlConnectionRelease": "Server=localhost;Database=bd_SistemaControlNotarial_Principal;User= atinet_app;Password=Atinet2026#Secure;Port=3307;"
 
-Para migrar los datos existentes de `bd_sistemacontrolnotarial_principal` a `atinet_compliance_hub`:
-
-```bash
-# Exportar datos (sin estructura)
-mysqldump -h127.0.0.1 -P3307 -uatinet_app -p"Atinet2026#Secure" \
-  --no-create-info --skip-triggers \
-  bd_sistemacontrolnotarial_principal > tbl_data_export.sql
-
-# Importar en BD maestra
-mysql -h127.0.0.1 -P3307 -uatinet_app -p"Atinet2026#Secure" \
-  atinet_compliance_hub < tbl_data_export.sql
+// DESPUÉS:
+"mySqlConnectionRelease": "Server=localhost;Database=atinet_compliance_hub;User=atinet_app;Password=Atinet2026#Secure;Port=3307;"
 ```
 
-> ⚠️ La migración de datos es un paso futuro que requiere coordinación. No ejecutar en producción sin validar integridad referencial.
+> ✅ El API .NET ya opera sobre `atinet_compliance_hub` con los 23,981 registros migrados (`tbl_*`).
 
 ---
 
@@ -160,8 +153,8 @@ mysql -h127.0.0.1 -P3307 -uatinet_app -p"Atinet2026#Secure" \
 | Migraciones `tbl_*` Laravel creadas y aplicadas | ✅ Completado |
 | URL API C# corregida en `.env` | ✅ Completado |
 | Commit en `server-fixes-2026-03-26` | ✅ Completado |
-| Migración de datos de `bd_sistemacontrolnotarial_principal` | ⏳ Pendiente |
-| Cambio `ConnectionString` API C# a BD maestra | ⏳ Pendiente |
+| Migración de datos de `bd_sistemacontrolnotarial_principal` | ✅ Completado (23,981 registros) |
+| Cambio `ConnectionString` API C# a BD maestra | ✅ Completado (C:\SCN\appsettings.json) |
 | Implementación Gateway para eliminar doble login | ⏳ Pendiente |
 | Merge de `server-fixes-2026-03-26` a `master` | ⏳ Pendiente |
 
