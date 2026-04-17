@@ -2,8 +2,6 @@ import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
-import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +16,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
-import LoginModal from '@/components/Modals/LoginModal';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -138,9 +135,6 @@ const formatCurrency = (value: number): string => {
 };
 
 export default function PresupuestoPrevioIndex() {
-    // --- Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
-
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<PresupuestoPrevioBusqueda[]>([]);
@@ -200,14 +194,6 @@ export default function PresupuestoPrevioIndex() {
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
-    // ✅ Validar token al montar la página
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
-        }
-    });
-
     // Cargar presupuestos al montar (filtro vacío = todos)
     useEffect(() => {
         fetchPresupuestos('');
@@ -218,16 +204,11 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const response = await api.get('/Clientes/GetClientes');
-
-                // ✅ Usar helper para manejar respuesta
-                const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
-                });
-
-                if (datos) {
-                    setClientes(datos);
+                const data = await api.get('/Clientes/GetClientes');
+                if (data && data.dataResponse) {
+                    setClientes(data.dataResponse || []);
+                } else {
+                    throw new Error(data?.message || 'Error al obtener los clientes');
                 }
             } catch (error) {
                 console.error('Error cargando clientes:', error);
@@ -245,16 +226,11 @@ export default function PresupuestoPrevioIndex() {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await api.get('/Catalogos/GetOperaciones');
-
-                // ✅ Usar helper
-                const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
-                });
-
-                if (datos) {
-                    setOperaciones(datos);
+                const data = await api.get('/Catalogos/GetOperaciones');
+                if (data && data.dataResponse) {
+                    setOperaciones(data.dataResponse || []);
+                } else {
+                    throw new Error(data?.message || 'Error al obtener las operaciones');
                 }
             } catch (error) {
                 console.error('Error cargando operaciones:', error);
@@ -272,16 +248,11 @@ export default function PresupuestoPrevioIndex() {
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
-                const response = await api.get('/Catalogos/GetZonasMunicipios');
-
-                // ✅ Usar helper
-                const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
-                });
-
-                if (datos) {
-                    setZonas(datos);
+                const data = await api.get('/Catalogos/GetZonasMunicipios');
+                if (data && data.dataResponse) {
+                    setZonas(data.dataResponse || []);
+                } else {
+                    throw new Error(data?.message || 'Error al obtener las zonas/municipios');
                 }
             } catch (error) {
                 console.error('Error cargando zonas:', error);
@@ -689,30 +660,17 @@ export default function PresupuestoPrevioIndex() {
                 ? `/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
                 : '/Presupuestos/CreatePresupuestoPrevio';
 
-            const response = isEditing && formData.id
+            const data = isEditing && formData.id
                 ? await api.put(url, payload)
                 : await api.post(url, payload);
 
-            // Verificar si fue 401
-            if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
-                return;
-            }
-
-            // Verificar si fue éxito
-            const isSuccess = response?.success !== false;
-
-            if (isSuccess) {
-                addToast(response?.message || `Presupuesto ${isEditing ? 'actualizado' : 'creado'} correctamente`, 'success');
+            if (data) {
                 setFormData(defaultPresupuestoData);
                 setOperacionFiltro('');
                 setZonaFiltro('');
                 setIsEditing(false);
                 setActiveTab('busqueda');
                 fetchPresupuestos(filtro);
-            } else {
-                setSaveError(response?.message || 'Error al guardar el presupuesto');
-                addToast(response?.message || 'Error al guardar el presupuesto', 'error');
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
@@ -732,23 +690,13 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
+            const data = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
 
-            const data_response = handleControlNotarialResponse(response, {
-                onError: (msg) => addToast(msg, 'error'),
-                onUnauthorized: () => setLoginModalOpen(true)
-            });
-
-            // Si fue 401, detener aquí
-            if (!data_response && response?.isUnauthorized) {
-                setIsEditing(false);
-                return;
-            }
-
-            if (!data_response) {
+            if (!data || !data.dataResponse) {
                 throw new Error('Error al obtener los detalles del presupuesto');
             }
 
+            const data_response = data.dataResponse;
             const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
 
             // Mapear impuestos y derechos al formato DetalleItem
@@ -857,23 +805,24 @@ export default function PresupuestoPrevioIndex() {
 
         try {
             setIsLoadingPdf(true);
-            const response = await fetch(`${apiBaseUrl}/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
-                method: 'GET',
-            });
+            const { blob, response } = await api.getBlob(`/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`);
 
-            if (!response.ok) {
-                throw new Error('Error al generar el PDF');
+            if (response?.isUnauthorized) {
+                addToast('No autorizado para generar el PDF', 'error');
+                return;
             }
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            setPdfUrl(url);
-            setShowPdfViewer(true);
-            addToast('PDF cargado correctamente', 'success');
+            if (blob && response?.success !== false) {
+                const url = URL.createObjectURL(blob);
+                setPdfUrl(url);
+                setShowPdfViewer(true);
+                addToast('PDF cargado correctamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al generar el PDF', 'error');
+            }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Error al generar el PDF';
-            addToast(message, 'error');
-            console.error('Error:', error);
+            console.error('Error generando PDF:', error);
+            addToast('No se pudo generar el PDF', 'error');
         } finally {
             setIsLoadingPdf(false);
         }
@@ -1191,7 +1140,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         setZonaFiltro(zona.descripcion);
                                                                         setShowZonaDropdown(false);
                                                                     }}
-                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
+                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm"
                                                                 >
                                                                     {zona.descripcion}
                                                                 </button>
@@ -1228,7 +1177,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_operacion"
                                                     type="number"
-                                                    step="1"
+                                                    step="0.01"
                                                     value={formData.valor_operacion}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1240,7 +1189,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_avaluo"
                                                     type="number"
-                                                    step="1"
+                                                    step="0.01"
                                                     value={formData.valor_avaluo}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1252,7 +1201,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_catastral"
                                                     type="number"
-                                                    step="1"
+                                                    step="0.01"
                                                     value={formData.valor_catastral}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1933,12 +1882,6 @@ export default function PresupuestoPrevioIndex() {
                     </div>
                 </div>
             )}
-
-            <LoginModal
-                isOpen={loginModalOpen}
-                onClose={() => setLoginModalOpen(false)}
-                onSuccess={() => setLoginModalOpen(false)}
-            />
         </>
     );
 }

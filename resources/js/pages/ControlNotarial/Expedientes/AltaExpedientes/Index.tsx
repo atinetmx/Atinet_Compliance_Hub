@@ -959,8 +959,8 @@ export default function ExpedientesIndex() {
                 clave_Catastral: formInmueble.claveCatastral,
                 superficie_Terreno: parseFloat(formInmueble.superficieTerreno) || 0,
                 superficie_Construccion: parseFloat(formInmueble.superficieConstruida) || 0,
-                cuenta_Agua: parseFloat(formInmueble.ctaAgua) || 0,
-                cuenta_Predial: parseFloat(formInmueble.ctaPredial) || 0,
+                cuenta_Agua: formInmueble.ctaAgua || '',
+                cuenta_Predial: formInmueble.ctaPredial || '',
                 fecha_Registro: formInmueble.fechaRegistro ? new Date(formInmueble.fechaRegistro).toISOString() : new Date().toISOString(),
                 folio_Real: formInmueble.folioReal,
                 inscripcion: formInmueble.inscripcion,
@@ -1060,9 +1060,18 @@ export default function ExpedientesIndex() {
     const fetchDocumentosDisponibles = async () => {
         setCargandoDocumentosDisponibles(true);
         try {
-            const data = await api.get('/Catalogos/GetDocumentos');
-            if (data && data.dataResponse) {
-                setDocumentosDisponibles(data.dataResponse);
+            const { blob, response } = await api.getBlob('/Catalogos/GetDocumentos');
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para cargar documentos', 'error');
+                return;
+            }
+
+            if (blob && response?.success !== false) {
+                const data = await blob.text();
+                const jsonData = JSON.parse(data);
+                setDocumentosDisponibles(jsonData);
+
                 setMostrarModalAgregarDocumento(true);
             } else {
                 addToast('No se pudieron cargar los documentos disponibles', 'error', 4000);
@@ -1197,20 +1206,24 @@ export default function ExpedientesIndex() {
 
         try {
             setIsLoadingRecibo(true);
-            const response = await fetch(
-                `${apiBaseUrl}/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
-                { method: 'GET' }
+            const { blob, response } = await api.getBlob(
+                `/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`
             );
 
-            if (!response.ok) {
-                throw new Error('Error al generar el recibo');
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar el recibo', 'error');
+                return;
             }
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            setReciboUrl(url);
-            setShowReciboModal(true);
-            addToast('Recibo cargado correctamente', 'success', 4000);
+            if (blob && response?.success !== false) {
+                const url = URL.createObjectURL(blob);
+                setReciboUrl(url);
+                setShowReciboModal(true);
+                addToast('Recibo cargado correctamente', 'success', 4000);
+            } else {
+                addToast(response?.message || 'Error al generar el recibo', 'error', 4000);
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al generar el recibo';
             addToast(message, 'error', 4000);
@@ -1538,15 +1551,6 @@ export default function ExpedientesIndex() {
             fetchPresupuestos(currentExpedienteId);
         }
     }, [currentExpedienteId]);
-
-    // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
-    useEffect(() => {
-        const debounceTimer = setTimeout(() => {
-            fetchExpedientes(filtro);
-        }, 300); // Esperar 300ms después de que el usuario deje de escribir
-
-        return () => clearTimeout(debounceTimer);
-    }, [filtro]);
 
     // Auto-seleccionar el primer cliente cuando se cargan los documentos
     useEffect(() => {
@@ -2565,17 +2569,21 @@ export default function ExpedientesIndex() {
     const handleImprimirRecibo = async (reciboId: number) => {
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`${apiBaseUrl}/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
-                method: 'GET',
-            });
+            const { blob, response } = await api.getBlob(`/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`);
 
-            if (response.ok) {
-                const blob = await response.blob();
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar el recibo', 'error');
+                return;
+            }
+
+            if (blob && response?.success !== false) {
                 const url = window.URL.createObjectURL(blob);
                 setRecibosPdfUrl(url);
                 setShowRecibosPdfViewer(true);
+                addToast('Recibo generado exitosamente', 'success');
             } else {
-                addToast('Error al generar el reporte del recibo', 'error');
+                addToast(response?.message || 'Error al generar el reporte del recibo', 'error');
             }
         } catch (error) {
             console.error('Error imprimiendo recibo:', error);
@@ -2632,6 +2640,11 @@ export default function ExpedientesIndex() {
                                 <Input
                                     value={filtro}
                                     onChange={(e) => setFiltro(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            fetchExpedientes(filtro);
+                                        }
+                                    }}
                                     placeholder="Buscar por referencia, cliente, operación..."
                                     className="pr-10"
                                     autoFocus
@@ -2643,6 +2656,7 @@ export default function ExpedientesIndex() {
                                             setFiltro('');
                                             setSearchError(null);
                                             setResultados([]);
+                                            fetchExpedientes('');
                                         }}
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                         title="Limpiar búsqueda"
