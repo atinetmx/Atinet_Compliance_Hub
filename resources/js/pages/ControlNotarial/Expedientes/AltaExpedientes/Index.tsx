@@ -138,6 +138,7 @@ interface Usuario {
 }
 
 interface ReciboProvisor {
+    id: number;
     numero_Recibo: number;
     expediente: string;
     escritura_Numero: number;
@@ -414,6 +415,7 @@ export default function ExpedientesIndex() {
         cliente: '',
         operacion: '',
         zona_municipio: '',
+        observaciones: '',
         valor_operacion: 0,
         valor_avaluo: 0,
         valor_catastral: 0,
@@ -473,6 +475,7 @@ export default function ExpedientesIndex() {
 
     // --- Estados para Inmuebles del Expediente ---
     const [inmueblesExpediente, setInmueblesExpediente] = useState<Array<{
+        id: number;
         numero_Inmueble: number;
         descripcion: string;
         clave_Catastral: string;
@@ -532,7 +535,7 @@ export default function ExpedientesIndex() {
 
     // Estado para controlar si está editando
     const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState(null);
-    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState(null);
+    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState<number | null>(null);
 
     // --- Estados para Antecedentes (Checkboxes) ---
     const [checkboxesAntecedentes, setCheckboxesAntecedentes] = useState({
@@ -617,7 +620,7 @@ export default function ExpedientesIndex() {
         debounceNumeroEscrituraRef.current = setTimeout(async () => {
             setValidandoNumeroEscritura(true);
             try {
-                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
                 // Si la respuesta es exitosa, no hay error
                 setNumeroEscrituraError(null);
 
@@ -781,7 +784,7 @@ export default function ExpedientesIndex() {
             }
             console.log('Respuesta Comparecientes:', response);
             // Manejar diferentes formatos de respuesta
-            const comparecientes = response?.dataResponse || response?.data || response;
+            const comparecientes = response?.dataResponse || response;
             if (Array.isArray(comparecientes)) {
                 setComparecientesDisponibles(comparecientes);
                 console.log('Comparecientes cargados:', comparecientes);
@@ -825,7 +828,7 @@ export default function ExpedientesIndex() {
     };
 
     // Editar Inmueble - Obtener datos y llenar formulario
-    const handleEditarInmueble = async (inmuebleId) => {
+    const handleEditarInmueble = async (inmuebleId: number) => {
         setCargandoGuardarInmueble(true);
         try {
             const data = await api.get(`/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`);
@@ -912,7 +915,7 @@ export default function ExpedientesIndex() {
         setCargandoGuardarInmueble(true);
         try {
             // Payload común para crear y actualizar
-            const payload = {
+            const payload: any = {
                 tipo_Factura_Id: parseInt(formInmueble.tipoFactura) || 0,
                 tipo_Inmueble_Id: parseInt(formInmueble.tipoVulnerable) || 0,
                 tipo_Inmueble_DeclaraNot_Id: parseInt(formInmueble.tipoDeclaranot) || 0,
@@ -1673,7 +1676,7 @@ export default function ExpedientesIndex() {
         }
 
         try {
-            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
 
             // Verificar si dataResponse es true
             if (response?.dataResponse === true) {
@@ -1855,7 +1858,7 @@ export default function ExpedientesIndex() {
 
                 // Inicializar busquedaTipo con los tipos de comparecientes cargados
                 const busquedaTipoInicial: Record<string, string> = {};
-                comparecientes.forEach(comp => {
+                comparecientes.forEach((comp: any) => {
                     busquedaTipoInicial[comp.id] = comp.tipoCompareciente;
                 });
                 setBusquedaTipo(busquedaTipoInicial);
@@ -2854,7 +2857,7 @@ export default function ExpedientesIndex() {
                                             )}
 
                                             <div className="mb-6">
-                                                <RequiredLabel htmlFor="operaciones" className="block mb-2">Operaciones</RequiredLabel>
+                                                <RequiredLabel htmlFor="operaciones">Operaciones</RequiredLabel>
                                                 <div ref={refDropdownOperaciones} className="relative">
                                                     <div className="relative">
                                                         <Input type="text" placeholder="Buscar operación..." value={operacionBusqueda} onChange={(e) => setOperacionBusqueda(e.target.value)} onFocus={() => setMostrarDropdownOperaciones(true)} className="text-sm pr-8" />
@@ -4690,6 +4693,7 @@ export default function ExpedientesIndex() {
                                                             cliente: '',
                                                             operacion: '',
                                                             zona_municipio: '',
+                                                            observaciones: '',
                                                             valor_operacion: 0,
                                                             valor_avaluo: 0,
                                                             valor_catastral: 0,
@@ -5297,6 +5301,7 @@ export default function ExpedientesIndex() {
                                                                 cliente: '',
                                                                 operacion: '',
                                                                 zona_municipio: '',
+                                                                observaciones: '',
                                                                 valor_operacion: 0,
                                                                 valor_avaluo: 0,
                                                                 valor_catastral: 0,
