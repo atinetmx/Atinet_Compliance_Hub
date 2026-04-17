@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+﻿import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
@@ -18,7 +18,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
-import LoginModal from '@/components/Modals/LoginModal';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -139,7 +138,6 @@ const formatCurrency = (value: number): string => {
 
 export default function PresupuestoPrevioIndex() {
     // --- Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -201,12 +199,7 @@ export default function PresupuestoPrevioIndex() {
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
     // ✅ Validar token al montar la página
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
-        }
-    });
+    useAuthGuard();
 
     // Cargar presupuestos al montar (filtro vacío = todos)
     useEffect(() => {
@@ -222,8 +215,7 @@ export default function PresupuestoPrevioIndex() {
 
                 // ✅ Usar helper para manejar respuesta
                 const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
+                    onError: (msg) => addToast(msg, 'error')
                 });
 
                 if (datos) {
@@ -249,8 +241,7 @@ export default function PresupuestoPrevioIndex() {
 
                 // ✅ Usar helper
                 const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
+                    onError: (msg) => addToast(msg, 'error')
                 });
 
                 if (datos) {
@@ -276,8 +267,7 @@ export default function PresupuestoPrevioIndex() {
 
                 // ✅ Usar helper
                 const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
+                    onError: (msg) => addToast(msg, 'error')
                 });
 
                 if (datos) {
@@ -693,12 +683,6 @@ export default function PresupuestoPrevioIndex() {
                 ? await api.put(url, payload)
                 : await api.post(url, payload);
 
-            // Verificar si fue 401
-            if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
-                return;
-            }
-
             // Verificar si fue éxito
             const isSuccess = response?.success !== false;
 
@@ -735,8 +719,7 @@ export default function PresupuestoPrevioIndex() {
             const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
 
             const data_response = handleControlNotarialResponse(response, {
-                onError: (msg) => addToast(msg, 'error'),
-                onUnauthorized: () => setLoginModalOpen(true)
+                onError: (msg) => addToast(msg, 'error')
             });
 
             // Si fue 401, detener aquí
@@ -1932,14 +1915,7 @@ export default function PresupuestoPrevioIndex() {
                         </div>
                     </div>
                 </div>
-            )}
-
-            <LoginModal
-                isOpen={loginModalOpen}
-                onClose={() => setLoginModalOpen(false)}
-                onSuccess={() => setLoginModalOpen(false)}
-            />
-        </>
+            )}        </>
     );
 }
 

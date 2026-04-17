@@ -1,10 +1,9 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users, User, Calendar, MapPin, Phone, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
 
 
 import { Button } from '@/components/ui/button';
@@ -185,7 +184,6 @@ const defaultClienteData: ClienteData = {
 
 export default function ControlNotarialClientes() {
     // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -208,12 +206,7 @@ export default function ControlNotarialClientes() {
     const api = useApi();
 
     // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    useAuthGuard();
 
     // Cargar clientes al montar (filtro vacío = todos)
     useEffect(() => {
@@ -231,8 +224,7 @@ export default function ControlNotarialClientes() {
 
             const response = await api.get(endpoint);
             const data = await handleControlNotarialResponse(response, {
-                onError: (msg) => setSearchError(msg || 'No se pudieron cargar los clientes'),
-                onUnauthorized: () => setLoginModalOpen(true),
+                onError: (msg) => setSearchError(msg || 'No se pudieron cargar los clientes')
             });
 
             if (!data) return;
@@ -287,7 +279,6 @@ export default function ControlNotarialClientes() {
             // Llamar a la API para obtener los datos completos del cliente
             const response = await api.get(`/Clientes/GetClientesById?clienteId=${cliente.id}`);
             const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (!data || data.length === 0) return;
@@ -560,8 +551,7 @@ export default function ControlNotarialClientes() {
                 : await api.post(endpoint, payload);
 
             const responseData = await handleControlNotarialResponse(response, {
-                onError: (msg) => setSaveError(msg || 'Error al guardar el cliente'),
-                onUnauthorized: () => setLoginModalOpen(true),
+                onError: (msg) => setSaveError(msg || 'Error al guardar el cliente')
             });
 
             if (response?.isUnauthorized) {
@@ -1622,9 +1612,7 @@ export default function ControlNotarialClientes() {
                         )}
                     </TabsContent>
                 </Tabs>
-            </div>
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
-        </>
+            </div>        </>
     );
 }
 

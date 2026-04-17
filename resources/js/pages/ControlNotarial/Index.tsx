@@ -161,5 +161,6 @@ export default function ControlNotarialIndex({
 
             </div>
 
+        </AppLayout>
     );
 }

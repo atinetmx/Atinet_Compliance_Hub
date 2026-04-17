@@ -1,10 +1,9 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, Users, Lock, Shield, FileText, Clock, CheckCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,7 +78,6 @@ const defaultUsuarioData: UsuarioData = {
 
 export default function ControlNotarialUsuarios() {
     // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -102,12 +100,7 @@ export default function ControlNotarialUsuarios() {
     const api = useApi();
 
     // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'warning');
-        },
-    });
+    useAuthGuard();
 
     // Cargar usuarios al montar (filtro vacío = todos)
     useEffect(() => {
@@ -120,7 +113,6 @@ export default function ControlNotarialUsuarios() {
             try {
                 const response = await api.get('/Catalogos/GetRoles');
                 const data = await handleControlNotarialResponse(response, {
-                    onUnauthorized: () => setLoginModalOpen(true),
                 });
 
                 if (data) {
@@ -145,7 +137,6 @@ export default function ControlNotarialUsuarios() {
             }
             const response = await api.get(endpoint);
             const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data) {
@@ -205,8 +196,7 @@ export default function ControlNotarialUsuarios() {
                 };
                 const response = await api.put(`/User/UpdateUsuario?usuarioId=${formData.id}`, payload);
                 const responseData = await handleControlNotarialResponse(response, {
-                    onError: (msg) => setSaveError(msg || 'Error al actualizar'),
-                    onUnauthorized: () => setLoginModalOpen(true),
+                    onError: (msg) => setSaveError(msg || 'Error al actualizar')
                 });
 
                 const isSuccess = response?.success !== false;
@@ -248,8 +238,7 @@ export default function ControlNotarialUsuarios() {
                 };
                 const response = await api.post('/User/CreateUsuario', payload);
                 const responseData = await handleControlNotarialResponse(response, {
-                    onError: (msg) => setSaveError(msg || 'Error al crear'),
-                    onUnauthorized: () => setLoginModalOpen(true),
+                    onError: (msg) => setSaveError(msg || 'Error al crear')
                 });
 
                 const isSuccess = response?.success !== false;
@@ -281,7 +270,6 @@ export default function ControlNotarialUsuarios() {
         try {
             const response = await api.get(`/User/GetUsuarioById?usuarioId=${usuario.id}`);
             const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (!data) return;
@@ -805,9 +793,7 @@ export default function ControlNotarialUsuarios() {
                         )}
                     </TabsContent>
                 </Tabs>
-            </div>
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
-        </>
+            </div>        </>
     );
 }
 

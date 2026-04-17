@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import {
     Building2,
     Settings,
@@ -19,7 +19,6 @@ import { useApi } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -111,15 +110,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
     const api = useApi();
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // ✅ Validar token al montar la página
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
-        }
-    });
+    useAuthGuard();
     const [notariaData, setNotariaData] = useState<NotariaData>({
         nombre: '',
         domicilio: '',
@@ -186,8 +179,7 @@ export default function ControlNotarialConfiguracionIndex() {
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
                 const notaria = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
+                    onError: (msg) => addToast(msg, 'error')
                 });
 
                 // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
@@ -238,8 +230,7 @@ export default function ControlNotarialConfiguracionIndex() {
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
 
                 const config = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
+                    onError: (msg) => addToast(msg, 'error')
                 });
 
                 // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
@@ -330,10 +321,6 @@ export default function ControlNotarialConfiguracionIndex() {
             const notariaResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
             // Verificar si fue 401
-            if (notariaResponse?.isUnauthorized) {
-                setLoginModalOpen(true);
-                return;
-            }
 
             // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
             const notariaSuccess = notariaResponse?.success !== false;
@@ -381,10 +368,6 @@ export default function ControlNotarialConfiguracionIndex() {
                 const controlResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
 
                 // Verificar si fue 401
-                if (controlResponse?.isUnauthorized) {
-                    setLoginModalOpen(true);
-                    return;
-                }
 
                 // Verificar si fue éxito
                 const controlSuccess = controlResponse?.success !== false;
@@ -1249,14 +1232,7 @@ export default function ControlNotarialConfiguracionIndex() {
                 </div>
             </div>
 
-        </div>
-
-        <LoginModal
-            isOpen={loginModalOpen}
-            onClose={() => setLoginModalOpen(false)}
-            onSuccess={() => setLoginModalOpen(false)}
-        />
-        </>
+        </div>        </>
     );
 }
 
