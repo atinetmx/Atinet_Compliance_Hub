@@ -61,6 +61,41 @@ class ControlNotarialApiService
     }
 
     /**
+     * Cambia la contraseña de un usuario en C# (usando el token gateway).
+     * Obtiene primero los datos actuales del usuario para no perder ningún campo.
+     * Retorna true si el cambio fue exitoso.
+     */
+    public function resetPasswordCN(int $cnUsuarioId, string $newPassword): bool
+    {
+        try {
+            $token = $this->getGatewayToken();
+
+            // 1. Obtener datos actuales del usuario en CN
+            $usuario = $this->get("/User/GetUsuarioById?usuarioId={$cnUsuarioId}", $token);
+
+            if (empty($usuario)) {
+                Log::error("resetPasswordCN: usuario CN {$cnUsuarioId} no encontrado");
+
+                return false;
+            }
+
+            // 2. Actualizar solo la contraseña, conservando el resto de los datos
+            $payload = array_merge($usuario, ['contrasena' => $newPassword]);
+
+            $this->put("/User/UpdateUsuario?usuarioId={$cnUsuarioId}", $token, $payload);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('ControlNotarialApiService::resetPasswordCN falló', [
+                'cn_usuario_id' => $cnUsuarioId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
      * Crea un usuario en C# usando el token gateway.
      * Retorna true si fue creado exitosamente.
      */
