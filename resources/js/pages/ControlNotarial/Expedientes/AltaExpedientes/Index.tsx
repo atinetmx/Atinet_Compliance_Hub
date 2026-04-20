@@ -583,7 +583,7 @@ export default function ExpedientesIndex() {
 
     const api = useApi();
     const { props } = usePage();
-    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
+    const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
 
     // Cargar expedientes al montar (filtro vacío = todos)
     useEffect(() => {

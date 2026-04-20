@@ -10,7 +10,7 @@ async function gatewayAutoLogin(): Promise<boolean> {
     try {
         // El meta csrf-token lo inserta Laravel en el <head> en app.tsx / layout
         const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
-        const response = await fetch('/control-notarial/auto-login', {
+        const response = await fetch('/admin/control-notarial/auto-login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

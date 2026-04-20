@@ -187,6 +187,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Auto-login gateway para módulo CN (devuelve JWT de C# sin doble login)
     Route::post('control-notarial/auto-login', [\App\Http\Controllers\ControlNotarialController::class, 'autoLogin'])->name('control-notarial.auto-login');
 
+    // Proxy transparente hacia la API C# de Control Notarial.
+    // El browser llama /cn-api/{cualquier-endpoint} → Laravel reenvía a srvatinet.atinet.com.mx:7443/api/{endpoint}
+    // Esto evita que srvatinet.atinet.com.mx sea resuelto directamente por el browser (dominio interno).
+    Route::any('cn-api/{path}', [\App\Http\Controllers\CnProxyController::class, 'proxy'])
+        ->where('path', '.*')
+        ->name('cn-api.proxy');
+
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');

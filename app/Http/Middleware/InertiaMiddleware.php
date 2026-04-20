@@ -30,8 +30,9 @@ class InertiaMiddleware extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            // Share the API base URL with all Inertia components
-            'apiBaseUrl' => config('api.base_url'),
+            // Proxy path local: el frontend llama /cn-api/... y Laravel reenvía a C# internamente.
+            // Nunca exponer api.base_url al browser (hostname interno no resolvible).
+            'apiBaseUrl' => config('api.proxy_path', '/cn-api'),
         ]);
     }
 }
