@@ -18,7 +18,9 @@ return [
     |
     */
 
-    'base_url' => env('CONTROL_NOTARIAL_API_URL', env('API_BASE_URL', 'https://srvatinet.atinet.com.mx:7443/api')),
+    // Preferir URL interna (server-to-server sin DNS externo).
+    // CONTROL_NOTARIAL_INTERNAL_URL debe apuntar a la IP/hostname interno de la C# API.
+    'base_url' => env('CONTROL_NOTARIAL_INTERNAL_URL', env('CONTROL_NOTARIAL_API_URL', env('API_BASE_URL', 'https://srvatinet.atinet.com.mx:7443/api'))),
 
     'proxy_path' => '/admin/cn-api',
 ];

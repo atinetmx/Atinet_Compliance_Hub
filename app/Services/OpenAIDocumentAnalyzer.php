@@ -39,6 +39,14 @@ class OpenAIDocumentAnalyzer
         $this->timeout = (int) (config('services.openai.timeout') ?? 120);
         $this->maxTokens = (int) (config('services.openai.max_tokens') ?? 4096);
 
+    }
+
+    /**
+     * Verifica que la API key esté configurada antes de llamar a OpenAI.
+     * Se llama sólo cuando se va a hacer una petición real, no en el constructor.
+     */
+    protected function assertApiKeyConfigured(): void
+    {
         if (empty($this->apiKey) && ! app()->environment('testing')) {
             throw new Exception('OpenAI API key not configured. Set OPENAI_API_KEY in .env');
         }
@@ -195,6 +203,8 @@ class OpenAIDocumentAnalyzer
      */
     protected function callOpenAI(string $base64Image, string $prompt, bool $structuredResponse = true): array
     {
+        $this->assertApiKeyConfigured();
+
         $maxRetries = 3;
         $baseDelay = 2; // segundos
 

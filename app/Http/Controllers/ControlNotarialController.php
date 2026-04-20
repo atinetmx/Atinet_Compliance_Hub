@@ -190,10 +190,13 @@ class ControlNotarialController extends Controller
                 ], 404);
             }
 
-            // Resetear sesión activa bloqueante antes de autenticar
+            // Resetear sesión activa tanto en DB como vía C# API (gateway)
+            // para evitar "Ya hay una sesion iniciada con este usuario"
             DB::table('tbl_cat_usuarios')
                 ->where('Id', $user->cn_usuario_id)
                 ->update(['Sesion_Iniciada' => 0]);
+
+            app(ControlNotarialApiService::class)->resetSesionCN($user->cn_usuario_id);
 
             $plainPassword = decrypt($user->cn_password);
 

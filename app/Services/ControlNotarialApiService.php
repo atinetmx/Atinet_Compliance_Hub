@@ -61,6 +61,37 @@ class ControlNotarialApiService
     }
 
     /**
+     * Fuerza el cierre de sesión de un usuario en C# actualizando Sesion_Iniciada = 0
+     * vía la API (usando el token gateway).
+     * Se llama antes de autoLogin para evitar el error "Ya hay una sesion iniciada".
+     */
+    public function resetSesionCN(int $cnUsuarioId): bool
+    {
+        try {
+            $token = $this->getGatewayToken();
+
+            $usuario = $this->get("/User/GetUsuarioById?usuarioId={$cnUsuarioId}", $token);
+
+            if (empty($usuario)) {
+                return false;
+            }
+
+            $payload = array_merge($usuario, ['sesion_Iniciada' => 0]);
+
+            $this->put("/User/UpdateUsuario?usuarioId={$cnUsuarioId}", $token, $payload);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('ControlNotarialApiService::resetSesionCN falló', [
+                'cn_usuario_id' => $cnUsuarioId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
      * Cambia la contraseña de un usuario en C# (usando el token gateway).
      * Obtiene primero los datos actuales del usuario para no perder ningún campo.
      * Retorna true si el cambio fue exitoso.
