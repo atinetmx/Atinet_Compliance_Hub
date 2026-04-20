@@ -196,7 +196,7 @@ export default function PresupuestoPrevioIndex() {
     const { addToast } = useToast();
     const api = useApi();
     const { props } = usePage();
-    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
+    const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
 
     // ✅ Validar token al montar la página
     useAuthGuard();
