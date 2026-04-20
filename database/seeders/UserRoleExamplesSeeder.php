@@ -42,8 +42,8 @@ class UserRoleExamplesSeeder extends Seeder
         Plan::updateOrCreate(['slug' => 'plan-basico'], [
             'nombre' => 'Plan Básico',
             'descripcion' => 'Control Notarial, Agenda Web y búsquedas en listas negras para notarías pequeñas',
-            'precio_mensual' => 1499.00,
-            'precio_anual' => 14990.00,  // 2 meses gratis
+            'precio_mensual' => 2999.00,
+            'precio_anual' => 29990.00,  // 2 meses gratis
             'limite_usuarios' => 2,
             'limite_busquedas_mes' => 50,
             'herramientas_activas' => ['control_notarial', 'agenda_web', 'busquedas_basicas'],
@@ -64,8 +64,8 @@ class UserRoleExamplesSeeder extends Seeder
         Plan::updateOrCreate(['slug' => 'plan-premium'], [
             'nombre' => 'Plan Profesional',
             'descripcion' => 'Todas las herramientas con mayor capacidad para notarías activas',
-            'precio_mensual' => 2999.00,
-            'precio_anual' => 29990.00,  // 2 meses gratis
+            'precio_mensual' => 5999.00,
+            'precio_anual' => 59990.00,  // 2 meses gratis
             'limite_usuarios' => 5,
             'limite_busquedas_mes' => -1,  // ilimitado
             'herramientas_activas' => ['control_notarial', 'agenda_web', 'busquedas_avanzadas', 'registro_web', 'escaner'],
@@ -85,8 +85,8 @@ class UserRoleExamplesSeeder extends Seeder
         Plan::updateOrCreate(['slug' => 'plan-empresa'], [
             'nombre' => 'Plan Empresa',
             'descripcion' => 'Todo ilimitado para notarías con alto volumen de operaciones',
-            'precio_mensual' => 5999.00,
-            'precio_anual' => 59990.00,  // 2 meses gratis
+            'precio_mensual' => 9999.00,
+            'precio_anual' => 99990.00,  // 2 meses gratis
             'limite_usuarios' => -1,  // ilimitado
             'limite_busquedas_mes' => -1,  // ilimitado
             'herramientas_activas' => ['control_notarial', 'agenda_web', 'busquedas_avanzadas', 'registro_web', 'escaner', 'apis'],
