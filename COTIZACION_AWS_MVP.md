@@ -1,150 +1,231 @@
-# CotizaciÃ³n de Infraestructura AWS â€” Atinet Compliance Hub MVP
-> EstimaciÃ³n de costos para justificar precios de suscripciÃ³n al sistema.
-> Precios en USD (cotizaciÃ³n abril 2026). Tipo de cambio referencia: **$17 MXN/USD**.
+# Cotización de Infraestructura AWS — Atinet Compliance Hub MVP
+> Estimación de costos **realista** para sistema SaaS multi-tenant con IA.
+> Precios en USD (cotización abril 2026). Tipo de cambio referencia: **$17.50 MXN/USD**.
+>
+> ?? Esta cotización considera la arquitectura real del sistema: multi-tenant (BD por notaría),
+> colas de trabajo, cache, APIs de IA y APIs C# de integración con el sistema legacy Atinet.
 
 ---
 
-## 1. Infraestructura Base en AWS
+## 1. Infraestructura Base en AWS (Producción)
 
-Esta es la infraestructura mÃ­nima necesaria para operar el sistema con **1 a 10 notarÃ­as** de forma estable y segura.
+### 1.1 Cómputo y Base de Datos
 
-| Servicio AWS | DescripciÃ³n | USD/mes | MXN/mes |
+| Servicio AWS | Por qué este tamaño | USD/mes | MXN/mes |
 |---|---|---:|---:|
-| **EC2** `t3.small` | Servidor Laravel principal (2 vCPU, 2 GB RAM) | $17.00 | $289 |
-| **RDS MySQL** `db.t3.micro` | Base de datos gestionada (backup automÃ¡tico 7 dÃ­as) | $15.00 | $255 |
-| **S3 + CloudFront** | Almacenamiento documentos ~50 GB + CDN | $6.00 | $102 |
-| **ALB** | Application Load Balancer (HTTPS, dominio) | $18.00 | $306 |
+| **EC2** `t3.medium` | Laravel + React + OCR + queues workers. `t3.small` (2GB) se satura con 3+ notarías activas simultáneas | $35.00 | $612 |
+| **RDS MySQL** `db.t3.small` | Multi-tenant: múltiples conexiones por notaría + queries de reportes pesados. `t3.micro` (1GB RAM) es cuello de botella comprobado | $38.00 | $665 |
+| **ElastiCache Redis** `cache.t3.micro` | Cache de sesiones, throttling de APIs, jobs queue (Laravel Horizon). Crítico para rendimiento multi-tenant | $20.00 | $350 |
+
+### 1.2 Red, Almacenamiento y Entrega
+
+| Servicio AWS | Descripción | USD/mes | MXN/mes |
+|---|---|---:|---:|
+| **ALB** | Application Load Balancer (HTTPS, certificado SSL) | $18.00 | $315 |
+| **S3** | Almacenamiento documentos notariales: PDFs, escrituras, actas (~100 GB con 10 notarías) | $8.00 | $140 |
+| **CloudFront** | CDN para assets React, documentos y descargas. Reduce latencia y costo de egress | $12.00 | $210 |
 | **Route 53** | DNS administrado (1 zona hosted) | $1.00 | $17 |
 | **ACM** | Certificado SSL/TLS (gratuito con ALB) | $0.00 | $0 |
-| **SES** | Correos transaccionales (~1,000/mes) | $0.10 | $2 |
-| **RDS Snapshots** | Respaldos adicionales de BD | $3.00 | $51 |
-| **CloudWatch Logs** | Monitoreo y alertas | $2.00 | $34 |
-| **TOTAL INFRAESTRUCTURA** | | **$62.10** | **$1,056** |
 
-> **VerificaciÃ³n:** Puedes confirmar estos precios en la calculadora oficial de AWS:
-> https://calculator.aws/pricing/2/homescreen
+### 1.3 Mensajería, Monitoreo y Seguridad
+
+| Servicio AWS | Descripción | USD/mes | MXN/mes |
+|---|---|---:|---:|
+| **SQS** | Cola de mensajes para jobs pesados: OCR, reportes, webhooks, notificaciones | $5.00 | $87 |
+| **SES** | Correos transaccionales: alertas, accesos, reportes (~3,000/mes) | $1.00 | $17 |
+| **CloudWatch** | Logs de aplicación, alarmas de errores, métricas. Con sistema multi-tenant + colas, los logs son voluminosos | $12.00 | $210 |
+| **RDS Backups** | Snapshots diarios (retención 7 días) + semanales manuales | $8.00 | $140 |
+| **WAF básico** | Web Application Firewall: protección contra abuso de APIs y scraping | $10.00 | $175 |
+
+### ? Total Infraestructura Producción
+
+| | USD/mes | MXN/mes |
+|---|---:|---:|
+| **TOTAL INFRAESTRUCTURA** | **$168.00** | **$2,940** |
+
+> ?? La estimación anterior de $62 USD era para un CRUD simple. Este sistema es multi-tenant
+> con colas, cache, OCR y auditoría — el piso real de infraestructura es ~$168 USD/mes.
+>
+> **Verificación:** https://calculator.aws/pricing/2/homescreen
 
 ---
 
-## 2. Costo de APIs de Inteligencia Artificial
+## 2. Costo de APIs Externas
 
-El sistema usa dos motores de IA para el **Registro Web** y el **EscÃ¡ner Inteligente**:
+### 2.1 APIs C# — Sistema Legacy Atinet (integración interna)
 
-### 2.1 Google Gemini Vision (OCR de documentos)
+El sistema consume las APIs del sistema legacy en C# para:
+- Lectura de expedientes y control notarial
+- Sincronización de usuarios entre sistemas
+- Consulta de catálogos del sistema antiguo
 
-| OperaciÃ³n | Costo por operaciÃ³n | 50 usos | 100 usos | 500 usos |
+Estas APIs corren en la infraestructura existente de Atinet. **Costo adicional en AWS: $0**
+(ya cubierto por el hosting actual).
+
+> Si en el futuro se migra a AWS: agregar ~$20–40 USD/mes por EC2 Windows + IIS.
+
+---
+
+### 2.2 Google Gemini Vision (OCR — REGISTRO_WEB + ESCANER_INTELIGENTE)
+
+Modelo: `gemini-2.5-flash-preview` (fallback: `gemini-2.0-flash`)
+
+| Operación | Costo/operación | 50 ops | 200 ops | 1,000 ops |
 |---|---:|---:|---:|---:|
-| OCR INE frontal/reverso | ~$0.0015 | $0.08 | $0.15 | $0.75 |
-| OCR Acta de Nacimiento | ~$0.0015 | $0.08 | $0.15 | $0.75 |
-| OCR Constancia Fiscal SAT | ~$0.001 | $0.05 | $0.10 | $0.50 |
+| OCR INE frontal/reverso | $0.0012 | $0.06 | $0.24 | $1.20 |
+| OCR Acta de Nacimiento | $0.0018 | $0.09 | $0.36 | $1.80 |
+| OCR Constancia Fiscal SAT / QR | $0.0009 | $0.05 | $0.18 | $0.90 |
+| Extracción formulario (80 campos) | $0.0030 | $0.15 | $0.60 | $3.00 |
 
-> Fuente: https://ai.google.dev/pricing â€” modelo `gemini-2.0-flash`
+> Fuente: https://ai.google.dev/pricing
 
-### 2.2 OpenAI GPT-4o (anÃ¡lisis semÃ¡ntico de documentos)
+---
 
-| OperaciÃ³n | Costo por operaciÃ³n | 20 usos | 100 usos | 500 usos |
+### 2.3 OpenAI GPT-4o (análisis semántico — ESCANER_INTELIGENTE)
+
+Costo por token: input $2.50/M, output $10.00/M.
+
+| Tipo de documento | Costo/operación | 20 ops | 100 ops | 500 ops |
 |---|---:|---:|---:|---:|
-| AnÃ¡lisis escritura pÃºblica (5 pÃ¡gs) | ~$0.04 | $0.80 | $4.00 | $20.00 |
-| AnÃ¡lisis testamento (10-15 pÃ¡gs) | ~$0.15 | $3.00 | $15.00 | $75.00 |
-| ExtracciÃ³n campos PDF/Word estÃ¡ndar | ~$0.02 | $0.40 | $2.00 | $10.00 |
+| Escritura pública (5 págs) | $0.018 | $0.36 | $1.80 | $9.00 |
+| Testamento (10–15 págs) | $0.050 | $1.00 | $5.00 | $25.00 |
+| Contrato / poder notarial | $0.027 | $0.54 | $2.70 | $13.50 |
+| Extracción estructurada PDF/Word | $0.014 | $0.28 | $1.40 | $7.00 |
 
-> Fuente: https://openai.com/api/pricing â€” modelo `gpt-4o`
+> Fuente: https://openai.com/api/pricing
+>
+> ?? En uso intensivo (testamentos largos) el costo puede escalar a $20–100 USD/mes.
+> El sistema usa Gemini primero; GPT-4o solo se activa para análisis semántico complejo.
 
-### 2.3 Resumen APIs IA por escenario mensual
+---
 
-| Escenario | Uso estimado | Costo Gemini | Costo OpenAI | **Total IA/mes** |
+### 2.4 APIs gubernamentales (SAT, CURP, RFC, CP)
+
+| API | Costo |
+|---|---|
+| SAT scraping (cURL interno) | $0 |
+| CURP lookup (RENAPO) | $0 |
+| RFC lookup (SAT) | $0 |
+| Código Postal (Correos MX) | $0 |
+
+---
+
+### 2.5 Costo de IA por plan (estimado mensual por notaría)
+
+| Plan | Volumen | Gemini | OpenAI | **Total IA/mes** |
 |---|---|---:|---:|---:|
-| NotarÃ­a pequeÃ±a (Plan BÃ¡sico) | 20 scans OCR + 5 anÃ¡lisis doc | $0.03 | $0.20 | **~$0.23 USD ($4 MXN)** |
-| NotarÃ­a mediana (Plan Profesional) | 100 scans OCR + 30 anÃ¡lisis doc | $0.15 | $1.20 | **~$1.35 USD ($23 MXN)** |
-| NotarÃ­a grande (Plan Empresa) | 500 scans OCR + 150 anÃ¡lisis doc | $0.75 | $6.00 | **~$6.75 USD ($115 MXN)** |
+| **Básico** | 70 operaciones | $0.10 | $0.36 | **~$0.46 USD ($8 MXN)** |
+| **Profesional** | 300 operaciones | $0.72 | $2.70 | **~$3.42 USD ($60 MXN)** |
+| **Empresa** | 700+ operaciones | $2.10 | $14.00 | **~$16 USD ($280 MXN)** |
 
 ---
 
-## 3. Costo Total por Escenario de Negocio
+## 3. Escenarios de Negocio (Costo Total Realista)
 
-### Escenario A â€” 5 notarÃ­as (1 mes de operaciÃ³n)
-
-| Concepto | USD | MXN |
-|---|---:|---:|
-| Infraestructura AWS | $62 | $1,054 |
-| APIs IA (mix de planes) | $8 | $136 |
-| **Total costos** | **$70** | **$1,190** |
-| Ingresos (2 BÃ¡sico + 2 Profesional + 1 Empresa) | â€” | **$14,494** |
-| **Margen bruto** | â€” | **$13,304 (91.8%)** |
-
-### Escenario B â€” 10 notarÃ­as (punto de escala)
+### Escenario A — MVP (3–5 notarías, primeros meses)
 
 | Concepto | USD | MXN |
 |---|---:|---:|
-| Infraestructura AWS (escalar a `t3.medium` + `db.t3.small`) | $95 | $1,615 |
-| APIs IA | $20 | $340 |
-| **Total costos** | **$115** | **$1,955** |
-| Ingresos (4B + 4P + 2E) | â€” | **$29,990** |
-| **Margen bruto** | â€” | **$28,035 (93.5%)** |
+| Infraestructura AWS | $168 | $2,940 |
+| APIs IA (3B + 1P + 1E) | $22 | $385 |
+| **TOTAL COSTOS** | **$190** | **$3,325** |
+| Ingresos (3 Básico + 1 Profesional + 1 Empresa) | — | **$16,493** |
+| **Margen bruto** | — | **$13,168 (79.8%)** |
 
-### Escenario C â€” 25 notarÃ­as (crecimiento)
+### Escenario B — Crecimiento (10 notarías)
 
 | Concepto | USD | MXN |
 |---|---:|---:|
-| Infraestructura AWS (ECS/Auto-scaling) | $180 | $3,060 |
-| APIs IA | $55 | $935 |
-| Dominio, SSL, extras | $10 | $170 |
-| **Total costos** | **$245** | **$4,165** |
-| Ingresos (10B + 10P + 5E) | â€” | **$74,980** |
-| **Margen bruto** | â€” | **$70,815 (94.4%)** |
+| Infraestructura AWS (misma base, escala hasta ~15) | $168 | $2,940 |
+| APIs IA (4B + 4P + 2E) | $58 | $1,015 |
+| **TOTAL COSTOS** | **$226** | **$3,955** |
+| Ingresos (4 Básico + 4 Profesional + 2 Empresa) | — | **$29,990** |
+| **Margen bruto** | — | **$26,035 (86.8%)** |
+
+### Escenario C — Escala (25 notarías)
+
+| Concepto | USD | MXN |
+|---|---:|---:|
+| EC2 `t3.large` + RDS `db.t3.medium` + Redis escalado | $230 | $4,025 |
+| APIs IA | $180 | $3,150 |
+| Extras (staging, dominio) | $20 | $350 |
+| **TOTAL COSTOS** | **$430** | **$7,525** |
+| Ingresos (10B + 10P + 5E) | — | **$74,980** |
+| **Margen bruto** | — | **$67,455 (89.9%)** |
+
+### Escenario D — Alta escala (60 notarías, arquitectura ECS)
+
+| Concepto | USD | MXN |
+|---|---:|---:|
+| ECS Fargate (auto-scaling) | $180 | $3,150 |
+| Aurora MySQL Serverless v2 | $150 | $2,625 |
+| ElastiCache Redis cluster | $60 | $1,050 |
+| S3 + CloudFront (volumen alto) | $40 | $700 |
+| ALB + WAF + SES + CloudWatch | $60 | $1,050 |
+| APIs IA (volumen alto) | $450 | $7,875 |
+| **TOTAL COSTOS** | **$940** | **$16,450** |
+| Ingresos (20B + 25P + 15E) | — | **$179,960** |
+| **Margen bruto** | — | **$163,510 (90.9%)** |
+
+> ?? **Punto de equilibrio:** Con tan solo **3 notarías activas** en cualquier plan
+> se cubre el 100% del costo de infraestructura AWS mensual.
 
 ---
 
 ## 4. Propuesta de Precios de los Planes
 
-### Tabla comparativa
-
-| Plan | Precio/mes | Precio/aÃ±o | Ahorro anual | Usuarios | BÃºsquedas |
+| Plan | Precio/mes | Precio/año | Ahorro | Usuarios | Búsquedas |
 |---|---:|---:|---:|---|---|
-| **BÃ¡sico** | $1,499 MXN | $14,990 MXN | $2,998 MXN (2 meses gratis) | 2 | 50/mes |
-| **Profesional** | $2,999 MXN | $29,990 MXN | $5,998 MXN (2 meses gratis) | 5 | Ilimitadas |
-| **Empresa** | $5,999 MXN | $59,990 MXN | $11,998 MXN (2 meses gratis) | Ilimitados | Ilimitadas |
+| **Básico** | $1,499 MXN | $14,990 MXN | $2,998 (2 meses gratis) | 2 | 50/mes |
+| **Profesional** | $2,999 MXN | $29,990 MXN | $5,998 (2 meses gratis) | 5 | Ilimitadas |
+| **Empresa** | $5,999 MXN | $59,990 MXN | $11,998 (2 meses gratis) | Ilimitados | Ilimitadas |
 
-### JustificaciÃ³n de precios
+### Margen real por plan
 
-**Plan BÃ¡sico â€” $1,499/mes:**
-- Incluye: Control Notarial, Agenda Web, Registro Web (50 personas), 50 bÃºsquedas SAT+OFAC, 20 docs EscÃ¡ner Inteligente
-- El costo de infraestructura asignado por notarÃ­a a este plan es de ~$106 MXN/mes
-- Con solo **1 notarÃ­a en BÃ¡sico** se paga el dominio y los extras; a partir de la segunda es ganancia
-
-**Plan Profesional â€” $2,999/mes:**
-- Incluye todo lo anterior sin lÃ­mite, mÃ¡s 200 personas en Registro Web, 100 docs escÃ¡ner
-- Costo de infraestructura + IA estimado: ~$200 MXN/mes por notarÃ­a
-- Margen: ~93%
-
-**Plan Empresa â€” $5,999/mes:**
-- Sin lÃ­mites en ninguna herramienta + soporte 24/7
-- Ideal para notarÃ­as con alto volumen de escrituras y testamentos
-- Costo estimado de IA en uso intensivo: ~$115 MXN/mes â†’ Margen: ~98%
+| Plan | Ingreso | Costo infra asignado | Costo IA | **Margen** |
+|---|---:|---:|---:|---:|
+| Básico | $1,499 MXN | ~$330 MXN | ~$8 MXN | **$1,161 (~77%)** |
+| Profesional | $2,999 MXN | ~$330 MXN | ~$60 MXN | **$2,609 (~87%)** |
+| Empresa | $5,999 MXN | ~$330 MXN | ~$280 MXN | **$5,389 (~89.8%)** |
 
 ---
 
-## 5. Referencia: Competencia en el mercado notarial mexicano
+## 5. Riesgos Operativos
 
-| Plataforma | Precio/mes aprox. | Enfoque |
-|---|---:|---|
-| NotarSoft | $2,000â€“$4,000 MXN | Solo gestiÃ³n interna |
-| SistemaNota | $1,500â€“$3,500 MXN | Sin IA |
-| Solucionot | $3,000+ MXN | Suite bÃ¡sica |
-| **Atinet Compliance Hub** | **$1,499â€“$5,999 MXN** | **IA + Compliance + Control Notarial** |
-
-> Atinet es el **Ãºnico sistema en MÃ©xico** que integra: control notarial + listas negras SAT/OFAC + registro web con OCR por IA + escÃ¡ner inteligente de documentos, en un solo plan.
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Costo OpenAI sube con testamentos largos | Medio | Gemini primero; GPT-4o solo para análisis complejo |
+| BD saturada con 15+ notarías en `t3.small` | Alto | Upgrade documentado: `db.t3.medium` a ~$60 USD |
+| Egress S3 en descargas masivas | Medio | CloudFront reduce hasta 80% costo de transferencia |
+| APIs C# caídas en servidor legacy | Alto | Health check + fallback en frontend con mensaje claro |
 
 ---
 
-## 6. Calculadoras de referencia para verificar costos
+## 6. Competencia en el Mercado Notarial Mexicano
+
+| Plataforma | Precio/mes | IA | Compliance | Control Notarial |
+|---|---:|---|---|---|
+| NotarSoft | $2,000–$4,000 MXN | ? | ? | ? |
+| SistemaNota | $1,500–$3,500 MXN | ? | ? | ? |
+| Solucionot | $3,000+ MXN | ? | Básico | ? |
+| **Atinet Compliance Hub** | **$1,499–$5,999 MXN** | **? Gemini + GPT-4o** | **? SAT + OFAC** | **?** |
+
+> Atinet es el **único sistema en México** que integra en un solo plan:
+> control notarial + listas negras SAT/OFAC + registro web con OCR por IA
+> + escáner inteligente + agenda web + APIs de integración con sistema legacy.
+
+---
+
+## 7. Calculadoras de Referencia
 
 - **AWS Pricing Calculator:** https://calculator.aws/pricing/2/homescreen
 - **Google AI Gemini Pricing:** https://ai.google.dev/pricing
 - **OpenAI API Pricing:** https://openai.com/api/pricing
-- **AWS RDS Pricing (MySQL):** https://aws.amazon.com/rds/mysql/pricing/
-- **AWS EC2 Pricing:** https://aws.amazon.com/ec2/pricing/on-demand/
+- **AWS RDS MySQL:** https://aws.amazon.com/rds/mysql/pricing/
+- **AWS EC2 On-Demand:** https://aws.amazon.com/ec2/pricing/on-demand/
+- **AWS ElastiCache:** https://aws.amazon.com/elasticache/pricing/
 
 ---
 
-*Documento generado: Abril 2026 â€” Para uso interno Atinet*
+*Documento generado: Abril 2026 — Para uso interno Atinet*
+*Revisado considerando arquitectura multi-tenant real, colas, cache y APIs C# de integración*
