@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\ControlNotarialApiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -178,46 +179,60 @@ class ControlNotarialController extends Controller
             ], 403);
         }
 
+        $cacheKey = 'cn_jwt_user_'.$user->cn_usuario_id;
+        $lockKey = 'cn_jwt_lock_'.$user->cn_usuario_id;
+
+        // Si ya hay un token válido en caché, devolverlo sin re-autenticar
+        $cached = Cache::get($cacheKey);
+        if ($cached) {
+            return response()->json(['success' => true, 'token' => $cached]);
+        }
+
         try {
-            $cnUsuario = DB::table('tbl_cat_usuarios')
-                ->where('Id', $user->cn_usuario_id)
-                ->value('Usuario');
+            $token = Cache::lock($lockKey, 15)->block(10, function () use ($user, $cacheKey) {
+                // Doble-check tras adquirir el lock (otro proceso pudo haberlo llenado)
+                $cached = Cache::get($cacheKey);
+                if ($cached) {
+                    return $cached;
+                }
 
-            if (! $cnUsuario) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Usuario Control Notarial no encontrado.',
-                ], 404);
-            }
+                $cnUsuario = DB::table('tbl_cat_usuarios')
+                    ->where('Id', $user->cn_usuario_id)
+                    ->value('Usuario');
 
-            // Resetear sesión activa tanto en DB como vía C# API (gateway)
-            // para evitar "Ya hay una sesion iniciada con este usuario"
-            DB::table('tbl_cat_usuarios')
-                ->where('Id', $user->cn_usuario_id)
-                ->update(['Sesion_Iniciada' => 0]);
+                if (! $cnUsuario) {
+                    throw new \RuntimeException('Usuario Control Notarial no encontrado.');
+                }
 
-            app(ControlNotarialApiService::class)->resetSesionCN($user->cn_usuario_id);
+                // Resetear sesión activa en DB para evitar "Ya hay una sesion iniciada"
+                DB::table('tbl_cat_usuarios')
+                    ->where('Id', $user->cn_usuario_id)
+                    ->update(['Sesion_Iniciada' => 0]);
 
-            $plainPassword = decrypt($user->cn_password);
+                DB::table('tbl_log_sesiones_activas')
+                    ->where('Usuario_Id', $user->cn_usuario_id)
+                    ->delete();
 
-            $token = app(ControlNotarialApiService::class)->loginUser($cnUsuario, $plainPassword);
+                $plainPassword = decrypt($user->cn_password);
 
-            if (! $token) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No se pudo autenticar en Control Notarial.',
-                ], 502);
-            }
+                $jwt = app(ControlNotarialApiService::class)->loginUser($cnUsuario, $plainPassword);
 
-            return response()->json([
-                'success' => true,
-                'token' => $token,
-            ]);
+                if (! $jwt) {
+                    throw new \RuntimeException('No se pudo autenticar en Control Notarial.');
+                }
+
+                // Cachear el JWT 55 minutos (el token C# dura ~60)
+                Cache::put($cacheKey, $jwt, now()->addMinutes(55));
+
+                return $jwt;
+            });
+
+            return response()->json(['success' => true, 'token' => $token]);
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error interno al obtener token CN.',
-            ], 500);
+                'error' => $e->getMessage() ?: 'Error interno al obtener token CN.',
+            ], 502);
         }
     }
 }

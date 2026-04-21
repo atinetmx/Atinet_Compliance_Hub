@@ -241,7 +241,11 @@ class ControlNotarialApiService
 
         $body = $response->json();
 
-        $token = $body['token'] ?? $body['Token'] ?? $body['access_token'] ?? null;
+        $token = $body['dataResponse']['accessToken']
+            ?? $body['token']
+            ?? $body['Token']
+            ?? $body['access_token']
+            ?? null;
 
         if (! $token) {
             throw new \RuntimeException('C# no retornó token JWT. Respuesta: '.json_encode($body));
