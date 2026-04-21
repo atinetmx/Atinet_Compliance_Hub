@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
 
 import { Button } from '@/components/ui/button';
@@ -189,18 +189,22 @@ export default function PresupuestoPrevioIndex() {
     const [dependenciasUnicas, setDependenciasUnicas] = useState<string[]>([]);
     const [activeDependenciaTab, setActiveDependenciaTab] = useState<string>('');
 
+    const initializedRef = useRef(false);
     const { addToast } = useToast();
     const api = useApi();
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
-    // Cargar presupuestos al montar (filtro vacío = todos)
+    // Cargar todos los datos al montar (solo una vez)
     useEffect(() => {
-        fetchPresupuestos('');
-    }, []);
+        // Prevenir doble fetch en React Strict Mode (desarrollo)
+        if (initializedRef.current) return;
+        initializedRef.current = true;
 
-    // Cargar clientes al montar
-    useEffect(() => {
+        // Cargar presupuestos al montar (filtro vacío = todos)
+        fetchPresupuestos('');
+
+        // Cargar clientes al montar
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
@@ -219,10 +223,8 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchClientes();
-    }, [addToast, api]);
 
-    // Cargar operaciones al montar
-    useEffect(() => {
+        // Cargar operaciones al montar
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
@@ -241,10 +243,8 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchOperaciones();
-    }, [addToast, api]);
 
-    // Cargar zonas/municipios al montar
-    useEffect(() => {
+        // Cargar zonas/municipios al montar
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
@@ -263,7 +263,7 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchZonas();
-    }, [addToast, api]);
+    }, []);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {

@@ -178,6 +178,15 @@ interface Presupuesto {
     total_Presupuesto: number | null;
 }
 
+interface DataPLD {
+    expediente: string;
+    descripcion: string;
+    usuario: string | null;
+    realizado: boolean;
+    clave: string;
+    fecha_Realizado: string | null;
+}
+
 interface ExpedienteFormData {
     id?: number;
     expediente: string;
@@ -418,6 +427,17 @@ export default function ExpedientesIndex() {
     const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
     const [cargandoPresupuestos, setCargandoPresupuestos] = useState(false);
     const [mostrarFormularioPresupuesto, setMostrarFormularioPresupuesto] = useState(false);
+
+    // --- Estado para almacenar datos PLD ---
+    const [datosPLD, setDatosPLD] = useState<DataPLD[]>([]);
+    const [cargandoPLD, setCargandoPLD] = useState(false);
+
+    // --- Estados para Búsqueda en Listas Negras ---
+    const [showListasNegrasModal, setShowListasNegrasModal] = useState(false);
+    const [listasNegrasLoading, setListasNegrasLoading] = useState(false);
+    const [listasNegrasResults, setListasNegrasResults] = useState<any[]>([]);
+    const [listasNegrasError, setListasNegrasError] = useState<string | null>(null);
+    const [comparecienteParaBuscar, setComparecienteParaBuscar] = useState<string | null>(null);
     const [formPresupuesto, setFormPresupuesto] = useState({
         cliente: '',
         operacion: '',
@@ -585,6 +605,12 @@ export default function ExpedientesIndex() {
 
     // Ref para debounce de actualización de documentos individuales
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
+    const inmueblesLoadedRef = useRef(false);
+    const documentosLoadedRef = useRef(false);
+    const presupuestosLoadedRef = useRef(false);
+    const recibosLoadedRef = useRef(false);
+    const pldLoadedRef = useRef(false);
+    const initializedRef = useRef(false);
 
     const api = useApi();
     const { props } = usePage();
@@ -592,6 +618,10 @@ export default function ExpedientesIndex() {
 
     // Cargar expedientes al montar (filtro vacío = todos)
     useEffect(() => {
+        // Prevenir doble fetch en React Strict Mode (desarrollo)
+        if (initializedRef.current) return;
+        initializedRef.current = true;
+
         fetchExpedientes('');
         fetchOperaciones();
         fetchMunicipios();
@@ -1544,13 +1574,35 @@ export default function ExpedientesIndex() {
             setInmuebleEnEdicion(null);
             setInmuebleIdEnEdicion(null);
             setReciboDetalleSeleccionado(null);
+            setClienteSeleccionadoDocumentos(null);
+            setDocumentosPorCliente([]);
 
-            fetchDocumentosExpediente(currentExpedienteId);
-            fetchInmueblesExpediente(currentExpedienteId);
-            fetchRecibosProvisionales(currentExpedienteId);
-            fetchPresupuestos(currentExpedienteId);
+            // Los datos se cargarán bajo demanda cuando se acceda a cada pestaña
         }
     }, [currentExpedienteId]);
+
+    // Cargar documentosExpediente cuando se acceda a esa pestaña
+    useEffect(() => {
+        if (activeInternalTab === 'documentos' && currentExpedienteId) {
+            fetchDocumentosExpediente(currentExpedienteId);
+        }
+    }, [activeInternalTab, currentExpedienteId]);
+
+    // Cargar inmueblesExpediente cuando se acceda a esa pestaña
+    useEffect(() => {
+        if (activeInternalTab === 'inmuebles' && currentExpedienteId) {
+            fetchInmueblesExpediente(currentExpedienteId);
+        }
+    }, [activeInternalTab, currentExpedienteId]);
+
+    // Cargar datos financieros cuando se acceda a esa pestaña
+    useEffect(() => {
+        if (activeInternalTab === 'financiero-control' && currentExpedienteId) {
+            fetchPresupuestos(currentExpedienteId);
+            fetchRecibosProvisionales(currentExpedienteId);
+            fetchPLD(currentExpedienteId);
+        }
+    }, [activeInternalTab, currentExpedienteId]);
 
     // Auto-seleccionar el primer cliente cuando se cargan los documentos
     useEffect(() => {
@@ -1937,11 +1989,7 @@ export default function ExpedientesIndex() {
             setActiveInternalTab('info-general');
             setSaveError(null);
 
-            // Cargar documentos e inmuebles del expediente
-            await fetchDocumentosExpediente(expedienteId);
-            await fetchInmueblesExpediente(expedienteId);
-             await fetchRecibosProvisionales(expedienteId);
-             await fetchPresupuestos(expedienteId);
+            // Los datos se cargarán bajo demanda cuando se navegue a cada pestaña
         } catch (error) {
             setSaveError('Error al cargar el expediente');
             console.error('Error:', error);
@@ -2424,6 +2472,67 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // Obtener datos PLD del expediente
+    const fetchPLD = async (expedienteId: number) => {
+        setCargandoPLD(true);
+        try {
+            const data = await api.get(`/Expediente/GetExpedientePLD?expedienteId=${expedienteId}`);
+            if (data && data.dataResponse) {
+                setDatosPLD(data.dataResponse);
+            } else {
+                setDatosPLD([]);
+            }
+        } catch (error) {
+            console.error('Error al cargar PLD:', error);
+            setDatosPLD([]);
+        } finally {
+            setCargandoPLD(false);
+        }
+    };
+
+    // Buscar en Listas Negras (SAT/OFAC)
+    const buscarEnListasNegras = async (nombre: string) => {
+        if (!nombre.trim()) return;
+
+        setListasNegrasLoading(true);
+        setListasNegrasError(null);
+        setListasNegrasResults([]);
+
+        try {
+            const response = await fetch('/admin/search/persona-fisica', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    nombre: nombre,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                const allResults = [
+                    ...(data.data.ofac_resultados || []).map((r: any) => ({ ...r, source: 'OFAC' })),
+                    ...(data.data.sat_resultados || []).map((r: any) => ({ ...r, source: 'SAT' })),
+                ];
+                setListasNegrasResults(allResults);
+                setShowListasNegrasModal(true);
+            } else {
+                setListasNegrasError(data.message || 'Error en la búsqueda');
+                setShowListasNegrasModal(true);
+            }
+        } catch (error) {
+            console.error('Error de búsqueda:', error);
+            setListasNegrasError('Error de conexión');
+            setShowListasNegrasModal(true);
+        } finally {
+            setListasNegrasLoading(false);
+        }
+    };
+
     // Obtener Recibo Provisional por ID
     const fetchReciboDetalle = async (reciboId: number) => {
         setCargandoReciboDetalle(true);
@@ -2811,6 +2920,7 @@ export default function ExpedientesIndex() {
                                 </TabsList>
 
                                 {/* GRUPO 1: INFORMACIÓN GENERAL */}
+                                {activeInternalTab === 'info-general' && (
                                 <TabsContent value="info-general" className="space-y-6">
                                     <Tabs defaultValue="datos-expediente" className="w-full">
                                         <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-800 mb-3">
@@ -3545,8 +3655,17 @@ export default function ExpedientesIndex() {
                                                                             size="sm"
                                                                             variant="outline"
                                                                             className="text-sm font-medium gap-2"
+                                                                            onClick={() => {
+                                                                                setComparecienteParaBuscar(fila.nombreCompareciente);
+                                                                                buscarEnListasNegras(fila.nombreCompareciente);
+                                                                            }}
+                                                                            disabled={listasNegrasLoading}
                                                                         >
-                                                                            <Search className="h-4 w-4" />
+                                                                            {listasNegrasLoading ? (
+                                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                            ) : (
+                                                                                <Search className="h-4 w-4" />
+                                                                            )}
                                                                             BUSQUEDA
                                                                         </Button>
                                                                     </td>
@@ -3774,6 +3893,7 @@ export default function ExpedientesIndex() {
                                         </TabsContent>
                                     </Tabs>
                                 </TabsContent>
+                                )}
 
 
                                 {/* GRUPO 2: DOCUMENTOS - Solo disponible al editar */}
@@ -5820,25 +5940,59 @@ export default function ExpedientesIndex() {
 
                                         {/* SubTab: PLD (Prevención de Lavado de Dinero) */}
                                         <TabsContent value="pld" className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Revisión PLD Realizada</label>
-                                                    <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona</option>
-                                                        <option value="SI">Sí</option>
-                                                        <option value="NO">No</option>
-                                                        <option value="PENDIENTE">Pendiente</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Fecha Revisión</label>
-                                                    <Input type="date" className="text-sm" />
-                                                </div>
+                                            <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                                                <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-0">Verificación PLD</h3>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Observaciones PLD</label>
-                                                <textarea placeholder="Resultado de la revisión PLD..." rows={4} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                            </div>
+
+                                            {cargandoPLD && (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                                    <span className="ml-2 text-sm text-muted-foreground">Cargando datos PLD...</span>
+                                                </div>
+                                            )}
+
+                                            {!cargandoPLD && datosPLD.length === 0 && (
+                                                <div className="border rounded-lg p-4">
+                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay datos PLD disponibles para este expediente.</p>
+                                                </div>
+                                            )}
+
+                                            {!cargandoPLD && datosPLD.length > 0 && (
+                                                <div className="border rounded-lg overflow-hidden">
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-sm">
+                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
+                                                                <tr>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Descripción</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Usuario Responsable</th>
+                                                                    <th className="px-4 py-2 text-center font-semibold">Estatus</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold">Fecha Realizado</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {datosPLD.map((item, idx) => (
+                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                                                        <td className="px-4 py-2">{item.descripcion}</td>
+                                                                        <td className="px-4 py-2">{item.usuario || '-'}</td>
+                                                                        <td className="px-4 py-2 text-center">
+                                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                                item.clave === 'PENDIENTE'
+                                                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                                                                : item.clave === 'REALIZADO'
+                                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                                            }`}>
+                                                                                {item.clave}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-2">{item.fecha_Realizado || '-'}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </TabsContent>
 
                                         {/* SubTab: Operaciones de Lavado */}
@@ -6247,6 +6401,77 @@ export default function ExpedientesIndex() {
                                 onClick={() => setShowClienteModalComparecientes(false)}
                                 variant="outline"
                             >
+                                Cerrar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: BÚSQUEDA EN LISTAS NEGRAS */}
+            {showListasNegrasModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+                    <div className="bg-white dark:bg-slate-950 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+                        <div className="flex justify-between items-center p-4 border-b">
+                            <h2 className="text-lg font-bold">
+                                Búsqueda en Listas Negras/OFAC - {comparecienteParaBuscar}
+                            </h2>
+                            <button
+                                onClick={() => setShowListasNegrasModal(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {listasNegrasLoading && (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                                    <span>Buscando en listas negras...</span>
+                                </div>
+                            )}
+
+                            {listasNegrasError && !listasNegrasLoading && (
+                                <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700">
+                                    <AlertCircle className="inline h-5 w-5 mr-2" />
+                                    {listasNegrasError}
+                                </div>
+                            )}
+
+                            {!listasNegrasLoading && listasNegrasResults.length === 0 && !listasNegrasError && (
+                                <div className="text-center py-8 text-gray-500">
+                                    <p>✓ No se encontraron coincidencias en listas negras o OFAC</p>
+                                    <p className="text-sm mt-2">El compareciente está limpio</p>
+                                </div>
+                            )}
+
+                            {listasNegrasResults.length > 0 && (
+                                <div className="space-y-4">
+                                    {listasNegrasResults.map((result, idx) => (
+                                        <div key={idx} className={`border rounded p-4 ${result.source === 'OFAC' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p className="font-semibold">{result.name || result.nombre_limpio}</p>
+                                                    <p className="text-sm text-gray-600">{result.source}</p>
+                                                </div>
+                                                {result.similarity || result.coincidencia ? (
+                                                    <span className={`px-2 py-1 rounded text-sm font-semibold ${(result.similarity || result.coincidencia) >= 80 ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'}`}>
+                                                        {result.similarity || result.coincidencia}% coincidencia
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            {result.rfc && <p className="text-sm"><strong>RFC:</strong> {result.rfc}</p>}
+                                            {result.situacion && <p className="text-sm"><strong>Situación:</strong> {result.situacion}</p>}
+                                            {result.tipo_coincidencia && <p className="text-sm"><strong>Tipo:</strong> {result.tipo_coincidencia}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 justify-end p-4 border-t">
+                            <Button variant="outline" onClick={() => setShowListasNegrasModal(false)}>
                                 Cerrar
                             </Button>
                         </div>
