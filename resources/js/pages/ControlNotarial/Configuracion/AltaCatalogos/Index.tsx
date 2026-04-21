@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
-import LoginModal from '@/components/Modals/LoginModal';
+
 
 // Interfaces para cada tipo de catálogo
 interface CatalogoItem {
@@ -110,17 +110,11 @@ export default function ControlNotarialAltaCatalogos() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
     const api = useApi();
 
-    // ✅ Validar token al montar la página
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
-        }
-    });
+    // Validar token al montar la página
+    useAuthGuard();
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -208,7 +202,6 @@ export default function ControlNotarialAltaCatalogos() {
             const response = await api.get('/Catalogos/GetActividadesVulnerables');
             const datos = handleControlNotarialResponse(response, {
                 onError: (msg) => addToast(msg, 'error'),
-                onUnauthorized: () => setLoginModalOpen(true)
             });
             if (datos) {
                 setActividadesVulnerablesLista(datos);
@@ -223,7 +216,6 @@ export default function ControlNotarialAltaCatalogos() {
             const response = await api.get('/Catalogos/GetDependenciasPublicas');
             const datos = handleControlNotarialResponse(response, {
                 onError: (msg) => addToast(msg, 'error'),
-                onUnauthorized: () => setLoginModalOpen(true)
             });
             if (datos) {
                 setDependenciasLista(datos);
@@ -242,10 +234,8 @@ export default function ControlNotarialAltaCatalogos() {
 
             const datos = handleControlNotarialResponse(response, {
                 onError: (msg) => setSearchError(msg),
-                onUnauthorized: () => setLoginModalOpen(true)
             });
 
-            // Si fue 401, no mostrar error adicional (ya se maneja en onUnauthorized)
             if (response?.isUnauthorized) {
                 setTodosLosResultados([]);
                 setResultados([]);
@@ -482,9 +472,7 @@ export default function ControlNotarialAltaCatalogos() {
 
             console.log(`[DEBUG] Response:`, response);
 
-            // Verificar si fue 401
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -930,11 +918,7 @@ export default function ControlNotarialAltaCatalogos() {
                 </div>
             </div>
 
-            <LoginModal
-                isOpen={loginModalOpen}
-                onClose={() => setLoginModalOpen(false)}
-                onSuccess={() => setLoginModalOpen(false)}
-            />
+
         </>
     );
 }
