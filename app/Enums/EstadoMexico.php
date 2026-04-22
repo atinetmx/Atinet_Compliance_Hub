@@ -11,15 +11,15 @@ enum EstadoMexico: string
     case CHIAPAS = 'Chiapas';
     case CHIHUAHUA = 'Chihuahua';
     case CDMX = 'Ciudad de México';
-    case COAHUILA = 'Coahuila';
+    case COAHUILA = 'Coahuila de Zaragoza';
     case COLIMA = 'Colima';
     case DURANGO = 'Durango';
     case GUANAJUATO = 'Guanajuato';
     case GUERRERO = 'Guerrero';
     case HIDALGO = 'Hidalgo';
     case JALISCO = 'Jalisco';
-    case MEXICO = 'Estado de México';
-    case MICHOACAN = 'Michoacán';
+    case MEXICO = 'México';
+    case MICHOACAN = 'Michoacán de Ocampo';
     case MORELOS = 'Morelos';
     case NAYARIT = 'Nayarit';
     case NUEVO_LEON = 'Nuevo León';
@@ -33,7 +33,7 @@ enum EstadoMexico: string
     case TABASCO = 'Tabasco';
     case TAMAULIPAS = 'Tamaulipas';
     case TLAXCALA = 'Tlaxcala';
-    case VERACRUZ = 'Veracruz';
+    case VERACRUZ = 'Veracruz de Ignacio de la Llave';
     case YUCATAN = 'Yucatán';
     case ZACATECAS = 'Zacatecas';
 

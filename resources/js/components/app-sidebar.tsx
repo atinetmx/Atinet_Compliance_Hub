@@ -37,8 +37,8 @@ export function AppSidebar() {
     // Check if user has Control Notarial service (future: will be checked from servicios)
     const hasControlNotarial = servicios.some((s) => s.code === 'CONTROL_NOTARIAL') || isSuperAdmin;
 
-    // Agenda Web: disponible para todos los usuarios autenticados
-    const hasAgenda = isSuperAdmin || servicios.some((s) => s.code === 'AGENDA') || true;
+    const hasAgenda = isSuperAdmin || servicios.some((s) => s.code === 'AGENDA');
+    const hasRegistroWeb = isSuperAdmin || servicios.some((s) => s.code === 'REGISTRO_WEB');
 
     const mainNavItems: NavItem[] = [
         {
@@ -185,6 +185,15 @@ export function AppSidebar() {
                       title: 'Agenda',
                       href: '/admin/agenda',
                       icon: CalendarDays,
+                  },
+              ]
+            : []),
+        ...(hasRegistroWeb && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Registro Web',
+                      href: '/admin/registro-web',
+                      icon: QrCode,
                   },
               ]
             : []),

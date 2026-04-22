@@ -35,14 +35,12 @@ interface Props {
     users: {
         data: User[];
         links: Array<{ url: string | null; label: string; active: boolean }>;
-        meta: {
-            current_page: number;
-            last_page: number;
-            per_page: number;
-            total: number;
-            from: number;
-            to: number;
-        };
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number | null;
+        to: number | null;
     };
     notarias: Array<{
         id: number;
@@ -386,8 +384,8 @@ export default function Index({
                 {users.links && users.links.length > 3 && (
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            Mostrando {users.meta.from} a {users.meta.to} de{' '}
-                            {users.meta.total} usuarios
+                            Mostrando {users.from ?? 0} a {users.to ?? 0} de{' '}
+                            {users.total} usuarios
                         </div>
                         <div className="flex items-center gap-2">
                             {users.links.map((link, index) => (

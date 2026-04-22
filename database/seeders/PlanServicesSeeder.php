@@ -18,6 +18,12 @@ class PlanServicesSeeder extends Seeder
      */
     public function run(): void
     {
+        // Limpiar asignaciones anteriores de los 3 planes para reconstruir limpio
+        // (subscriptions NO se tocan — solo plan_services)
+        $planIds = Plan::whereIn('slug', ['plan-basico', 'plan-premium', 'plan-empresa'])->pluck('id');
+        \DB::table('plan_services')->whereIn('plan_id', $planIds)->delete();
+        $this->command->info('  - Asignaciones anteriores limpiadas');
+
         $this->seedPlanBasico();
         $this->seedPlanProfesional();
         $this->seedPlanPremium();
