@@ -63,9 +63,16 @@ class RegistroWebController extends Controller
             ->sortByDesc('created_at')
             ->values();
 
+        $isSuperAdmin = $user->tipo_cuenta === 'super_admin';
+        $registroWebUrl = $notaria
+            ? 'https://notariosatinet.com.mx/'.$notaria.'/'
+            : null;
+
         return Inertia::render('Admin/RegistroWeb/Index', [
             'historial' => $historial,
             'notaria' => $notaria,
+            'is_super_admin' => $isSuperAdmin,
+            'registro_web_url' => $registroWebUrl,
             'stats' => [
                 'total_nuevos' => RegistroPersona::when($notaria, fn ($q) => $q->where('notaria', $notaria))->count(),
                 'total_legacy' => LegacyRegistro::when($notaria, fn ($q) => $q->where('notaria', $notaria))->count(),

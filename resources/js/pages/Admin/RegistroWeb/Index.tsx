@@ -37,7 +37,9 @@ import {
 
 interface Props {
     historial: unknown[];
-    notaria: string;
+    notaria: string | null;
+    is_super_admin: boolean;
+    registro_web_url: string | null;
     stats: {
         total_nuevos: number;
         total_legacy: number;
@@ -113,7 +115,7 @@ const inputClass =
 const selectClass =
     'w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500';
 
-export default function Index({ notaria, stats }: Props) {
+function RegistroWebDevView({ notaria, stats }: Props) {
     const [activeTab, setActiveTab] = useState<PersonaType>('fisica');
     const [personTypeLockedByQR, setPersonTypeLockedByQR] = useState(false); // Bloquear cambio de tipo cuando viene del QR
     const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
@@ -1381,4 +1383,63 @@ export default function Index({ notaria, stats }: Props) {
             />
         </AppLayout>
     );
+}
+
+function NotariaIframeView({ registroWebUrl, notaria }: { registroWebUrl: string; notaria: string | null }) {
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Registro Web" />
+            <div className="flex h-[calc(100vh-8rem)] flex-col gap-3">
+                {/* Barra superior */}
+                <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-2">
+                    <div className="flex items-center gap-2">
+                        <QrCode className="size-4 text-amber-500" />
+                        <span className="text-sm font-medium">Registro Web</span>
+                        {notaria && (
+                            <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{notaria}</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                            onClick={() => {
+                                const iframe = document.getElementById('registro-web-iframe') as HTMLIFrameElement | null;
+                                if (iframe) { iframe.src = iframe.src; }
+                            }}
+                        >
+                            <RotateCcw className="size-3" />
+                            Recargar
+                        </button>
+                        <a
+                            href={registroWebUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <Eye className="size-3" />
+                            Abrir en nueva pestaña
+                        </a>
+                    </div>
+                </div>
+                {/* Iframe */}
+                <div className="flex-1 overflow-hidden rounded-lg border bg-white dark:bg-zinc-900">
+                    <iframe
+                        id="registro-web-iframe"
+                        src={registroWebUrl}
+                        className="size-full"
+                        title="Registro Web"
+                        allow="camera; microphone"
+                    />
+                </div>
+            </div>
+        </AppLayout>
+    );
+}
+
+export default function Index(props: Props) {
+    if (!props.is_super_admin && props.registro_web_url) {
+        return <NotariaIframeView registroWebUrl={props.registro_web_url} notaria={props.notaria} />;
+    }
+    return <RegistroWebDevView {...props} />;
 }
