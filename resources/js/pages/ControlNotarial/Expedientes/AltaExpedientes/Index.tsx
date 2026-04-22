@@ -232,7 +232,7 @@ export default function ExpedientesIndex() {
     const [searchError, setSearchError] = useState<string | null>(null);
 
     // Validar autenticación al montar
-    useAuthGuard();
+    const { isReady } = useAuthGuard();
 
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');

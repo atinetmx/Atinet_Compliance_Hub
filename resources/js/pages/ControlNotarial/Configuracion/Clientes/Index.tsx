@@ -205,13 +205,14 @@ export default function ControlNotarialClientes() {
     const { addToast } = useToast();
     const api = useApi();
 
-    // Validar autenticación al montar
-    useAuthGuard();
+    // Validar autenticación al montar — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     // Cargar clientes al montar (filtro vacío = todos)
     useEffect(() => {
+        if (!isReady) return;
         fetchClientes('');
-    }, [api]);
+    }, [isReady, api]);
 
     const fetchClientes = async (filtroValue: string) => {
         setIsSearching(true);

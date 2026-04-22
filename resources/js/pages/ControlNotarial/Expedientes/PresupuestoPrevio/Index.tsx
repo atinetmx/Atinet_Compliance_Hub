@@ -198,16 +198,18 @@ export default function PresupuestoPrevioIndex() {
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
 
-    // ✅ Validar token al montar la página
-    useAuthGuard();
+    // ✅ Validar token al montar la página — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     // Cargar presupuestos al montar (filtro vacío = todos)
     useEffect(() => {
+        if (!isReady) return;
         fetchPresupuestos('');
-    }, []);
+    }, [isReady]);
 
     // Cargar clientes al montar
     useEffect(() => {
+        if (!isReady) return;
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
@@ -230,10 +232,11 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchClientes();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     // Cargar operaciones al montar
     useEffect(() => {
+        if (!isReady) return;
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
@@ -256,10 +259,11 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchOperaciones();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     // Cargar zonas/municipios al montar
     useEffect(() => {
+        if (!isReady) return;
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
@@ -282,7 +286,7 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchZonas();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {
@@ -462,10 +466,10 @@ export default function PresupuestoPrevioIndex() {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
             const data = await api.get(endpoint);
-            if (data) {
+            if (data.success && data.dataResponse) {
                 setResultados(data.dataResponse || []);
             } else {
-                setSearchError(data?.message || 'No se pudieron cargar los presupuestos previos.');
+                setSearchError(data.message || 'No se pudieron cargar los presupuestos previos.');
                 setResultados([]);
             }
         } catch (error) {
@@ -811,10 +815,10 @@ export default function PresupuestoPrevioIndex() {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
             const data = await api.get(endpoint);
-            if (data) {
+            if (data.success && data.dataResponse) {
                 setClienteResultados(data.dataResponse || []);
             } else {
-                setClienteError(data?.message || 'No se encontraron clientes.');
+                setClienteError(data.message || 'No se encontraron clientes.');
                 setClienteResultados([]);
             }
         } catch (error) {

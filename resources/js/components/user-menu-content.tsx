@@ -10,6 +10,7 @@ import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
+import { removeToken } from '@/services/authService';
 import type { User } from '@/types';
 
 type Props = {
@@ -20,6 +21,9 @@ export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
 
     const handleLogout = () => {
+        // Limpiar JWT de CN de localStorage al hacer logout para evitar
+        // que la siguiente sesión use credenciales de la sesión anterior.
+        removeToken();
         cleanup();
         router.flushAll();
     };

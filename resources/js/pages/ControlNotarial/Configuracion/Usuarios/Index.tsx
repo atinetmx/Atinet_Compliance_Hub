@@ -99,16 +99,18 @@ export default function ControlNotarialUsuarios() {
     const { addToast } = useToast();
     const api = useApi();
 
-    // Validar autenticación al montar
-    useAuthGuard();
+    // Validar autenticación al montar — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     // Cargar usuarios al montar (filtro vacío = todos)
     useEffect(() => {
+        if (!isReady) return;
         fetchUsuarios('');
-    }, [api]);
+    }, [isReady, api]);
 
     // Cargar roles al montar
     useEffect(() => {
+        if (!isReady) return;
         const fetchRoles = async () => {
             try {
                 const response = await api.get('/Catalogos/GetRoles');
@@ -125,7 +127,7 @@ export default function ControlNotarialUsuarios() {
             }
         };
         fetchRoles();
-    }, [api]);
+    }, [isReady, api]);
 
     const fetchUsuarios = async (filtroValue: string) => {
         setIsSearching(true);

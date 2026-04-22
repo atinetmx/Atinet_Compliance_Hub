@@ -106,13 +106,14 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     const [isLoadingSubTab, setIsLoadingSubTab] = useState(false);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-    // Validar autenticación al montar
-    useAuthGuard();
+    // Validar autenticación al montar — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     // Cargar operaciones al montar (filtro vacío = todas)
     useEffect(() => {
+        if (!isReady) return;
         fetchOperaciones('');
-    }, []);
+    }, [isReady]);
 
     const fetchOperaciones = async (filtroValue: string) => {
         setIsSearching(true);

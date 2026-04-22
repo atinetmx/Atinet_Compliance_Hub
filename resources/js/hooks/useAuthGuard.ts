@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { removeToken, saveToken } from '@/services/authService';
 
 /** Tiempo en ms entre heartbeats para mantener la sesión C# viva (10 minutos) */
@@ -7,7 +7,6 @@ const HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 /**
  * Llama al endpoint de Laravel que obtiene/renueva el JWT del usuario en C#.
  * @param force  true → descarta el JWT cacheado en Laravel y fuerza re-login en C#
- *               (usar cuando C# devuelve 401, indicando sesión muerta por inactividad)
  */
 async function gatewayAutoLogin(force = false): Promise<boolean> {
     try {
@@ -38,38 +37,43 @@ async function gatewayAutoLogin(force = false): Promise<boolean> {
 /**
  * Hook que valida y mantiene activa la sesión CN en cada página del Control Notarial.
  *
- * Al montar: siempre llama a gatewayAutoLogin para asegurar que el JWT en
- * localStorage es vigente y que Sesion_Iniciada=1 en C#. Si el JWT está
- * cacheado en Laravel (12 min) la respuesta es inmediata; si no, hace login fresco.
+ * - Al montar: borra el token viejo de localStorage para evitar que llamadas
+ *   a C# vuelen con un JWT de sesión anterior mientras el auto-login asincrónico
+ *   está en progreso. Luego fuerza re-login (force=true) y expone `isReady=true`
+ *   solo cuando el JWT fresco ya está guardado en localStorage.
  *
- * Heartbeat: cada 10 min fuerza un nuevo login en C# (force=true) para evitar
- * que la sesión muera por los 15 min de inactividad que tiene configurados C#.
+ * - Heartbeat: cada 10 min renueva el JWT en C# (force=true) para mantener
+ *   Sesion_Iniciada=1 antes del timeout de 15 min de C#.
+ *
+ * Las páginas deben esperar `isReady` antes de hacer fetch a la API:
+ *   const { isReady } = useAuthGuard();
+ *   useEffect(() => { if (!isReady) return; fetchData(); }, [isReady, ...]);
  */
 export function useAuthGuard(options: {
     onUnauthorized?: () => void;
 } = {}) {
     const { onUnauthorized } = options;
-    const hasChecked = useRef(false);
+    const [isReady, setIsReady] = useState(false);
     const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
-        if (hasChecked.current) return;
-        hasChecked.current = true;
+        // Borrar JWT viejo ANTES del fetch asincrónico para que ninguna llamada
+        // a la API use credenciales de una sesión anterior.
+        removeToken();
 
         const validateAuth = async () => {
-            // Siempre renovar al montar: evita JWT viejos de sesiones anteriores
-            const ok = await gatewayAutoLogin(false);
+            // force=true: siempre fuerza re-login en C# al montar la página.
+            // Garantiza Sesion_Iniciada=1 y un JWT fresco después de login/logout.
+            const ok = await gatewayAutoLogin(true);
             if (!ok) {
-                // Cache inválido → forzar login fresco
-                const retried = await gatewayAutoLogin(true);
-                if (!retried) {
-                    onUnauthorized?.();
-                    return;
-                }
+                onUnauthorized?.();
+                return;
             }
 
-            // Heartbeat: cada 10 min fuerza re-login en C# (force=true) para
-            // mantener Sesion_Iniciada=1 antes del timeout de 15 min de C#
+            // JWT fresco guardado → las páginas pueden empezar a fetching
+            setIsReady(true);
+
+            // Heartbeat: renueva JWT cada 10 min para no llegar al timeout de 15 min de C#
             heartbeatRef.current = setInterval(async () => {
                 await gatewayAutoLogin(true);
             }, HEARTBEAT_INTERVAL_MS);
@@ -84,7 +88,7 @@ export function useAuthGuard(options: {
         };
     }, []);
 
-    return { hasChecked: hasChecked.current };
+    return { isReady };
 }
 
 /**

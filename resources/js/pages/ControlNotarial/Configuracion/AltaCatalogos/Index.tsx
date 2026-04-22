@@ -113,8 +113,8 @@ export default function ControlNotarialAltaCatalogos() {
     const { addToast } = useToast();
     const api = useApi();
 
-    // Validar token al montar la página
-    useAuthGuard();
+    // Validar token al montar la página — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     // --- Estados por tipo de catálogo ---
     const [etapasExpediente, setEtapasExpediente] = useState<CatalogoItem>(defaultCatalogo);
@@ -184,8 +184,9 @@ export default function ControlNotarialAltaCatalogos() {
         }
     };
 
-    // Cargar datos cuando cambia la pestaña activa
+    // Cargar datos cuando cambia la pestaña activa (o cuando isReady cambia a true)
     useEffect(() => {
+        if (!isReady) return;
         cargarCatalogoActual();
 
         // Cargar solo las dependencias del catálogo que se necesita
@@ -195,7 +196,7 @@ export default function ControlNotarialAltaCatalogos() {
         if (activeTab === 'impuestos_derechos') {
             fetchDependenciasPublicas();
         }
-    }, [activeTab]);
+    }, [isReady, activeTab]);
 
     const fetchActividadesVulnerables = async () => {
         try {

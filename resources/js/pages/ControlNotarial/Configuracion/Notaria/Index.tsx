@@ -111,8 +111,8 @@ export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
     const api = useApi();
 
-    // ✅ Validar token al montar la página
-    useAuthGuard();
+    // ✅ Validar token al montar la página — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
     const [notariaData, setNotariaData] = useState<NotariaData>({
         nombre: '',
         domicilio: '',
@@ -171,8 +171,9 @@ export default function ControlNotarialConfiguracionIndex() {
     const [configId, setConfigId] = useState<string | number | null>(null);
     const [controlConfigId, setControlConfigId] = useState<string | number | null>(null);
 
-    // Cargar datos de la API al montar el componente
+    // Cargar datos de la API al montar el componente — esperar JWT fresco
     useEffect(() => {
+        if (!isReady) return;
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
@@ -221,10 +222,11 @@ export default function ControlNotarialConfiguracionIndex() {
         };
 
         fetchConfiguracionNotaria();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     // Cargar datos de Control, Cálculos y Folios
     useEffect(() => {
+        if (!isReady) return;
         const fetchConfiguracionControl = async () => {
             try {
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
@@ -289,7 +291,7 @@ export default function ControlNotarialConfiguracionIndex() {
         };
 
         fetchConfiguracionControl();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     const handleSave = async () => {
         try {

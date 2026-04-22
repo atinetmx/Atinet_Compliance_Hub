@@ -68,12 +68,13 @@ export default function ConfiguracionesTarifariasIndex() {
         },
     ];
 
-    // Validar autenticación al montar
-    useAuthGuard();
+    // Validar autenticación al montar — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     useEffect(() => {
+        if (!isReady) return;
         fetchZonasMunicipios();
-    }, [api]);
+    }, [isReady, api]);
 
     useEffect(() => {
         if (selectedZona) {
