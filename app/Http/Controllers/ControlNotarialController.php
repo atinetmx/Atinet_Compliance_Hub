@@ -166,7 +166,13 @@ class ControlNotarialController extends Controller
 
     /**
      * Auto-login gateway: obtiene JWT de C# para el usuario autenticado en Laravel.
-     * El frontend lo llama al entrar a cualquier módulo CN, evitando el doble login.
+     * El frontend lo llama al entrar a cualquier módulo CN, y cada ~10 min como heartbeat.
+     *
+     * Parámetro ?force=1 → descarta el JWT cacheado y fuerza re-autenticación (se usa
+     * cuando C# devuelve 401, lo que indica que la sesión murió por inactividad).
+     *
+     * El JWT se cachea 12 minutos (ligeramente menos que el timeout de 15 min de C#)
+     * para garantizar que siempre haya una sesión activa en C# antes de que expire.
      */
     public function autoLogin(): JsonResponse
     {
@@ -181,8 +187,14 @@ class ControlNotarialController extends Controller
 
         $cacheKey = 'cn_jwt_user_'.$user->cn_usuario_id;
         $lockKey = 'cn_jwt_lock_'.$user->cn_usuario_id;
+        $force = request()->boolean('force');
 
-        // Si ya hay un token válido en caché, devolverlo sin re-autenticar
+        // Si force=1 (por 401 del frontend), descartar el JWT cacheado que ya no sirve
+        if ($force) {
+            Cache::forget($cacheKey);
+        }
+
+        // Si hay un JWT válido en caché, devolverlo directamente
         $cached = Cache::get($cacheKey);
         if ($cached) {
             return response()->json(['success' => true, 'token' => $cached]);
@@ -191,11 +203,11 @@ class ControlNotarialController extends Controller
         try {
             $token = Cache::lock($lockKey, 15)->block(10, function () use ($user, $cacheKey) {
                 // Doble-check tras adquirir el lock (otro proceso pudo haberlo llenado)
-                $cached = Cache::get($cacheKey);
-                if ($cached) {
+                if ($cached = Cache::get($cacheKey)) {
                     return $cached;
                 }
 
+                // tbl_cat_usuarios vive en la BD principal de Laravel (misma que usa C#)
                 $cnUsuario = DB::table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->value('Usuario');
@@ -204,7 +216,9 @@ class ControlNotarialController extends Controller
                     throw new \RuntimeException('Usuario Control Notarial no encontrado.');
                 }
 
-                // Resetear sesión activa en DB para evitar "Ya hay una sesion iniciada"
+                // Resetear sesión activa para evitar "Ya hay una sesion iniciada" de C#.
+                // Usamos WHERE Id (no WHERE Usuario) para no afectar a otros usuarios
+                // que puedan tener el mismo nombre en tbl_cat_usuarios.
                 DB::table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->update(['Sesion_Iniciada' => 0]);
@@ -221,8 +235,8 @@ class ControlNotarialController extends Controller
                     throw new \RuntimeException('No se pudo autenticar en Control Notarial.');
                 }
 
-                // Cachear el JWT 55 minutos (el token C# dura ~60)
-                Cache::put($cacheKey, $jwt, now()->addMinutes(55));
+                // Cachear 12 min: garantiza re-login antes del timeout de 15 min de C#
+                Cache::put($cacheKey, $jwt, now()->addMinutes(12));
 
                 return $jwt;
             });

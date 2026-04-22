@@ -1,16 +1,21 @@
-import { useEffect, useRef } from 'react';
-import { useApi } from '@/services/api';
-import { isAuthenticated, removeToken, saveToken } from '@/services/authService';
+﻿import { useEffect, useRef } from 'react';
+import { removeToken, saveToken } from '@/services/authService';
+
+/** Tiempo en ms entre heartbeats para mantener la sesión C# viva (10 minutos) */
+const HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
- * Llama al endpoint de Laravel que obtiene el JWT del usuario en C#.
- * Guarda el token en localStorage. Retorna true si se obtuvo correctamente.
+ * Llama al endpoint de Laravel que obtiene/renueva el JWT del usuario en C#.
+ * @param force  true → descarta el JWT cacheado en Laravel y fuerza re-login en C#
+ *               (usar cuando C# devuelve 401, indicando sesión muerta por inactividad)
  */
-async function gatewayAutoLogin(): Promise<boolean> {
+async function gatewayAutoLogin(force = false): Promise<boolean> {
     try {
-        // El meta csrf-token lo inserta Laravel en el <head> en app.tsx / layout
         const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content;
-        const response = await fetch('/admin/control-notarial/auto-login', {
+        const url = force
+            ? '/admin/control-notarial/auto-login?force=1'
+            : '/admin/control-notarial/auto-login';
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -31,56 +36,52 @@ async function gatewayAutoLogin(): Promise<boolean> {
 }
 
 /**
- * Hook que valida el token en cada página del Control Notarial.
- * Si no hay token (o el actual es inválido) intenta obtener uno automáticamente
- * vía el gateway de Laravel, sin mostrar ningún modal de login.
- * Solo en caso de fallo llama a `onUnauthorized` como fallback.
+ * Hook que valida y mantiene activa la sesión CN en cada página del Control Notarial.
+ *
+ * Al montar: siempre llama a gatewayAutoLogin para asegurar que el JWT en
+ * localStorage es vigente y que Sesion_Iniciada=1 en C#. Si el JWT está
+ * cacheado en Laravel (12 min) la respuesta es inmediata; si no, hace login fresco.
+ *
+ * Heartbeat: cada 10 min fuerza un nuevo login en C# (force=true) para evitar
+ * que la sesión muera por los 15 min de inactividad que tiene configurados C#.
  */
 export function useAuthGuard(options: {
     onUnauthorized?: () => void;
-    validateOnMount?: boolean;
 } = {}) {
-    const { onUnauthorized, validateOnMount = false } = options;
-    const api = useApi();
+    const { onUnauthorized } = options;
     const hasChecked = useRef(false);
+    const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         if (hasChecked.current) return;
         hasChecked.current = true;
 
         const validateAuth = async () => {
-            // Sin token → pedir uno automáticamente al gateway
-            if (!isAuthenticated()) {
-                const ok = await gatewayAutoLogin();
-                if (!ok) {
+            // Siempre renovar al montar: evita JWT viejos de sesiones anteriores
+            const ok = await gatewayAutoLogin(false);
+            if (!ok) {
+                // Cache inválido → forzar login fresco
+                const retried = await gatewayAutoLogin(true);
+                if (!retried) {
                     onUnauthorized?.();
+                    return;
                 }
-                return;
             }
 
-            // Con token y validateOnMount → verificar con servidor
-            if (validateOnMount) {
-                try {
-                    const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
-                    if (response.isUnauthorized) {
-                        removeToken();
-                        // Token expirado → renovar automáticamente
-                        const ok = await gatewayAutoLogin();
-                        if (!ok) {
-                            onUnauthorized?.();
-                        }
-                    }
-                } catch {
-                    removeToken();
-                    const ok = await gatewayAutoLogin();
-                    if (!ok) {
-                        onUnauthorized?.();
-                    }
-                }
-            }
+            // Heartbeat: cada 10 min fuerza re-login en C# (force=true) para
+            // mantener Sesion_Iniciada=1 antes del timeout de 15 min de C#
+            heartbeatRef.current = setInterval(async () => {
+                await gatewayAutoLogin(true);
+            }, HEARTBEAT_INTERVAL_MS);
         };
 
         validateAuth();
+
+        return () => {
+            if (heartbeatRef.current) {
+                clearInterval(heartbeatRef.current);
+            }
+        };
     }, []);
 
     return { hasChecked: hasChecked.current };
@@ -88,6 +89,7 @@ export function useAuthGuard(options: {
 
 /**
  * Hook que intercepta respuestas 401 y renueva el token automáticamente.
+ * Usa force=true para que Laravel descarte el JWT cacheado que ya no sirve.
  */
 export function useAuthInterceptor(options: {
     onTokenExpired?: () => void;
@@ -98,7 +100,8 @@ export function useAuthInterceptor(options: {
     return {
         handleUnauthorized: async () => {
             removeToken();
-            const ok = await gatewayAutoLogin();
+            // force=true: el JWT cacheado en Laravel ya no es válido en C#
+            const ok = await gatewayAutoLogin(true);
             if (!ok) {
                 onTokenExpired?.();
                 showErrorToast?.('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
@@ -106,4 +109,3 @@ export function useAuthInterceptor(options: {
         },
     };
 }
-

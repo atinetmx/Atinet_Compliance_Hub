@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -27,10 +28,28 @@ class ControlNotarialApiService
 
     /**
      * Obtiene el JWT del usuario gateway LARAVEL_GW (cacheado).
+     * Antes de cada login fresco, resetea la sesión del gateway en BD
+     * para evitar el error "Ya hay una sesión iniciada" de C#.
      */
     public function getGatewayToken(): string
     {
-        return Cache::remember('cn_gw_token', $this->tokenCacheTtl, function () {
+        // TTL = 12 min (menor al timeout de 15 min de C#) para garantizar
+        // que siempre haya sesión activa. Las tablas tbl_cat_usuarios y
+        // tbl_log_sesiones_activas viven en la BD principal de Laravel.
+        return Cache::remember('cn_gw_token', 720, function () {
+            // Resetear sesión gateway en BD antes de re-autenticar
+            DB::table('tbl_cat_usuarios')
+                ->where('Usuario', $this->gwUser)
+                ->update(['Sesion_Iniciada' => 0]);
+
+            DB::table('tbl_log_sesiones_activas')
+                ->whereIn('Usuario_Id', function ($query) {
+                    $query->select('Id')
+                        ->from('tbl_cat_usuarios')
+                        ->where('Usuario', $this->gwUser);
+                })
+                ->delete();
+
             return $this->obtenerTokenCN($this->gwUser, $this->gwPassword);
         });
     }
@@ -70,7 +89,7 @@ class ControlNotarialApiService
         try {
             $token = $this->getGatewayToken();
 
-            $usuario = $this->get("/User/GetUsuarioById?usuarioId={$cnUsuarioId}", $token);
+            $usuario = $this->getUsuarioCN($cnUsuarioId, $token);
 
             if (empty($usuario)) {
                 return false;
@@ -101,8 +120,7 @@ class ControlNotarialApiService
         try {
             $token = $this->getGatewayToken();
 
-            // 1. Obtener datos actuales del usuario en CN
-            $usuario = $this->get("/User/GetUsuarioById?usuarioId={$cnUsuarioId}", $token);
+            $usuario = $this->getUsuarioCN($cnUsuarioId, $token);
 
             if (empty($usuario)) {
                 Log::error("resetPasswordCN: usuario CN {$cnUsuarioId} no encontrado");
@@ -110,7 +128,6 @@ class ControlNotarialApiService
                 return false;
             }
 
-            // 2. Actualizar solo la contraseña, conservando el resto de los datos
             $payload = array_merge($usuario, ['contrasena' => $newPassword]);
 
             $this->put("/User/UpdateUsuario?usuarioId={$cnUsuarioId}", $token, $payload);
@@ -128,25 +145,28 @@ class ControlNotarialApiService
 
     /**
      * Crea un usuario en C# usando el token gateway.
-     * Retorna true si fue creado exitosamente.
+     * Retorna el Id asignado por C# al nuevo usuario, o null si falla.
      */
-    public function createUsuarioCN(User $user, string $plainPassword): bool
+    public function createUsuarioCN(User $user, string $plainPassword): ?int
     {
         try {
             $token = $this->getGatewayToken();
+
+            // Generar nombre de usuario CN a partir del prefijo del email (máx 20 chars, mayúsculas)
+            $cnUsuario = strtoupper(substr(explode('@', $user->email)[0], 0, 20));
 
             $payload = [
                 'nombre' => $user->name,
                 'apellido_Paterno' => '',
                 'apellido_Materno' => '',
                 'correo' => $user->email,
-                'usuario' => $user->cn_usuario ?? $user->email,
+                'usuario' => $cnUsuario,
                 'contrasena' => $plainPassword,
                 'curp' => '',
                 'rfc' => '',
                 'rol_Id' => $user->cn_rol_id ?? 3,
                 'iniciales' => strtoupper(substr($user->name, 0, 3)),
-                'numero_Notaria' => $user->notaria?->numero ?? 0,
+                'numero_Notaria' => $user->notaria?->numero_notaria ?? 0,
                 'adscripcion' => '',
                 'tipo' => 'U',
                 'procedencia' => 'LARAVEL',
@@ -156,10 +176,66 @@ class ControlNotarialApiService
 
             $response = $this->post('/User/CreateUsuario', $token, $payload);
 
-            return isset($response['id']) || isset($response['success']) || isset($response['Id']);
+            // C# retorna el objeto creado con su Id
+            return $response['id'] ?? $response['Id'] ?? null;
         } catch (\Throwable $e) {
             Log::error('ControlNotarialApiService::createUsuarioCN falló', [
                 'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Actualiza nombre/email de un usuario en C# (sin cambiar contraseña).
+     */
+    public function updateUsuarioCN(int $cnUsuarioId, string $nombre, string $email): bool
+    {
+        try {
+            $token = $this->getGatewayToken();
+
+            $usuario = $this->getUsuarioCN($cnUsuarioId, $token);
+
+            if (empty($usuario)) {
+                Log::error("updateUsuarioCN: usuario CN {$cnUsuarioId} no encontrado");
+
+                return false;
+            }
+
+            $payload = array_merge($usuario, [
+                'nombre' => $nombre,
+                'correo' => $email,
+            ]);
+
+            $this->put("/User/UpdateUsuario?usuarioId={$cnUsuarioId}", $token, $payload);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('ControlNotarialApiService::updateUsuarioCN falló', [
+                'cn_usuario_id' => $cnUsuarioId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Elimina (desactiva) un usuario en C# usando el token gateway.
+     */
+    public function deleteUsuarioCN(int $cnUsuarioId): bool
+    {
+        try {
+            $token = $this->getGatewayToken();
+
+            $this->delete("/User/DeleteUsuario?usuarioId={$cnUsuarioId}", $token);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('ControlNotarialApiService::deleteUsuarioCN falló', [
+                'cn_usuario_id' => $cnUsuarioId,
                 'error' => $e->getMessage(),
             ]);
 
@@ -225,6 +301,53 @@ class ControlNotarialApiService
     // ----------------------------------------------------------------
     // Helpers internos
     // ----------------------------------------------------------------
+
+    /**
+     * Obtiene los datos de un usuario de C# por su Id.
+     * Desenvuelve dataResponse y sanitiza el payload para que
+     * UpdateUsuario no rechace con "Campos incompletos":
+     *  - Elimina el campo 'rol' (solo lectura en C#)
+     *  - Reemplaza null y vacíos con "." en todos los campos string requeridos
+     *
+     * @return array<string, mixed>
+     */
+    private function getUsuarioCN(int $cnUsuarioId, string $token): array
+    {
+        $response = $this->get("/User/GetUsuarioById?usuarioId={$cnUsuarioId}", $token);
+
+        $data = $response['dataResponse'] ?? $response;
+
+        // 'rol' es campo de solo lectura — C# rechaza el PUT si lo incluimos
+        unset($data['rol']);
+
+        // CRÍTICO: El campo 'usuario' SIEMPRE debe venir de MySQL (nuestra BD),
+        // nunca del SQL Server legacy de C# (bd_SistemaControlNotarial_Principal).
+        // C# puede tener nombres distintos en su SQL Server (ej. ADMIN para Id=9
+        // que en MySQL es SUPERUSUARIO). Si dejamos que C# lo sobreescriba via PUT,
+        // se pierde el nombre correcto establecido en nuestra BD.
+        $mysqlUsuario = DB::table('tbl_cat_usuarios')
+            ->where('Id', $cnUsuarioId)
+            ->value('Usuario');
+
+        if ($mysqlUsuario) {
+            $data['usuario'] = $mysqlUsuario;
+        }
+
+        // C# requiere strings no-nulos y no-vacíos en estos campos
+        $stringFields = [
+            'nombre', 'apellido_Paterno', 'apellido_Materno', 'correo', 'usuario',
+            'curp', 'rfc', 'iniciales', 'numero_Notaria', 'adscripcion',
+            'tipo', 'procedencia', 'observaciones',
+        ];
+
+        foreach ($stringFields as $field) {
+            if (! isset($data[$field]) || $data[$field] === null || $data[$field] === '') {
+                $data[$field] = '.';
+            }
+        }
+
+        return $data;
+    }
 
     private function obtenerTokenCN(string $usuario, string $password): string
     {

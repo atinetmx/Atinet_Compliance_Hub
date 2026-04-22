@@ -66,33 +66,64 @@ class UserObserver
 
     /**
      * Crea o actualiza el registro en tbl_cat_usuarios manteniendo sincronía.
+     *
+     * IMPORTANTE — reglas de sincronización:
+     *
+     * En UPDATE:
+     *   - Solo se sincronizan Nombre, Correo, Rol_Id, Numero_Notaria y Activo.
+     *   - NO se toca Usuario: el nombre en CN puede ser distinto al prefijo del email
+     *     y C# lo gestiona de forma independiente.
+     *   - NO se toca Sesion_Iniciada: resetearlo en cada update mataría sesiones activas.
+     *   - Contrasena SOLO se actualiza si el password del usuario Laravel cambió en este
+     *     evento; y cuando se actualiza se convierte a formato $2b$ (BCrypt.Net) para
+     *     mantener compatibilidad con la API C#.
+     *
+     * En CREATE:
+     *   - Se fija Usuario desde el prefijo del email (único momento).
+     *   - Contrasena se genera en formato $2b$ desde el hash inicial de Laravel.
      */
     protected function sincronizarEnCN(User $user): void
     {
         try {
             $rolId = $this->resolverRolCN($user);
             $numeroNotaria = $this->resolverNumeroNotaria($user->notaria_id);
-            $usuario = strtoupper(explode('@', $user->email)[0]);
-
-            $datos = [
-                'Nombre' => $user->name,
-                'Correo' => $user->email,
-                'Usuario' => $usuario,
-                'Contrasena' => $user->getRawOriginal('password') ?? $user->password,
-                'Rol_Id' => $rolId,
-                'Numero_Notaria' => $numeroNotaria,
-                'Activo' => 1,
-                'Sesion_Iniciada' => 0,
-            ];
 
             if ($user->cn_usuario_id) {
-                // Actualizar registro existente
+                // ── UPDATE ──────────────────────────────────────────────────
+                // Campos seguros de sincronizar en cualquier actualización
+                $datos = [
+                    'Nombre' => $user->name,
+                    'Correo' => $user->email,
+                    'Rol_Id' => $rolId,
+                    'Numero_Notaria' => $numeroNotaria,
+                    'Activo' => 1,
+                ];
+
+                // Solo sincronizar contraseña si cambió en este evento
+                if ($user->wasChanged('password')) {
+                    // Convertir $2y$ (PHP/Argon2) a $2b$ (BCrypt.Net de C#)
+                    $datos['Contrasena'] = str_replace('$2y$', '$2b$', $user->password);
+                }
+
                 DB::table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->update($datos);
             } else {
-                // Crear nuevo y guardar el ID de vuelta en users
-                $datos['Fecha_Creacion'] = now();
+                // ── CREATE ──────────────────────────────────────────────────
+                $usuario = strtoupper(explode('@', $user->email)[0]);
+
+                $datos = [
+                    'Nombre' => $user->name,
+                    'Correo' => $user->email,
+                    'Usuario' => $usuario,
+                    'Contrasena' => str_replace('$2y$', '$2b$', $user->password),
+                    'Rol_Id' => $rolId,
+                    'Numero_Notaria' => $numeroNotaria,
+                    'Activo' => 1,
+                    'Sesion_Iniciada' => 0,
+                    'Fecha_Creacion' => now(),
+                ];
+
                 $cnId = DB::table('tbl_cat_usuarios')->insertGetId($datos);
 
                 // Evitar recursión: actualizar sin disparar observer
