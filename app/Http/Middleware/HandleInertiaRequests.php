@@ -38,8 +38,8 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $servicios = [];
 
-        // Cargar servicios disponibles para admin_notaria
-        if ($user && $user->tipo_cuenta === 'admin_notaria' && $user->notaria_id) {
+        // Cargar servicios disponibles para admin_notaria y usuario_notaria
+        if ($user && in_array($user->tipo_cuenta, ['admin_notaria', 'usuario_notaria']) && $user->notaria_id) {
             $notaria = $user->notaria()
                 ->with(['subscripcionActiva.plan.services'])
                 ->first();
