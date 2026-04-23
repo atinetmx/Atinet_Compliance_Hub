@@ -585,11 +585,11 @@ export default function ExpedientesIndex() {
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
 
-    // Cargar expedientes al montar — esperar isReady para que el JWT esté disponible
+    // Cargar datos de catálogos al montar — esperar isReady para que el JWT esté disponible
+    // fetchExpedientes NO está aquí: lo maneja el useEffect([filtro, isReady]) con debounce
     useEffect(() => {
         if (!isReady) return;
 
-        fetchExpedientes('');
         fetchOperaciones();
         fetchMunicipios();
         fetchUsuarios();
@@ -1515,13 +1515,16 @@ export default function ExpedientesIndex() {
     }, [currentExpedienteId]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
+    // isReady incluido para no disparar antes de que el JWT esté disponible
     useEffect(() => {
+        if (!isReady) return;
+
         const debounceTimer = setTimeout(() => {
             fetchExpedientes(filtro);
         }, 300); // Esperar 300ms después de que el usuario deje de escribir
 
         return () => clearTimeout(debounceTimer);
-    }, [filtro]);
+    }, [filtro, isReady]);
 
     // Auto-seleccionar el primer cliente cuando se cargan los documentos
     useEffect(() => {
