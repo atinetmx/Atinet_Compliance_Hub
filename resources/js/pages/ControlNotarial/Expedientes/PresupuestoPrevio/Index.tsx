@@ -201,11 +201,7 @@ export default function PresupuestoPrevioIndex() {
     // ✅ Validar token al montar la página — esperar isReady antes de fetching
     const { isReady } = useAuthGuard();
 
-    // Cargar presupuestos al montar (filtro vacío = todos)
-    useEffect(() => {
-        if (!isReady) return;
-        fetchPresupuestos('');
-    }, [isReady]);
+    // fetchPresupuestos ya lo maneja el useEffect([filtro, isReady]) con debounce — no duplicar aquí
 
     // Cargar clientes al montar
     useEffect(() => {
@@ -289,13 +285,16 @@ export default function PresupuestoPrevioIndex() {
     }, [isReady, addToast, api]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
+    // isReady incluido para no disparar antes de que el JWT esté disponible
     useEffect(() => {
+        if (!isReady) return;
+
         const debounceTimer = setTimeout(() => {
             fetchPresupuestos(filtro);
         }, 300); // Esperar 300ms después de que el usuario deje de escribir
 
         return () => clearTimeout(debounceTimer);
-    }, [filtro]);
+    }, [filtro, isReady]);
 
     // Cargar impuestos y derechos por operación
     useEffect(() => {
