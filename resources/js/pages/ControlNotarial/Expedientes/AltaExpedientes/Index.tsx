@@ -585,8 +585,10 @@ export default function ExpedientesIndex() {
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
 
-    // Cargar expedientes al montar (filtro vacío = todos)
+    // Cargar expedientes al montar — esperar isReady para que el JWT esté disponible
     useEffect(() => {
+        if (!isReady) return;
+
         fetchExpedientes('');
         fetchOperaciones();
         fetchMunicipios();
@@ -601,7 +603,7 @@ export default function ExpedientesIndex() {
             Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
             if (debounceNumeroEscrituraRef.current) clearTimeout(debounceNumeroEscrituraRef.current);
         };
-    }, []);
+    }, [isReady]);
 
     // Validar número de escritura con debounce
     useEffect(() => {

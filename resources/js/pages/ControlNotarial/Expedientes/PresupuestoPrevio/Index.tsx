@@ -466,6 +466,10 @@ export default function PresupuestoPrevioIndex() {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
             const data = await api.get(endpoint);
+            if (data.isUnauthorized) {
+                // 401 manejado por useAuthGuard — no mostrar banner
+                return;
+            }
             if (data.success && data.dataResponse) {
                 setResultados(data.dataResponse || []);
             } else {
