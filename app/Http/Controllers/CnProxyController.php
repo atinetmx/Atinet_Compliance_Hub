@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -41,6 +42,15 @@ class CnProxyController extends Controller
 
         if ($request->hasHeader('Authorization')) {
             $headers['Authorization'] = $request->header('Authorization');
+        }
+
+        // Pasar identificador de tenant al C# para que seleccione la BD correcta.
+        // El C# lee X-Cn-Tenant en cada request para determinar en qué esquema operar.
+        // Formato: "{estado_codigo}_notaria_{numero}" (ej. edomex_notaria_10)
+        $notaria = Auth::user()?->notaria;
+        if ($notaria) {
+            $headers['X-Cn-Tenant'] = $notaria->cnIdentifier();
+            $headers['X-Cn-Database'] = $notaria->tenantDatabaseName();
         }
 
         try {

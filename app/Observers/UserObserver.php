@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Notaria;
 use App\Models\User;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -18,6 +19,38 @@ class UserObserver
         'admin_notaria' => 2, // NOTARIOS
         'usuario_notaria' => null, // usa cn_rol_id
     ];
+
+    /**
+     * Devuelve el nombre de la conexión de BD tenant para el usuario dado.
+     * Registra dinámicamente la conexión si todavía no existe.
+     */
+    private function tenantConnectionForUser(User $user): string
+    {
+        $notaria = $user->notaria;
+
+        if (! $notaria) {
+            return 'mysql';
+        }
+
+        $key = 'cn_tenant_'.$notaria->id;
+
+        if (Config::get("database.connections.{$key}") === null) {
+            Config::set("database.connections.{$key}", [
+                'driver' => 'mysql',
+                'host' => config('database.connections.mysql.host'),
+                'port' => config('database.connections.mysql.port'),
+                'database' => $notaria->tenantDatabaseName(),
+                'username' => config('database.connections.mysql.username'),
+                'password' => config('database.connections.mysql.password'),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => false,
+            ]);
+        }
+
+        return $key;
+    }
 
     /**
      * Handle the User "created" event.
@@ -87,6 +120,7 @@ class UserObserver
         try {
             $rolId = $this->resolverRolCN($user);
             $numeroNotaria = $this->resolverNumeroNotaria($user->notaria_id);
+            $conn = $this->tenantConnectionForUser($user);
 
             if ($user->cn_usuario_id) {
                 // ── UPDATE ──────────────────────────────────────────────────
@@ -105,7 +139,8 @@ class UserObserver
                     $datos['Contrasena'] = str_replace('$2y$', '$2b$', $user->password);
                 }
 
-                DB::table('tbl_cat_usuarios')
+                DB::connection($conn)
+                    ->table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->update($datos);
             } else {
@@ -124,7 +159,7 @@ class UserObserver
                     'Fecha_Creacion' => now(),
                 ];
 
-                $cnId = DB::table('tbl_cat_usuarios')->insertGetId($datos);
+                $cnId = DB::connection($conn)->table('tbl_cat_usuarios')->insertGetId($datos);
 
                 // Evitar recursión: actualizar sin disparar observer
                 User::withoutEvents(fn () => $user->updateQuietly(['cn_usuario_id' => $cnId]));
@@ -147,7 +182,8 @@ class UserObserver
         }
 
         try {
-            DB::table('tbl_cat_usuarios')
+            DB::connection($this->tenantConnectionForUser($user))
+                ->table('tbl_cat_usuarios')
                 ->where('Id', $user->cn_usuario_id)
                 ->update(['Activo' => 0]);
         } catch (\Throwable $e) {

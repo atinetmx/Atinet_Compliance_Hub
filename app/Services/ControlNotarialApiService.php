@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Notaria;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -18,6 +20,12 @@ class ControlNotarialApiService
 
     private int $tokenCacheTtl;
 
+    /**
+     * Notaría activa para aislamiento multi-tenant.
+     * Nulo = opera en la BD principal (solo para super-admin y mantenimiento).
+     */
+    private ?Notaria $notaria = null;
+
     public function __construct()
     {
         $this->internalUrl = rtrim(config('services.control_notarial.internal_url', 'http://192.168.1.1:5000/api'), '/');
@@ -27,39 +35,115 @@ class ControlNotarialApiService
     }
 
     /**
-     * Obtiene el JWT del usuario gateway LARAVEL_GW (cacheado).
-     * Antes de cada login fresco, resetea la sesión del gateway en BD
+     * Devuelve una instancia configurada para la notaría dada.
+     * Todas las operaciones de BD y los tokens se aislarán a esa notaría.
+     *
+     * Uso:
+     *   app(ControlNotarialApiService::class)->forNotaria($notaria)->getGatewayToken();
+     */
+    public function forNotaria(Notaria $notaria): static
+    {
+        $clone = clone $this;
+        $clone->notaria = $notaria;
+
+        return $clone;
+    }
+
+    // -------------------------------------------------------------------------
+    // Tenant DB helper
+    // -------------------------------------------------------------------------
+
+    /**
+     * Registra (si no existe) y devuelve el nombre de la conexión a la BD tenant.
+     * Si no hay notaría en contexto, usa la conexión principal (mysql).
+     */
+    private function tenantConnection(): string
+    {
+        if ($this->notaria === null) {
+            return 'mysql';
+        }
+
+        $dbName = $this->notaria->tenantDatabaseName();
+        $connectionKey = 'cn_tenant_'.$this->notaria->id;
+
+        // Registrar la conexión dinámica si todavía no existe en este request
+        if (Config::get("database.connections.{$connectionKey}") === null) {
+            Config::set("database.connections.{$connectionKey}", [
+                'driver' => 'mysql',
+                'host' => config('database.connections.mysql.host'),
+                'port' => config('database.connections.mysql.port'),
+                'database' => $dbName,
+                'username' => config('database.connections.mysql.username'),
+                'password' => config('database.connections.mysql.password'),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => false,
+            ]);
+        }
+
+        return $connectionKey;
+    }
+
+    /**
+     * Devuelve el identificador que se envía al C# como nombre_Notaria.
+     * El C# lo usa para seleccionar la BD correcta en su propia capa de datos.
+     */
+    private function cnNombreNotaria(): string
+    {
+        return $this->notaria?->cnIdentifier() ?? 'principal';
+    }
+
+    /**
+     * Clave de caché del gateway token, separada por notaría.
+     */
+    private function gwTokenCacheKey(): string
+    {
+        $suffix = $this->notaria ? "_{$this->notaria->id}" : '_master';
+
+        return "cn_gw_token{$suffix}";
+    }
+
+    /**
+     * Obtiene el JWT del usuario gateway LARAVEL_GW (cacheado por notaría).
+     * Antes de cada login fresco, resetea la sesión del gateway en la BD tenant
      * para evitar el error "Ya hay una sesión iniciada" de C#.
      */
     public function getGatewayToken(): string
     {
         // TTL = 12 min (menor al timeout de 15 min de C#) para garantizar
-        // que siempre haya sesión activa. Las tablas tbl_cat_usuarios y
-        // tbl_log_sesiones_activas viven en la BD principal de Laravel.
-        return Cache::remember('cn_gw_token', 720, function () {
-            // Resetear sesión gateway en BD antes de re-autenticar
-            DB::table('tbl_cat_usuarios')
+        // que siempre haya sesión activa.
+        return Cache::remember($this->gwTokenCacheKey(), 720, function () {
+            $conn = $this->tenantConnection();
+
+            // Resetear sesión gateway en la BD tenant antes de re-autenticar
+            DB::connection($conn)
+                ->table('tbl_cat_usuarios')
                 ->where('Usuario', $this->gwUser)
                 ->update(['Sesion_Iniciada' => 0]);
 
-            DB::table('tbl_log_sesiones_activas')
-                ->whereIn('Usuario_Id', function ($query) {
-                    $query->select('Id')
-                        ->from('tbl_cat_usuarios')
-                        ->where('Usuario', $this->gwUser);
-                })
-                ->delete();
+            $gwIds = DB::connection($conn)
+                ->table('tbl_cat_usuarios')
+                ->where('Usuario', $this->gwUser)
+                ->pluck('Id');
+
+            if ($gwIds->isNotEmpty()) {
+                DB::connection($conn)
+                    ->table('tbl_log_sesiones_activas')
+                    ->whereIn('Usuario_Id', $gwIds)
+                    ->delete();
+            }
 
             return $this->obtenerTokenCN($this->gwUser, $this->gwPassword);
         });
     }
 
     /**
-     * Invalida el token gateway cacheado (útil al rotar contraseña).
+     * Invalida el token gateway cacheado para la notaría activa (o master).
      */
     public function invalidarTokenGateway(): void
     {
-        Cache::forget('cn_gw_token');
+        Cache::forget($this->gwTokenCacheKey());
     }
 
     /**
@@ -325,7 +409,8 @@ class ControlNotarialApiService
         // C# puede tener nombres distintos en su SQL Server (ej. ADMIN para Id=9
         // que en MySQL es SUPERUSUARIO). Si dejamos que C# lo sobreescriba via PUT,
         // se pierde el nombre correcto establecido en nuestra BD.
-        $mysqlUsuario = DB::table('tbl_cat_usuarios')
+        $mysqlUsuario = DB::connection($this->tenantConnection())
+            ->table('tbl_cat_usuarios')
             ->where('Id', $cnUsuarioId)
             ->value('Usuario');
 
@@ -356,7 +441,10 @@ class ControlNotarialApiService
             ->post($this->internalUrl.'/Login/Authentication', [
                 'usuario' => $usuario,
                 'contrasena' => $password,
-                'nombre_Notaria' => 'NOTARIA',
+                // Identificador de la notaría; el C# lo usa para seleccionar la BD correcta.
+                // Formato: "{estado_codigo}_notaria_{numero}" (ej. edomex_notaria_10)
+                // Valor 'principal' cuando opera desde el master (sin contexto de notaría).
+                'nombre_Notaria' => $this->cnNombreNotaria(),
                 'equipo' => 'Laravel-Server',
             ]);
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoMexico;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -424,5 +425,35 @@ class Notaria extends Model
         $usoActual = $this->getUsoServicioMesActual($serviceCode);
 
         return $usoActual < $limite;
+    }
+
+    // -------------------------------------------------------------------------
+    // Multi-Tenant helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Nombre de la base de datos tenant de esta notaría.
+     * Ejemplo: atinet_edomex_notaria_10
+     */
+    public function tenantDatabaseName(): string
+    {
+        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
+
+        return "atinet_{$estadoCodigo}_notaria_{$this->numero_notaria}";
+    }
+
+    /**
+     * Identificador corto que se pasa al C# como nombre_Notaria.
+     * Es el mismo sufijo del nombre de la BD (sin el prefijo 'atinet_').
+     * Ejemplo: edomex_notaria_10
+     *
+     * El C# usa este valor (campo nombre_Notaria en Login/Authentication)
+     * para seleccionar qué base de datos utilizar.
+     */
+    public function cnIdentifier(): string
+    {
+        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
+
+        return "{$estadoCodigo}_notaria_{$this->numero_notaria}";
     }
 }

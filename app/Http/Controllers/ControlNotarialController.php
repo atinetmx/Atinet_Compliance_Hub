@@ -6,6 +6,7 @@ use App\Services\ControlNotarialApiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -200,15 +201,43 @@ class ControlNotarialController extends Controller
             return response()->json(['success' => true, 'token' => $cached]);
         }
 
+        // Resolver la BD tenant del usuario
+        $notaria = $user->notaria;
+        $cnService = app(ControlNotarialApiService::class);
+        if ($notaria) {
+            $cnService = $cnService->forNotaria($notaria);
+        }
+
         try {
-            $token = Cache::lock($lockKey, 15)->block(10, function () use ($user, $cacheKey) {
+            $token = Cache::lock($lockKey, 15)->block(10, function () use ($user, $cacheKey, $notaria, $cnService) {
                 // Doble-check tras adquirir el lock (otro proceso pudo haberlo llenado)
                 if ($cached = Cache::get($cacheKey)) {
                     return $cached;
                 }
 
-                // tbl_cat_usuarios vive en la BD principal de Laravel (misma que usa C#)
-                $cnUsuario = DB::table('tbl_cat_usuarios')
+                // Usar la conexión de la BD tenant cuando hay notaría en contexto
+                $conn = $notaria
+                    ? 'cn_tenant_'.$notaria->id
+                    : 'mysql';
+
+                // Registrar la conexión dinámica si es tenant
+                if ($notaria && Config::get("database.connections.{$conn}") === null) {
+                    Config::set("database.connections.{$conn}", [
+                        'driver' => 'mysql',
+                        'host' => config('database.connections.mysql.host'),
+                        'port' => config('database.connections.mysql.port'),
+                        'database' => $notaria->tenantDatabaseName(),
+                        'username' => config('database.connections.mysql.username'),
+                        'password' => config('database.connections.mysql.password'),
+                        'charset' => 'utf8mb4',
+                        'collation' => 'utf8mb4_unicode_ci',
+                        'prefix' => '',
+                        'strict' => false,
+                    ]);
+                }
+
+                $cnUsuario = DB::connection($conn)
+                    ->table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->value('Usuario');
 
@@ -217,19 +246,19 @@ class ControlNotarialController extends Controller
                 }
 
                 // Resetear sesión activa para evitar "Ya hay una sesion iniciada" de C#.
-                // Usamos WHERE Id (no WHERE Usuario) para no afectar a otros usuarios
-                // que puedan tener el mismo nombre en tbl_cat_usuarios.
-                DB::table('tbl_cat_usuarios')
+                DB::connection($conn)
+                    ->table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->update(['Sesion_Iniciada' => 0]);
 
-                DB::table('tbl_log_sesiones_activas')
+                DB::connection($conn)
+                    ->table('tbl_log_sesiones_activas')
                     ->where('Usuario_Id', $user->cn_usuario_id)
                     ->delete();
 
                 $plainPassword = decrypt($user->cn_password);
 
-                $jwt = app(ControlNotarialApiService::class)->loginUser($cnUsuario, $plainPassword);
+                $jwt = $cnService->loginUser($cnUsuario, $plainPassword);
 
                 if (! $jwt) {
                     throw new \RuntimeException('No se pudo autenticar en Control Notarial.');
