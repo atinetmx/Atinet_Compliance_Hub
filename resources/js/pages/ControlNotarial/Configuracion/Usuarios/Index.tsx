@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,7 +114,7 @@ export default function ControlNotarialUsuarios() {
         if (!isReady) return;
         const fetchRoles = async () => {
             try {
-                const response = await api.get('/Catalogos/GetRoles');
+                const response = await getCatalogoCacheado('/Catalogos/GetRoles', () => api.get('/Catalogos/GetRoles'));
                 const data = await handleControlNotarialResponse(response, {
                 });
 

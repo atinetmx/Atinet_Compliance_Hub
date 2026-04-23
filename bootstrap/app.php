@@ -34,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Las rutas del proxy CN ya están protegidas por JWT de C# — CSRF redundante
+        $middleware->validateCsrfTokens(except: ['admin/cn-api/*']);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

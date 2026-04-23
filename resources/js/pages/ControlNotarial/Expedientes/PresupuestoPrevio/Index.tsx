@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -236,7 +237,7 @@ export default function PresupuestoPrevioIndex() {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await api.get('/Catalogos/GetOperaciones');
+                const response = await getCatalogoCacheado('/Catalogos/GetOperaciones', () => api.get('/Catalogos/GetOperaciones'));
 
                 // ✅ Usar helper
                 const datos = handleControlNotarialResponse(response, {
@@ -263,7 +264,7 @@ export default function PresupuestoPrevioIndex() {
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
-                const response = await api.get('/Catalogos/GetZonasMunicipios');
+                const response = await getCatalogoCacheado('/Catalogos/GetZonasMunicipios', () => api.get('/Catalogos/GetZonasMunicipios'));
 
                 // ✅ Usar helper
                 const datos = handleControlNotarialResponse(response, {
@@ -508,7 +509,7 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingImpuestos(true);
         setImpuestosError(null);
         try {
-            const data = await api.get('/Catalogos/GetImpuestosDerechos');
+            const data = await getCatalogoCacheado('/Catalogos/GetImpuestosDerechos', () => api.get('/Catalogos/GetImpuestosDerechos'));
             if (data && data.dataResponse) {
                 setImpuestosResultados(data.dataResponse || []);
                 // Extraer dependencias únicas

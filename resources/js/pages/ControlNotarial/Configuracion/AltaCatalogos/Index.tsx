@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { invalidateAllCnCatalogs } from '@/services/cnCatalogCache';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -483,6 +484,7 @@ export default function ControlNotarialAltaCatalogos() {
             if (isSuccess) {
                 addToast(response?.message || `Catálogo guardado correctamente`, 'success');
                 handleCancelEdit();
+                invalidateAllCnCatalogs();
                 cargarCatalogoActual();
             } else {
                 setSaveError(response?.message || 'Error al guardar el catálogo');

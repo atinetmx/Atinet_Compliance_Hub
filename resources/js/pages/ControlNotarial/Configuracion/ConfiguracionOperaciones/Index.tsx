@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,7 +120,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await api.get('/Catalogos/GetOperaciones');
+            const response = await getCatalogoCacheado('/Catalogos/GetOperaciones', () => api.get('/Catalogos/GetOperaciones'));
 
             await handleControlNotarialResponse(response, {
             });
@@ -178,7 +179,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await api.get('/Catalogos/GetEtapas');
+            const responseEtapasDisponibles = await getCatalogoCacheado('/Catalogos/GetEtapas', () => api.get('/Catalogos/GetEtapas'));
             await handleControlNotarialResponse(responseEtapasDisponibles, {
             });
             setEtapasDisponibles(responseEtapasDisponibles?.dataResponse || []);
@@ -196,7 +197,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await api.get('/Catalogos/GetDocumentos');
+            const responseDocumentosDisponibles = await getCatalogoCacheado('/Catalogos/GetDocumentos', () => api.get('/Catalogos/GetDocumentos'));
             await handleControlNotarialResponse(responseDocumentosDisponibles, {
             });
             setDocumentosDisponibles(responseDocumentosDisponibles?.dataResponse || []);
@@ -218,7 +219,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await api.get('/Catalogos/GetImpuestosDerechos');
+            const responseImpuestosDisponibles = await getCatalogoCacheado('/Catalogos/GetImpuestosDerechos', () => api.get('/Catalogos/GetImpuestosDerechos'));
             await handleControlNotarialResponse(responseImpuestosDisponibles, {
             });
             console.log('Impuestos Disponibles:', responseImpuestosDisponibles?.dataResponse);

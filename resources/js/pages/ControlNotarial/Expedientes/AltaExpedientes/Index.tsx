@@ -5,6 +5,7 @@ import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 import { useToast } from '@/contexts/ToastContext';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 // Opciones de ejemplo para los dropdowns
 const TIPO_FACTURA_OPCIONES = [
     { value: 'factura', label: 'Factura' },
@@ -678,7 +679,7 @@ export default function ExpedientesIndex() {
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const response = await api.get('/Catalogos/GetOperaciones');
+            const response = await getCatalogoCacheado('/Catalogos/GetOperaciones', () => api.get('/Catalogos/GetOperaciones'));
             await handleControlNotarialResponse(response, {            });
             if (response?.isUnauthorized) {
                 return;
@@ -699,7 +700,7 @@ export default function ExpedientesIndex() {
     const fetchMunicipios = async () => {
         setCargandoMunicipios(true);
         try {
-            const response = await api.get('/Catalogos/GetZonasMunicipios');
+            const response = await getCatalogoCacheado('/Catalogos/GetZonasMunicipios', () => api.get('/Catalogos/GetZonasMunicipios'));
             await handleControlNotarialResponse(response, {            });
             if (response?.isUnauthorized) {
                 return;
@@ -740,7 +741,7 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            const response = await getCatalogoCacheado('/Catalogos/GetDependenciasPublicas', () => api.get('/Catalogos/GetDependenciasPublicas'));
             await handleControlNotarialResponse(response, {            });
             if (response?.isUnauthorized) {
                 return;
@@ -779,7 +780,7 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const response = await api.get('/Catalogos/GetComparecientes');
+            const response = await getCatalogoCacheado('/Catalogos/GetComparecientes', () => api.get('/Catalogos/GetComparecientes'));
             await handleControlNotarialResponse(response, {            });
             if (response?.isUnauthorized) {
                 return;
@@ -802,7 +803,7 @@ export default function ExpedientesIndex() {
     const fetchTiposInmuebles = async () => {
         setCargandoTiposInmuebles(true);
         try {
-            const response = await api.get('/Catalogos/GetTipoInmueble');
+            const response = await getCatalogoCacheado('/Catalogos/GetTipoInmueble', () => api.get('/Catalogos/GetTipoInmueble'));
             await handleControlNotarialResponse(response, {            });
             if (response?.isUnauthorized) {
                 return;
@@ -1039,7 +1040,7 @@ export default function ExpedientesIndex() {
     const fetchDocumentosDisponibles = async () => {
         setCargandoDocumentosDisponibles(true);
         try {
-            const data = await api.get('/Catalogos/GetDocumentos');
+            const data = await getCatalogoCacheado('/Catalogos/GetDocumentos', () => api.get('/Catalogos/GetDocumentos'));
             if (data && data.dataResponse) {
                 setDocumentosDisponibles(data.dataResponse);
                 setMostrarModalAgregarDocumento(true);
@@ -1610,7 +1611,7 @@ export default function ExpedientesIndex() {
             if (data && data.dataResponse) {
                 setInmueblesExpediente(data.dataResponse);
             } else {
-                console.error('Error al cargar inmuebles:', data?.message);
+                // Respuesta válida sin inmuebles (expediente sin inmuebles asociados)
                 setInmueblesExpediente([]);
             }
         } catch (error) {
@@ -1901,6 +1902,8 @@ export default function ExpedientesIndex() {
             }
 
             // Activar modo edición y navegación
+            // setCurrentExpedienteId dispara useEffect([currentExpedienteId]) que carga
+            // documentos, inmuebles, recibos y presupuestos — no duplicar aquí
             setCurrentExpedienteId(expedienteId);
             setIsEditing(true);
             setNumeroEscrituraTouched(false);
@@ -1908,12 +1911,6 @@ export default function ExpedientesIndex() {
             setActiveTab('formulario');
             setActiveInternalTab('info-general');
             setSaveError(null);
-
-            // Cargar documentos e inmuebles del expediente
-            await fetchDocumentosExpediente(expedienteId);
-            await fetchInmueblesExpediente(expedienteId);
-             await fetchRecibosProvisionales(expedienteId);
-             await fetchPresupuestos(expedienteId);
         } catch (error) {
             setSaveError('Error al cargar el expediente');
             console.error('Error:', error);

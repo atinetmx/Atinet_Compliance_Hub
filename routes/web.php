@@ -11,6 +11,17 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+// Endpoint para refrescar el CSRF token silenciosamente desde el frontend.
+// Excluido de VerifyCsrfToken porque se llama precisamente cuando el token expiró.
+// Solo requiere sesión activa; si la sesión también expiró retorna 401.
+Route::get('/csrf-refresh', function () {
+    if (! Auth::check()) {
+        return response()->json(['error' => 'Unauthenticated.'], 401);
+    }
+
+    return response()->json(['token' => csrf_token()]);
+})->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 Route::get('dashboard', function () {
     $user = Auth::user();
 

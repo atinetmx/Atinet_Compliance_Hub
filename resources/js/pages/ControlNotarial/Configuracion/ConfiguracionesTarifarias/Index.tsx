@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 
 import { useToast } from '@/contexts/ToastContext';
 
@@ -86,7 +87,7 @@ export default function ConfiguracionesTarifariasIndex() {
     const fetchZonasMunicipios = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/Catalogos/GetZonasMunicipios');
+            const response = await getCatalogoCacheado('/Catalogos/GetZonasMunicipios', () => api.get('/Catalogos/GetZonasMunicipios'));
             const data = await handleControlNotarialResponse(response, {});
             if (data) {
                 setZonasMunicipios(data);
