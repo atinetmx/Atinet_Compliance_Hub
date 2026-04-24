@@ -59,6 +59,7 @@ class UserObserver
     {
         $this->updateNotariaUserCount($user->notaria_id);
         $this->sincronizarEnCN($user);
+        $this->sincronizarUsersEnTenant($user);
     }
 
     /**
@@ -73,6 +74,7 @@ class UserObserver
         }
 
         $this->sincronizarEnCN($user);
+        $this->sincronizarUsersEnTenant($user);
     }
 
     /**
@@ -82,6 +84,7 @@ class UserObserver
     {
         $this->updateNotariaUserCount($user->notaria_id);
         $this->desactivarEnCN($user);
+        $this->eliminarUsersEnTenant($user);
     }
 
     /**
@@ -95,6 +98,87 @@ class UserObserver
 
         $count = User::where('notaria_id', $notariaId)->count();
         Notaria::where('id', $notariaId)->update(['total_usuarios' => $count]);
+    }
+
+    /**
+     * Crea o actualiza el registro en la tabla `users` del tenant BD.
+     * Garantiza que el usuario esté disponible tanto en master como en su BD tenant.
+     */
+    protected function sincronizarUsersEnTenant(User $user): void
+    {
+        $conn = $this->tenantConnectionForUser($user);
+
+        if ($conn === 'mysql') {
+            return; // sin tenant BD configurado
+        }
+
+        try {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
+
+            $existe = DB::connection($conn)->table('users')->where('email', $user->email)->exists();
+
+            if ($existe) {
+                DB::connection($conn)->table('users')->where('email', $user->email)->update([
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'password' => $user->password,
+                    'notaria_id' => $user->notaria_id,
+                    'cn_usuario_id' => $user->cn_usuario_id,
+                    'cn_rol_id' => $user->cn_rol_id,
+                    'cn_password' => $user->cn_password,
+                    'tipo_cuenta' => $user->tipo_cuenta,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::connection($conn)->table('users')->insert([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'email_verified_at' => $user->email_verified_at,
+                    'password' => $user->password,
+                    'recoverable_password' => $user->recoverable_password,
+                    'notaria_id' => $user->notaria_id,
+                    'cn_usuario_id' => $user->cn_usuario_id,
+                    'cn_rol_id' => $user->cn_rol_id,
+                    'cn_password' => $user->cn_password,
+                    'tipo_cuenta' => $user->tipo_cuenta,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ]);
+            }
+
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+        } catch (\Throwable $e) {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            Log::error('UserObserver: error al sincronizar users en tenant', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Elimina el registro de la tabla `users` del tenant cuando el usuario es borrado.
+     */
+    protected function eliminarUsersEnTenant(User $user): void
+    {
+        $conn = $this->tenantConnectionForUser($user);
+
+        if ($conn === 'mysql') {
+            return;
+        }
+
+        try {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
+            DB::connection($conn)->table('users')->where('email', $user->email)->delete();
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+        } catch (\Throwable $e) {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            Log::error('UserObserver: error al eliminar users en tenant', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
