@@ -154,6 +154,8 @@ class Subscription extends Model
         $this->update([
             'fecha_vencimiento' => $this->fecha_vencimiento->addMonths($meses),
             'status' => self::STATUS_ACTIVA,
+            'razon_cancelacion' => null,
+            'fecha_cancelacion' => null,
         ]);
 
         return true;

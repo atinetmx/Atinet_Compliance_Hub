@@ -255,6 +255,10 @@ class SubscriptionController extends Controller
         if ($validated['status'] === 'cancelada') {
             $subscription->fecha_cancelacion = now();
             $subscription->razon_cancelacion = $validated['razon_cancelacion'] ?? null;
+        } elseif (in_array($validated['status'], ['activa', 'trial'])) {
+            // Al reactivar, limpiar motivos de cancelación/suspensión anteriores
+            $subscription->razon_cancelacion = null;
+            $subscription->fecha_cancelacion = null;
         }
 
         $subscription->save();
@@ -290,6 +294,8 @@ class SubscriptionController extends Controller
             'fecha_vencimiento' => $nuevaFechaVencimiento,
             'status' => 'activa',
             'precio_pagado' => $validated['precio_pagado'] ?? $subscription->precio_pagado,
+            'razon_cancelacion' => null,
+            'fecha_cancelacion' => null,
         ]);
 
         // Reactivar notaría al renovar
