@@ -73,8 +73,15 @@ class UserObserver
             $this->updateNotariaUserCount($user->notaria_id);
         }
 
-        $this->sincronizarEnCN($user);
-        $this->sincronizarUsersEnTenant($user);
+        // Solo sincronizar al tenant cuando cambien campos que realmente importan.
+        // Ignorar actualizaciones de sesión (remember_token, updated_at, etc.)
+        // para evitar conexiones innecesarias a la BD tenant en cada login.
+        $camposRelevantes = ['name', 'email', 'password', 'notaria_id', 'tipo_cuenta', 'cn_rol_id', 'cn_password', 'cn_usuario_id'];
+
+        if ($user->isDirty($camposRelevantes)) {
+            $this->sincronizarEnCN($user);
+            $this->sincronizarUsersEnTenant($user);
+        }
     }
 
     /**
