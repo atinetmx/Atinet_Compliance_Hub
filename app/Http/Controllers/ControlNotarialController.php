@@ -245,16 +245,33 @@ class ControlNotarialController extends Controller
                     throw new \RuntimeException('Usuario Control Notarial no encontrado.');
                 }
 
-                // Resetear sesión activa para evitar "Ya hay una sesion iniciada" de C#.
-                DB::connection($conn)
+                // Resetear sesión activa en AMBAS BDs para evitar "Ya hay una sesion iniciada" de C#.
+                // El C# siempre autentica contra su BD master (mysql), por lo que el reset
+                // debe ocurrir ahí aunque el usuario sea de una notaría con BD tenant.
+                $resetWhere = ['Id' => $user->cn_usuario_id];
+
+                DB::connection('mysql')
                     ->table('tbl_cat_usuarios')
-                    ->where('Id', $user->cn_usuario_id)
+                    ->where($resetWhere)
                     ->update(['Sesion_Iniciada' => 0]);
 
-                DB::connection($conn)
+                DB::connection('mysql')
                     ->table('tbl_log_sesiones_activas')
                     ->where('Usuario_Id', $user->cn_usuario_id)
                     ->delete();
+
+                // Resetear también en la BD tenant para mantener consistencia
+                if ($conn !== 'mysql') {
+                    DB::connection($conn)
+                        ->table('tbl_cat_usuarios')
+                        ->where($resetWhere)
+                        ->update(['Sesion_Iniciada' => 0]);
+
+                    DB::connection($conn)
+                        ->table('tbl_log_sesiones_activas')
+                        ->where('Usuario_Id', $user->cn_usuario_id)
+                        ->delete();
+                }
 
                 $plainPassword = decrypt($user->cn_password);
 
