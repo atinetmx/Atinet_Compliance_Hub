@@ -87,11 +87,12 @@ class ControlNotarialApiService
 
     /**
      * Devuelve el identificador que se envía al C# como nombre_Notaria.
-     * El C# lo usa para seleccionar la BD correcta en su propia capa de datos.
+     * El C# solo reconoce 'NOTARIA' (su BD master); el routing multitenant
+     * se gestiona en Laravel (proxy y conexiones tenant), NO via este parámetro.
      */
     private function cnNombreNotaria(): string
     {
-        return $this->notaria?->cnIdentifier() ?? 'principal';
+        return 'NOTARIA';
     }
 
     /**
@@ -436,6 +437,8 @@ class ControlNotarialApiService
 
     private function obtenerTokenCN(string $usuario, string $password): string
     {
+        $nombreNotaria = $this->cnNombreNotaria();
+
         $response = Http::withoutVerifying()
             ->timeout(15)
             ->post($this->internalUrl.'/Login/Authentication', [
@@ -443,12 +446,21 @@ class ControlNotarialApiService
                 'contrasena' => $password,
                 // Identificador de la notaría; el C# lo usa para seleccionar la BD correcta.
                 // Formato: "{estado_codigo}_notaria_{numero}" (ej. edomex_notaria_10)
-                // Valor 'principal' cuando opera desde el master (sin contexto de notaría).
-                'nombre_Notaria' => $this->cnNombreNotaria(),
+                // Valor 'NOTARIA' cuando opera desde el master (sin contexto de notaría).
+                'nombre_Notaria' => $nombreNotaria,
                 'equipo' => 'Laravel-Server',
             ]);
 
-        $response->throw();
+        if (! $response->successful()) {
+            Log::error('ControlNotarialApiService::obtenerTokenCN falló', [
+                'usuario' => $usuario,
+                'nombre_Notaria' => $nombreNotaria,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            $response->throw();
+        }
 
         $body = $response->json();
 

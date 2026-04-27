@@ -44,9 +44,9 @@ class CnProxyController extends Controller
             $headers['Authorization'] = $request->header('Authorization');
         }
 
-        // Pasar identificador de tenant al C# para que seleccione la BD correcta.
-        // El C# lee X-Cn-Tenant en cada request para determinar en qué esquema operar.
-        // Formato: "{estado_codigo}_notaria_{numero}" (ej. edomex_notaria_10)
+        // Determinar el tenant a partir del usuario Laravel autenticado.
+        // El JWT de C# siempre devuelve 'NOTARIA' (master); el routing multitenant
+        // se resuelve con el notaria_id del usuario en sesión, no con el JWT claim.
         $notaria = Auth::user()?->notaria;
         if ($notaria) {
             $headers['X-Cn-Tenant'] = $notaria->cnIdentifier();
