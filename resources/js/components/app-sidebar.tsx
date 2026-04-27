@@ -39,6 +39,7 @@ export function AppSidebar() {
 
     const hasAgenda = isSuperAdmin || servicios.some((s) => s.code === 'AGENDA');
     const hasRegistroWeb = isSuperAdmin || servicios.some((s) => s.code === 'REGISTRO_WEB');
+    const hasEscanerInteligente = isSuperAdmin || servicios.some((s) => s.code === 'ESCANER_INTELIGENTE');
 
     const mainNavItems: NavItem[] = [
         {
@@ -194,6 +195,15 @@ export function AppSidebar() {
                       title: 'Registro Web',
                       href: '/admin/registro-web',
                       icon: QrCode,
+                  },
+              ]
+            : []),
+        ...(hasEscanerInteligente && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Escáner Inteligente',
+                      href: '/admin/escaner-inteligente',
+                      icon: ScanSearch,
                   },
               ]
             : []),
