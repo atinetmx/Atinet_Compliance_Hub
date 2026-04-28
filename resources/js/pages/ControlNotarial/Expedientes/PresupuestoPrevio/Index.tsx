@@ -197,10 +197,11 @@ export default function PresupuestoPrevioIndex() {
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
     // ✅ Validar token al montar la página
-    useAuthGuard();
+    const { isReady } = useAuthGuard();
 
     // Cargar todos los datos al montar (solo una vez)
     useEffect(() => {
+        if (!isReady) return;
         // Prevenir doble fetch en React Strict Mode (desarrollo)
         if (initializedRef.current) return;
         initializedRef.current = true;
@@ -288,7 +289,7 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchZonas();
-    }, []);
+    }, [isReady]);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
     useEffect(() => {

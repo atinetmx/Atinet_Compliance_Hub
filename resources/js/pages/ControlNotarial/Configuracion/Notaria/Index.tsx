@@ -142,7 +142,7 @@ export default function ControlNotarialConfiguracionIndex() {
     const api = useApi();
 
     // ✅ Validar token al montar la página
-    useAuthGuard();
+    const { isReady } = useAuthGuard();
 
     const [notariaData, setNotariaData] = useState<NotariaData>({
         nombre: '',
@@ -358,6 +358,7 @@ export default function ControlNotarialConfiguracionIndex() {
 
     // Cargar datos de la API al montar el componente
     useEffect(() => {
+        if (!isReady) return;
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
@@ -406,10 +407,11 @@ export default function ControlNotarialConfiguracionIndex() {
         };
 
         fetchConfiguracionNotaria();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     // Cargar datos de Control, Cálculos y Folios
     useEffect(() => {
+        if (!isReady) return;
         const fetchConfiguracionControl = async () => {
             try {
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
@@ -474,7 +476,7 @@ export default function ControlNotarialConfiguracionIndex() {
         };
 
         fetchConfiguracionControl();
-    }, [addToast, api]);
+    }, [isReady, addToast, api]);
 
     // Cargar automáticamente folios de creación cuando se entra a la pestaña
     useEffect(() => {

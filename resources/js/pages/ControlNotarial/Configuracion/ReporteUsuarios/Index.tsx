@@ -41,12 +41,13 @@ export default function ControlNotarialReporteUsuarios() {
     const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(false);
 
     // Validar autenticación al montar
-    useAuthGuard();
+    const { isReady } = useAuthGuard();
 
     // Cargar usuarios al montar el componente
     useEffect(() => {
+        if (!isReady) return;
         cargarUsuarios('');
-    }, []);
+    }, [isReady]);
 
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
