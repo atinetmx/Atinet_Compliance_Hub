@@ -2,6 +2,8 @@ import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -189,11 +192,22 @@ export default function PresupuestoPrevioIndex() {
     const [dependenciasUnicas, setDependenciasUnicas] = useState<string[]>([]);
     const [activeDependenciaTab, setActiveDependenciaTab] = useState<string>('');
 
+    // --- Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
     const initializedRef = useRef(false);
     const { addToast } = useToast();
     const api = useApi();
     const { props } = usePage();
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
+
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
 
     // Cargar todos los datos al montar (solo una vez)
     useEffect(() => {
@@ -208,11 +222,19 @@ export default function PresupuestoPrevioIndex() {
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
-                const data = await api.get('/Clientes/GetClientes');
-                if (data && data.dataResponse) {
-                    setClientes(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener los clientes');
+                const response = await api.get('/Clientes/GetClientes');
+
+                // ✅ Verificar si el token expiró
+                if (response?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
+
+                if (response && response.dataResponse) {
+                    setClientes(response.dataResponse || []);
+                } else if (!response?.isUnauthorized) {
+                    const message = response?.message || 'Error al obtener los clientes';
+                    addToast(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cargando clientes:', error);
@@ -228,11 +250,19 @@ export default function PresupuestoPrevioIndex() {
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const data = await api.get('/Catalogos/GetOperaciones');
-                if (data && data.dataResponse) {
-                    setOperaciones(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener las operaciones');
+                const response = await api.get('/Catalogos/GetOperaciones');
+
+                // ✅ Verificar si el token expiró
+                if (response?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
+
+                if (response && response.dataResponse) {
+                    setOperaciones(response.dataResponse || []);
+                } else if (!response?.isUnauthorized) {
+                    const message = response?.message || 'Error al obtener las operaciones';
+                    addToast(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cargando operaciones:', error);
@@ -248,11 +278,19 @@ export default function PresupuestoPrevioIndex() {
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
-                const data = await api.get('/Catalogos/GetZonasMunicipios');
-                if (data && data.dataResponse) {
-                    setZonas(data.dataResponse || []);
-                } else {
-                    throw new Error(data?.message || 'Error al obtener las zonas/municipios');
+                const response = await api.get('/Catalogos/GetZonasMunicipios');
+
+                // ✅ Verificar si el token expiró
+                if (response?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
+
+                if (response && response.dataResponse) {
+                    setZonas(response.dataResponse || []);
+                } else if (!response?.isUnauthorized) {
+                    const message = response?.message || 'Error al obtener las zonas/municipios';
+                    addToast(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cargando zonas:', error);
@@ -442,11 +480,19 @@ export default function PresupuestoPrevioIndex() {
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
-            if (data) {
-                setResultados(data.dataResponse || []);
+            const response = await api.get(endpoint);
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setResultados([]);
+                return;
+            }
+
+            if (response && response.dataResponse) {
+                setResultados(response.dataResponse || []);
             } else {
-                setSearchError(data?.message || 'No se pudieron cargar los presupuestos previos.');
+                setSearchError(response?.message || 'No se pudieron cargar los presupuestos previos.');
                 setResultados([]);
             }
         } catch (error) {
@@ -482,16 +528,23 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingImpuestos(true);
         setImpuestosError(null);
         try {
-            const data = await api.get('/Catalogos/GetImpuestosDerechos');
-            if (data && data.dataResponse) {
-                setImpuestosResultados(data.dataResponse || []);
+            const response = await api.get('/Catalogos/GetImpuestosDerechos');
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (response && response.dataResponse) {
+                setImpuestosResultados(response.dataResponse || []);
                 // Extraer dependencias únicas
-                const deps = Array.from(new Set(data.dataResponse.map((item: any) => item.dependencia_Publica)));
+                const deps = Array.from(new Set(response.dataResponse.map((item: any) => item.dependencia_Publica)));
                 const allDeps = ['Todas', ...deps.filter(d => d) as string[]];
                 setDependenciasUnicas(allDeps);
                 setActiveDependenciaTab('Todas');
             } else {
-                setImpuestosError(data?.message || 'No se pudieron cargar los impuestos');
+                setImpuestosError(response?.message || 'No se pudieron cargar los impuestos');
             }
         } catch (error) {
             console.error('Error cargando impuestos:', error);
@@ -690,13 +743,21 @@ export default function PresupuestoPrevioIndex() {
         setActiveTab('formulario');
         try {
             // Llamar a la API para obtener los detalles completos del presupuesto
-            const data = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
+            const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
 
-            if (!data || !data.dataResponse) {
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setIsEditing(false);
+                setActiveTab('busqueda');
+                return;
+            }
+
+            if (!response || !response.dataResponse) {
                 throw new Error('Error al obtener los detalles del presupuesto');
             }
 
-            const data_response = data.dataResponse;
+            const data_response = response.dataResponse;
             const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
 
             // Mapear impuestos y derechos al formato DetalleItem
@@ -775,11 +836,19 @@ export default function PresupuestoPrevioIndex() {
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
-            if (data) {
-                setClienteResultados(data.dataResponse || []);
+            const response = await api.get(endpoint);
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setClienteResultados([]);
+                return;
+            }
+
+            if (response && response.dataResponse) {
+                setClienteResultados(response.dataResponse || []);
             } else {
-                setClienteError(data?.message || 'No se encontraron clientes.');
+                setClienteError(response?.message || 'No se encontraron clientes.');
                 setClienteResultados([]);
             }
         } catch (error) {
@@ -1882,6 +1951,12 @@ export default function PresupuestoPrevioIndex() {
                     </div>
                 </div>
             )}
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
         </>
     );
 }

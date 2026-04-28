@@ -1158,6 +1158,10 @@ ControlNotarialConfiguracionOperacionesIndex.layout = (page: React.ReactNode) =>
             href: '/admin/control-notarial',
         },
         {
+            title: 'Configuración',
+            href: '/admin/control-notarial/configuracion',
+        },
+        {
             title: 'Configuración Operaciones',
             href: '/admin/control-notarial/configuracion-operaciones',
         },
