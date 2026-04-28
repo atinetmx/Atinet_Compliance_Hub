@@ -132,52 +132,53 @@ interface Usuario {
 }
 
 interface ReciboProvisor {
-    numero_Recibo: number;
+    id: number;
+    numero_Recibo: string;
     expediente: string;
-    escritura_Numero: number;
+    escritura_Numero?: string;
     nombre: string;
-    fecha_Creacion: string;
     operacion_Concepto: string;
     total: number;
-    estatus: string;
+    estatus: 'PENDIENTE' | 'PAGADO' | 'CANCELADO';
+    fecha_Creacion: string;
 }
 
 interface ReciboDetalle {
     id: number;
-    numero_Recibo: number;
+    numero_Recibo: string;
     expediente: string;
-    escritura_Numero: number;
+    escritura_Numero?: string;
+    nombre: string;
+    operacion_Concepto: string;
+    total: number;
+    estatus: 'PENDIENTE' | 'PAGADO' | 'CANCELADO';
+    fecha_Creacion: string;
     notario: string;
     forma_Pago: string;
-    nombre: string;
-    fecha_Creacion: string;
     total_Gastos_Impuestos_Derechos: number;
     total_Gastos_Notariales: number;
     total_Honorarios: number;
-    total: number;
-    operacion_Concepto: string;
-    observacion: string;
-    estatus: string;
+    observacion?: string;
 }
 
 interface Presupuesto {
-    id: number;
-    numero_Presupuesto: number;
+    id?: number;
+    numero_Presupuesto: string;
     cliente: string;
-    descripcion: string;
-    total_Honorarios: number | null;
-    total_Impuestos_Derechos: number | null;
-    total_Gastos_Notariales: number | null;
-    total_Presupuesto: number | null;
+    tipo_Compareciente: string;
+    operacion: string;
+    total_Honorarios: number;
+    total_Impuestos_Derechos: number;
+    total_Gastos_Notariales: number;
+    total_Presupuesto: number;
+    validado?: boolean;
 }
 
 interface DataPLD {
-    expediente: string;
     descripcion: string;
-    usuario: string | null;
-    realizado: boolean;
-    clave: string;
-    fecha_Realizado: string | null;
+    usuario?: string;
+    clave: 'PENDIENTE' | 'REALIZADO' | 'RECHAZADO';
+    fecha_Realizado?: string;
 }
 
 interface ExpedienteFormData {
@@ -489,7 +490,7 @@ export default function ExpedientesIndex() {
     }>>([]);
     const [cargandoDocumentosExpediente, setCargandoDocumentosExpediente] = useState(false);
     const [clienteSeleccionadoDocumentos, setClienteSeleccionadoDocumentos] = useState<number | null>(null);
-    const [documentosEditados, setDocumentosEditados] = useState<Record<number, {
+    const [documentosEditados, setDocumentosEditados] = useState<Record<string, {
         cliente_Id: number;
         documento_Id: number;
         fecha_Entrega: string | null;
@@ -560,8 +561,8 @@ export default function ExpedientesIndex() {
     });
 
     // Estado para controlar si está editando
-    const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState(null);
-    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState(null);
+    const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState<number | null>(null);
+    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState<number | null>(null);
 
     // --- Estados para Antecedentes (Checkboxes) ---
     const [checkboxesAntecedentes, setCheckboxesAntecedentes] = useState({
@@ -605,7 +606,7 @@ export default function ExpedientesIndex() {
     const debounceNumeroEscrituraRef = useRef<NodeJS.Timeout | null>(null);
 
     // Ref para debounce de actualización de documentos individuales
-    const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
+    const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
     const initializedRef = useRef(false);
 
     const api = useApi();
@@ -656,7 +657,7 @@ export default function ExpedientesIndex() {
         debounceNumeroEscrituraRef.current = setTimeout(async () => {
             setValidandoNumeroEscritura(true);
             try {
-                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
                 // Si la respuesta es exitosa, no hay error
                 setNumeroEscrituraError(null);
 
@@ -978,7 +979,7 @@ export default function ExpedientesIndex() {
             const operacionEnExpediente = operacionesDelExpediente.find(op => op.id === presupuestoPrevio.operacion_Id);
 
             if (clienteEnExpediente) {
-                setClienteFiltro(clienteEnExpediente.nombre || '');
+                setClienteFiltro(clienteEnExpediente.nombreCompareciente || '');
             }
 
             if (operacionEnExpediente) {
@@ -1435,7 +1436,7 @@ export default function ExpedientesIndex() {
             }
             console.log('Respuesta Comparecientes:', response);
             // Manejar diferentes formatos de respuesta
-            const comparecientes = response?.dataResponse || response?.data || response;
+            const comparecientes = response?.dataResponse || response;
             if (Array.isArray(comparecientes)) {
                 setComparecientesDisponibles(comparecientes);
                 console.log('Comparecientes cargados:', comparecientes);
@@ -1486,7 +1487,7 @@ export default function ExpedientesIndex() {
     // ==========================================
 
     // Editar Inmueble - Obtener datos y llenar formulario
-    const handleEditarInmueble = async (inmuebleId) => {
+    const handleEditarInmueble = async (inmuebleId: number) => {
         setCargandoGuardarInmueble(true);
         try {
             const data = await api.get(`/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`);
@@ -1617,7 +1618,7 @@ export default function ExpedientesIndex() {
 
             // Agregar expediente_Id solo para crear
             if (!isEditing) {
-                payload.expediente_Id = currentExpedienteId;
+                (payload as any).expediente_Id = currentExpedienteId;
             }
 
             const data = isEditing
@@ -1936,7 +1937,7 @@ export default function ExpedientesIndex() {
 
     // Actualizar un documento individual
     const handleActualizarDocumentoIndividual = async (
-        docsId: number,
+        docsId: string,
         cambios: {
             fecha_Entrega: string | null;
             usuario_Recibe: string | null;
@@ -1984,7 +1985,7 @@ export default function ExpedientesIndex() {
     };
 
     // Handler para cambios de documento con debounce por documento específico
-    const handleDocumentoChange = (docId: number, field: string, value: any) => {
+    const handleDocumentoChange = (docId: string, field: string, value: any) => {
         // Actualizar el estado local
         setDocumentosEditados(prev => ({
             ...prev,
@@ -2349,7 +2350,7 @@ export default function ExpedientesIndex() {
         }
 
         try {
-            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
 
             // Verificar si dataResponse es true
             if (response?.dataResponse === true) {
@@ -2587,7 +2588,7 @@ export default function ExpedientesIndex() {
 
                 // Inicializar busquedaTipo con los tipos de comparecientes cargados
                 const busquedaTipoInicial: Record<string, string> = {};
-                comparecientes.forEach(comp => {
+                comparecientes.forEach((comp: FilaCompareciente) => {
                     busquedaTipoInicial[comp.id] = comp.tipoCompareciente;
                 });
                 setBusquedaTipo(busquedaTipoInicial);
@@ -2846,7 +2847,7 @@ export default function ExpedientesIndex() {
                     setBusquedaAutorizado('');
                     setMostrarDropdownAutorizado(false);
                     setMostrarDropdownClientes(false);
-                    setMostrarDropdownOtorgante(false);
+                    setMostrarDropdownOperaciones(false);
                     setDropdownTipoAbierto({});
                     setBusquedaTipo({});
                     setEnabledDates({
@@ -3013,7 +3014,7 @@ export default function ExpedientesIndex() {
         }
     };
 
-    const handleActualizarDatosDependencia = (campo: keyof DatosDepedencia, valor: string) => {
+    const handleActualizarDatosDependencia = (campo: string, valor: string) => {
         if (dependenciaSeleccionada) {
             setDatosDepdencias(prev => ({
                 ...prev,
@@ -3036,7 +3037,7 @@ export default function ExpedientesIndex() {
             }));
             // Si se desactiva el checkbox, limpiar la fecha
             if (checkboxesFecha[dependenciaSeleccionada]?.[campo]) {
-                handleActualizarDatosDependencia(campo as keyof DatosDepedencia, '');
+                handleActualizarDatosDependencia(campo, '');
             }
         }
     };
@@ -3045,7 +3046,7 @@ export default function ExpedientesIndex() {
         setFilasComparecientes(prev => prev.filter(row => row.id !== id));
     };
 
-    const handleActualizarCompareciente = (id: string, campo: keyof FilaCompareciente, valor: any) => {
+    const handleActualizarCompareciente = (id: string, campo: string, valor: any) => {
         setFilasComparecientes(prev =>
             prev.map(row =>
                 row.id === id ? { ...row, [campo]: valor } : row
@@ -3206,7 +3207,7 @@ export default function ExpedientesIndex() {
     };
 
     // Obtener Recibo Provisional por ID
-    const fetchReciboDetalle = async (reciboId: number) => {
+    const fetchReciboDetalle = async (reciboId: string | number) => {
         setCargandoReciboDetalle(true);
         try {
             const data = await api.get(`/ReciboProvisional/GetReciboProvicionalById?reciboId=${reciboId}`);
@@ -3643,7 +3644,7 @@ export default function ExpedientesIndex() {
                                         cargandoDocumentosExpediente={cargandoDocumentosExpediente}
                                         handleDocumentoChange={handleDocumentoChange}
                                         handleEliminarDocumentoDeAll={handleEliminarDocumentoDeAll}
-                                        currentExpedienteId={currentExpedienteId}
+                                        currentExpedienteId={currentExpedienteId ?? undefined}
                                         api={api}
                                         addToast={addToast}
                                     />
@@ -3737,7 +3738,6 @@ export default function ExpedientesIndex() {
                                         setErrorPresupuestoPrevio={setErrorPresupuestoPrevio}
                                         fetchPresupuestosPrevios={fetchPresupuestosPrevios}
                                         handleSelectPresupuestoPrevio={handleSelectPresupuestoPrevio}
-                                        addToast={addToast}
                                         isLoadingHonorarios={isLoadingHonorarios}
                                         setIsLoadingHonorarios={setIsLoadingHonorarios}
                                         isLoadingImpuestos={isLoadingImpuestos}
@@ -3763,8 +3763,6 @@ export default function ExpedientesIndex() {
                                         removeGastoNotarial={removeGastoNotarial}
                                         updateGastoNotarial={updateGastoNotarial}
                                         calcularTotales={calcularTotales}
-                                        ret_isr_check={ret_isr_check}
-                                        ret_iva_check={ret_iva_check}
                                         handleSelectImpuesto={handleSelectImpuesto}
                                         handleGuardarPresupuesto={handleGuardarPresupuesto}
                                         handleObtenerDetallesPresupuesto={handleObtenerDetallesPresupuesto}
@@ -3782,7 +3780,7 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 5: PROCESO & TRÁMITES - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="proceso-tramites" className="space-y-6">
-                                    <ProcesosForm formData={formData} currentExpedienteId={currentExpedienteId} />
+                                    <ProcesosForm formData={formData} currentExpedienteId={currentExpedienteId ?? undefined} />
                                 </TabsContent>
                                 )}
                             </Tabs>
