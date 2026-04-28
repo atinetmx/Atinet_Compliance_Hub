@@ -1,63 +1,142 @@
 <?php
-require __DIR__.'/vendor/autoload.php';
+
+require_once __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
-// Tablas master
-$master = collect(DB::select('SHOW TABLES'))->map(fn($r) => array_values((array)$r)[0])->sort()->values();
+$SCHEMA = 'atinet_compliance_hub';
 
-// Listar tenants
-$tenants = collect(DB::select("SHOW DATABASES LIKE 'atinet_%'"))->map(fn($r) => array_values((array)$r)[0])->values();
+echo "=== ESTRUCTURA RELACIONAL DE TABLAS tbl_* EN MASTER ===\n\n";
 
-echo "=== MASTER TABLES (" . $master->count() . ") ===\n";
-foreach ($master as $t) echo "  - $t\n";
+// 1. Todas las tablas tbl_*
+$tablas = DB::select("
+    SELECT TABLE_NAME, TABLE_ROWS
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = '{$SCHEMA}' AND TABLE_NAME LIKE 'tbl_%'
+    ORDER BY TABLE_NAME
+");
 
-echo "\n=== TENANT DATABASES ===\n";
-foreach ($tenants as $db) echo "  - $db\n";
+echo 'TABLAS ENCONTRADAS: '.count($tablas)."\n";
+echo str_repeat('=', 80)."\n\n";
 
-// Comparar con cada tenant
-foreach ($tenants as $tenantDb) {
-    config(['database.connections.tenant_audit' => [
-        'driver' => 'mysql',
-        'host' => config('database.connections.mysql.host'),
-        'port' => config('database.connections.mysql.port'),
-        'database' => $tenantDb,
-        'username' => config('database.connections.mysql.username'),
-        'password' => config('database.connections.mysql.password'),
-        'charset' => 'utf8mb4',
-        'collation' => 'utf8mb4_unicode_ci',
-    ]]);
-    DB::purge('tenant_audit');
+$tablasSinNn = [];
+$tablasConNn = [];
 
-    try {
-        $tenantTables = collect(DB::connection('tenant_audit')->select('SHOW TABLES'))
-            ->map(fn($r) => array_values((array)$r)[0])->sort()->values();
+foreach ($tablas as $tabla) {
+    $t = $tabla->TABLE_NAME;
+    $filas = $tabla->TABLE_ROWS;
 
-        // Tablas en master que NO están en tenant (excluir tablas multi-tenant que no deben estar)
-        $masterOnly = ['cached_responses', 'failed_jobs', 'job_batches', 'jobs', 'ofac_entities', 'ofac_entity_addresses',
-            'ofac_entity_aliases', 'ofac_entity_ids', 'ofac_entity_programs', 'password_reset_tokens',
-            'sat_contribuyentes', 'sat_sync_log', 'sessions', 'telescope_entries', 'telescope_entries_tags',
-            'telescope_monitoring', 'blacklist_sat_rfc', 'blacklist_ofac'];
+    echo "┌─ {$t}  ({$filas} filas)\n";
 
-        $missing = $master->diff($tenantTables)->diff($masterOnly)->values();
-
-        echo "\n=== $tenantDb (" . $tenantTables->count() . " tablas) ===\n";
-        echo "  Tablas faltantes: " . ($missing->isEmpty() ? "ninguna" : $missing->implode(', ')) . "\n";
-
-        // Check columnas específicas en tablas importantes
-        foreach (['users', 'busquedas', 'plans', 'notarias'] as $checkTable) {
-            if ($tenantTables->contains($checkTable)) {
-                $masterCols = collect(DB::select("SHOW COLUMNS FROM `$checkTable`"))->pluck('Field')->sort()->values();
-                $tenantCols = collect(DB::connection('tenant_audit')->select("SHOW COLUMNS FROM `$checkTable`"))->pluck('Field')->sort()->values();
-                $missingCols = $masterCols->diff($tenantCols)->values();
-                if ($missingCols->isNotEmpty()) {
-                    echo "  Columnas faltantes en $checkTable: " . $missingCols->implode(', ') . "\n";
-                }
-            }
-        }
-    } catch (\Exception $e) {
-        echo "\n=== $tenantDb ERROR: " . $e->getMessage() . " ===\n";
+    // Columnas
+    $cols = DB::select("SHOW COLUMNS FROM `{$t}`");
+    foreach ($cols as $col) {
+        $pk = $col->Key === 'PRI' ? ' [PK]' : '';
+        $nn = $col->Field === 'Numero_Notaria' ? ' ◄ TENANT KEY' : '';
+        echo "│  {$col->Field}  {$col->Type}  null={$col->Null}{$pk}{$nn}\n";
     }
+
+    // FK salientes (esta → otra)
+    $fksSal = DB::select("
+        SELECT kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, rc.DELETE_RULE
+        FROM information_schema.KEY_COLUMN_USAGE kcu
+        JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+            ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND rc.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
+        WHERE kcu.TABLE_SCHEMA = '{$SCHEMA}' AND kcu.TABLE_NAME = '{$t}'
+          AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+        ORDER BY kcu.COLUMN_NAME
+    ");
+    if (! empty($fksSal)) {
+        echo "│  ── FK SALIENTES:\n";
+        foreach ($fksSal as $fk) {
+            echo "│      {$fk->COLUMN_NAME} → {$fk->REFERENCED_TABLE_NAME}.{$fk->REFERENCED_COLUMN_NAME}  [ON DELETE {$fk->DELETE_RULE}]\n";
+        }
+    }
+
+    // FK entrantes (otra → esta)
+    $fksEnt = DB::select("
+        SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_COLUMN_NAME
+        FROM information_schema.KEY_COLUMN_USAGE kcu
+        WHERE kcu.TABLE_SCHEMA = '{$SCHEMA}' AND kcu.REFERENCED_TABLE_NAME = '{$t}'
+          AND kcu.REFERENCED_COLUMN_NAME IS NOT NULL
+        ORDER BY kcu.TABLE_NAME
+    ");
+    if (! empty($fksEnt)) {
+        echo "│  ── REFERENCIADA POR:\n";
+        foreach ($fksEnt as $fk) {
+            echo "│      {$fk->TABLE_NAME}.{$fk->COLUMN_NAME} → .{$fk->REFERENCED_COLUMN_NAME}\n";
+        }
+    }
+
+    // Tiene Numero_Notaria?
+    $tieneNn = collect($cols)->contains('Field', 'Numero_Notaria');
+    if ($tieneNn) {
+        $tablasConNn[] = $t;
+    } else {
+        $tablasSinNn[] = $t;
+    }
+
+    echo '└'.str_repeat('─', 78)."\n\n";
+}
+
+// 2. Resumen
+echo "\n".str_repeat('=', 80)."\n";
+echo "RESUMEN TENANT MULTITENANCY\n";
+echo str_repeat('=', 80)."\n\n";
+
+echo 'CON Numero_Notaria ('.count($tablasConNn)."):\n";
+foreach ($tablasConNn as $t) {
+    echo "  ✅ {$t}\n";
+}
+
+echo "\nSIN Numero_Notaria (".count($tablasSinNn)."):\n";
+foreach ($tablasSinNn as $t) {
+    $filas = collect($tablas)->firstWhere('TABLE_NAME', $t)->TABLE_ROWS ?? 0;
+    // ¿Está referenciada por alguna tabla que sí tiene Numero_Notaria?
+    $conNnRef = DB::select("
+        SELECT COUNT(*) as cnt
+        FROM information_schema.KEY_COLUMN_USAGE kcu
+        WHERE kcu.TABLE_SCHEMA = '{$SCHEMA}'
+          AND kcu.REFERENCED_TABLE_NAME = '{$t}'
+          AND kcu.TABLE_NAME IN ('".implode("','", $tablasConNn)."')
+    ");
+    $esRaiz = ($conNnRef[0]->cnt ?? 0) > 0 ? ' ← catálogo compartido' : ' ← NECESITA Numero_Notaria';
+    echo "  ❌ {$t}  ({$filas} filas){$esRaiz}\n";
+}
+
+// 3. Cadena de relaciones comenzando desde tbl_ope_expedientes
+echo "\n=== CADENA FK desde tbl_ope_expedientes ===\n\n";
+
+function relacionadas(string $tabla, string $schema, array &$vis = []): array
+{
+    if (in_array($tabla, $vis)) {
+        return [];
+    }
+    $vis[] = $tabla;
+    $rows = DB::select("
+        SELECT DISTINCT kcu.TABLE_NAME as t FROM information_schema.KEY_COLUMN_USAGE kcu
+        WHERE kcu.TABLE_SCHEMA='{$schema}' AND kcu.REFERENCED_TABLE_NAME='{$tabla}'
+        UNION
+        SELECT DISTINCT kcu.REFERENCED_TABLE_NAME as t FROM information_schema.KEY_COLUMN_USAGE kcu
+        WHERE kcu.TABLE_SCHEMA='{$schema}' AND kcu.TABLE_NAME='{$tabla}' AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+    ");
+    $result = [$tabla];
+    foreach ($rows as $r) {
+        if ($r->t && str_starts_with($r->t, 'tbl_')) {
+            $result = array_merge($result, relacionadas($r->t, $schema, $vis));
+        }
+    }
+
+    return array_unique($result);
+}
+
+$vis = [];
+$cadena = relacionadas('tbl_ope_expedientes', $SCHEMA, $vis);
+sort($cadena);
+foreach ($cadena as $t) {
+    $tieneNn = in_array($t, $tablasConNn);
+    $filas = collect($tablas)->firstWhere('TABLE_NAME', $t)->TABLE_ROWS ?? '?';
+    echo ($tieneNn ? '  ✅' : '  ❌')." {$t}  ({$filas} filas)\n";
 }

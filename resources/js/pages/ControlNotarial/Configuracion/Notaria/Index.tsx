@@ -1,4 +1,4 @@
-﻿import { Head } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import {
     Building2,
     Settings,
@@ -12,13 +12,18 @@ import {
     Image,
     BarChart3,
     BookOpen,
-    Mail
+    Mail,
+    Search,
+    Loader2,
+    Plus,
+    Eye,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +35,7 @@ import {
     TabsTrigger,
 } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import { PDFViewerModal } from '../../Modals';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -92,6 +98,28 @@ interface FoliosData {
     folio_inicial_por_tomo_certificaciones: number;
 }
 
+interface FolioDetalle {
+    tomo: number;
+    volumen: number;
+    folio: number;
+    expediente: string | null;
+    escritura_Numero: string | null;
+    estatus: string | null;
+}
+
+interface EstatusFoliosResponse {
+    tomo: number;
+    volumen_Inicial: number;
+    volumen_Final: number;
+    folio_Inicial: number;
+    folio_Final: number;
+    total: number;
+    disponibles: number;
+    utilizados: number;
+    intilizados: number;
+    lista_Resultados: FolioDetalle[];
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
@@ -105,14 +133,24 @@ const breadcrumbs: BreadcrumbItem[] = [
         title: 'Configuración',
         href: '/control-notarial/configuracion',
     },
+    {
+        title: 'Datos Notaria',
+        href: '#',
+    },
 ];
 
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
     const api = useApi();
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-    // ✅ Validar token al montar la página — esperar isReady antes de fetching
-    const { isReady } = useAuthGuard();
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
     const [notariaData, setNotariaData] = useState<NotariaData>({
         nombre: '',
         domicilio: '',
@@ -165,22 +203,180 @@ export default function ControlNotarialConfiguracionIndex() {
     });
     const [isSaved, setIsSaved] = useState(false);
     const [activeTab, setActiveTab] = useState('datos');
+    const [activeSubTabFolios, setActiveSubTabFolios] = useState('configuracion');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [configId, setConfigId] = useState<string | number | null>(null);
     const [controlConfigId, setControlConfigId] = useState<string | number | null>(null);
 
-    // Cargar datos de la API al montar el componente — esperar JWT fresco
+    // Estados para Verificador de Folios
+    const [tomoSearch, setTomoSearch] = useState('');
+    const [estatusFolios, setEstatusFolios] = useState<EstatusFoliosResponse | null>(null);
+    const [isLoadingFolios, setIsLoadingFolios] = useState(false);
+    const [errorFolios, setErrorFolios] = useState<string | null>(null);
+    const [cargandoFoliosImpresion, setCargandoFoliosImpresion] = useState(false);
+    const [showPdfFoliosViewer, setShowPdfFoliosViewer] = useState(false);
+    const [pdfUrlFolios, setPdfUrlFolios] = useState<string | null>(null);
+
+    // Estados para Creación de Folios
+    const [estatusFoliosCreacion, setEstatusFoliosCreacion] = useState<EstatusFoliosResponse | null>(null);
+    const [isLoadingFoliosCreacion, setIsLoadingFoliosCreacion] = useState(false);
+    const [errorFoliosCreacion, setErrorFoliosCreacion] = useState<string | null>(null);
+    const [cargandoFoliosCreacionImpresion, setCargandoFoliosCreacionImpresion] = useState(false);
+    const [showPdfFoliosCreacionViewer, setShowPdfFoliosCreacionViewer] = useState(false);
+    const [pdfUrlFoliosCreacion, setPdfUrlFoliosCreacion] = useState<string | null>(null);
+    const [cargandoGenerarFolios, setCargandoGenerarFolios] = useState(false);
+
+    const closePdfFoliosCreacionViewer = () => {
+        setShowPdfFoliosCreacionViewer(false);
+        if (pdfUrlFoliosCreacion) {
+            URL.revokeObjectURL(pdfUrlFoliosCreacion);
+            setPdfUrlFoliosCreacion(null);
+        }
+    };
+
+    const handleCargarFoliosCreacion = async () => {
+        setIsLoadingFoliosCreacion(true);
+        setErrorFoliosCreacion(null);
+
+        try {
+            const response = await api.get(`/Folios/EstatusFolios`);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setErrorFoliosCreacion('No autorizado');
+                return;
+            }
+
+            const data = response?.dataResponse;
+            if (response?.success !== false && data) {
+                setEstatusFoliosCreacion(data);
+            } else {
+                setErrorFoliosCreacion('Error al cargar folios de creación');
+            }
+        } catch (error) {
+            console.error('Error cargando folios de creación:', error);
+            setErrorFoliosCreacion('Error de conexión');
+        } finally {
+            setIsLoadingFoliosCreacion(false);
+        }
+    };
+
+    const handleGenerarFolios = async () => {
+        if (!estatusFoliosCreacion) {
+            addToast('Error: No hay datos de folios', 'error');
+            return;
+        }
+
+        setCargandoGenerarFolios(true);
+        try {
+            const response = await api.post('/Folios/CreateFolios', {});
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar folios', 'error');
+                return;
+            }
+
+            if (response?.success !== false) {
+                addToast('Folios generados exitosamente', 'success');
+                // Recargar los datos de folios
+                await handleCargarFoliosCreacion();
+            } else {
+                addToast(response?.message || 'Error al generar los folios', 'error');
+            }
+        } catch (error) {
+            console.error('Error generando folios:', error);
+            addToast('No se pudieron generar los folios', 'error');
+        } finally {
+            setCargandoGenerarFolios(false);
+        }
+    };
+
+    const handleImprimirFoliosCreacion = async () => {
+        if (!estatusFoliosCreacion) {
+            addToast('Error: No hay datos de folios para imprimir', 'error');
+            return;
+        }
+
+        setCargandoFoliosCreacionImpresion(true);
+        try {
+            const { blob, response } = await api.getBlob?.(`/Folios/GenerarReporteFoliosI`);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar folios', 'error');
+                return;
+            }
+
+            if (blob && response?.success !== false) {
+                const url = URL.createObjectURL(blob);
+                setPdfUrlFoliosCreacion(url);
+                setShowPdfFoliosCreacionViewer(true);
+                addToast('Folios generados exitosamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al generar los folios', 'error');
+            }
+        } catch (error) {
+            console.error('Error imprimiendo folios:', error);
+            addToast('No se pudieron generar los folios', 'error');
+        } finally {
+            setCargandoFoliosCreacionImpresion(false);
+        }
+    };
+
+    const closePdfFoliosViewer = () => {
+        setShowPdfFoliosViewer(false);
+        if (pdfUrlFolios) {
+            URL.revokeObjectURL(pdfUrlFolios);
+            setPdfUrlFolios(null);
+        }
+    };
+
+    const handleImprimirFolios = async () => {
+        if (!estatusFolios) {
+            addToast('Error: No hay datos de folios para imprimir', 'error');
+            return;
+        }
+
+        setCargandoFoliosImpresion(true);
+        try {
+            const url = `/Folios/GenerarReporteFoliosI${tomoSearch.trim() ? `?tomo=${tomoSearch}` : ''}`;
+            const { blob, response } = await api.getBlob?.(url);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar folios', 'error');
+                return;
+            }
+
+            if (blob && response?.success !== false) {
+                const urlBlob = URL.createObjectURL(blob);
+                setPdfUrlFolios(urlBlob);
+                setShowPdfFoliosViewer(true);
+                addToast('Folios generados exitosamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al generar los folios', 'error');
+            }
+        } catch (error) {
+            console.error('Error imprimiendo folios:', error);
+            addToast('No se pudieron generar los folios', 'error');
+        } finally {
+            setCargandoFoliosImpresion(false);
+        }
+    };
+
+    // Cargar datos de la API al montar el componente
     useEffect(() => {
-        if (!isReady) return;
         const fetchConfiguracionNotaria = async () => {
             try {
                 setIsLoading(true);
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionNotaria');
 
                 const notaria = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error')
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
                 });
 
                 // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
@@ -222,17 +418,17 @@ export default function ControlNotarialConfiguracionIndex() {
         };
 
         fetchConfiguracionNotaria();
-    }, [isReady, addToast, api]);
+    }, [addToast, api]);
 
     // Cargar datos de Control, Cálculos y Folios
     useEffect(() => {
-        if (!isReady) return;
         const fetchConfiguracionControl = async () => {
             try {
                 const response = await api.get('/ConfiguracionNotarial/GetConfiguracionControlNotarial');
 
                 const config = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error')
+                    onError: (msg) => addToast(msg, 'error'),
+                    onUnauthorized: () => setLoginModalOpen(true)
                 });
 
                 // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
@@ -291,7 +487,14 @@ export default function ControlNotarialConfiguracionIndex() {
         };
 
         fetchConfiguracionControl();
-    }, [isReady, addToast, api]);
+    }, [addToast, api]);
+
+    // Cargar automáticamente folios de creación cuando se entra a la pestaña
+    useEffect(() => {
+        if (activeTab === 'folios' && activeSubTabFolios === 'creacion') {
+            handleCargarFoliosCreacion();
+        }
+    }, [activeTab, activeSubTabFolios]);
 
     const handleSave = async () => {
         try {
@@ -323,6 +526,10 @@ export default function ControlNotarialConfiguracionIndex() {
             const notariaResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionNotaria', formData);
 
             // Verificar si fue 401
+            if (notariaResponse?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
 
             // Verificar si fue éxito (success puede no estar definido, entonces asumir true si no hay error)
             const notariaSuccess = notariaResponse?.success !== false;
@@ -370,6 +577,10 @@ export default function ControlNotarialConfiguracionIndex() {
                 const controlResponse = await api.put('/ConfiguracionNotarial/UpdateConfiguracionControlNotarial', controlPayload);
 
                 // Verificar si fue 401
+                if (controlResponse?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
 
                 // Verificar si fue éxito
                 const controlSuccess = controlResponse?.success !== false;
@@ -447,6 +658,40 @@ export default function ControlNotarialConfiguracionIndex() {
             volumen_inicial_certificaciones: 0,
             folio_inicial_por_tomo_certificaciones: 0,
         });
+    };
+
+    const handleBuscarFolios = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        setIsLoadingFolios(true);
+        setErrorFolios(null);
+        setEstatusFolios(null);
+
+        try {
+            const url = tomoSearch.trim()
+                ? `/Folios/EstatusFolios?tomo=${tomoSearch}`
+                : `/Folios/EstatusFolios`;
+
+            const response = await api.get(url);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setErrorFolios('No autorizado');
+                return;
+            }
+
+            const data = response?.dataResponse;
+            if (response?.success !== false && data) {
+                setEstatusFolios(data);
+                addToast('Información de folios cargada exitosamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al buscar folios', 'error');
+            }
+        } catch (error) {
+            addToast('Error de conexión', 'error');
+        } finally {
+            setIsLoadingFolios(false);
+        }
     };
 
     return (
@@ -1032,209 +1277,522 @@ export default function ControlNotarialConfiguracionIndex() {
 
                         {/* PestaÃƒÂ±a 6: Folios */}
                         <TabsContent value="folios" className="space-y-6">
-                            <div className="grid gap-6">
-                                {/* Folios de Instrumentos */}
-                                <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="bg-violet-600 text-white p-3 rounded-lg">
-                                            <BookOpen className="h-5 w-5" />
-                                        </div>
-                                        <h3 className="text-lg font-bold text-gray-900">Folios de Instrumentos</h3>
-                                    </div>
-                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                                        <div>
-                                            <RequiredLabel htmlFor="tomo_inicial_inst">Tomo Inicial</RequiredLabel>
-                                            <Input
-                                                id="tomo_inicial_inst"
-                                                type="number"
-                                                value={foliosData.tomo_inicial_instrumentos}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        tomo_inicial_instrumentos: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="volumenes_tomo_inst">Volúmenes por Tomo</RequiredLabel>
-                                            <Input
-                                                id="volumenes_tomo_inst"
-                                                type="number"
-                                                value={foliosData.volumenes_por_tomo_instrumentos}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        volumenes_por_tomo_instrumentos: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="folios_vol_inst">Folios por Volumen</RequiredLabel>
-                                            <Input
-                                                id="folios_vol_inst"
-                                                type="number"
-                                                value={foliosData.folios_por_volumen_instrumentos}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        folios_por_volumen_instrumentos: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="volumen_inicial_inst">Volumen Inicial</RequiredLabel>
-                                            <Input
-                                                id="volumen_inicial_inst"
-                                                type="number"
-                                                value={foliosData.volumen_inicial_instrumentos}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        volumen_inicial_instrumentos: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="folio_inicial_tomo_inst">Folio Inicial por Tomo</RequiredLabel>
-                                            <Input
-                                                id="folio_inicial_tomo_inst"
-                                                type="number"
-                                                value={foliosData.folio_inicial_por_tomo_instrumentos}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        folio_inicial_por_tomo_instrumentos: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                            {/* Subpestañas dentro de Folios */}
+                            <Tabs value={activeSubTabFolios} onValueChange={setActiveSubTabFolios} className="w-full">
+                                <TabsList className="grid w-full grid-cols-3 bg-transparent">
+                                    <TabsTrigger value="configuracion" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <BookOpen className="size-4" />
+                                        <span className="hidden sm:inline">Configuración Folios</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="verificador" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <BarChart3 className="size-4" />
+                                        <span className="hidden sm:inline">Verificador Folios</span>
+                                    </TabsTrigger>
+                                    <TabsTrigger value="creacion" className="gap-2 data-[state=active]:shadow-neutral-800">
+                                        <File className="size-4" />
+                                        <span className="hidden sm:inline">Creacion de Folios</span>
+                                    </TabsTrigger>
+                                </TabsList>
 
-                                {/* Folios de Certificaciones */}
-                                <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className="bg-violet-600 text-white p-3 rounded-lg">
-                                            <BookOpen className="h-5 w-5" />
+                                {/* Subpestaña 1: Configuración Folios */}
+                                <TabsContent value="configuracion" className="space-y-6">
+                                    <div className="grid gap-6">
+                                        {/* Folios de Instrumentos */}
+                                        <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                                    <BookOpen className="h-5 w-5" />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-900">Folios de Instrumentos</h3>
+                                            </div>
+                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                                                <div>
+                                                    <RequiredLabel htmlFor="tomo_inicial_inst">Tomo Inicial</RequiredLabel>
+                                                    <Input
+                                                        id="tomo_inicial_inst"
+                                                        type="number"
+                                                        value={foliosData.tomo_inicial_instrumentos}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                tomo_inicial_instrumentos: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="volumenes_tomo_inst">Volúmenes por Tomo</RequiredLabel>
+                                                    <Input
+                                                        id="volumenes_tomo_inst"
+                                                        type="number"
+                                                        value={foliosData.volumenes_por_tomo_instrumentos}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                volumenes_por_tomo_instrumentos: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="folios_vol_inst">Folios por Volumen</RequiredLabel>
+                                                    <Input
+                                                        id="folios_vol_inst"
+                                                        type="number"
+                                                        value={foliosData.folios_por_volumen_instrumentos}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                folios_por_volumen_instrumentos: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="volumen_inicial_inst">Volumen Inicial</RequiredLabel>
+                                                    <Input
+                                                        id="volumen_inicial_inst"
+                                                        type="number"
+                                                        value={foliosData.volumen_inicial_instrumentos}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                volumen_inicial_instrumentos: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="folio_inicial_tomo_inst">Folio Inicial por Tomo</RequiredLabel>
+                                                    <Input
+                                                        id="folio_inicial_tomo_inst"
+                                                        type="number"
+                                                        value={foliosData.folio_inicial_por_tomo_instrumentos}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                folio_inicial_por_tomo_instrumentos: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <h3 className="text-lg font-bold text-gray-900">Folios de Certificaciones</h3>
+
+                                        {/* Folios de Certificaciones */}
+                                        <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                                    <BookOpen className="h-5 w-5" />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-900">Folios de Certificaciones</h3>
+                                            </div>
+                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                                                <div>
+                                                    <RequiredLabel htmlFor="tomo_inicial_cert">Tomo Inicial</RequiredLabel>
+                                                    <Input
+                                                        id="tomo_inicial_cert"
+                                                        type="number"
+                                                        value={foliosData.tomo_inicial_certificaciones}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                tomo_inicial_certificaciones: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="volumenes_tomo_cert">Volúmenes por Tomo</RequiredLabel>
+                                                    <Input
+                                                        id="volumenes_tomo_cert"
+                                                        type="number"
+                                                        value={foliosData.volumenes_por_tomo_certificaciones}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                volumenes_por_tomo_certificaciones: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="folios_vol_cert">Folios por Volumen</RequiredLabel>
+                                                    <Input
+                                                        id="folios_vol_cert"
+                                                        type="number"
+                                                        value={foliosData.folios_por_volumen_certificaciones}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                folios_por_volumen_certificaciones: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="volumen_inicial_cert">Volumen Inicial</RequiredLabel>
+                                                    <Input
+                                                        id="volumen_inicial_cert"
+                                                        type="number"
+                                                        value={foliosData.volumen_inicial_certificaciones}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                volumen_inicial_certificaciones: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="folio_inicial_tomo_cert">Folio Inicial por Tomo</RequiredLabel>
+                                                    <Input
+                                                        id="folio_inicial_tomo_cert"
+                                                        type="number"
+                                                        value={foliosData.folio_inicial_por_tomo_certificaciones}
+                                                        onChange={(e) =>
+                                                            setFoliosData({
+                                                                ...foliosData,
+                                                                folio_inicial_por_tomo_certificaciones: parseInt(e.target.value) || 0,
+                                                            })
+                                                        }
+                                                        className="mt-2 bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                                        <div>
-                                            <RequiredLabel htmlFor="tomo_inicial_cert">Tomo Inicial</RequiredLabel>
-                                            <Input
-                                                id="tomo_inicial_cert"
-                                                type="number"
-                                                value={foliosData.tomo_inicial_certificaciones}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        tomo_inicial_certificaciones: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
+                                </TabsContent>
+
+                                {/* Subpestaña 2: Verificador Folios */}
+                                <TabsContent value="verificador" className="space-y-6">
+                                    {/* Búsqueda de Folios */}
+                                    <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="bg-blue-600 text-white p-3 rounded-lg">
+                                                <Search className="h-5 w-5" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-900">Búsqueda de Folios</h3>
                                         </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="volumenes_tomo_cert">Volúmenes por Tomo</RequiredLabel>
-                                            <Input
-                                                id="volumenes_tomo_cert"
-                                                type="number"
-                                                value={foliosData.volumenes_por_tomo_certificaciones}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        volumenes_por_tomo_certificaciones: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="folios_vol_cert">Folios por Volumen</RequiredLabel>
-                                            <Input
-                                                id="folios_vol_cert"
-                                                type="number"
-                                                value={foliosData.folios_por_volumen_certificaciones}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        folios_por_volumen_certificaciones: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="volumen_inicial_cert">Volumen Inicial</RequiredLabel>
-                                            <Input
-                                                id="volumen_inicial_cert"
-                                                type="number"
-                                                value={foliosData.volumen_inicial_certificaciones}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        volumen_inicial_certificaciones: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
-                                        <div>
-                                            <RequiredLabel htmlFor="folio_inicial_tomo_cert">Folio Inicial por Tomo</RequiredLabel>
-                                            <Input
-                                                id="folio_inicial_tomo_cert"
-                                                type="number"
-                                                value={foliosData.folio_inicial_por_tomo_certificaciones}
-                                                onChange={(e) =>
-                                                    setFoliosData({
-                                                        ...foliosData,
-                                                        folio_inicial_por_tomo_certificaciones: parseInt(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="mt-2 bg-white"
-                                            />
-                                        </div>
+
+                                        <form onSubmit={handleBuscarFolios} className="flex gap-2 mb-6">
+                                            <div className="flex-1 max-w-sm">
+                                                <label htmlFor="tomo_search" className="text-sm font-medium text-gray-700">Número de Tomo (Opcional)</label>
+                                                <div className="relative mt-2">
+                                                    <Input
+                                                        id="tomo_search"
+                                                        type="number"
+                                                        value={tomoSearch}
+                                                        onChange={(e) => setTomoSearch(e.target.value)}
+                                                        placeholder="Dejar vacío para traer el último..."
+                                                        className="bg-white pr-10"
+                                                    />
+                                                    {tomoSearch && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTomoSearch('');
+                                                                setEstatusFolios(null);
+                                                                setErrorFolios(null);
+                                                            }}
+                                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 items-end">
+                                                <Button
+                                                    type="submit"
+                                                    disabled={isLoadingFolios}
+                                                    className="bg-blue-600 hover:bg-blue-700"
+                                                >
+                                                    {isLoadingFolios ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                    ) : (
+                                                        <Search className="h-4 w-4 mr-2" />
+                                                    )}
+                                                    {isLoadingFolios ? 'Buscando...' : 'Buscar'}
+                                                </Button>
+                                            </div>
+                                        </form>
+
+                                        {errorFolios && (
+                                            <div className="mb-4 p-3 rounded-md border border-red-200 bg-red-50 text-red-800 text-sm">
+                                                {errorFolios}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            </div>
+
+                                    {/* Datos Resumen de Folios */}
+                                    {estatusFolios && (
+                                        <div className="space-y-6">
+                                            {/* Botón de Imprimir Folios */}
+                                            <div className="flex justify-end mb-4">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={handleImprimirFolios}
+                                                    disabled={cargandoFoliosImpresion || !estatusFolios}
+                                                    className="border-2 border-blue-400 text-blue-700 hover:bg-blue-50 font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title={!estatusFolios ? "Busca folios primero para imprimir" : "Imprimir folios"}
+                                                >
+                                                    {cargandoFoliosImpresion ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                    ) : (
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                    )}
+                                                    Imprimir
+                                                </Button>
+                                            </div>
+
+                                            {/* Tabla de Resultados */}
+                                            <div className="border rounded-lg overflow-hidden mb-5">
+                                                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
+                                                            <tr>
+                                                                <th className="px-4 py-2 text-left font-semibold">Tomo</th>
+                                                                <th className="px-4 py-2 text-left font-semibold">Volumen</th>
+                                                                <th className="px-4 py-2 text-left font-semibold">Folio</th>
+                                                                <th className="px-4 py-2 text-left font-semibold">Expediente</th>
+                                                                <th className="px-4 py-2 text-left font-semibold">Escritura</th>
+                                                                <th className="px-4 py-2 text-left font-semibold">Estatus</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {estatusFolios?.lista_Resultados?.length === 0 ? (
+                                                                <tr>
+                                                                    <td colSpan={6} className="text-center py-4 text-muted-foreground">
+                                                                        No hay registros
+                                                                    </td>
+                                                                </tr>
+                                                            ) : (
+                                                                estatusFolios?.lista_Resultados?.map((folio, idx) => (
+                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                                                        <td className="px-4 py-2">{folio.tomo}</td>
+                                                                        <td className="px-4 py-2">{folio.volumen}</td>
+                                                                        <td className="px-4 py-2 font-medium text-blue-600">{folio.folio}</td>
+                                                                        <td className="px-4 py-2">{folio.expediente || '-'}</td>
+                                                                        <td className="px-4 py-2">{folio.escritura_Numero || '-'}</td>
+                                                                        <td className="px-4 py-2">
+                                                                            {folio.estatus ? (
+                                                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                                    folio.estatus.toLowerCase() === 'disponible'
+                                                                                        ? 'bg-green-100 text-green-700'
+                                                                                        : folio.estatus.toLowerCase() === 'asignado'
+                                                                                        ? 'bg-blue-100 text-blue-700'
+                                                                                        : folio.estatus.toLowerCase() === 'inutilizado'
+                                                                                        ? 'bg-red-100 text-red-700'
+                                                                                        : 'bg-gray-100 text-gray-700'
+                                                                                }`}>
+                                                                                    {folio.estatus}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-gray-500">-</span>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </TabsContent>
+
+                                {/* Subpestaña 3: Creacion de Folios */}
+                                <TabsContent value="creacion" className="space-y-6">
+                                    {/* Datos Resumen de Folios Creación */}
+                                    {isLoadingFoliosCreacion ? (
+                                        <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                                    <File className="h-5 w-5" />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-900">Creación de Folios</h3>
+                                            </div>
+                                            <p className="text-gray-600">Cargando datos...</p>
+                                        </div>
+                                    ) : errorFoliosCreacion ? (
+                                        <div className="border-2 border-red-200 rounded-lg p-6 bg-red-50">
+                                            <p className="text-red-800">{errorFoliosCreacion}</p>
+                                        </div>
+                                    ) : estatusFoliosCreacion ? (
+                                        <div className="space-y-6">
+                                            {/* Primera fila: 4 campos */}
+                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="vol_inicial_creacion">Volumen Inicial</RequiredLabel>
+                                                    <Input
+                                                        id="vol_inicial_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.volumen_Inicial}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="vol_final_creacion">Volumen Final</RequiredLabel>
+                                                    <Input
+                                                        id="vol_final_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.volumen_Final}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="folio_inicial_creacion">Folio Inicial</RequiredLabel>
+                                                    <Input
+                                                        id="folio_inicial_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.folio_Inicial}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="folio_final_creacion">Folio Final</RequiredLabel>
+                                                    <Input
+                                                        id="folio_final_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.folio_Final}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Segunda fila: 4 campos */}
+                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                                <div>
+                                                    <RequiredLabel htmlFor="disponibles_creacion">Disponibles</RequiredLabel>
+                                                    <Input
+                                                        id="disponibles_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.disponibles}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100 border-2 border-green-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="utilizados_creacion">Utilizados</RequiredLabel>
+                                                    <Input
+                                                        id="utilizados_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.utilizados}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100 border-2 border-blue-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="intilizados_creacion">Inutilizados</RequiredLabel>
+                                                    <Input
+                                                        id="intilizados_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.intilizados}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100 border-2 border-red-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <RequiredLabel htmlFor="total_creacion">Total</RequiredLabel>
+                                                    <Input
+                                                        id="total_creacion"
+                                                        type="number"
+                                                        value={estatusFoliosCreacion.total}
+                                                        readOnly
+                                                        className="mt-2 bg-gray-100 border-2 border-gray-500"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Botón de Generar Folios */}
+                                            <div className="flex justify-end mb-4">
+                                                <Button
+                                                    size="lg"
+                                                    variant="outline"
+                                                    onClick={handleGenerarFolios}
+                                                    disabled={cargandoGenerarFolios || !estatusFoliosCreacion || (estatusFoliosCreacion?.disponibles ?? 0) > 0}
+                                                    className="border-2 border-violet-400 text-violet-700 hover:bg-violet-50 font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title={(estatusFoliosCreacion?.disponibles ?? 0) > 0 ? "No se puede generar cuando hay folios disponibles" : "Generar nuevos folios"}
+                                                >
+                                                    {cargandoGenerarFolios ? (
+                                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                                    ) : (
+                                                        <Plus className="h-5 w-5 mr-2" />
+                                                    )}
+                                                    Generar Folios
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </TabsContent>
+                            </Tabs>
                         </TabsContent>
 
                     </Tabs>
 
-                {/* Action Buttons */}
-                <div className="pt-3 flex mb-3 gap-3 justify-end">
+                {/* Action Buttons - Ocultar cuando estamos en verificador o creacion de folios */}
+                {!(activeTab === 'folios' && (activeSubTabFolios === 'verificador' || activeSubTabFolios === 'creacion')) && (
+                    <div className="pt-3 flex mb-3 gap-3 justify-end">
 
-                    <Button
-                        onClick={handleSave}
-                        className="gap-2"
-                        disabled={isSaving}
-                    >
-                        {isSaving ? (
-                            <>
-                                <div className="size-4 animate-spin rounded-full border-2 border-gray-300 border-t-white"></div>
-                                Guardando...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="size-4" />
-                                {isSaved ? 'Guardado ✓' : 'Actualizar'}
-                            </>
-                        )}
-                    </Button>
-                </div>
+                        <Button
+                            onClick={handleSave}
+                            className="gap-2"
+                            disabled={isSaving}
+                        >
+                            {isSaving ? (
+                                <>
+                                    <div className="size-4 animate-spin rounded-full border-2 border-gray-300 border-t-white"></div>
+                                    Guardando...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="size-4" />
+                                    {isSaved ? 'Guardado ✓' : 'Actualizar'}
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                )}
             </div>
 
-        </div>        </>
+        </div>
+
+        <LoginModal
+            isOpen={loginModalOpen}
+            onClose={() => setLoginModalOpen(false)}
+            onSuccess={() => setLoginModalOpen(false)}
+        />
+        <PDFViewerModal
+            isOpen={showPdfFoliosViewer}
+            onClose={closePdfFoliosViewer}
+            pdfUrl={pdfUrlFolios || ''}
+            title="Folios"
+            fileName="Folios.pdf"
+        />
+        <PDFViewerModal
+            isOpen={showPdfFoliosCreacionViewer}
+            onClose={closePdfFoliosCreacionViewer}
+            pdfUrl={pdfUrlFoliosCreacion || ''}
+            title="Folios - Creación"
+            fileName="Folios-Creacion.pdf"
+        />
+        </>
     );
 }
 
@@ -1249,12 +1807,15 @@ ControlNotarialConfiguracionIndex.layout = (page: React.ReactNode) => (
             href: '/admin/control-notarial',
         },
         {
-            title: 'Configuraciónn',
+            title: 'Configuración',
             href: '/admin/control-notarial/configuracion',
+        },
+         {
+            title: 'Datos de Notaría',
+            href: '/admin/control-notarial/notaria',
         },
     ]}>
         {page}
     </AppLayout>
 );
-
 

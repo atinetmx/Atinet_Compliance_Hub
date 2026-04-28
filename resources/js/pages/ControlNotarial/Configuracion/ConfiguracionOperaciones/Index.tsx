@@ -240,15 +240,145 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     const handleChangeSubTab = async (subtab: string) => {
         if (!operacionSeleccionada) return;
 
+        // Verificar si hay cambios en la pestaña actual antes de cambiar
+        const hayChangesEnTabActual = () => {
+            if (activeSubTab === 'etapas') {
+                return etapasSeleccionadas.length > 0 || etapasRemovidasOperacion.length > 0;
+            } else if (activeSubTab === 'documentos') {
+                return documentosSeleccionados.length > 0 || documentosRemovidosOperacion.length > 0;
+            } else if (activeSubTab === 'impuestos') {
+                return impuestosSeleccionados.length > 0 || impuestosRemovidosOperacion.length > 0;
+            }
+            return false;
+        };
+
+        // Si hay cambios, guardar antes de cambiar de pestaña
+        if (hayChangesEnTabActual()) {
+            setIsSavingConfig(true);
+
+            try {
+                let url = '';
+                let listaFinal: number[] = [];
+
+                if (activeSubTab === 'etapas') {
+                    const etapasMantenidas = etapasConfiguradasOperacion
+                        .filter((e) => !etapasRemovidasOperacion.includes(e.etapa_Id))
+                        .map((e) => e.etapa_Id);
+                    listaFinal = [...new Set([...etapasMantenidas, ...etapasSeleccionadas])];
+                    url = '/ConfiguracionOperacion/AddEtapasOperacion';
+                } else if (activeSubTab === 'documentos') {
+                    const documentosMantenidos = documentosConfiguradosOperacion
+                        .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
+                        .map((d) => d.documento_Id);
+                    listaFinal = [...new Set([...documentosMantenidos, ...documentosSeleccionados])];
+                    url = '/ConfiguracionOperacion/AddDocumentoOperacion';
+                } else if (activeSubTab === 'impuestos') {
+                    const impuestosMantenidos = impuestosConfiguradosOperacion
+                        .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
+                        .map((i) => i.impuestos_derechos_Id)
+                        .filter((id) => id !== null && id !== undefined);
+                    listaFinal = [...new Set([...impuestosMantenidos, ...impuestosSeleccionados])];
+                    url = '/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+                }
+
+                const payload = {
+                    id: 0,
+                    operacion_Id: operacionSeleccionada.id,
+                    lista_N: listaFinal,
+                };
+
+                const response = await api.post(url, payload);
+
+                await handleControlNotarialResponse(response, {
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
+
+                if (response?.isUnauthorized) {
+                    setIsSavingConfig(false);
+                    return;
+                }
+
+                const isSuccess = response?.success !== false;
+                if (isSuccess) {
+                    // Actualizar estado local inmediatamente
+                    if (activeSubTab === 'etapas') {
+                        const etapasMantenidas = etapasConfiguradasOperacion.filter(
+                            (e) => !etapasRemovidasOperacion.includes(e.etapa_Id)
+                        );
+                        const nuevasEtapas = etapasSeleccionadas.map((id) => {
+                            const etapa = etapasDisponibles.find((e) => e.id === id);
+                            return {
+                                id: 0,
+                                operacion_Id: operacionSeleccionada.id,
+                                etapa_Id: id,
+                                descripcion: etapa?.descripcion || '',
+                            };
+                        });
+                        setEtapasConfiguradasOperacion([...etapasMantenidas, ...nuevasEtapas]);
+                    } else if (activeSubTab === 'documentos') {
+                        const documentosMantenidos = documentosConfiguradosOperacion.filter(
+                            (d) => !documentosRemovidosOperacion.includes(d.documento_Id)
+                        );
+                        const nuevosDocumentos = documentosSeleccionados.map((id) => {
+                            const doc = documentosDisponibles.find((d) => d.id === id);
+                            return {
+                                id: 0,
+                                operacion_Id: operacionSeleccionada.id,
+                                documento_Id: id,
+                                descripcion: doc?.descripcion || '',
+                            };
+                        });
+                        setDocumentosConfiguradosOperacion([...documentosMantenidos, ...nuevosDocumentos]);
+                    } else if (activeSubTab === 'impuestos') {
+                        const impuestosMantenidos = impuestosConfiguradosOperacion.filter(
+                            (i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id)
+                        );
+                        const nuevosImpuestos = impuestosSeleccionados.map((id) => {
+                            const imp = impuestosDisponibles.find((i) => i.id === id);
+                            return {
+                                id: 0,
+                                operacion_Id: operacionSeleccionada.id,
+                                impuestos_derechos_Id: id,
+                                descripcion: imp?.descripcion || '',
+                            };
+                        });
+                        setImpuestosConfiguradosOperacion([...impuestosMantenidos, ...nuevosImpuestos]);
+                    }
+
+                    // Limpiar selecciones después de guardar
+                    setEtapasSeleccionadas([]);
+                    setEtapasRemovidasOperacion([]);
+                    setDocumentosSeleccionados([]);
+                    setDocumentosRemovidosOperacion([]);
+                    setImpuestosSeleccionados([]);
+                    setImpuestosRemovidosOperacion([]);
+                } else {
+                    addToast(response?.message || 'Error al guardar', 'error');
+                    setIsSavingConfig(false);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error al guardar antes de cambiar pestaña:', error);
+                addToast('Error al guardar cambios', 'error');
+                setIsSavingConfig(false);
+                return;
+            } finally {
+                setIsSavingConfig(false);
+            }
+        }
+
+        // Cambiar de pestaña y limpiar estados
         setActiveSubTab(subtab);
         setIsLoadingSubTab(true);
         setEtapasSeleccionadas([]);
         setEtapasRemovidasOperacion([]);
         setDocumentosSeleccionados([]);
         setDocumentosRemovidosOperacion([]);
+        setImpuestosSeleccionados([]);
+        setImpuestosRemovidosOperacion([]);
 
         try {
-            if (subtab === 'etapas' || subtab === 'documentos') {
+            if (subtab === 'etapas' || subtab === 'documentos' || subtab === 'impuestos') {
                 // Ya están precargadas
                 setIsLoadingSubTab(false);
             }
@@ -1011,6 +1141,10 @@ ControlNotarialConfiguracionOperacionesIndex.layout = (page: React.ReactNode) =>
         {
             title: 'Control Notarial',
             href: '/admin/control-notarial',
+        },
+        {
+            title: 'Configuración',
+            href: '/admin/control-notarial/configuracion',
         },
         {
             title: 'Configuración Operaciones',

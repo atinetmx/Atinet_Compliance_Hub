@@ -1,27 +1,11 @@
 import { Head, usePage } from '@inertiajs/react';
-import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Eye, Building, Users } from 'lucide-react';
+import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Building, Users, Check } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import LoginModal from '@/components/Modals/LoginModal';
 import { useToast } from '@/contexts/ToastContext';
-import { getCatalogoCacheado } from '@/services/cnCatalogCache';
-// Opciones de ejemplo para los dropdowns
-const TIPO_FACTURA_OPCIONES = [
-    { value: 'factura', label: 'Factura' },
-    { value: 'complemento', label: 'Complemento' },
-];
-const TIPO_VULNERABLES_OPCIONES = [
-    { value: 'ninguno', label: 'Ninguno' },
-    { value: 'vulnerable1', label: 'Vulnerable 1' },
-    { value: 'vulnerable2', label: 'Vulnerable 2' },
-];
-const TIPO_DECLARANOT_OPCIONES = [
-    { value: 'casa', label: 'Casa' },
-    { value: 'departamento', label: 'Departamento' },
-    { value: 'terreno', label: 'Terreno' },
-];
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -34,6 +18,14 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
+import SearchExpedientes from './Components/SearchExpedientes';
+import GeneralInfoForm from './Components/GeneralInfoForm';
+import DocumentosForm from './Components/DocumentosForm';
+import InmueblesForm from './Components/InmueblesForm';
+import FinancieroControlForm from './Components/FinancieroControlForm';
+import ProcesosForm from './Components/ProcesosForm';
+import PDFViewerModal from '../../Modals/PDFViewerModal';
+import { MessageModal, useMessageModal } from '../../Modals';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -43,6 +35,7 @@ interface BusquedaResultado {
         expediente: string;
         referencia: string;
         fecha_Creacion: string;
+        vulnerable?: boolean;
     };
     operaciones: Array<{
         descripcion: string;
@@ -139,7 +132,6 @@ interface Usuario {
 }
 
 interface ReciboProvisor {
-    id: number;
     numero_Recibo: number;
     expediente: string;
     escritura_Numero: number;
@@ -177,6 +169,15 @@ interface Presupuesto {
     total_Impuestos_Derechos: number | null;
     total_Gastos_Notariales: number | null;
     total_Presupuesto: number | null;
+}
+
+interface DataPLD {
+    expediente: string;
+    descripcion: string;
+    usuario: string | null;
+    realizado: boolean;
+    clave: string;
+    fecha_Realizado: string | null;
 }
 
 interface ExpedienteFormData {
@@ -224,7 +225,10 @@ const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlF
 );
 
 export default function ExpedientesIndex() {
+    // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
+    const messageModal = useMessageModal();
 
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
@@ -233,7 +237,12 @@ export default function ExpedientesIndex() {
     const [searchError, setSearchError] = useState<string | null>(null);
 
     // Validar autenticación al montar
-    const { isReady } = useAuthGuard();
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
 
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');
@@ -241,8 +250,11 @@ export default function ExpedientesIndex() {
 
     // --- Estado pestaña Formulario ---
     const [isEditing, setIsEditing] = useState(false);
+    const [expedienteEsVulnerable, setExpedienteEsVulnerable] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+    const [cargandoAsignarFolios, setCargandoAsignarFolios] = useState(false);
     const [formData, setFormData] = useState<ExpedienteFormData>({
         expediente: '',
         fecha_creacion: new Date().toISOString().split('T')[0],
@@ -324,23 +336,7 @@ export default function ExpedientesIndex() {
     const [isSearchingClientesComparecientes, setIsSearchingClientesComparecientes] = useState(false);
     const [clienteErrorComparecientes, setClienteErrorComparecientes] = useState<string | null>(null);
     const [clienteFiltroComparecientes, setClienteFiltroComparecientes] = useState('');
-
-    // --- Estados para Documentos ---
-    const [mostrarDropdownOtorgante, setMostrarDropdownOtorgante] = useState(false);
-    const [busquedaOtorgante, setBusquedaOtorgante] = useState('');
-    const [otorganteSeleccionado, setOtorganteSeleccionado] = useState<Cliente | null>(null);
-    const [filasDocumentos, setFilasDocumentos] = useState<Record<number, {
-        descripcion: string;
-        entregaCheck: boolean;
-        entregaFecha: string;
-        usuRecibe: boolean;
-        copia: boolean;
-        original: boolean;
-        recepcionCheck: boolean;
-        recepcionFecha: string;
-        abogadoRec: boolean;
-        observaciones: string;
-    }>>({});
+    const [clientesSeleccionadosEnModal, setClientesSeleccionadosEnModal] = useState<ClienteBusqueda[]>([]);
 
     // --- Estado del Formulario de Recibo ---
     const [reciboData, setReciboData] = useState({
@@ -412,11 +408,30 @@ export default function ExpedientesIndex() {
     const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
     const [cargandoPresupuestos, setCargandoPresupuestos] = useState(false);
     const [mostrarFormularioPresupuesto, setMostrarFormularioPresupuesto] = useState(false);
+    const [presupuestoEditandoId, setPresupuestoEditandoId] = useState<number | null>(null);
+    const [presupuestoValidado, setPresupuestoValidado] = useState(false);
+
+    // --- Estados para el modal de presupuestos previos ---
+    const [showPresupuestoPrevioModal, setShowPresupuestoPrevioModal] = useState(false);
+    const [presupuestosPrevios, setPresupuestosPrevios] = useState<any[]>([]);
+    const [filtroPresupuestoPrevio, setFiltroPresupuestoPrevio] = useState('');
+    const [isSearchingPresupuestoPrevio, setIsSearchingPresupuestoPrevio] = useState(false);
+    const [errorPresupuestoPrevio, setErrorPresupuestoPrevio] = useState<string | null>(null);
+
+    // --- Estado para almacenar datos PLD ---
+    const [datosPLD, setDatosPLD] = useState<DataPLD[]>([]);
+    const [cargandoPLD, setCargandoPLD] = useState(false);
+
+    // --- Estados para Búsqueda en Listas Negras ---
+    const [showListasNegrasModal, setShowListasNegrasModal] = useState(false);
+    const [listasNegrasLoading, setListasNegrasLoading] = useState(false);
+    const [listasNegrasResults, setListasNegrasResults] = useState<any[]>([]);
+    const [listasNegrasError, setListasNegrasError] = useState<string | null>(null);
+    const [comparecienteParaBuscar, setComparecienteParaBuscar] = useState<string | null>(null);
     const [formPresupuesto, setFormPresupuesto] = useState({
         cliente: '',
         operacion: '',
         zona_municipio: '',
-        observaciones: '',
         valor_operacion: 0,
         valor_avaluo: 0,
         valor_catastral: 0,
@@ -440,6 +455,18 @@ export default function ExpedientesIndex() {
     const [showClienteDropdown, setShowClienteDropdown] = useState(false);
     const [municipioFiltroPresupuesto, setMunicipioFiltroPresupuesto] = useState('');
     const [showMunicipioPresupuestoDropdown, setShowMunicipioPresupuestoDropdown] = useState(false);
+
+    // --- Estados para Cálculos de Presupuesto ---
+    const [isLoadingHonorarios, setIsLoadingHonorarios] = useState(false);
+    const [isLoadingImpuestos, setIsLoadingImpuestos] = useState(false);
+    const [impuestosCalculados, setImpuestosCalculados] = useState(false);
+    const [showImpuestosModal, setShowImpuestosModal] = useState(false);
+    const [impuestosFiltro, setImpuestosFiltro] = useState('');
+    const [impuestosResultados, setImpuestosResultados] = useState<any[]>([]);
+    const [isSearchingImpuestos, setIsSearchingImpuestos] = useState(false);
+    const [impuestosError, setImpuestosError] = useState<string | null>(null);
+    const [dependenciasUnicas, setDependenciasUnicas] = useState<string[]>([]);
+    const [activeDependenciaTab, setActiveDependenciaTab] = useState<string>('');
 
     // --- Estados para Documentos por Cliente (Expediente) ---
     const [documentosPorCliente, setDocumentosPorCliente] = useState<Array<{
@@ -476,7 +503,6 @@ export default function ExpedientesIndex() {
 
     // --- Estados para Inmuebles del Expediente ---
     const [inmueblesExpediente, setInmueblesExpediente] = useState<Array<{
-        id: number;
         numero_Inmueble: number;
         descripcion: string;
         clave_Catastral: string;
@@ -484,7 +510,6 @@ export default function ExpedientesIndex() {
     const [cargandoInmueblesExpediente, setCargandoInmueblesExpediente] = useState(false);
 
     // --- Estados para Inmuebles (Documentos tab) ---
-    const [selectedInmueble, setSelectedInmueble] = useState<number | null>(null);
     const [mostrarFormInmueble, setMostrarFormInmueble] = useState(false);
     const [cargandoGuardarInmueble, setCargandoGuardarInmueble] = useState(false);
     const [formInmueble, setFormInmueble] = useState({
@@ -536,7 +561,7 @@ export default function ExpedientesIndex() {
 
     // Estado para controlar si está editando
     const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState(null);
-    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState<number | null>(null);
+    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState(null);
 
     // --- Estados para Antecedentes (Checkboxes) ---
     const [checkboxesAntecedentes, setCheckboxesAntecedentes] = useState({
@@ -581,16 +606,21 @@ export default function ExpedientesIndex() {
 
     // Ref para debounce de actualización de documentos individuales
     const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
+    const initializedRef = useRef(false);
 
     const api = useApi();
     const { props } = usePage();
-    const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
+    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
-    // Cargar datos de catálogos al montar — esperar isReady para que el JWT esté disponible
-    // fetchExpedientes NO está aquí: lo maneja el useEffect([filtro, isReady]) con debounce
+    // ==========================================
+    // SECCIÓN: INICIALIZACIÓN
+    // ==========================================
     useEffect(() => {
-        if (!isReady) return;
+        // Prevenir doble fetch en React Strict Mode (desarrollo)
+        if (initializedRef.current) return;
+        initializedRef.current = true;
 
+        // Cargar catálogos/datos maestros
         fetchOperaciones();
         fetchMunicipios();
         fetchUsuarios();
@@ -599,14 +629,17 @@ export default function ExpedientesIndex() {
         fetchComparecientes();
         fetchTiposInmuebles();
 
+        // Cargar expedientes
+        fetchExpedientes('');
+
         // Cleanup de timers al desmontar
         return () => {
             Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
             if (debounceNumeroEscrituraRef.current) clearTimeout(debounceNumeroEscrituraRef.current);
         };
-    }, [isReady]);
+    }, []);
 
-    // Validar número de escritura con debounce
+    // Validar número de escritura con debounce (EXPEDIENTES)
     useEffect(() => {
         // Limpiar timer anterior si existe
         if (debounceNumeroEscrituraRef.current) {
@@ -623,7 +656,7 @@ export default function ExpedientesIndex() {
         debounceNumeroEscrituraRef.current = setTimeout(async () => {
             setValidandoNumeroEscritura(true);
             try {
-                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
+                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
                 // Si la respuesta es exitosa, no hay error
                 setNumeroEscrituraError(null);
 
@@ -651,12 +684,18 @@ export default function ExpedientesIndex() {
         }, 500);
     }, [formData.numeroEscritura, api, numeroEscrituraTouched]);
 
+    // ==========================================
+    // SECCIÓN: CATÁLOGOS / DATOS MAESTROS
+    // ==========================================
+
     // Cargar presupuestos cuando se carga un expediente
     const fetchPresupuestos = async (expedienteId: number) => {
         setCargandoPresupuestos(true);
         try {
             const response = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
-            await handleControlNotarialResponse(response, {            });
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 setPresupuestos([]);
             } else {
@@ -675,12 +714,611 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // Función para buscar presupuestos previos
+    const fetchPresupuestosPrevios = async (filtro: string = '') => {
+        setIsSearchingPresupuestoPrevio(true);
+        setErrorPresupuestoPrevio(null);
+        try {
+            const params = new URLSearchParams();
+            if (filtro) params.append('filtro', filtro);
+
+            const response = await api.get(`/Presupuestos/GetPresupuestosPrevios?${params}`);
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
+
+            if (response?.isUnauthorized) {
+                setErrorPresupuestoPrevio('No autorizado. Por favor inicia sesión.');
+                return;
+            }
+
+            const data = response?.dataResponse;
+            setPresupuestosPrevios(Array.isArray(data) ? data : []);
+        } catch (error: any) {
+            console.error('Error fetching presupuestos previos:', error);
+            setErrorPresupuestoPrevio(error.message || 'Error al buscar presupuestos');
+        } finally {
+            setIsSearchingPresupuestoPrevio(false);
+        }
+    };
+
+    const handleSelectPresupuestoPrevio = async (presupuesto: any) => {
+        setIsSearchingPresupuestoPrevio(true);
+        setErrorPresupuestoPrevio(null);
+        try {
+            // Llamar a la API para obtener los detalles completos del presupuesto
+            const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (!response || !response.dataResponse) {
+                throw new Error('Error al obtener los detalles del presupuesto');
+            }
+
+            const data_response = response.dataResponse;
+            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
+
+            // Mapear impuestos y derechos al formato DetalleItem
+            const impuestosFormato = impuestosDerechos.map((item: any) => ({
+                id: item.impuestos_Derechos_Id.toString(),
+                descripcion: item.descripcion,
+                importe: item.importe,
+                observaciones: item.observaciones || ''
+            }));
+
+            // Mapear gastos notariales al formato DetalleItem
+            const gastosFormato = gastosNotariales.map((item: any) => ({
+                id: Date.now().toString() + Math.random(),
+                descripcion: item.concepto,
+                importe: item.importe
+            }));
+
+            // Solo llenar valores, honorarios e impuestos/gastos
+            // Cliente y operación los selecciona el usuario del expediente
+            setFormPresupuesto({
+                cliente: '', // El usuario selecciona del expediente
+                operacion: '', // El usuario selecciona del expediente
+                zona_municipio: presupuestoPrevio.zona_Municipio_Id || '',
+                valor_operacion: presupuestoPrevio.valor_Operacion,
+                valor_avaluo: presupuestoPrevio.valor_Avaluo,
+                valor_catastral: presupuestoPrevio.valor_Catastral,
+                parametro: presupuestoPrevio.observaciones,
+                honorarios: presupuestoPrevio.honorarios,
+                descuento: presupuestoPrevio.descuento,
+                incluir_iva: presupuestoPrevio.iva > 0,
+                iva: presupuestoPrevio.iva,
+                retencion_isr: presupuestoPrevio.retencion_ISR,
+                retencion_iva: presupuestoPrevio.retencion_IVA,
+                impuestos_derechos: impuestosFormato,
+                gastos_notariales: gastosFormato,
+                activo: presupuestoPrevio.activo,
+            });
+
+            // Establecer el filtro de zona/municipio con el nombre seleccionado
+            const zonaSeleccionada = municipiosDisponibles.find(z => z.id === presupuestoPrevio.zona_Municipio_Id);
+            if (zonaSeleccionada) {
+                setMunicipioFiltroPresupuesto(zonaSeleccionada.descripcion);
+            }
+
+            // Limpiar filtros de cliente y operación
+            setOperacionFiltro('');
+            setClienteFiltro('');
+
+            // Resetear validación - el presupuesto ligado no está validado aún
+            setPresupuestoValidado(false);
+
+            // Establecer el ID del presupuesto como el que se está editando
+            setPresupuestoEditandoId(presupuesto.id);
+
+            addToast('Presupuesto cargado correctamente. Por favor selecciona el cliente y la operación del expediente.', 'success');
+            setShowPresupuestoPrevioModal(false);
+            setMostrarFormularioPresupuesto(true);
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al cargar el presupuesto';
+            setErrorPresupuestoPrevio(message);
+            addToast(message, 'error');
+        } finally {
+            setIsSearchingPresupuestoPrevio(false);
+        }
+    };
+
+    // Guardar Presupuesto
+    const handleGuardarPresupuesto = async () => {
+        if (!formPresupuesto.cliente || !formPresupuesto.operacion) {
+            addToast('Completa los campos obligatorios: Cliente, Operación', 'error');
+            return;
+        }
+
+        if (!currentExpedienteId) {
+            addToast('No hay expediente seleccionado', 'error');
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+            setSaveError(null);
+
+            // Validar que cliente y operación tienen valores válidos
+            const clienteId = Number(formPresupuesto.cliente);
+            const operacionId = Number(formPresupuesto.operacion);
+            const zonaMunicipioId = formPresupuesto.zona_municipio ? Number(formPresupuesto.zona_municipio) : 0;
+
+            if (isNaN(clienteId) || clienteId === 0) {
+                addToast('Cliente inválido', 'error');
+                setIsSaving(false);
+                return;
+            }
+
+            if (isNaN(operacionId) || operacionId === 0) {
+                addToast('Operación inválida', 'error');
+                setIsSaving(false);
+                return;
+            }
+
+            // Calcular totales
+            const subtotalHonorarios = formPresupuesto.honorarios - formPresupuesto.descuento;
+            const ivaCalculado = formPresupuesto.incluir_iva ? subtotalHonorarios * 0.16 : 0;
+
+            const payload = {
+                presupuesto: {
+                    expediente_Id: currentExpedienteId,
+                    cliente_Id: clienteId,
+                    operacion_Id: operacionId,
+                    zona_Municipio_Id: zonaMunicipioId,
+                    observaciones: formPresupuesto.parametro,
+                    valor_Operacion: formPresupuesto.valor_operacion,
+                    valor_Avaluo: formPresupuesto.valor_avaluo,
+                    valor_Catastral: formPresupuesto.valor_catastral,
+                    parametro: formPresupuesto.parametro,
+                    honorarios: formPresupuesto.honorarios,
+                    descuento: formPresupuesto.descuento,
+                    subtotal_Honorarios: subtotalHonorarios,
+                    iva: ivaCalculado,
+                    retencion_ISR: formPresupuesto.retencion_isr,
+                    retencion_IVA: formPresupuesto.retencion_iva,
+                    validado: true,
+                    activo: true
+                },
+                presupuestoImpuestosDerechos: formPresupuesto.impuestos_derechos.map(item => ({
+                    impuestos_Derechos_Id: Number(item.id),
+                    importe: item.importe,
+                    observaciones: item.observaciones || ''
+                })),
+                presupuestoGastosNotariales: formPresupuesto.gastos_notariales.map(item => ({
+                    concepto: item.descripcion,
+                    importe: item.importe
+                }))
+            };
+
+            const response = await api.post('/Presupuestos/CreatePresupuesto', payload);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (response) {
+                addToast('Presupuesto guardado correctamente', 'success');
+                setMostrarFormularioPresupuesto(false);
+                // Recargar presupuestos si es necesario
+                if (currentExpedienteId) {
+                    fetchPresupuestos(currentExpedienteId);
+                }
+            }
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al guardar el presupuesto';
+            setSaveError(message);
+            addToast(message, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Obtener detalles del Presupuesto
+    const handleObtenerDetallesPresupuesto = async (presupuestoId: number) => {
+        try {
+            setIsSaving(true);
+            setSaveError(null);
+
+            const response = await api.get(`/Presupuestos/GetPresupuestoById?presupuestoId=${presupuestoId}`);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (!response || !response.dataResponse) {
+                throw new Error('Error al obtener los detalles del presupuesto');
+            }
+
+            const data_response = response.dataResponse;
+            const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
+
+            // Mapear impuestos y derechos al formato DetalleItem
+            const impuestosFormato = impuestosDerechos.map((item: any) => ({
+                id: item.impuestos_Derechos_Id.toString(),
+                descripcion: item.descripcion,
+                importe: item.importe,
+                observaciones: item.observaciones || ''
+            }));
+
+            // Mapear gastos notariales al formato DetalleItem
+            const gastosFormato = gastosNotariales.map((item: any) => ({
+                id: Date.now().toString() + Math.random(),
+                descripcion: item.concepto,
+                importe: item.importe
+            }));
+
+            // Llenar el formulario con los datos del presupuesto
+            setFormPresupuesto({
+                cliente: presupuestoPrevio.cliente_Id,
+                operacion: presupuestoPrevio.operacion_Id,
+                zona_municipio: presupuestoPrevio.zona_Municipio_Id || '',
+                valor_operacion: presupuestoPrevio.valor_Operacion,
+                valor_avaluo: presupuestoPrevio.valor_Avaluo,
+                valor_catastral: presupuestoPrevio.valor_Catastral,
+                parametro: presupuestoPrevio.observaciones,
+                honorarios: presupuestoPrevio.honorarios,
+                descuento: presupuestoPrevio.descuento,
+                incluir_iva: presupuestoPrevio.iva > 0,
+                iva: presupuestoPrevio.iva,
+                retencion_isr: presupuestoPrevio.retencion_ISR,
+                retencion_iva: presupuestoPrevio.retencion_IVA,
+                impuestos_derechos: impuestosFormato,
+                gastos_notariales: gastosFormato,
+                activo: presupuestoPrevio.activo,
+            });
+
+            // Establecer los filtros con los nombres de cliente y operación
+            const clienteEnExpediente = filasComparecientes.find(comp => comp.cliente_Id === presupuestoPrevio.cliente_Id);
+            const operacionEnExpediente = operacionesDelExpediente.find(op => op.id === presupuestoPrevio.operacion_Id);
+
+            if (clienteEnExpediente) {
+                setClienteFiltro(clienteEnExpediente.nombre || '');
+            }
+
+            if (operacionEnExpediente) {
+                setOperacionFiltro(operacionEnExpediente.descripcion);
+            }
+
+            const zonaSeleccionada = municipiosDisponibles.find(z => z.id === presupuestoPrevio.zona_Municipio_Id);
+            if (zonaSeleccionada) {
+                setMunicipioFiltroPresupuesto(zonaSeleccionada.descripcion);
+            }
+
+            setPresupuestoValidado(presupuestoPrevio.validado);
+            setMostrarFormularioPresupuesto(true);
+            setPresupuestoEditandoId(presupuestoId);
+            addToast('Presupuesto cargado correctamente', 'success');
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al obtener el presupuesto';
+            setSaveError(message);
+            addToast(message, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Validar Presupuesto
+    const handleValidarPresupuesto = async () => {
+        if (!presupuestoEditandoId) {
+            addToast('No hay presupuesto seleccionado', 'error');
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+            setSaveError(null);
+
+            const response = await api.put(`/Presupuestos/ValidateInvalidatePresupuesto?presupuestoId=${presupuestoEditandoId}`, {});
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (response) {
+                addToast('Estado del presupuesto actualizado correctamente', 'success');
+                // Recargar presupuestos
+                if (currentExpedienteId) {
+                    fetchPresupuestos(currentExpedienteId);
+                }
+                setMostrarFormularioPresupuesto(false);
+                setPresupuestoEditandoId(null);
+            }
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al actualizar el estado del presupuesto';
+            setSaveError(message);
+            addToast(message, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Eliminar Presupuesto
+    const handleEliminarPresupuesto = async () => {
+        if (!presupuestoEditandoId) {
+            addToast('No hay presupuesto seleccionado', 'error');
+            return;
+        }
+
+        const confirmed = await messageModal.confirm(
+            '¿Eliminar Presupuesto?',
+            'Esta acción no se puede deshacer. El presupuesto será eliminado permanentemente.',
+            'error'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+            setSaveError(null);
+
+            const response = await api.delete(`/Presupuestos/DeletePresupuesto?presupuestoId=${presupuestoEditandoId}`);
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (response) {
+                addToast('Presupuesto eliminado correctamente', 'success');
+                // Recargar presupuestos
+                if (currentExpedienteId) {
+                    fetchPresupuestos(currentExpedienteId);
+                }
+                setMostrarFormularioPresupuesto(false);
+                setPresupuestoEditandoId(null);
+            }
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al eliminar el presupuesto';
+            setSaveError(message);
+            addToast(message, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Calcular Honorarios
+    const handleCalcularHonorarios = async () => {
+        const zonaMunicipioId = formPresupuesto.zona_municipio ? Number(formPresupuesto.zona_municipio) : null;
+        const operacionId = formPresupuesto.operacion ? Number(formPresupuesto.operacion) : null;
+
+        if (!zonaMunicipioId || !operacionId) {
+            addToast('Selecciona zona/municipio y operación para calcular honorarios', 'error');
+            return;
+        }
+
+        try {
+            setIsLoadingHonorarios(true);
+            const response = await api.post(
+                `/ConfiguracionTarifaria/CalcularHonorariosPrePrevio?zonaMunicipioId=${zonaMunicipioId}&operacionId=${operacionId}`,
+                {}
+            );
+
+            if (response && response.dataResponse !== undefined) {
+                const honorarios = response.dataResponse;
+                setFormPresupuesto(prev => ({
+                    ...prev,
+                    honorarios: honorarios
+                }));
+                addToast('Honorarios calculados exitosamente', 'success');
+            } else {
+                addToast('No se pudieron calcular los honorarios', 'error');
+            }
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al calcular honorarios';
+            addToast(message, 'error');
+        } finally {
+            setIsLoadingHonorarios(false);
+        }
+    };
+
+    // Calcular Impuestos y Derechos
+    const handleCalcularImpuestos = async () => {
+        const zonaMunicipioId = formPresupuesto.zona_municipio ? Number(formPresupuesto.zona_municipio) : null;
+        const valOperacion = formPresupuesto.valor_operacion;
+        const valAvaluo = formPresupuesto.valor_avaluo;
+        const valCatastral = formPresupuesto.valor_catastral;
+
+        if (!zonaMunicipioId || (valOperacion === 0 && valAvaluo === 0 && valCatastral === 0)) {
+            addToast('Completa todos los datos: Zona/Municipio y al menos un valor', 'error');
+            return;
+        }
+
+        if (formPresupuesto.impuestos_derechos.length === 0) {
+            addToast('Agrega al menos un trámite para calcular importes', 'error');
+            return;
+        }
+
+        try {
+            setIsLoadingImpuestos(true);
+
+            const listaImpuestos = formPresupuesto.impuestos_derechos.map(item => ({
+                impuestos_Derechos_Id: Number(item.id),
+                importe: 0
+            }));
+
+            const queryParams = new URLSearchParams({
+                zonaMunicipioId: zonaMunicipioId.toString(),
+                valOperacion: valOperacion.toString(),
+                valAvaluo: valAvaluo.toString(),
+                valCatastral: valCatastral.toString(),
+            });
+
+            const response = await api.post(
+                `/ConfiguracionTarifaria/CalcularImpuestosDerechosPrePrevio?${queryParams.toString()}`,
+                listaImpuestos
+            );
+
+            if (response && response.dataResponse && Array.isArray(response.dataResponse)) {
+                setFormPresupuesto(prev => ({
+                    ...prev,
+                    impuestos_derechos: prev.impuestos_derechos.map(item => {
+                        const calculado = response.dataResponse.find(
+                            (calc: any) => Number(calc.impuestos_Derechos_Id) === Number(item.id)
+                        );
+                        return {
+                            ...item,
+                            importe: calculado ? calculado.importe : 0
+                        };
+                    })
+                }));
+                setImpuestosCalculados(true);
+                addToast('Importes calculados exitosamente', 'success');
+            } else {
+                addToast('No se pudieron calcular los importes', 'info');
+            }
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al calcular importes';
+            addToast(message, 'error');
+        } finally {
+            setIsLoadingImpuestos(false);
+        }
+    };
+
+    // Cargar impuestos y derechos disponibles
+    const fetchImpuestosDerechos = async () => {
+        setIsSearchingImpuestos(true);
+        setImpuestosError(null);
+        try {
+            const response = await api.get('/Catalogos/GetImpuestosDerechos');
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (response && response.dataResponse) {
+                setImpuestosResultados(response.dataResponse || []);
+                const deps = Array.from(new Set(response.dataResponse.map((item: any) => item.dependencia_Publica)));
+                const allDeps = ['Todas', ...deps.filter(d => d) as string[]];
+                setDependenciasUnicas(allDeps);
+                setActiveDependenciaTab('Todas');
+            } else {
+                setImpuestosError(response?.message || 'No se pudieron cargar los impuestos');
+            }
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : 'Error al cargar los impuestos';
+            setImpuestosError(message);
+            addToast(message, 'error');
+        } finally {
+            setIsSearchingImpuestos(false);
+        }
+    };
+
+    // Seleccionar/Deseleccionar Impuesto
+    const handleSelectImpuesto = (impuesto: any) => {
+        setFormPresupuesto(prev => {
+            const existe = prev.impuestos_derechos.some(item => item.id === impuesto.id.toString());
+
+            if (existe) {
+                return {
+                    ...prev,
+                    impuestos_derechos: prev.impuestos_derechos.filter(item => item.id !== impuesto.id.toString())
+                };
+            } else {
+                return {
+                    ...prev,
+                    impuestos_derechos: [...prev.impuestos_derechos, {
+                        id: impuesto.id.toString(),
+                        descripcion: impuesto.descripcion,
+                        importe: 0,
+                        observaciones: ''
+                    }]
+                };
+            }
+        });
+    };
+
+    // Agregar Impuesto
+    const addImpuestoDerechos = () => {
+        setShowImpuestosModal(true);
+        fetchImpuestosDerechos();
+    };
+
+    // Eliminar Impuesto
+    const removeImpuestoDerechos = (id: string) => {
+        setFormPresupuesto(prev => ({
+            ...prev,
+            impuestos_derechos: prev.impuestos_derechos.filter(item => item.id !== id)
+        }));
+    };
+
+    // Actualizar Impuesto
+    const updateImpuestoDerechos = (id: string, field: 'descripcion' | 'importe' | 'observaciones', value: string | number) => {
+        setFormPresupuesto(prev => ({
+            ...prev,
+            impuestos_derechos: prev.impuestos_derechos.map(item =>
+                item.id === id ? { ...item, [field]: field === 'importe' ? Number(value) : value } : item
+            )
+        }));
+    };
+
+    // Agregar Gasto Notarial
+    const addGastoNotarial = () => {
+        setFormPresupuesto(prev => ({
+            ...prev,
+            gastos_notariales: [...prev.gastos_notariales, { id: Date.now().toString(), descripcion: '', importe: 0 }]
+        }));
+    };
+
+    // Eliminar Gasto Notarial
+    const removeGastoNotarial = (id: string) => {
+        setFormPresupuesto(prev => ({
+            ...prev,
+            gastos_notariales: prev.gastos_notariales.filter(item => item.id !== id)
+        }));
+    };
+
+    // Actualizar Gasto Notarial
+    const updateGastoNotarial = (id: string, field: 'descripcion' | 'importe', value: string | number) => {
+        setFormPresupuesto(prev => ({
+            ...prev,
+            gastos_notariales: prev.gastos_notariales.map(item =>
+                item.id === id ? { ...item, [field]: field === 'importe' ? Number(value) : value } : item
+            )
+        }));
+    };
+
+    // Calcular Totales
+    const calcularTotales = () => {
+        const subtotalHonorarios = formPresupuesto.honorarios - formPresupuesto.descuento;
+        const ivaCalculado = formPresupuesto.incluir_iva ? subtotalHonorarios * 0.16 : 0;
+
+        let retISR = 0;
+        let retIVA = 0;
+
+        if (ret_isr_check) {
+            retISR = subtotalHonorarios * 0.10;
+        }
+
+        if (ret_iva_check && formPresupuesto.incluir_iva) {
+            retIVA = ivaCalculado * 0.6666667;
+        }
+
+        const totalImpuestos = formPresupuesto.impuestos_derechos.reduce((sum, item) => sum + item.importe, 0);
+        const totalGastos = formPresupuesto.gastos_notariales.reduce((sum, item) => sum + item.importe, 0);
+        const totalHonorarios = subtotalHonorarios + ivaCalculado - retISR - retIVA;
+        const totalPresupuesto = totalHonorarios + totalImpuestos + totalGastos;
+
+        return { subtotalHonorarios, ivaCalculado, retISR, retIVA, totalImpuestos, totalGastos, totalHonorarios, totalPresupuesto };
+    };
+
     // Cargar operaciones disponibles desde API
     const fetchOperaciones = async () => {
         setCargandoOperaciones(true);
         try {
-            const response = await getCatalogoCacheado('/Catalogos/GetOperaciones', () => api.get('/Catalogos/GetOperaciones'));
-            await handleControlNotarialResponse(response, {            });
+            const response = await api.get('/Catalogos/GetOperaciones');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
@@ -700,8 +1338,10 @@ export default function ExpedientesIndex() {
     const fetchMunicipios = async () => {
         setCargandoMunicipios(true);
         try {
-            const response = await getCatalogoCacheado('/Catalogos/GetZonasMunicipios', () => api.get('/Catalogos/GetZonasMunicipios'));
-            await handleControlNotarialResponse(response, {            });
+            const response = await api.get('/Catalogos/GetZonasMunicipios');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
@@ -722,7 +1362,9 @@ export default function ExpedientesIndex() {
         setCargandoUsuarios(true);
         try {
             const response = await api.get('/User/GetRolesUsuarios');
-            await handleControlNotarialResponse(response, {            });
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
@@ -741,8 +1383,10 @@ export default function ExpedientesIndex() {
     const fetchDependencias = async () => {
         setCargandoDependencias(true);
         try {
-            const response = await getCatalogoCacheado('/Catalogos/GetDependenciasPublicas', () => api.get('/Catalogos/GetDependenciasPublicas'));
-            await handleControlNotarialResponse(response, {            });
+            const response = await api.get('/Catalogos/GetDependenciasPublicas');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
@@ -762,7 +1406,9 @@ export default function ExpedientesIndex() {
         setCargandoClientes(true);
         try {
             const response = await api.get('/Clientes/GetClientes');
-            await handleControlNotarialResponse(response, {            });
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
@@ -780,14 +1426,16 @@ export default function ExpedientesIndex() {
 
     const fetchComparecientes = async () => {
         try {
-            const response = await getCatalogoCacheado('/Catalogos/GetComparecientes', () => api.get('/Catalogos/GetComparecientes'));
-            await handleControlNotarialResponse(response, {            });
+            const response = await api.get('/Catalogos/GetComparecientes');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
             console.log('Respuesta Comparecientes:', response);
             // Manejar diferentes formatos de respuesta
-            const comparecientes = response?.dataResponse || response;
+            const comparecientes = response?.dataResponse || response?.data || response;
             if (Array.isArray(comparecientes)) {
                 setComparecientesDisponibles(comparecientes);
                 console.log('Comparecientes cargados:', comparecientes);
@@ -801,10 +1449,13 @@ export default function ExpedientesIndex() {
 
     // Cargar Tipos de Inmuebles desde API
     const fetchTiposInmuebles = async () => {
+        // (Datos maestros - parte de catálogos)
         setCargandoTiposInmuebles(true);
         try {
-            const response = await getCatalogoCacheado('/Catalogos/GetTipoInmueble', () => api.get('/Catalogos/GetTipoInmueble'));
-            await handleControlNotarialResponse(response, {            });
+            const response = await api.get('/Catalogos/GetTipoInmueble');
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
             if (response?.isUnauthorized) {
                 return;
             }
@@ -830,8 +1481,12 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // ==========================================
+    // SECCIÓN: INMUEBLES
+    // ==========================================
+
     // Editar Inmueble - Obtener datos y llenar formulario
-    const handleEditarInmueble = async (inmuebleId: number) => {
+    const handleEditarInmueble = async (inmuebleId) => {
         setCargandoGuardarInmueble(true);
         try {
             const data = await api.get(`/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`);
@@ -918,7 +1573,7 @@ export default function ExpedientesIndex() {
         setCargandoGuardarInmueble(true);
         try {
             // Payload común para crear y actualizar
-            const payload: any = {
+            const payload = {
                 tipo_Factura_Id: parseInt(formInmueble.tipoFactura) || 0,
                 tipo_Inmueble_Id: parseInt(formInmueble.tipoVulnerable) || 0,
                 tipo_Inmueble_DeclaraNot_Id: parseInt(formInmueble.tipoDeclaranot) || 0,
@@ -941,8 +1596,8 @@ export default function ExpedientesIndex() {
                 clave_Catastral: formInmueble.claveCatastral,
                 superficie_Terreno: parseFloat(formInmueble.superficieTerreno) || 0,
                 superficie_Construccion: parseFloat(formInmueble.superficieConstruida) || 0,
-                cuenta_Agua: parseFloat(formInmueble.ctaAgua) || 0,
-                cuenta_Predial: parseFloat(formInmueble.ctaPredial) || 0,
+                cuenta_Agua: formInmueble.ctaAgua || '',
+                cuenta_Predial: formInmueble.ctaPredial || '',
                 fecha_Registro: formInmueble.fechaRegistro ? new Date(formInmueble.fechaRegistro).toISOString() : new Date().toISOString(),
                 folio_Real: formInmueble.folioReal,
                 inscripcion: formInmueble.inscripcion,
@@ -969,7 +1624,9 @@ export default function ExpedientesIndex() {
                 ? await api.put(endpoint, payload)
                 : await api.post(endpoint, payload);
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -1036,13 +1693,30 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // ==========================================
+    // SECCIÓN: DOCUMENTOS
+    // ==========================================
+
     // Cargar documentos disponibles desde API
     const fetchDocumentosDisponibles = async () => {
         setCargandoDocumentosDisponibles(true);
         try {
-            const data = await getCatalogoCacheado('/Catalogos/GetDocumentos', () => api.get('/Catalogos/GetDocumentos'));
-            if (data && data.dataResponse) {
-                setDocumentosDisponibles(data.dataResponse);
+            const { blob, response } = await api.getBlob('/Catalogos/GetDocumentos');
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para cargar documentos', 'error');
+                return;
+            }
+
+            if (blob && response?.success !== false) {
+                const data = await blob.text();
+                const jsonData = JSON.parse(data);
+                // Asegurar que siempre sea un array
+                const documentosArray = Array.isArray(jsonData)
+                    ? jsonData
+                    : (jsonData?.dataResponse || jsonData?.data || []);
+                setDocumentosDisponibles(documentosArray);
+
                 setMostrarModalAgregarDocumento(true);
             } else {
                 addToast('No se pudieron cargar los documentos disponibles', 'error', 4000);
@@ -1064,32 +1738,6 @@ export default function ExpedientesIndex() {
             });
         });
         return documentosAgregados;
-    };
-
-    // Agregar un documento a todas las tablas de clientes
-    const handleAgregarDocumentoATodas = (documento: Documento) => {
-        setDocumentosPorCliente(prevDocumentos =>
-            prevDocumentos.map(grupoCliente => ({
-                ...grupoCliente,
-                documentos: [
-                    ...grupoCliente.documentos,
-                    {
-                        id: Date.now() + Math.floor(Math.random() * 1000000),
-                        cliente_Id: grupoCliente.id_Cliente,
-                        documento_Id: documento.id,
-                        documento: documento.descripcion,
-                        fecha_Entrega: null,
-                        usuario_Recibe: null,
-                        fecha_Recepcion: null,
-                        usuario_Recepcion: null,
-                        observaciones: null,
-                        copia: false,
-                        original: false,
-                    }
-                ]
-            }))
-        );
-        addToast(`Documento "${documento.descripcion}" agregado a todas las tablas`, 'success', 4000);
     };
 
     // Agregar múltiples documentos seleccionados
@@ -1177,20 +1825,24 @@ export default function ExpedientesIndex() {
 
         try {
             setIsLoadingRecibo(true);
-            const response = await fetch(
-                `${apiBaseUrl}/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`,
-                { method: 'GET' }
+            const { blob, response } = await api.getBlob(
+                `/Expediente/GenerateReciboDocumentosExpediente?expedienteId=${currentExpedienteId}&clienteId=${clienteSeleccionadoDocumentos}`
             );
 
-            if (!response.ok) {
-                throw new Error('Error al generar el recibo');
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar el recibo', 'error');
+                return;
             }
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            setReciboUrl(url);
-            setShowReciboModal(true);
-            addToast('Recibo cargado correctamente', 'success', 4000);
+            if (blob && response?.success !== false) {
+                const url = URL.createObjectURL(blob);
+                setReciboUrl(url);
+                setShowReciboModal(true);
+                addToast('Recibo cargado correctamente', 'success', 4000);
+            } else {
+                addToast(response?.message || 'Error al generar el recibo', 'error', 4000);
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al generar el recibo';
             addToast(message, 'error', 4000);
@@ -1200,7 +1852,7 @@ export default function ExpedientesIndex() {
         }
     };
 
-    // Cerrar modal de recibo
+    // Cerrar modal de recibo (DOCUMENTOS)
     const closeReciboModal = () => {
         setShowReciboModal(false);
         if (reciboUrl) {
@@ -1262,7 +1914,9 @@ export default function ExpedientesIndex() {
                 documentosPayload
             );
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -1309,7 +1963,9 @@ export default function ExpedientesIndex() {
                 payload
             );
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -1378,6 +2034,7 @@ export default function ExpedientesIndex() {
     };
 
     // Seleccionar automáticamente el primer resultado de cada rol al cargar
+    // TAMBIÉN rellenar todos los dropdowns desde el inicio
     useEffect(() => {
         if (usuarios.length > 0 && !initializedUsers.current) {
             const notarios = usuarios.filter(u => u.rol === 'NOTARIOS');
@@ -1385,6 +2042,13 @@ export default function ExpedientesIndex() {
             const secretarias = usuarios.filter(u => u.rol === 'SECRETARIAS');
             const autorizados = usuarios.filter(u => u.rol === 'AUTORIZADOS');
 
+            // Rellenar todos los dropdowns con todos los registros
+            setNotariosFiltrados(notarios);
+            setResponsablesFiltrados(responsables);
+            setSecretariasFiltradas(secretarias);
+            setAutorizadosFiltrados(autorizados);
+
+            // Seleccionar el primero de cada rol
             if (notarios.length > 0) {
                 setFormData(prev => ({
                     ...prev,
@@ -1507,25 +2171,35 @@ export default function ExpedientesIndex() {
             setInmuebleEnEdicion(null);
             setInmuebleIdEnEdicion(null);
             setReciboDetalleSeleccionado(null);
+            setClienteSeleccionadoDocumentos(null);
+            setDocumentosPorCliente([]);
 
-            fetchDocumentosExpediente(currentExpedienteId);
-            fetchInmueblesExpediente(currentExpedienteId);
-            fetchRecibosProvisionales(currentExpedienteId);
-            fetchPresupuestos(currentExpedienteId);
+            // Los datos se cargarán bajo demanda cuando se acceda a cada pestaña
         }
     }, [currentExpedienteId]);
 
-    // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
-    // isReady incluido para no disparar antes de que el JWT esté disponible
+    // Cargar documentosExpediente cuando se acceda a esa pestaña
     useEffect(() => {
-        if (!isReady) return;
+        if (activeInternalTab === 'documentos' && currentExpedienteId) {
+            fetchDocumentosExpediente(currentExpedienteId);
+        }
+    }, [activeInternalTab, currentExpedienteId]);
 
-        const debounceTimer = setTimeout(() => {
-            fetchExpedientes(filtro);
-        }, 300); // Esperar 300ms después de que el usuario deje de escribir
+    // Cargar inmueblesExpediente cuando se acceda a esa pestaña
+    useEffect(() => {
+        if (activeInternalTab === 'inmuebles' && currentExpedienteId) {
+            fetchInmueblesExpediente(currentExpedienteId);
+        }
+    }, [activeInternalTab, currentExpedienteId]);
 
-        return () => clearTimeout(debounceTimer);
-    }, [filtro, isReady]);
+    // Cargar datos financieros cuando se acceda a esa pestaña
+    useEffect(() => {
+        if (activeInternalTab === 'financiero-control' && currentExpedienteId) {
+            fetchPresupuestos(currentExpedienteId);
+            fetchRecibosProvisionales(currentExpedienteId);
+            fetchPLD(currentExpedienteId);
+        }
+    }, [activeInternalTab, currentExpedienteId]);
 
     // Auto-seleccionar el primer cliente cuando se cargan los documentos
     useEffect(() => {
@@ -1570,21 +2244,9 @@ export default function ExpedientesIndex() {
     }, [documentosPorCliente]);
 
     // Convertir fecha de formato DD/MM/YYYY a YYYY-MM-DD para inputs date
-    const convertirFechaAlFormatoISO = (fecha: string | null): string | null => {
-        if (!fecha) return null;
-
-        // Si ya está en formato ISO (contiene guiones), devolverlo tal cual
-        if (fecha.includes('-')) return fecha;
-
-        // Convertir de DD/MM/YYYY a YYYY-MM-DD
-        if (fecha.includes('/')) {
-            const partes = fecha.split('/');
-            if (partes.length === 3) {
-                return `${partes[2]}-${partes[1]}-${partes[0]}`;
-            }
-        }
-        return fecha;
-    };
+    // ==========================================
+    // SECCIÓN: EXPEDIENTES
+    // ==========================================
 
     const fetchDocumentosExpediente = async (expedienteId: number) => {
         setCargandoDocumentosExpediente(true);
@@ -1611,7 +2273,7 @@ export default function ExpedientesIndex() {
             if (data && data.dataResponse) {
                 setInmueblesExpediente(data.dataResponse);
             } else {
-                // Respuesta válida sin inmuebles (expediente sin inmuebles asociados)
+                console.error('Error al cargar inmuebles:', data?.message);
                 setInmueblesExpediente([]);
             }
         } catch (error) {
@@ -1632,7 +2294,9 @@ export default function ExpedientesIndex() {
             }
             const response = await api.get(endpoint);
 
-            await handleControlNotarialResponse(response, {            });
+            await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             // Si es 401, useAuthGuard maneja el toast
             if (response?.isUnauthorized) {
@@ -1654,17 +2318,20 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // Buscar expedientes
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         fetchExpedientes(filtro);
     };
 
+    // Cambios en inputs (EXPEDIENTES)
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target as HTMLInputElement;
         const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
         setFormData(prev => ({ ...prev, [name]: val }));
     };
 
+    // Validar cambios en número de escritura (EXPEDIENTES)
     const handleNumeroEscrituraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         handleInputChange(e);
         setNumeroEscrituraTouched(true);
@@ -1682,7 +2349,7 @@ export default function ExpedientesIndex() {
         }
 
         try {
-            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
+            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
 
             // Verificar si dataResponse es true
             if (response?.dataResponse === true) {
@@ -1709,6 +2376,7 @@ export default function ExpedientesIndex() {
         }
     };
 
+    // Cancelar edición (EXPEDIENTES)
     const handleCancelEdit = () => {
         setFormData({
             expediente: '',
@@ -1744,15 +2412,43 @@ export default function ExpedientesIndex() {
             noPaso: false,
             nopasoMotivo: '',
         });
+
+        // Limpiar búsquedas de formulario
         setOperacionBusqueda('');
         setMostrarDropdownOperaciones(false);
         setMunicipioBusqueda('');
         setMostrarDropdownMunicipios(false);
         setDependenciaBusqueda('');
         setMostrarDropdownDependencias(false);
+
+        // Limpiar búsquedas de usuarios
+        setBusquedaNotario('');
+        setMostrarDropdownNotario(false);
+        setBusquedaResponsable('');
+        setMostrarDropdownResponsable(false);
+        setBusquedaSecretaria('');
+        setMostrarDropdownSecretaria(false);
+        setBusquedaAutorizado('');
+        setMostrarDropdownAutorizado(false);
+
+        // Limpiar datos de dependencias
         setDatosDepdencias({});
         setDependenciaSeleccionada(null);
+        setCheckboxesFecha({});
+
+        // Limpiar comparecientes
         setFilasComparecientes([]);
+        setClienteBusqueda('');
+        setMostrarDropdownClientes(false);
+        setClienteSeleccionado(null);
+        setDropdownTipoAbierto({});
+        setBusquedaTipo({});
+        setShowClienteModalComparecientes(false);
+        setClienteResultadosComparecientes([]);
+        setClienteFiltroComparecientes('');
+        setClientesSeleccionadosEnModal([]);
+
+        // Limpiar fechas habilitadas
         setEnabledDates({
             fechaEscritura: false,
             fechaFirma: false,
@@ -1761,19 +2457,43 @@ export default function ExpedientesIndex() {
             fechaImpresion: false,
             firmarTodos: false,
         });
+
+        // Limpiar datos de recibo
+        setReciboData({
+            impuestosDerechos: 0,
+            gastosNotariales: 0,
+            honorarios: 0,
+            concepto: '',
+            formaPago: '',
+            observaciones: '',
+            clienteId: null,
+        });
+
+        // Limpiar recibos provisionales
+        setRecibosProvisionales([]);
+        setMostrarFormularioRecibo(false);
+        setReciboDetalleSeleccionado(null);
+
+        // Limpiar IDs
         setNumeroEscrituraTouched(false);
         setNumeroEscrituraOriginal('');
         setNumeroEscrituraError(null);
-        setIsEditing(false);
-        setSaveError(null);
-        setActiveTab('busqueda');
         setNotarioId(null);
         setResponsableId(null);
         setSecretariaId(null);
         setAutorizadoId(null);
+        setMunicipioId(null);
         setOperacionesIds([]);
+        setCurrentExpedienteId(null);
+
+        // Limpiar estados de edición
+        setIsEditing(false);
+        setSaveError(null);
+        setActiveTab('busqueda');
+        setExpedienteEsVulnerable(false);
     };
 
+    // Cargar un expediente específico (EXPEDIENTES)
     const handleLoadExpediente = async (expedienteId: number) => {
         try {
             const data = await api.get(`/Expediente/GetExpedienteById?expedienteId=${expedienteId}`);
@@ -1785,6 +2505,9 @@ export default function ExpedientesIndex() {
 
             const fullData = data.dataResponse[0];
             const expediente = fullData.expediente;
+
+            // Capturar si el expediente es vulnerable
+            setExpedienteEsVulnerable(expediente.vulnerable || false);
 
             // Cargar datos principales del formulario
             setFormData(prev => ({
@@ -1864,7 +2587,7 @@ export default function ExpedientesIndex() {
 
                 // Inicializar busquedaTipo con los tipos de comparecientes cargados
                 const busquedaTipoInicial: Record<string, string> = {};
-                comparecientes.forEach((comp: any) => {
+                comparecientes.forEach(comp => {
                     busquedaTipoInicial[comp.id] = comp.tipoCompareciente;
                 });
                 setBusquedaTipo(busquedaTipoInicial);
@@ -1902,8 +2625,6 @@ export default function ExpedientesIndex() {
             }
 
             // Activar modo edición y navegación
-            // setCurrentExpedienteId dispara useEffect([currentExpedienteId]) que carga
-            // documentos, inmuebles, recibos y presupuestos — no duplicar aquí
             setCurrentExpedienteId(expedienteId);
             setIsEditing(true);
             setNumeroEscrituraTouched(false);
@@ -1911,12 +2632,15 @@ export default function ExpedientesIndex() {
             setActiveTab('formulario');
             setActiveInternalTab('info-general');
             setSaveError(null);
+
+            // Los datos se cargarán bajo demanda cuando se navegue a cada pestaña
         } catch (error) {
             setSaveError('Error al cargar el expediente');
             console.error('Error:', error);
         }
     };
 
+    // Guardar expediente (EXPEDIENTES)
     const handleSaveExpediente = async () => {
         // Validaciones básicas
         if (!formData.referencia.trim()) {
@@ -1968,12 +2692,12 @@ export default function ExpedientesIndex() {
                 tomo: formData.tomo || 0,
                 fojas: 0,
                 monto: 0,
-                fecha_Escritura: formData.fechaEscritura || new Date().toISOString(),
-                fecha_Firma: formData.fechaFirma || new Date().toISOString(),
-                fecha_Elaboracion: formData.fechaElaboracion || new Date().toISOString(),
-                fecha_Revision: formData.fechaRevision || new Date().toISOString(),
-                fecha_Impresion: formData.fechaImpresion || new Date().toISOString(),
-                fecha_Firma_Todos: formData.firmarTodos || new Date().toISOString(),
+                fecha_Escritura: formData.fechaEscritura || null,
+                fecha_Firma: formData.fechaFirma || null,
+                fecha_Elaboracion: formData.fechaElaboracion || null,
+                fecha_Revision: formData.fechaRevision || null,
+                fecha_Impresion: formData.fechaImpresion || null,
+                fecha_Firma_Todos: formData.firmarTodos || null,
                 motivo: formData.motivoCancelacion || 'string'
             };
 
@@ -2026,7 +2750,9 @@ export default function ExpedientesIndex() {
                 ? await api.put(endpoint, requestPayload)
                 : await api.post(endpoint, requestPayload);
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -2035,6 +2761,11 @@ export default function ExpedientesIndex() {
             if (data?.success !== false) {
                 const messageAction = isEditing ? 'actualizado' : 'creado';
                 addToast(`Expediente ${messageAction} exitosamente`, 'success', 4000);
+
+                // Establecer hora de última actualización
+                const ahora = new Date();
+                const horaFormato = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                setLastSavedTime(horaFormato);
 
                 // Si es actualización, solo recargar datos y volver a busqueda
                 if (isEditing && currentExpedienteId) {
@@ -2097,19 +2828,15 @@ export default function ExpedientesIndex() {
                     setDependenciaSeleccionada(null);
                     setSaveError(null);
                     setCheckboxesFecha({});
-                    setFilasDocumentos({});
-                    setClienteSeleccionado(null);
-                    setOtorganteSeleccionado(null);
-                    setClienteBusqueda('');
-                    setBusquedaOtorgante('');
                     setOperacionBusqueda('');
                     setMostrarDropdownOperaciones(false);
                     setMunicipioBusqueda('');
                     setMostrarDropdownMunicipios(false);
                     setDependenciaBusqueda('');
                     setMostrarDropdownDependencias(false);
-                    setDatosDepdencias({});
-                    setDependenciaSeleccionada(null);
+                    setBusquedaNotario('');
+                    setMostrarDropdownNotario(false);
+                    setBusquedaResponsable('');
                     setBusquedaNotario('');
                     setMostrarDropdownNotario(false);
                     setBusquedaResponsable('');
@@ -2154,6 +2881,48 @@ export default function ExpedientesIndex() {
         }
     };
 
+    const handleAsignarFolios = async () => {
+        if (!formData.foliosRequeridos || !currentExpedienteId) {
+            addToast('Ingrese la cantidad de folios requeridos', 'error');
+            return;
+        }
+
+        setCargandoAsignarFolios(true);
+        try {
+            const response = await api.post(
+                `/Folios/AsignarFoliosExpediente?expedienteId=${currentExpedienteId}&foliosRequeridos=${formData.foliosRequeridos}`,
+                {}
+            );
+
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para asignar folios', 'error');
+                return;
+            }
+
+            if (response?.success) {
+                const data = response.dataResponse;
+                setFormData(prev => ({
+                    ...prev,
+                    folioInicial: data.folio_Inicial,
+                    folioFinal: data.folio_Final,
+                    volumen: data.volumen,
+                    tomo: data.tomo,
+                    foliosRequeridos: 0
+                }));
+                addToast('Folios asignados correctamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al asignar folios', 'error');
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            addToast(`Error al asignar folios: ${errorMessage}`, 'error');
+            console.error('Error al asignar folios:', error);
+        } finally {
+            setCargandoAsignarFolios(false);
+        }
+    };
+
     const handleSeleccionarOperacion = (operacion: Operacion) => {
         setFormData(prev => ({
             ...prev,
@@ -2170,24 +2939,6 @@ export default function ExpedientesIndex() {
             operaciones: prev.operaciones.filter((_, i) => i !== indice)
         }));
         setOperacionesIds(prev => prev.filter((_, i) => i !== indice));
-    };
-
-    const handleSeleccionarMunicipio = (municipio: Dependencia) => {
-        setFormData(prev => ({
-            ...prev,
-            municipio: municipio.descripcion
-        }));
-        setMunicipioId(municipio.id);
-        setMunicipioBusqueda('');
-        setMostrarDropdownMunicipios(false);
-    };
-
-    const handleEliminarMunicipio = () => {
-        setFormData(prev => ({
-            ...prev,
-            municipio: ''
-        }));
-        setMunicipioId(null);
     };
 
     const handleSeleccionarDependencia = (dependencia: Dependencia) => {
@@ -2290,27 +3041,6 @@ export default function ExpedientesIndex() {
         }
     };
 
-    const handleAgregarCompareciente = async () => {
-        if (clienteSeleccionado && comparecientesDisponibles.length === 0) {
-            // Cargar comparecientes si no están cargados
-            await fetchComparecientes();
-        }
-        if (clienteSeleccionado) {
-            const nuevoCompareciente: FilaCompareciente = {
-                id: Date.now().toString(),
-                cliente_Id: clienteSeleccionado.id,
-                nombreCompareciente: `${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido_Paterno} ${clienteSeleccionado.apellido_Materno}`,
-                tipoCompareciente: '',
-                firmaRequerida: false,
-                fechaFirma: ''
-            };
-            setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
-            setClienteSeleccionado(null);
-            setClienteBusqueda('');
-            setMostrarDropdownClientes(false);
-        }
-    };
-
     const handleEliminarCompareciente = (id: string) => {
         setFilasComparecientes(prev => prev.filter(row => row.id !== id));
     };
@@ -2356,24 +3086,43 @@ export default function ExpedientesIndex() {
         }
     };
 
-    // Función para seleccionar cliente del modal y agregarlo a la tabla
+    // Función para seleccionar cliente del modal y agregarlo a la lista temporal
     const handleSelectClienteFromModalComparecientes = (cliente: ClienteBusqueda) => {
-        const nuevoCompareciente: FilaCompareciente = {
-            id: Date.now().toString(),
+        // Verificar que no esté ya seleccionado
+        if (!clientesSeleccionadosEnModal.some(c => c.id === cliente.id)) {
+            setClientesSeleccionadosEnModal(prev => [...prev, cliente]);
+        }
+    };
+
+    // Función para remover cliente de la lista temporal
+    const handleRemoverClienteDelModal = (clienteId: number) => {
+        setClientesSeleccionadosEnModal(prev => prev.filter(c => c.id !== clienteId));
+    };
+
+    // Función para agregar todos los clientes seleccionados a la tabla de comparecientes
+    const handleAgregarClientesSeleccionados = () => {
+        const nuevosComparecientes: FilaCompareciente[] = clientesSeleccionadosEnModal.map((cliente) => ({
+            id: Date.now().toString() + Math.random(),
             cliente_Id: cliente.id,
             nombreCompareciente: `${cliente.nombre} ${cliente.apellido_Paterno} ${cliente.apellido_Materno}`,
             tipoCompareciente: '',
             firmaRequerida: false,
             fechaFirma: ''
-        };
-        setFilasComparecientes(prev => [...prev, nuevoCompareciente]);
+        }));
+
+        setFilasComparecientes(prev => [...prev, ...nuevosComparecientes]);
         setShowClienteModalComparecientes(false);
         setClienteFiltroComparecientes('');
         setClienteResultadosComparecientes([]);
         setClienteErrorComparecientes(null);
+        setClientesSeleccionadosEnModal([]);
     };
 
     // Cargar Recibos Provisionales del Expediente
+    // ==========================================
+    // SECCIÓN: RECIBOS / PRESUPUESTOS
+    // ==========================================
+
     const fetchRecibosProvisionales = async (expedienteId: number) => {
         setCargandoRecibos(true);
         try {
@@ -2388,6 +3137,71 @@ export default function ExpedientesIndex() {
             setRecibosProvisionales([]);
         } finally {
             setCargandoRecibos(false);
+        }
+    };
+
+    // Obtener datos PLD del expediente
+    // ==========================================
+    // SECCIÓN: CUMPLIMIENTO (PLD/LISTAS NEGRAS)
+    // ==========================================
+
+    const fetchPLD = async (expedienteId: number) => {
+        setCargandoPLD(true);
+        try {
+            const data = await api.get(`/Expediente/GetExpedientePLD?expedienteId=${expedienteId}`);
+            if (data && data.dataResponse) {
+                setDatosPLD(data.dataResponse);
+            } else {
+                setDatosPLD([]);
+            }
+        } catch (error) {
+            console.error('Error al cargar PLD:', error);
+            setDatosPLD([]);
+        } finally {
+            setCargandoPLD(false);
+        }
+    };
+
+    // Buscar en Listas Negras (SAT/OFAC)
+    const buscarEnListasNegras = async (nombre: string) => {
+        if (!nombre.trim()) return;
+
+        setListasNegrasLoading(true);
+        setListasNegrasError(null);
+        setListasNegrasResults([]);
+
+        try {
+            const response = await fetch('/admin/search/persona-fisica', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    nombre: nombre,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                const allResults = [
+                    ...(data.data.ofac_resultados || []).map((r: any) => ({ ...r, source: 'OFAC' })),
+                    ...(data.data.sat_resultados || []).map((r: any) => ({ ...r, source: 'SAT' })),
+                ];
+                setListasNegrasResults(allResults);
+                setShowListasNegrasModal(true);
+            } else {
+                setListasNegrasError(data.message || 'Error en la búsqueda');
+                setShowListasNegrasModal(true);
+            }
+        } catch (error) {
+            console.error('Error de búsqueda:', error);
+            setListasNegrasError('Error de conexión');
+            setShowListasNegrasModal(true);
+        } finally {
+            setListasNegrasLoading(false);
         }
     };
 
@@ -2432,7 +3246,9 @@ export default function ExpedientesIndex() {
 
             const data = await api.post('/ReciboProvisional/CreateReciboProvisional', payload);
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -2467,7 +3283,9 @@ export default function ExpedientesIndex() {
             setCargandoReciboDetalle(true);
             const data = await api.put(`/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -2502,7 +3320,9 @@ export default function ExpedientesIndex() {
             setCargandoReciboDetalle(true);
             const data = await api.put(`/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
-            await handleControlNotarialResponse(data, {            });
+            await handleControlNotarialResponse(data, {
+                onUnauthorized: () => setLoginModalOpen(true),
+            });
 
             if (data?.isUnauthorized) {
                 return;
@@ -2530,17 +3350,21 @@ export default function ExpedientesIndex() {
     const handleImprimirRecibo = async (reciboId: number) => {
         try {
             setCargandoReciboDetalle(true);
-            const response = await fetch(`${apiBaseUrl}/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`, {
-                method: 'GET',
-            });
+            const { blob, response } = await api.getBlob(`/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`);
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                addToast('No autorizado para generar el recibo', 'error');
+                return;
+            }
+
+            if (blob && response?.success !== false) {
+                const url = URL.createObjectURL(blob);
                 setRecibosPdfUrl(url);
                 setShowRecibosPdfViewer(true);
+                addToast('Recibo generado exitosamente', 'success');
             } else {
-                addToast('Error al generar el reporte del recibo', 'error');
+                addToast(response?.message || 'Error al generar el reporte del recibo', 'error');
             }
         } catch (error) {
             console.error('Error imprimiendo recibo:', error);
@@ -2551,29 +3375,36 @@ export default function ExpedientesIndex() {
     };
 
     const closeRecibosPdfViewer = () => {
-        if (recibosPdfUrl) {
-            window.URL.revokeObjectURL(recibosPdfUrl);
-        }
         setShowRecibosPdfViewer(false);
-        setRecibosPdfUrl(null);
+        if (recibosPdfUrl) {
+            URL.revokeObjectURL(recibosPdfUrl);
+            setRecibosPdfUrl(null);
+        }
     };
 
     return (
         <>
             <Head title="Expedientes - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+            <PDFViewerModal
+                isOpen={showRecibosPdfViewer}
+                onClose={closeRecibosPdfViewer}
+                pdfUrl={recibosPdfUrl || ''}
+                title="Recibo Provisional"
+                fileName={`recibo-${new Date().toISOString().split('T')[0]}.pdf`}
+            />
+            <MessageModal
+                isOpen={messageModal.isOpen}
+                type={messageModal.type}
+                title={messageModal.title}
+                message={messageModal.message}
+                icon={messageModal.icon}
+                buttons={messageModal.buttons}
+                onClose={messageModal.close}
+                size={messageModal.size}
+            />
 
             <div className="space-y-6 mb-5 px-6 pt-6">
-                {/* <div className="pb-2 border-b">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="rounded-lg bg-blue-600 p-3 text-white">
-                            <FileText className="size-5" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Expedientes</h1>
-                            <p className="text-muted-foreground text-xs">Gestión de expedientes</p>
-                        </div>
-                    </div>
-                </div> */}
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="grid w-full grid-cols-2 bg-transparent">
@@ -2591,114 +3422,32 @@ export default function ExpedientesIndex() {
 
                     {/* ── PESTAÑA: BÚSQUEDA ── */}
                     <TabsContent value="busqueda" className="space-y-4">
-                        <div className="flex gap-2">
-                            <div className="relative flex-1 max-w-sm">
-                                <Input
-                                    value={filtro}
-                                    onChange={(e) => setFiltro(e.target.value)}
-                                    placeholder="Buscar por referencia, cliente, operación..."
-                                    className="pr-10"
-                                    autoFocus
-                                />
-                                {filtro && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setFiltro('');
-                                            setSearchError(null);
-                                            setResultados([]);
-                                        }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Limpiar búsqueda"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
-                            <Button disabled={isSearching} className="bg-blue-600 hover:bg-blue-700" onClick={() => fetchExpedientes(filtro)}>
-                                {isSearching ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Search className="h-4 w-4" />
-                                )}
-                                <span className="ml-2">Buscar</span>
-                            </Button>
-                        </div>
-
-                        {searchError && (
-                            <div className="flex items-center gap-3 px-4 py-3 rounded-md border bg-red-50 border-red-200 text-red-800">
-                                <AlertCircle className="h-5 w-5 shrink-0" />
-                                <span>{searchError}</span>
-                            </div>
-                        )}
-                        <div className="border rounded-lg overflow-hidden">
-                            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left font-semibold w-16">ID</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Expediente</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Operación</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Cliente</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {isSearching ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
-                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                    Cargando expedientes...
-                                                </td>
-                                            </tr>
-                                        ) : resultados.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
-                                                    No se encontraron expedientes.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            resultados.map((item) => (
-                                                <tr
-                                                    key={item.expediente.id}
-                                                    className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
-                                                    onClick={() => handleLoadExpediente(item.expediente.id)}
-                                                >
-                                                    <td className="px-4 py-2 font-mono text-sm">{item.expediente.id}</td>
-                                                    <td className="px-4 py-2">{item.expediente.expediente || '-'}</td>
-                                                    <td className="px-4 py-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                                {item.operaciones?.[0]?.descripcion || '-'}
-                                                            </span>
-                                                            {item.operaciones && item.operaciones.length > 1 && (
-                                                                <span
-                                                                    className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800 whitespace-nowrap cursor-help hover:bg-amber-200 transition-colors"
-                                                                    title={item.operaciones.map(op => op.descripcion).join('\n')}
-                                                                >
-                                                                    +{item.operaciones.length - 1} más
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-2">{item.clientes?.[0]?.nombre || '-'}</td>
-                                                    <td className="px-4 py-2 text-sm">{item.expediente.fecha_Creacion ? new Date(item.expediente.fecha_Creacion).toLocaleDateString('es-MX') : '-'}</td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        {!isSearching && resultados.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                                {resultados.length} expediente(s) encontrado(s) — <span className="text-blue-600">selecciona uno para ver detalles</span>
-                            </p>
-                        )}
+                        <SearchExpedientes
+                            filtro={filtro}
+                            setFiltro={setFiltro}
+                            resultados={resultados}
+                            isSearching={isSearching}
+                            searchError={searchError}
+                            setSearchError={setSearchError}
+                            setResultados={setResultados}
+                            onSelectExpediente={handleLoadExpediente}
+                            onFetch={fetchExpedientes}
+                        />
                     </TabsContent>
 
                     {/* ── PESTAÑA 2: FORMULARIO ── */}
                     <TabsContent value="formulario" className="space-y-6">
+                        {/* Banner Vulnerable - ARRIBA DE TODO */}
+                        {expedienteEsVulnerable && (
+                            <div className="px-4 py-3 rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-900/20 flex items-center gap-3">
+                                <AlertCircle className="h-6 w-6 text-red-600 shrink-0" />
+                                <div>
+                                    <p className="font-semibold text-red-700 dark:text-red-300">⚠️ Expediente Vulnerable</p>
+                                    <p className="text-sm text-red-600 dark:text-red-300">Este expediente corresponde a una actividad vulnerable y requiere especial atención en el cumplimiento normativo.</p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="border rounded-lg p-6 bg-background/50 backdrop-blur-sm">
                             {saveError && (
                                 <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md mb-6">
@@ -2706,9 +3455,10 @@ export default function ExpedientesIndex() {
                                 </div>
                             )}
 
-                            {/* TABS INTERNOS: 4 CATEGORÍAS TEMÁTICAS */}
+                            {/* TABS INTERNOS: 4 CATEGORÍAS */}
                             <Tabs value={activeInternalTab} onValueChange={setActiveInternalTab} className="w-full">
                                 <TabsList className="grid w-full grid-cols-5 gap-4 bg-transparent mb-6 p-0 border-b border-slate-200 dark:border-slate-700">
+
                                     {/* GRUPO 1: INFORMACIÓN GENERAL */}
                                     <TabsTrigger value="info-general" className="gap-2 py-3 px-1 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 transition-colors rounded-none border-b-2 border-transparent">
                                         <FileText className="h-4 w-4" />
@@ -2761,3450 +3511,293 @@ export default function ExpedientesIndex() {
                                 </TabsList>
 
                                 {/* GRUPO 1: INFORMACIÓN GENERAL */}
+                                {activeInternalTab === 'info-general' && (
                                 <TabsContent value="info-general" className="space-y-6">
-                                    <Tabs defaultValue="datos-expediente" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-800 mb-3">
-                                            <TabsTrigger value="datos-expediente" className="text-xs sm:text-sm">Datos Expediente</TabsTrigger>
-                                            <TabsTrigger value="datos-escritura" className="text-xs sm:text-sm">Datos Escritura</TabsTrigger>
-                                            <TabsTrigger value="comparecientes" className="text-xs sm:text-sm">Comparecientes</TabsTrigger>
-                                            <TabsTrigger value="dependencias" className="text-xs sm:text-sm">Dependencias</TabsTrigger>
-                                        </TabsList>
-
-                                        {/* SubTab: Datos Expediente */}
-                                        <TabsContent value="datos-expediente" className="border-t pt-6  space-y-4">
-                                            <div className="grid grid-cols-4 gap-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Expediente</label>
-                                                    <Input name="expediente" value={formData.expediente} readOnly className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <RequiredLabel htmlFor="referencia">Referencia</RequiredLabel>
-                                                    <Input id="referencia" name="referencia" value={formData.referencia} onChange={handleInputChange} placeholder="Referencia" className="text-sm" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <RequiredLabel htmlFor="municipio">Municipio</RequiredLabel>
-                                                    <div ref={refDropdownMunicipios} className="relative">
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="Buscar municipio..."
-                                                                value={formData.municipio || municipioBusqueda}
-                                                                onChange={(e) => {
-                                                                    setMunicipioBusqueda(e.target.value);
-                                                                    if (formData.municipio) setFormData(prev => ({ ...prev, municipio: '' }));
-                                                                }}
-                                                                onFocus={() => setMostrarDropdownMunicipios(true)}
-                                                                className="text-sm pr-12"
-                                                            />
-                                                            {(formData.municipio || municipioBusqueda).length > 0 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setMunicipioBusqueda('');
-                                                                        setFormData(prev => ({ ...prev, municipio: '' }));
-                                                                        setMunicipioId(null);
-                                                                    }}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
-                                                                    aria-label="Limpiar"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            )}
-                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                        </div>
-                                                        {mostrarDropdownMunicipios && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
-                                                                {cargandoMunicipios && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
-                                                                {!cargandoMunicipios && municipiosFiltrados.filter(mun => mun.descripcion !== formData.municipio).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
-                                                                {municipiosFiltrados.filter(mun => mun.descripcion !== formData.municipio).map(mun => (
-                                                                    <div
-                                                                        key={mun.id}
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({ ...prev, municipio: mun.descripcion }));
-                                                                            setMunicipioId(mun.id);
-                                                                            setMunicipioBusqueda('');
-                                                                            setMostrarDropdownMunicipios(false);
-                                                                        }}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                    >
-                                                                        {mun.descripcion}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Estatus</label>
-                                                    <select name="estatus" value={formData.estatus} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona un estatus</option>
-                                                        <option value="EN PROCESO">EN PROCESO</option>
-                                                        <option value="COMPLETADO">COMPLETADO</option>
-                                                        <option value="CANCELADO">CANCELADO</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            {formData.estatus === 'CANCELADO' && (
-                                                <div className="mb-6">
-                                                    <label className="text-sm font-medium">Motivo de Cancelación</label>
-                                                    <textarea name="motivoCancelacion" value={formData.motivoCancelacion} onChange={handleInputChange} placeholder="Describe el motivo de la cancelación..." rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm mt-2" />
-                                                </div>
-                                            )}
-
-                                            {isEditing && (
-                                                <div className="mb-6">
-                                                    <label className="text-sm font-medium">Primer Otorgante</label>
-                                                    <Input type="text" readOnly value={filasComparecientes[0]?.nombreCompareciente || ''} className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed" />
-                                                </div>
-                                            )}
-
-                                            <div className="mb-6">
-                                                <RequiredLabel htmlFor="operaciones">Operaciones</RequiredLabel>
-                                                <div ref={refDropdownOperaciones} className="relative">
-                                                    <div className="relative">
-                                                        <Input type="text" placeholder="Buscar operación..." value={operacionBusqueda} onChange={(e) => setOperacionBusqueda(e.target.value)} onFocus={() => setMostrarDropdownOperaciones(true)} className="text-sm pr-8" />
-                                                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                    </div>
-                                                    {mostrarDropdownOperaciones && (
-                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                                                            {cargandoOperaciones && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
-                                                            {!cargandoOperaciones && operacionesFiltradas.filter(op => !formData.operaciones.includes(op.descripcion)).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
-                                                            {operacionesFiltradas.filter(op => !formData.operaciones.includes(op.descripcion)).map(op => (
-                                                                <div key={op.id} onClick={() => handleSeleccionarOperacion(op)} className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0">{op.descripcion}</div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {formData.operaciones.length > 0 && (
-                                                    <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-2">
-                                                        {formData.operaciones.map((op, idx) => (
-                                                            <div key={idx} className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                                                                <span className="text-sm">{op}</span>
-                                                                <button onClick={() => handleEliminarOperacion(idx)} className="text-red-600 hover:text-red-800 dark:text-red-400">
-                                                                    <X className="h-4 w-4" />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="mb-6">
-                                                <label className="text-sm font-medium block mb-2">Observaciones</label>
-                                                <textarea name="observaciones" value={formData.observaciones} onChange={handleInputChange} placeholder="Observaciones..." rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                            </div>
-
-                                            <div className="grid grid-cols-4 gap-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <RequiredLabel htmlFor="notario">Notario</RequiredLabel>
-                                                    <div ref={refDropdownNotario} className="relative">
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder={notariosFiltrados.length === 0 ? 'Sin notarios disponibles' : 'Buscar notario...'}
-                                                                value={formData.notario || busquedaNotario}
-                                                                onChange={(e) => {
-                                                                    setBusquedaNotario(e.target.value);
-                                                                    if (formData.notario) setFormData(prev => ({ ...prev, notario: '' }));
-                                                                }}
-                                                                onFocus={() => setMostrarDropdownNotario(true)}
-                                                                className={`text-sm pr-12 ${notariosFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                readOnly={notariosFiltrados.length === 0}
-                                                            />
-                                                            {(formData.notario || busquedaNotario).length > 0 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setBusquedaNotario('');
-                                                                        setFormData(prev => ({ ...prev, notario: '' }));
-                                                                        setNotarioId(null);
-                                                                    }}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
-                                                                    aria-label="Limpiar"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            )}
-                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                        </div>
-                                                        {mostrarDropdownNotario && notariosFiltrados.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
-                                                                {notariosFiltrados.map(u => (
-                                                                    <div
-                                                                        key={u.id}
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({ ...prev, notario: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
-                                                                            setNotarioId(u.id);
-                                                                            setBusquedaNotario('');
-                                                                            setMostrarDropdownNotario(false);
-                                                                        }}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                    >
-                                                                        {u.nombre} {u.apellido_Paterno} {u.apellido_Materno}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <RequiredLabel htmlFor="responsable">Responsable</RequiredLabel>
-                                                    <div ref={refDropdownResponsable} className="relative">
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder={responsablesFiltrados.length === 0 ? 'Sin responsables disponibles' : 'Buscar responsable...'}
-                                                                value={formData.responsable || busquedaResponsable}
-                                                                onChange={(e) => {
-                                                                    setBusquedaResponsable(e.target.value);
-                                                                    if (formData.responsable) setFormData(prev => ({ ...prev, responsable: '' }));
-                                                                }}
-                                                                onFocus={() => setMostrarDropdownResponsable(true)}
-                                                                className={`text-sm pr-12 ${responsablesFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                readOnly={responsablesFiltrados.length === 0}
-                                                            />
-                                                            {(formData.responsable || busquedaResponsable).length > 0 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setBusquedaResponsable('');
-                                                                        setFormData(prev => ({ ...prev, responsable: '' }));
-                                                                        setResponsableId(null);
-                                                                    }}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
-                                                                    aria-label="Limpiar"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            )}
-                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                        </div>
-                                                        {mostrarDropdownResponsable && responsablesFiltrados.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
-                                                                {responsablesFiltrados.map(u => (
-                                                                    <div
-                                                                        key={u.id}
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({ ...prev, responsable: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
-                                                                            setResponsableId(u.id);
-                                                                            setBusquedaResponsable('');
-                                                                            setMostrarDropdownResponsable(false);
-                                                                        }}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                    >
-                                                                        {u.nombre} {u.apellido_Paterno} {u.apellido_Materno}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <RequiredLabel htmlFor="secretaria">Secretaria</RequiredLabel>
-                                                    <div ref={refDropdownSecretaria} className="relative">
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder={secretariasFiltradas.length === 0 ? 'Sin secretarias disponibles' : 'Buscar secretaria...'}
-                                                                value={formData.secretaria || busquedaSecretaria}
-                                                                onChange={(e) => {
-                                                                    setBusquedaSecretaria(e.target.value);
-                                                                    if (formData.secretaria) setFormData(prev => ({ ...prev, secretaria: '' }));
-                                                                }}
-                                                                onFocus={() => setMostrarDropdownSecretaria(true)}
-                                                                className={`text-sm pr-12 ${secretariasFiltradas.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                readOnly={secretariasFiltradas.length === 0}
-                                                            />
-                                                            {(formData.secretaria || busquedaSecretaria).length > 0 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setBusquedaSecretaria('');
-                                                                        setFormData(prev => ({ ...prev, secretaria: '' }));
-                                                                        setSecretariaId(null);
-                                                                    }}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
-                                                                    aria-label="Limpiar"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            )}
-                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                        </div>
-                                                        {mostrarDropdownSecretaria && secretariasFiltradas.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
-                                                                {secretariasFiltradas.map(u => (
-                                                                    <div
-                                                                        key={u.id}
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({ ...prev, secretaria: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
-                                                                            setSecretariaId(u.id);
-                                                                            setBusquedaSecretaria('');
-                                                                            setMostrarDropdownSecretaria(false);
-                                                                        }}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                    >
-                                                                        {u.nombre} {u.apellido_Paterno} {u.apellido_Materno}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Autorizado</label>
-                                                    <div ref={refDropdownAutorizado} className="relative">
-                                                        <div className="relative">
-                                                            <Input
-                                                                type="text"
-                                                                placeholder={autorizadosFiltrados.length === 0 ? 'Sin autorizados disponibles' : 'Buscar autorizado...'}
-                                                                value={formData.autorizado || busquedaAutorizado}
-                                                                onChange={(e) => {
-                                                                    setBusquedaAutorizado(e.target.value);
-                                                                    if (formData.autorizado) setFormData(prev => ({ ...prev, autorizado: '' }));
-                                                                }}
-                                                                onFocus={() => setMostrarDropdownAutorizado(true)}
-                                                                className={`text-sm pr-12 ${autorizadosFiltrados.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                readOnly={autorizadosFiltrados.length === 0}
-                                                            />
-                                                            {(formData.autorizado || busquedaAutorizado).length > 0 && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setBusquedaAutorizado('');
-                                                                        setFormData(prev => ({ ...prev, autorizado: '' }));
-                                                                        setAutorizadoId(null);
-                                                                    }}
-                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
-                                                                    aria-label="Limpiar"
-                                                                >
-                                                                    ×
-                                                                </button>
-                                                            )}
-                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                        </div>
-                                                        {mostrarDropdownAutorizado && autorizadosFiltrados.length > 0 && (
-                                                            <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
-                                                                {autorizadosFiltrados.map(u => (
-                                                                    <div
-                                                                        key={u.id}
-                                                                        onClick={() => {
-                                                                            setFormData(prev => ({ ...prev, autorizado: `${u.nombre} ${u.apellido_Paterno} ${u.apellido_Materno}` }));
-                                                                            setAutorizadoId(u.id);
-                                                                            setBusquedaAutorizado('');
-                                                                            setMostrarDropdownAutorizado(false);
-                                                                        }}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0"
-                                                                    >
-                                                                        {u.nombre} {u.apellido_Paterno} {u.apellido_Materno}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Última Etapa</label>
-                                                <textarea name="ultima_etapa" value={formData.ultima_etapa} onChange={handleInputChange} placeholder="Última etapa..." rows={2} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                            </div>
-                                        </TabsContent>
-
-                                        {/* SubTab: Datos Escritura */}
-                                        <TabsContent value="datos-escritura" className="space-y-6">
-                                            {/* TIPO Y NÚMERO DE ESCRITURA */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Tipo de Escritura</label>
-                                                    <select name="tipoEscritura" value={formData.tipoEscritura} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona tipo</option>
-                                                        <option value="protocolo-abierto">Protocolo Abierto</option>
-                                                        <option value="protocolo-cerrado">Protocolo Cerrado</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Número de Escritura</label>
-                                                    <div className="relative">
-                                                        <Input
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            name="numeroEscritura"
-                                                            value={formData.numeroEscritura}
-                                                            onChange={handleNumeroEscrituraChange}
-                                                            placeholder="Número de escritura"
-                                                            className={`text-sm bg-white dark:bg-white ${numeroEscrituraError ? 'border-red-500 focus:ring-red-500' : ''}`}
-                                                        />
-                                                        {validandoNumeroEscritura && (
-                                                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-                                                        )}
-                                                    </div>
-                                                    {numeroEscrituraError && (
-                                                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-1">
-                                                            <AlertCircle className="h-4 w-4 shrink-0" />
-                                                            <span>{numeroEscrituraError}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* APARTADO DE FOLIOS */}
-                                            <div className="border-2 border-blue-200 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
-                                                <div className="flex items-center gap-3 mb-4">
-                                                    <div className="bg-blue-600 text-white p-3 rounded-lg">
-                                                        <Plus className="h-5 w-5" />
-                                                    </div>
-                                                    <h4 className="text-lg font-bold text-gray-900">Gestión de Folios</h4>
-                                                </div>
-                                                <div className="space-y-4">
-                                                    {/* Fila 1: Folios requeridos, botón, vacío */}
-                                                    <div className="grid grid-cols-4 gap-4 items-end">
-                                                        <div className="space-y-2 w-full">
-                                                            <label className="text-sm font-medium">Folios Requeridos</label>
-                                                            <Input type="number" name="foliosRequeridos" value={formData.foliosRequeridos} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
-                                                        </div>
-                                                        <div className="flex items-end w-full pt-5">
-                                                            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all h-10 w-24 min-w-0">Asignar</Button>
-                                                        </div>
-                                                        <div className="w-full"></div>
-                                                    </div>
-                                                    {/* Fila 2: Folio inicial, folio final, vacío, vacío */}
-                                                    <div className="grid grid-cols-4 gap-4">
-                                                        <div className="space-y-2 w-full">
-                                                            <label className="text-sm font-medium">Folio Inicial</label>
-                                                            <Input type="number" name="folioInicial" value={formData.folioInicial} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
-                                                        </div>
-                                                        <div className="space-y-2 w-full">
-                                                            <label className="text-sm font-medium">Folio Final</label>
-                                                            <Input type="number" name="folioFinal" value={formData.folioFinal} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
-                                                        </div>
-                                                        <div className="w-full"></div>
-                                                        <div className="w-full"></div>
-                                                    </div>
-                                                    {/* Fila 3: Volumen, tomo, folios inutilizados, vacío */}
-                                                    <div className="grid grid-cols-4 gap-4">
-                                                        <div className="space-y-2 w-full">
-                                                            <label className="text-sm font-medium">Volumen</label>
-                                                            <Input type="number" name="volumen" value={formData.volumen} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
-                                                        </div>
-                                                        <div className="space-y-2 w-full">
-                                                            <label className="text-sm font-medium">Tomo</label>
-                                                            <Input type="number" name="tomo" value={formData.tomo} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
-                                                        </div>
-                                                        <div className="space-y-2 w-full">
-                                                            <label className="text-sm font-medium">Folios Inutilizados</label>
-                                                            <Input type="number" name="foliosInutilizados" value={formData.foliosInutilizados} onChange={handleInputChange} placeholder="0" className="text-sm w-full bg-white dark:bg-white" />
-                                                        </div>
-                                                        <div className="w-full"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* APARTADO DE FECHAS CON CHECKBOXES */}
-                                            <div className="border-2 border-purple-200 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-white shadow-sm hover:shadow-md transition-shadow">
-                                                <h4 className="font-semibold text-sm mb-4 text-purple-900 dark:text-purple-100">Fechas de Proceso</h4>
-                                                <div className="space-y-3">
-                                                    <div className="text-xs text-muted-foreground mb-3">*Para modificar las fechas, activa el checkbox correspondiente</div>
-
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        {/* Fecha Escritura */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="fecha-escritura"
-                                                                    className="w-4 h-4"
-                                                                    checked={enabledDates.fechaEscritura}
-                                                                    onChange={(e) => setEnabledDates(prev => ({ ...prev, fechaEscritura: e.target.checked }))}
-                                                                />
-                                                                <label htmlFor="fecha-escritura" className="text-sm font-medium">Fecha Escritura</label>
-                                                            </div>
-                                                            <input
-                                                                type="date"
-                                                                name="fechaEscritura"
-                                                                value={formData.fechaEscritura}
-                                                                onChange={handleInputChange}
-                                                                readOnly={!enabledDates.fechaEscritura}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaEscritura ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                                            />
-                                                        </div>
-
-                                                        {/* Fecha Firma */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="fecha-firma"
-                                                                    className="w-4 h-4"
-                                                                    checked={enabledDates.fechaFirma}
-                                                                    onChange={(e) => setEnabledDates(prev => ({ ...prev, fechaFirma: e.target.checked }))}
-                                                                />
-                                                                <label htmlFor="fecha-firma" className="text-sm font-medium">Fecha Firma</label>
-                                                            </div>
-                                                            <input
-                                                                type="date"
-                                                                name="fechaFirma"
-                                                                value={formData.fechaFirma}
-                                                                onChange={handleInputChange}
-                                                                readOnly={!enabledDates.fechaFirma}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaFirma ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                                            />
-                                                        </div>
-
-                                                        {/* Fecha Elaboración */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="fecha-elaboracion"
-                                                                    className="w-4 h-4"
-                                                                    checked={enabledDates.fechaElaboracion}
-                                                                    onChange={(e) => setEnabledDates(prev => ({ ...prev, fechaElaboracion: e.target.checked }))}
-                                                                />
-                                                                <label htmlFor="fecha-elaboracion" className="text-sm font-medium">Fecha Elaboración</label>
-                                                            </div>
-                                                            <input
-                                                                type="date"
-                                                                name="fechaElaboracion"
-                                                                value={formData.fechaElaboracion}
-                                                                onChange={handleInputChange}
-                                                                readOnly={!enabledDates.fechaElaboracion}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaElaboracion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                                            />
-                                                        </div>
-
-                                                        {/* Fecha Revisión */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="fecha-revision"
-                                                                    className="w-4 h-4"
-                                                                    checked={enabledDates.fechaRevision}
-                                                                    onChange={(e) => setEnabledDates(prev => ({ ...prev, fechaRevision: e.target.checked }))}
-                                                                />
-                                                                <label htmlFor="fecha-revision" className="text-sm font-medium">Fecha Revisión</label>
-                                                            </div>
-                                                            <input
-                                                                type="date"
-                                                                name="fechaRevision"
-                                                                value={formData.fechaRevision}
-                                                                onChange={handleInputChange}
-                                                                readOnly={!enabledDates.fechaRevision}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaRevision ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                                            />
-                                                        </div>
-
-                                                        {/* Fecha Impresión */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="fecha-impresion"
-                                                                    className="w-4 h-4"
-                                                                    checked={enabledDates.fechaImpresion}
-                                                                    onChange={(e) => setEnabledDates(prev => ({ ...prev, fechaImpresion: e.target.checked }))}
-                                                                />
-                                                                <label htmlFor="fecha-impresion" className="text-sm font-medium">Fecha Impresión</label>
-                                                            </div>
-                                                            <input
-                                                                type="date"
-                                                                name="fechaImpresion"
-                                                                value={formData.fechaImpresion}
-                                                                onChange={handleInputChange}
-                                                                readOnly={!enabledDates.fechaImpresion}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.fechaImpresion ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                                            />
-                                                        </div>
-
-                                                        {/* Firma Todos */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="firma-todos"
-                                                                    className="w-4 h-4"
-                                                                    checked={enabledDates.firmarTodos}
-                                                                    onChange={(e) => setEnabledDates(prev => ({ ...prev, firmarTodos: e.target.checked }))}
-                                                                />
-                                                                <label htmlFor="firma-todos" className="text-sm font-medium">Firma Todos</label>
-                                                            </div>
-                                                            <input
-                                                                type="date"
-                                                                name="firmarTodos"
-                                                                value={formData.firmarTodos}
-                                                                onChange={handleInputChange}
-                                                                readOnly={!enabledDates.firmarTodos}
-                                                                className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input text-sm ${!enabledDates.firmarTodos ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* APARTADO NO PASO */}
-                                            <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-950/20">
-                                                <h4 className="font-semibold text-sm mb-4 text-red-900 dark:text-red-100">Estado de Paso</h4>
-                                                <div className="space-y-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            type="checkbox"
-                                                            id="no-paso"
-                                                            className="w-4 h-4 cursor-pointer"
-                                                            checked={formData.noPaso}
-                                                            onChange={(e) => setFormData(prev => ({ ...prev, noPaso: e.target.checked }))}
-                                                        />
-                                                        <label htmlFor="no-paso" className="text-sm font-medium cursor-pointer">No Pasó</label>
-                                                    </div>
-                                                    {formData.noPaso && (
-                                                        <div>
-                                                            <label className="text-sm font-medium block mb-2">Motivo</label>
-                                                            <textarea
-                                                                name="nopasoMotivo"
-                                                                value={formData.nopasoMotivo}
-                                                                onChange={handleInputChange}
-                                                                placeholder="Explica el motivo por el cual no pasó..."
-                                                                rows={3}
-                                                                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                        </TabsContent>
-
-                                        {/* SubTab: Comparecientes */}
-                                        <TabsContent value="comparecientes" className="space-y-4">
-                                            <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">Agregar Compareciente(s)</h3>
-                                                    <Button
-                                                        onClick={() => setShowClienteModalComparecientes(true)}
-                                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                    >
-                                                        <Plus className="h-4 w-4 mr-2" />
-                                                        Buscar Cliente
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            {/* Tabla de Comparecientes Agregados */}
-                                            {filasComparecientes.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
-                                                        <table className="w-full text-sm">
-                                                        <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                                            <tr>
-                                                                <th className="px-4 py-2 text-left">Nombre Compareciente</th>
-                                                                <th className="px-4 py-2 text-left flex items-center gap-1">Tipo Compareciente <span className="text-red-500">*</span></th>
-                                                                <th className="px-4 py-2 text-center">Firma Requerida</th>
-                                                                <th className="px-4 py-2 text-left">Fecha Firma</th>
-                                                                <th className="px-4 py-2 text-center">LISTAS SAT/NEGRAS/OFAC</th>
-                                                                <th className="px-4 py-2 text-center"></th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {filasComparecientes.map((fila, index) => (
-                                                                <>
-                                                                    <tr key={fila.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                                                    <td className="px-4 py-3">{fila.nombreCompareciente}</td>
-                                                                    <td className="px-4 py-3">
-                                                                        <div className="relative w-full">
-                                                                            <Input
-                                                                                type="text"
-                                                                                placeholder="Buscar tipo..."
-                                                                                value={busquedaTipo[fila.id] || ''}
-                                                                                onChange={(e) => setBusquedaTipo(prev => ({
-                                                                                    ...prev,
-                                                                                    [fila.id]: e.target.value
-                                                                                }))}
-                                                                                onFocus={() => setDropdownTipoAbierto(prev => ({
-                                                                                    ...prev,
-                                                                                    [fila.id]: true
-                                                                                }))}
-                                                                                className="text-sm pr-12"
-                                                                            />
-                                                                            {(busquedaTipo[fila.id] || '').length > 0 && (
-                                                                                <button
-                                                                                    onClick={() => setBusquedaTipo(prev => ({
-                                                                                        ...prev,
-                                                                                        [fila.id]: ''
-                                                                                    }))}
-                                                                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg font-bold"
-                                                                                    aria-label="Limpiar"
-                                                                                >
-                                                                                    ×
-                                                                                </button>
-                                                                            )}
-                                                                            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-
-                                                                            {dropdownTipoAbierto[fila.id] && (
-                                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto min-w-max">
-                                                                                    {comparecientesDisponibles.filter(c => {
-                                                                                        if (!c.activo) return false;
-                                                                                        const busqueda = (busquedaTipo[fila.id] || '').toLowerCase().trim();
-                                                                                        if (busqueda === '') return true;
-                                                                                        return c.descripcion.toLowerCase().includes(busqueda);
-                                                                                    }).length === 0 ? (
-                                                                                        <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>
-                                                                                    ) : null}
-                                                                                    {comparecientesDisponibles.filter(c => {
-                                                                                        if (!c.activo) return false;
-                                                                                        const busqueda = (busquedaTipo[fila.id] || '').toLowerCase().trim();
-                                                                                        if (busqueda === '') return true;
-                                                                                        return c.descripcion.toLowerCase().includes(busqueda);
-                                                                                    }).map(comp => (
-                                                                                        <div
-                                                                                            key={comp.id}
-                                                                                            onClick={() => {
-                                                                                                handleActualizarCompareciente(fila.id, 'tipoCompareciente', comp.descripcion);
-                                                                                                setBusquedaTipo(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [fila.id]: comp.descripcion
-                                                                                                }));
-                                                                                                setDropdownTipoAbierto(prev => ({
-                                                                                                    ...prev,
-                                                                                                    [fila.id]: false
-                                                                                                }));
-                                                                                            }}
-                                                                                            className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0 whitespace-nowrap"
-                                                                                        >
-                                                                                            {comp.descripcion}
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-center">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={fila.firmaRequerida}
-                                                                            onChange={() => handleToggleCheckboxCompareciente(fila.id)}
-                                                                            className="rounded"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        <Input
-                                                                            type="date"
-                                                                            disabled={!fila.firmaRequerida}
-                                                                            value={fila.fechaFirma}
-                                                                            onChange={(e) => handleActualizarCompareciente(fila.id, 'fechaFirma', e.target.value)}
-                                                                            className="text-sm"
-                                                                        />
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-center">
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            className="text-sm font-medium gap-2"
-                                                                        >
-                                                                            <Search className="h-4 w-4" />
-                                                                            BUSQUEDA
-                                                                        </Button>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-center flex items-center justify-center">
-                                                                        <button
-                                                                            onClick={() => handleEliminarCompareciente(fila.id)}
-                                                                            className="text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-2xl font-bold rounded-md w-8 h-8 flex items-center justify-center leading-none"
-                                                                            aria-label="Eliminar"
-                                                                        >
-                                                                            ×
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-
-                                                            </>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {filasComparecientes.length === 0 && (
-                                                <div className="text-center py-8 text-muted-foreground">
-                                                    <p>No hay comparecientes agregados. Selecciona un cliente para comenzar.</p>
-                                                </div>
-                                            )}
-                                        </TabsContent>
-
-                                        {/* SubTab: Dependencias */}
-                                        <TabsContent value="dependencias" className="space-y-4">
-                                            <div className="bg-cyan-50 dark:bg-cyan-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
-                                                <h3 className="font-semibold text-cyan-900 dark:text-cyan-100 mb-0">Dependencias Públicas</h3>
-
-                                            </div>
-
-                                            <div ref={refDropdownDependencias} className="relative mb-4">
-                                                    <div className="relative">
-                                                        <Input type="text" placeholder="Buscar dependencia..." value={dependenciaBusqueda} onChange={(e) => setDependenciaBusqueda(e.target.value)} onFocus={() => setMostrarDropdownDependencias(true)} className="text-sm pr-8" />
-                                                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
-                                                    </div>
-                                                    {mostrarDropdownDependencias && (
-                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                                                            {cargandoDependencias && <div className="px-3 py-2 text-sm text-muted-foreground">Cargando...</div>}
-                                                            {!cargandoDependencias && dependenciasFiltradas.filter(dep => !formData.dependencias.includes(dep.descripcion.trim())).length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>}
-                                                            {dependenciasFiltradas.filter(dep => !formData.dependencias.includes(dep.descripcion.trim())).map(dep => (
-                                                                <div key={dep.id} onClick={() => handleSeleccionarDependencia(dep)} className="px-3 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm border-b last:border-b-0">{dep.descripcion.trim()}</div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                            {formData.dependencias.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden">
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                                                <tr>
-                                                                    <th className="px-4 py-2 text-left font-semibold">#</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Dependencia</th>
-                                                                    <th className="px-4 py-2 text-center font-semibold"></th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {formData.dependencias.map((dep, idx) => (
-                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" onClick={() => setDependenciaSeleccionada(dep)}>
-                                                                        <td className="px-4 py-2">
-                                                                            <span className="font-semibold">{idx + 1}</span>
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-sm">
-                                                                            <button onClick={(e) => e.stopPropagation()} className="text-left">{dep}</button>
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right flex items-center justify-end">
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleEliminarDependencia(idx);
-                                                                                }}
-                                                                                className="text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-2xl font-bold rounded-md w-8 h-8 flex items-center justify-center leading-none"
-                                                                                aria-label="Eliminar"
-                                                                            >
-                                                                                ×
-                                                                            </button>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {formData.dependencias.length === 0 && (
-                                                <div className="border rounded-lg p-4">
-                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay dependencias agregadas</p>
-                                                </div>
-                                            )}
-
-                                            {/* Formulario de Datos de la Dependencia */}
-                                            {dependenciaSeleccionada && datosDepdencias[dependenciaSeleccionada] && (
-                                                <div className="border rounded-lg p-6 bg-cyan-50 dark:bg-cyan-950/20 mt-6 border-cyan-300">
-                                                    <div className="flex items-center justify-between mb-6">
-                                                        <h3 className="text-lg font-semibold text-cyan-900 dark:text-cyan-100">Datos de la Dependencia</h3>
-
-                                                    </div>
-
-                                                    <div className="space-y-4">
-                                                        {/* FILA 1: Dependencia */}
-                                                        <div>
-                                                            <label className="text-sm font-medium block mb-1">Dependencia</label>
-                                                            <Input type="text" value={dependenciaSeleccionada} readOnly className="text-sm bg-background/50" />
-                                                        </div>
-
-                                                        {/* FILA 2: Folio Real, Folio, Volumen, Fojas */}
-                                                        <div className="grid grid-cols-4 gap-4">
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Folio Real</label>
-                                                                <Input type="text" placeholder="Folio real" value={datosDepdencias[dependenciaSeleccionada].folioReal} onChange={(e) => handleActualizarDatosDependencia('folioReal', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Folio</label>
-                                                                <Input type="text" placeholder="Folio" value={datosDepdencias[dependenciaSeleccionada].folio} onChange={(e) => handleActualizarDatosDependencia('folio', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Volumen</label>
-                                                                <Input type="text" placeholder="Volumen" value={datosDepdencias[dependenciaSeleccionada].volumen} onChange={(e) => handleActualizarDatosDependencia('volumen', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Fojas</label>
-                                                                <Input type="text" placeholder="Fojas" value={datosDepdencias[dependenciaSeleccionada].fojas} onChange={(e) => handleActualizarDatosDependencia('fojas', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* FILA 3: Sección, Partida, Libro, Estatus */}
-                                                        <div className="grid grid-cols-4 gap-4">
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Sección</label>
-                                                                <Input type="text" placeholder="Sección" value={datosDepdencias[dependenciaSeleccionada].seccion} onChange={(e) => handleActualizarDatosDependencia('seccion', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Partida</label>
-                                                                <Input type="text" placeholder="Partida" value={datosDepdencias[dependenciaSeleccionada].partida} onChange={(e) => handleActualizarDatosDependencia('partida', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Libro</label>
-                                                                <Input type="text" placeholder="Libro" value={datosDepdencias[dependenciaSeleccionada].libro} onChange={(e) => handleActualizarDatosDependencia('libro', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm font-medium block mb-1">Estatus</label>
-                                                                <Input type="text" placeholder="Estatus" value={datosDepdencias[dependenciaSeleccionada].estatus} onChange={(e) => handleActualizarDatosDependencia('estatus', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* FILA 4: Observaciones */}
-                                                        <div>
-                                                            <label className="text-sm font-medium block mb-1">Observaciones</label>
-                                                            <textarea placeholder="Observaciones..." value={datosDepdencias[dependenciaSeleccionada].observaciones} onChange={(e) => handleActualizarDatosDependencia('observaciones', e.target.value)} rows={3} className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                                        </div>
-
-                                                        {/* FILA 5: F. Ingreso, F. Rechazo, F. Subsanado, F. Reingreso */}
-                                                        <div className="grid grid-cols-4 gap-4">
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaIngreso" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso || false} onChange={() => handleToggleCheckboxFecha('fechaIngreso')} className="rounded" />
-                                                                    <label htmlFor="ckFechaIngreso" className="text-sm font-medium">F. Ingreso</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaIngreso} value={datosDepdencias[dependenciaSeleccionada].fechaIngreso} onChange={(e) => handleActualizarDatosDependencia('fechaIngreso', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaRechazo" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo || false} onChange={() => handleToggleCheckboxFecha('fechaRechazo')} className="rounded" />
-                                                                    <label htmlFor="ckFechaRechazo" className="text-sm font-medium">F. Rechazo</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRechazo} value={datosDepdencias[dependenciaSeleccionada].fechaRechazo} onChange={(e) => handleActualizarDatosDependencia('fechaRechazo', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaSubsanado" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado || false} onChange={() => handleToggleCheckboxFecha('fechaSubsanado')} className="rounded" />
-                                                                    <label htmlFor="ckFechaSubsanado" className="text-sm font-medium">F. Subsanado</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaSubsanado} value={datosDepdencias[dependenciaSeleccionada].fechaSubsanado} onChange={(e) => handleActualizarDatosDependencia('fechaSubsanado', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaReingreso" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso || false} onChange={() => handleToggleCheckboxFecha('fechaReingreso')} className="rounded" />
-                                                                    <label htmlFor="ckFechaReingreso" className="text-sm font-medium">F. Reingreso</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaReingreso} value={datosDepdencias[dependenciaSeleccionada].fechaReingreso} onChange={(e) => handleActualizarDatosDependencia('fechaReingreso', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* FILA 6: F. Registro, F. Recoger Dependencia, F. Conclusión, (vacío) */}
-                                                        <div className="grid grid-cols-4 gap-4">
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaRegistro" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro || false} onChange={() => handleToggleCheckboxFecha('fechaRegistro')} className="rounded" />
-                                                                    <label htmlFor="ckFechaRegistro" className="text-sm font-medium">F. Registro</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRegistro} value={datosDepdencias[dependenciaSeleccionada].fechaRegistro} onChange={(e) => handleActualizarDatosDependencia('fechaRegistro', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaRecogerD" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia || false} onChange={() => handleToggleCheckboxFecha('fechaRecogerDependencia')} className="rounded" />
-                                                                    <label htmlFor="ckFechaRecogerD" className="text-sm font-medium">F. Recoger D.</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaRecogerDependencia} value={datosDepdencias[dependenciaSeleccionada].fechaRecogerDependencia} onChange={(e) => handleActualizarDatosDependencia('fechaRecogerDependencia', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <input type="checkbox" id="ckFechaConclusión" checked={checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión || false} onChange={() => handleToggleCheckboxFecha('fechaConclusión')} className="rounded" />
-                                                                    <label htmlFor="ckFechaConclusión" className="text-sm font-medium">F. Conclusión</label>
-                                                                </div>
-                                                                <Input type="date" disabled={!checkboxesFecha[dependenciaSeleccionada]?.fechaConclusión} value={datosDepdencias[dependenciaSeleccionada].fechaConclusión} onChange={(e) => handleActualizarDatosDependencia('fechaConclusión', e.target.value)} className="text-sm bg-white dark:bg-white" />
-                                                            </div>
-                                                            <div />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Botones de Acción */}
-                                                    <div className="flex gap-3 mt-6">
-                                                        <Button onClick={() => setDependenciaSeleccionada(null)} variant="outline" className="text-sm">Cerrar</Button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </TabsContent>
-                                    </Tabs>
+                                    <GeneralInfoForm
+                                        formData={formData}
+                                        setFormData={setFormData}
+                                        handleInputChange={handleInputChange}
+                                        handleNumeroEscrituraChange={handleNumeroEscrituraChange}
+                                        isEditing={isEditing}
+                                        filasComparecientes={filasComparecientes}
+                                        refDropdownMunicipios={refDropdownMunicipios}
+                                        refDropdownOperaciones={refDropdownOperaciones}
+                                        refDropdownNotario={refDropdownNotario}
+                                        refDropdownResponsable={refDropdownResponsable}
+                                        refDropdownSecretaria={refDropdownSecretaria}
+                                        refDropdownAutorizado={refDropdownAutorizado}
+                                        refDropdownDependencias={refDropdownDependencias}
+                                        municipioBusqueda={municipioBusqueda}
+                                        setMunicipioBusqueda={setMunicipioBusqueda}
+                                        municipiosFiltrados={municipiosFiltrados}
+                                        cargandoMunicipios={cargandoMunicipios}
+                                        mostrarDropdownMunicipios={mostrarDropdownMunicipios}
+                                        setMostrarDropdownMunicipios={setMostrarDropdownMunicipios}
+                                        setMunicipioId={setMunicipioId}
+                                        operacionBusqueda={operacionBusqueda}
+                                        setOperacionBusqueda={setOperacionBusqueda}
+                                        operacionesFiltradas={operacionesFiltradas}
+                                        cargandoOperaciones={cargandoOperaciones}
+                                        mostrarDropdownOperaciones={mostrarDropdownOperaciones}
+                                        setMostrarDropdownOperaciones={setMostrarDropdownOperaciones}
+                                        handleSeleccionarOperacion={handleSeleccionarOperacion}
+                                        handleEliminarOperacion={handleEliminarOperacion}
+                                        busquedaNotario={busquedaNotario}
+                                        setBusquedaNotario={setBusquedaNotario}
+                                        notariosFiltrados={notariosFiltrados}
+                                        mostrarDropdownNotario={mostrarDropdownNotario}
+                                        setMostrarDropdownNotario={setMostrarDropdownNotario}
+                                        setNotarioId={setNotarioId}
+                                        busquedaResponsable={busquedaResponsable}
+                                        setBusquedaResponsable={setBusquedaResponsable}
+                                        responsablesFiltrados={responsablesFiltrados}
+                                        mostrarDropdownResponsable={mostrarDropdownResponsable}
+                                        setMostrarDropdownResponsable={setMostrarDropdownResponsable}
+                                        setResponsableId={setResponsableId}
+                                        busquedaSecretaria={busquedaSecretaria}
+                                        setBusquedaSecretaria={setBusquedaSecretaria}
+                                        secretariasFiltradas={secretariasFiltradas}
+                                        mostrarDropdownSecretaria={mostrarDropdownSecretaria}
+                                        setMostrarDropdownSecretaria={setMostrarDropdownSecretaria}
+                                        setSecretariaId={setSecretariaId}
+                                        busquedaAutorizado={busquedaAutorizado}
+                                        setBusquedaAutorizado={setBusquedaAutorizado}
+                                        autorizadosFiltrados={autorizadosFiltrados}
+                                        mostrarDropdownAutorizado={mostrarDropdownAutorizado}
+                                        setMostrarDropdownAutorizado={setMostrarDropdownAutorizado}
+                                        setAutorizadoId={setAutorizadoId}
+                                        numeroEscrituraError={numeroEscrituraError}
+                                        validandoNumeroEscritura={validandoNumeroEscritura}
+                                        enabledDates={enabledDates}
+                                        setEnabledDates={setEnabledDates}
+                                        dependenciaBusqueda={dependenciaBusqueda}
+                                        setDependenciaBusqueda={setDependenciaBusqueda}
+                                        dependenciasFiltradas={dependenciasFiltradas}
+                                        cargandoDependencias={cargandoDependencias}
+                                        mostrarDropdownDependencias={mostrarDropdownDependencias}
+                                        setMostrarDropdownDependencias={setMostrarDropdownDependencias}
+                                        handleSeleccionarDependencia={handleSeleccionarDependencia}
+                                        dependenciaSeleccionada={dependenciaSeleccionada}
+                                        setDependenciaSeleccionada={setDependenciaSeleccionada}
+                                        datosDepdencias={datosDepdencias}
+                                        handleActualizarDatosDependencia={handleActualizarDatosDependencia}
+                                        checkboxesFecha={checkboxesFecha}
+                                        handleToggleCheckboxFecha={handleToggleCheckboxFecha}
+                                        handleEliminarDependencia={handleEliminarDependencia}
+                                        filasComparecientesArray={filasComparecientes}
+                                        setShowClienteModalComparecientes={setShowClienteModalComparecientes}
+                                        busquedaTipo={busquedaTipo}
+                                        setBusquedaTipo={setBusquedaTipo}
+                                        dropdownTipoAbierto={dropdownTipoAbierto}
+                                        setDropdownTipoAbierto={setDropdownTipoAbierto}
+                                        comparecientesDisponibles={comparecientesDisponibles}
+                                        handleActualizarCompareciente={handleActualizarCompareciente}
+                                        handleToggleCheckboxCompareciente={handleToggleCheckboxCompareciente}
+                                        handleEliminarCompareciente={handleEliminarCompareciente}
+                                        listasNegrasLoading={listasNegrasLoading}
+                                        setComparecienteParaBuscar={setComparecienteParaBuscar}
+                                        buscarEnListasNegras={buscarEnListasNegras}
+                                        handleSaveExpediente={handleSaveExpediente}
+                                        handleCancelEdit={handleCancelEdit}
+                                        lastSavedTime={lastSavedTime}
+                                        cargando={isSaving}
+                                        showClienteModalComparecientes={showClienteModalComparecientes}
+                                        clienteFiltroComparecientes={clienteFiltroComparecientes}
+                                        setClienteFiltroComparecientes={setClienteFiltroComparecientes}
+                                        clienteResultadosComparecientes={clienteResultadosComparecientes}
+                                        clienteErrorComparecientes={clienteErrorComparecientes}
+                                        setClienteErrorComparecientes={setClienteErrorComparecientes}
+                                        isSearchingClientesComparecientes={isSearchingClientesComparecientes}
+                                        fetchClientesModal={fetchClientesModal}
+                                        handleSelectClienteFromModalComparecientes={handleSelectClienteFromModalComparecientes}
+                                        clientesSeleccionadosEnModal={clientesSeleccionadosEnModal}
+                                        handleRemoverClienteDelModal={handleRemoverClienteDelModal}
+                                        handleAgregarClientesSeleccionados={handleAgregarClientesSeleccionados}
+                                        expedienteEsVulnerable={expedienteEsVulnerable}
+                                        cargandoAsignarFolios={cargandoAsignarFolios}
+                                        handleAsignarFolios={handleAsignarFolios}
+                                    />
                                 </TabsContent>
-
+                                )}
 
                                 {/* GRUPO 2: DOCUMENTOS - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="documentos" className="space-y-6">
-                                    <Tabs defaultValue="recibo-documentos" className="w-full">
-
-                                            <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-md mb-6">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">Documentos del Expediente</h3>
-                                                    <div className="flex gap-2">
-                                                       <Button
-                                                variant="outline"
-                                                onClick={handleAbrirReciboDocumentos}
-                                                 disabled={isLoadingRecibo || !currentExpedienteId || !clienteSeleccionadoDocumentos}
-                                            >
-                                                {isLoadingRecibo ? (
-                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                ) : (
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                )}
-                                                Ver Recibo
-                                            </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            className="bg-blue-600 hover:bg-blue-700"
-                                                            onClick={fetchDocumentosDisponibles}
-                                                            disabled={cargandoDocumentosDisponibles}
-                                                        >
-                                                            {cargandoDocumentosDisponibles ? (
-                                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                            ) : (
-                                                                <Plus className="h-4 w-4 mr-2" />
-                                                            )}
-                                                            Agregar Documento
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {mostrarModalAgregarDocumento && (
-                                                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-                                                    <div className="bg-background rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
-                                                        <h3 className="text-lg font-semibold mb-4">Selecciona Documentos para Agregar</h3>
-                                                        <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
-                                                            {(() => {
-                                                                const documentosAgregados = obtenerDocumentosAgregados();
-                                                                const documentosFiltrados = documentosDisponibles.filter(
-                                                                    d => d.activo && !documentosAgregados.has(d.descripcion)
-                                                                );
-
-                                                                if (documentosFiltrados.length === 0) {
-                                                                    return (
-                                                                        <p className="text-sm text-muted-foreground text-center py-4">
-                                                                            Todos los documentos disponibles ya han sido agregados.
-                                                                        </p>
-                                                                    );
-                                                                }
-
-                                                                return documentosFiltrados.map((doc) => (
-                                                                    <div
-                                                                        key={doc.id}
-                                                                        className="flex items-center gap-2 px-4 py-2 rounded border border-input hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                                                    >
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            id={`doc-${doc.id}`}
-                                                                            checked={documentosSeleccionados[doc.id] || false}
-                                                                            onChange={(e) => setDocumentosSeleccionados(prev => ({
-                                                                                ...prev,
-                                                                                [doc.id]: e.target.checked
-                                                                            }))}
-                                                                            className="w-4 h-4 cursor-pointer"
-                                                                        />
-                                                                        <label
-                                                                            htmlFor={`doc-${doc.id}`}
-                                                                            className="text-sm cursor-pointer flex-1"
-                                                                        >
-                                                                            {doc.descripcion}
-                                                                        </label>
-                                                                    </div>
-                                                                ));
-                                                            })()}
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                onClick={() => {
-                                                                    setMostrarModalAgregarDocumento(false);
-                                                                    setDocumentosSeleccionados({});
-                                                                }}
-                                                                className="flex-1"
-                                                            >
-                                                                Cancelar
-                                                            </Button>
-                                                            <Button
-                                                                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                                                                onClick={handleAgregarDocumentosSeleccionados}
-                                                            >
-                                                                Agregar Seleccionados
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {cargandoDocumentosExpediente && (
-                                                <div className="flex items-center justify-center py-8">
-                                                    <div className="flex items-center gap-2">
-                                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                                        <span className="text-sm text-muted-foreground">Cargando documentos...</span>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {!cargandoDocumentosExpediente && documentosPorCliente && documentosPorCliente.length === 0 && (
-                                                <div className="text-center py-8 text-muted-foreground">
-                                                    <p>No hay documentos disponibles para este expediente.</p>
-                                                </div>
-                                            )}
-
-                                            {!cargandoDocumentosExpediente && documentosPorCliente && documentosPorCliente.length > 0 && (
-                                                <div className="space-y-4">
-                                                    {/* Dropdown para seleccionar cliente */}
-                                                    <div className="flex items-center gap-3">
-                                                        <label className="text-sm font-medium">Cliente:</label>
-                                                        <select
-                                                            value={String(clienteSeleccionadoDocumentos || '')}
-                                                            onChange={(e) => setClienteSeleccionadoDocumentos(parseInt(e.target.value))}
-                                                            className="px-3 py-2 border rounded-md bg-background text-foreground text-sm"
-                                                        >
-                                                            {documentosPorCliente.map((grupoCliente) => (
-                                                                <option key={grupoCliente.id_Cliente} value={String(grupoCliente.id_Cliente)}>
-                                                                    {grupoCliente.cliente}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Mostrar tabla del cliente seleccionado */}
-                                                    {clienteSeleccionadoDocumentos && (
-                                                        <div className="border rounded-lg overflow-hidden">
-                                                            <div className="overflow-x-auto">
-                                                                <table className="w-full text-sm">
-                                                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                                                        <tr>
-                                                                            <th className="px-3 py-2 text-left">Documento</th>
-                                                                            <th className="px-2 py-2 text-center">Copia</th>
-                                                                            <th className="px-2 py-2 text-center">Original</th>
-                                                                            <th className="px-2 py-2 text-center">Fecha Entrega</th>
-                                                                            <th className="px-2 py-2 text-center">Usuario Recibe</th>
-                                                                            <th className="px-2 py-2 text-center">Fecha Recepción</th>
-                                                                            <th className="px-2 py-2 text-center">Usuario Recepción</th>
-                                                                            <th className="px-3 py-2 text-left">Observaciones</th>
-                                                                            <th className="px-2 py-2 text-center"></th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        {documentosPorCliente
-                                                                            .find(gc => gc.id_Cliente === clienteSeleccionadoDocumentos)
-                                                                            ?.documentos.map((doc, docIdx) => {
-                                                                            const docEditado = documentosEditados[doc.id] || {
-                                                                                cliente_Id: doc.cliente_Id,
-                                                                                documento_Id: doc.documento_Id,
-                                                                                fecha_Entrega: doc.fecha_Entrega,
-                                                                                usuario_Recibe: doc.usuario_Recibe,
-                                                                                fecha_Recepcion: doc.fecha_Recepcion,
-                                                                                usuario_Recepcion: doc.usuario_Recepcion,
-                                                                                observaciones: doc.observaciones,
-                                                                                copia: doc.copia,
-                                                                                original: doc.original,
-                                                                            };
-                                                                            return (
-                                                                                <tr key={docIdx} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                                                                    <td className="px-3 py-2">
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            value={doc.documento}
-                                                                                            readOnly
-                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <input
-                                                                                            type="checkbox"
-                                                                                            checked={docEditado.copia}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'copia', e.target.checked)}
-                                                                                            className="rounded w-5 h-5 cursor-pointer"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <input
-                                                                                            type="checkbox"
-                                                                                            checked={docEditado.original}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'original', e.target.checked)}
-                                                                                            className="rounded w-5 h-5 cursor-pointer"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <input
-                                                                                            type="date"
-                                                                                            value={docEditado.fecha_Entrega || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'fecha_Entrega', e.target.value || null)}
-                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            value={doc.usuario_Recibe || ''}
-                                                                                            readOnly
-                                                                                            placeholder="-"
-                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <input
-                                                                                            type="date"
-                                                                                            value={docEditado.fecha_Recepcion || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'fecha_Recepcion', e.target.value || null)}
-                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <input
-                                                                                            type="text"
-                                                                                              value={doc.usuario_Recepcion || ''}
-                                                                                            readOnly
-                                                                                            placeholder="-"
-                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-3 py-2">
-                                                                                        <input
-                                                                                            type="text"
-                                                                                            value={docEditado.observaciones || ''}
-                                                                                            onChange={(e) => handleDocumentoChange(doc.id, 'observaciones', e.target.value || null)}
-                                                                                            placeholder="-"
-                                                                                            className="w-full px-2 py-1 border rounded text-sm bg-background"
-                                                                                        />
-                                                                                    </td>
-                                                                                    <td className="px-2 py-2 text-center">
-                                                                                        <button
-                                                                                            onClick={() => handleEliminarDocumentoDeAll(doc.documento)}
-                                                                                            className="inline-flex items-center justify-center px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-xs transition-colors"
-                                                                                            title="Eliminar documento de todas las tablas"
-                                                                                        >
-                                                                                            <X className="h-4 w-4" />
-                                                                                        </button>
-                                                                                    </td>
-                                                                                </tr>
-                                                                            );
-                                                                        })}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-
-
-                                    </Tabs>
+                                    <DocumentosForm
+                                        formData={formData}
+                                        setFormData={setFormData}
+                                        mostrarModalAgregarDocumento={mostrarModalAgregarDocumento}
+                                        setMostrarModalAgregarDocumento={setMostrarModalAgregarDocumento}
+                                        documentosSeleccionados={documentosSeleccionados}
+                                        setDocumentosSeleccionados={setDocumentosSeleccionados}
+                                        documentosDisponibles={documentosDisponibles}
+                                        cargandoDocumentosDisponibles={cargandoDocumentosDisponibles}
+                                        fetchDocumentosDisponibles={fetchDocumentosDisponibles}
+                                        obtenerDocumentosAgregados={obtenerDocumentosAgregados}
+                                        handleAgregarDocumentosSeleccionados={handleAgregarDocumentosSeleccionados}
+                                        documentosPorCliente={documentosPorCliente}
+                                        clienteSeleccionadoDocumentos={clienteSeleccionadoDocumentos}
+                                        setClienteSeleccionadoDocumentos={setClienteSeleccionadoDocumentos}
+                                        documentosEditados={documentosEditados}
+                                        setDocumentosEditados={setDocumentosEditados}
+                                        cargandoDocumentosExpediente={cargandoDocumentosExpediente}
+                                        handleDocumentoChange={handleDocumentoChange}
+                                        handleEliminarDocumentoDeAll={handleEliminarDocumentoDeAll}
+                                        currentExpedienteId={currentExpedienteId}
+                                        api={api}
+                                        addToast={addToast}
+                                    />
                                 </TabsContent>
                                 )}
 
                                 {/* GRUPO 3: INMUEBLES - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="inmuebles" className="space-y-6">
-                                    <Tabs defaultValue="datos-inmueble" className="w-full">
-                                        {/* <TabsList className="grid w-full grid-cols-2 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
-                                            <TabsTrigger value="datos-inmueble" className="text-sm">Datos del Inmueble</TabsTrigger>
-                                            <TabsTrigger value="especificaciones" className="text-sm">Especificaciones</TabsTrigger>
-                                        </TabsList> */}
-
-                                        {/* SubTab: Datos del Inmueble */}
-                                        <TabsContent value="datos-inmueble" className="space-y-2">
-                                            <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
-                                                <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-0">Información General del Inmueble</h3>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-purple-600 hover:bg-purple-700"
-                                                    onClick={() => {
-                                                        setMostrarFormInmueble(true);
-                                                        setInmuebleEnEdicion(null);
-                                                        setInmuebleIdEnEdicion(null);
-                                                        // Limpiar formulario para nuevo inmueble
-                                                        setFormInmueble({
-                                                            tipoFactura: '',
-                                                            tipoVulnerable: '',
-                                                            tipoDeclaranot: '',
-                                                            medidas: '',
-                                                            antecedentes: '',
-                                                            descripcion: '',
-                                                            claveCatastral: '',
-                                                            valorAvaluo: '',
-                                                            valorCatastral: '',
-                                                            valorOperacion: '',
-                                                            superficieTerreno: '',
-                                                            superficieConstruida: '',
-                                                            ctaAgua: '',
-                                                            ctaPredial: '',
-                                                            calle: '',
-                                                            numeroExt: '',
-                                                            numeroInt: '',
-                                                            manzana: '',
-                                                            lote: '',
-                                                            pais: '',
-                                                            estado: '',
-                                                            municipio: '',
-                                                            colonia: '',
-                                                            cp: '',
-                                                            inscripcion: '',
-                                                            folioReal: '',
-                                                            folioInicial: '',
-                                                            folioFinal: '',
-                                                            folioElectronico: '',
-                                                            partida: '',
-                                                            volumen: '',
-                                                            seccion: '',
-                                                            fechaRegistro: '',
-                                                            fechaEscritura: '',
-                                                            montoTotal: '',
-                                                            formaPago: '',
-                                                            fechaPago: '',
-                                                            referenciaPago: '',
-                                                            observacionesPago: '',
-                                                        });
-                                                    }}
-                                                >
-                                                    <Plus className="h-4 w-4 mr-2" />
-                                                    Agregar Inmueble
-                                                </Button>
-                                            </div>
-
-                                            {cargandoInmueblesExpediente && (
-                                                <div className="flex items-center justify-center py-8">
-                                                    <div className="flex items-center gap-2">
-                                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                                        <span className="text-sm text-muted-foreground">Cargando inmuebles...</span>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {!cargandoInmueblesExpediente && inmueblesExpediente.length === 0 && (
-                                                <div className="border rounded-lg p-4">
-                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay inmuebles disponibles</p>
-                                                </div>
-                                            )}
-
-                                            {!cargandoInmueblesExpediente && inmueblesExpediente.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden" style={{ maxHeight: '150px', display: 'flex', flexDirection: 'column' }}>
-                                                    <div className="overflow-x-auto overflow-y-auto flex-1">
-                                                        <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
-                                                                <tr>
-                                                                    <th className="px-3 py-2 text-left">#</th>
-                                                                    <th className="px-3 py-2 text-left">Descripción</th>
-                                                                    <th className="px-3 py-2 text-left">Clave Catastral</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {inmueblesExpediente.map((inmueble, idx) => (
-                                                                    <tr
-                                                                        key={idx}
-                                                                        onClick={() => handleEditarInmueble(inmueble.id)}
-                                                                        className="border-b hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-pointer transition-colors"
-                                                                    >
-                                                                        <td className="px-3 py-2">
-                                                                            <span className="font-semibold">{inmueble.numero_Inmueble}</span>
-                                                                        </td>
-                                                                        <td className="px-3 py-2 text-sm">
-                                                                            {inmueble.descripcion}
-                                                                        </td>
-                                                                        <td className="px-3 py-2 text-sm">
-                                                                            {inmueble.clave_Catastral}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Formulario para agregar/editar inmueble con pestañas */}
-                                            {mostrarFormInmueble && (
-                                            <div className={`border rounded-lg p-6 mt-6 ${inmuebleEnEdicion ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-300' : 'bg-purple-50 dark:bg-purple-950/20'}`}>
-                                                <div className="flex items-center justify-between mb-4">
-
-                                                        <h4 className={`font-semibold text-lg ${inmuebleEnEdicion ? 'text-blue-900 dark:text-blue-100' : 'text-purple-900 dark:text-purple-100'}`}>
-                                                            {inmuebleEnEdicion ? `Inmueble #${inmuebleEnEdicion}` : 'Nuevo Inmueble'}
-                                                        </h4>
-
-
-                                                </div>
-
-                                                <Tabs defaultValue="datos-inmueble" className="w-full">
-                                                    <TabsList className="grid w-full grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
-                                                        <TabsTrigger value="datos-inmueble" className="text-xs sm:text-sm">Datos del Inmueble</TabsTrigger>
-                                                        <TabsTrigger value="especificaciones" className="text-xs sm:text-sm">Especificaciones</TabsTrigger>
-                                                        <TabsTrigger value="domicilio" className="text-xs sm:text-sm">Domicilio</TabsTrigger>
-                                                        <TabsTrigger value="antecedentes" className="text-xs sm:text-sm">Antecedentes</TabsTrigger>
-                                                        <TabsTrigger value="pagos-inmueble" className="text-xs sm:text-sm">Pagos Inmueble</TabsTrigger>
-                                                    </TabsList>
-
-                                                    {/* SubTab: Datos del Inmueble */}
-                                                    <TabsContent value="datos-inmueble" className="space-y-4">
-                                                        {/* Row 1: 3 Dropdowns */}
-                                                        <div className="grid grid-cols-3 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Tipo Factura</label>
-                                                                <select
-                                                                    value={formInmueble.tipoFactura}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, tipoFactura: e.target.value})}
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                >
-                                                                    <option value="">Selecciona tipo de factura</option>
-                                                                    {tiposFactura.map((tipo) => (
-                                                                        <option key={tipo.id} value={tipo.id}>{tipo.descripcion}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Tipo Inmueble</label>
-                                                                <select
-                                                                    value={formInmueble.tipoVulnerable}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, tipoVulnerable: e.target.value})}
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                >
-                                                                    <option value="">Selecciona tipo de inmueble</option>
-                                                                    {tiposInmuebleFiltrados.map((tipo) => (
-                                                                        <option key={tipo.id} value={tipo.id}>{tipo.descripcion}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Tipo Declaranot</label>
-                                                                <select
-                                                                    value={formInmueble.tipoDeclaranot}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, tipoDeclaranot: e.target.value})}
-                                                                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                >
-                                                                    <option value="">Selecciona tipo declaranot</option>
-                                                                    {tiposDeclaranot.map((tipo) => (
-                                                                        <option key={tipo.id} value={tipo.id}>{tipo.descripcion}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 2: Medidas y Colindancias */}
-                                                        <div className="space-y-2 mb-6">
-                                                            <label className="text-sm font-medium">Medidas y Colindancias</label>
-                                                            <textarea
-                                                                placeholder="Ingresa las medidas y colindancias del inmueble..."
-                                                                rows={3}
-                                                                value={formInmueble.medidas}
-                                                                onChange={(e) => setFormInmueble({...formInmueble, medidas: e.target.value})}
-                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        </div>
-
-                                                        {/* Row 3: Antecedentes */}
-                                                        <div className="space-y-2 mb-6">
-                                                            <label className="text-sm font-medium">Antecedentes</label>
-                                                            <textarea
-                                                                placeholder="Ingresa los antecedentes del inmueble..."
-                                                                rows={3}
-                                                                value={formInmueble.antecedentes}
-                                                                onChange={(e) => setFormInmueble({...formInmueble, antecedentes: e.target.value})}
-                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        </div>
-
-                                                        {/* Row 4: Descripción */}
-                                                        <div className="space-y-2 mb-6">
-                                                            <label className="text-sm font-medium">Descripción del Inmueble</label>
-                                                            <textarea
-                                                                placeholder="Ingresa la descripción completa del inmueble..."
-                                                                rows={3}
-                                                                value={formInmueble.descripcion}
-                                                                onChange={(e) => setFormInmueble({...formInmueble, descripcion: e.target.value})}
-                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        </div>
-
-                                                    </TabsContent>
-
-                                                    {/* SubTab: Especificaciones */}
-                                                    <TabsContent value="especificaciones" className="space-y-4">
-                                                        {/* Row 1: Clave Catastral */}
-                                                        <div className="space-y-2 mb-6">
-                                                            <label className="text-sm font-medium">Clave Catastral</label>
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="Ingresa la clave catastral..."
-                                                                value={formInmueble.claveCatastral}
-                                                                onChange={(e) => setFormInmueble({...formInmueble, claveCatastral: e.target.value})}
-                                                                className="w-full text-sm bg-white"
-                                                            />
-                                                        </div>
-
-                                                        {/* Row 2: Valores */}
-                                                        <div className="grid grid-cols-3 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Valor Avalúo</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Valor avalúo..."
-                                                                    value={formInmueble.valorAvaluo}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, valorAvaluo: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Valor Catastral</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Valor catastral..."
-                                                                    value={formInmueble.valorCatastral}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, valorCatastral: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Valor Operación</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Valor operación..."
-                                                                    value={formInmueble.valorOperacion}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, valorOperacion: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 3: Superficies */}
-                                                        <div className="grid grid-cols-2 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Superficie del Terreno</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Superficie del terreno..."
-                                                                    value={formInmueble.superficieTerreno}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, superficieTerreno: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Superficie Construida</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Superficie construida..."
-                                                                    value={formInmueble.superficieConstruida}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, superficieConstruida: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 4: Cuentas */}
-                                                        <div className="grid grid-cols-2 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Cta Agua</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Número de cuenta agua..."
-                                                                    value={formInmueble.ctaAgua}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, ctaAgua: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Cta Predial</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Número de cuenta predial..."
-                                                                    value={formInmueble.ctaPredial}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, ctaPredial: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                    </TabsContent>
-
-                                                    {/* SubTab: Domicilio */}
-                                                    <TabsContent value="domicilio" className="space-y-4">
-                                                        {/* Row 1: Calle y CP */}
-                                                        <div className="grid grid-cols-4 gap-4 mb-6">
-                                                            <div className="space-y-2 col-span-3">
-                                                                <label className="text-sm font-medium">Calle</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Ingresa la calle..."
-                                                                    value={formInmueble.calle}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, calle: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">CP</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Código postal..."
-                                                                    value={formInmueble.cp}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, cp: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 2: Números y referencias */}
-                                                        <div className="grid grid-cols-4 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Número Ext</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Número exterior..."
-                                                                    value={formInmueble.numeroExt}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, numeroExt: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Número Int</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Número interior..."
-                                                                    value={formInmueble.numeroInt}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, numeroInt: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Manzana</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Manzana..."
-                                                                    value={formInmueble.manzana}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, manzana: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Lote</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Lote..."
-                                                                    value={formInmueble.lote}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, lote: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 3: Ubicación */}
-                                                        <div className="grid grid-cols-4 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">País</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="País..."
-                                                                    value={formInmueble.pais}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, pais: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Estado</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Estado..."
-                                                                    value={formInmueble.estado}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, estado: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Municipio</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Municipio..."
-                                                                    value={formInmueble.municipio}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, municipio: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Colonia</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Colonia..."
-                                                                    value={formInmueble.colonia}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, colonia: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                    </TabsContent>
-
-                                                    {/* SubTab: Antecedentes */}
-                                                    <TabsContent value="antecedentes" className="space-y-4">
-                                                        {/* Row 1: Fecha Registro y Fecha Escritura con Checkboxes */}
-                                                        <div className="grid grid-cols-2 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        id="fecha-registro-check"
-                                                                        className="w-4 h-4 cursor-pointer"
-                                                                        checked={checkboxesAntecedentes.fechaRegistro}
-                                                                        onChange={(e) => setCheckboxesAntecedentes({...checkboxesAntecedentes, fechaRegistro: e.target.checked})}
-                                                                    />
-                                                                    <label htmlFor="fecha-registro-check" className="text-sm font-medium cursor-pointer">Fecha Registro</label>
-                                                                </div>
-                                                                <Input
-                                                                    type="date"
-                                                                    disabled={!checkboxesAntecedentes.fechaRegistro}
-                                                                    value={formInmueble.fechaRegistro}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, fechaRegistro: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        id="fecha-escritura-check"
-                                                                        className="w-4 h-4 cursor-pointer"
-                                                                        checked={checkboxesAntecedentes.fechaEscritura}
-                                                                        onChange={(e) => setCheckboxesAntecedentes({...checkboxesAntecedentes, fechaEscritura: e.target.checked})}
-                                                                    />
-                                                                    <label htmlFor="fecha-escritura-check" className="text-sm font-medium cursor-pointer">Fecha Escritura</label>
-                                                                </div>
-                                                                <Input
-                                                                    type="date"
-                                                                    disabled={!checkboxesAntecedentes.fechaEscritura}
-                                                                    value={formInmueble.fechaEscritura}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, fechaEscritura: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 2: Inscripción */}
-                                                        <div className="space-y-2 mb-6">
-                                                            <label className="text-sm font-medium">Inscripción</label>
-                                                            <Input
-                                                                type="text"
-                                                                placeholder="Número de inscripción..."
-                                                                value={formInmueble.inscripcion}
-                                                                onChange={(e) => setFormInmueble({...formInmueble, inscripcion: e.target.value})}
-                                                                className="w-full text-sm bg-white"
-                                                            />
-                                                        </div>
-
-                                                        {/* Row 3: Folios */}
-                                                        <div className="grid grid-cols-4 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Folio Real</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Folio real..."
-                                                                    value={formInmueble.folioReal}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioReal: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Folio Inicial</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Folio inicial..."
-                                                                    value={formInmueble.folioInicial}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioInicial: e.target.value})}
-                                                                    className="w-full text-m bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Folio Final</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Folio final..."
-                                                                    value={formInmueble.folioFinal}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioFinal: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Folio Electrónico</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Folio electrónico..."
-                                                                    value={formInmueble.folioElectronico}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, folioElectronico: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Row 4: Partida, Volumen, Sección */}
-                                                        <div className="grid grid-cols-4 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Partida</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Partida..."
-                                                                    value={formInmueble.partida}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, partida: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Volumen</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Volumen..."
-                                                                    value={formInmueble.volumen}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, volumen: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Sección</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Sección..."
-                                                                    value={formInmueble.seccion}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, seccion: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div />
-                                                        </div>
-
-                                                    </TabsContent>
-
-                                                    {/* SubTab: Pagos Inmueble Declaranot */}
-                                                    <TabsContent value="pagos-inmueble" className="space-y-4">
-                                                        <div className="grid grid-cols-2 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Monto Total</label>
-                                                                <Input
-                                                                    type="number"
-                                                                    placeholder="Monto total destacado..."
-                                                                    value={formInmueble.montoTotal}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, montoTotal: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Forma de Pago</label>
-                                                                <select
-                                                                    value={formInmueble.formaPago}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, formaPago: e.target.value})}
-                                                                    className="w-full px-3 py-2 border rounded-md bg-white text-foreground border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                                >
-                                                                    <option value="">Selecciona forma de pago</option>
-                                                                    <option value="efectivo">Efectivo</option>
-                                                                    <option value="cheque">Cheque</option>
-                                                                    <option value="transferencia">Transferencia</option>
-                                                                    <option value="tarjeta">Tarjeta</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-2 gap-4 mb-6">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Fecha de Pago</label>
-                                                                <Input
-                                                                    type="date"
-                                                                    value={formInmueble.fechaPago}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, fechaPago: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Referencia Pago</label>
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Número de referencia o comprobante..."
-                                                                    value={formInmueble.referenciaPago}
-                                                                    onChange={(e) => setFormInmueble({...formInmueble, referenciaPago: e.target.value})}
-                                                                    className="w-full text-sm bg-white"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="space-y-2 mb-6">
-                                                            <label className="text-sm font-medium">Observaciones de Pago</label>
-                                                            <textarea
-                                                                placeholder="Ingresa observaciones sobre el pago..."
-                                                                rows={3}
-                                                                value={formInmueble.observacionesPago}
-                                                                onChange={(e) => setFormInmueble({...formInmueble, observacionesPago: e.target.value})}
-                                                                className="w-full px-3 py-2 border rounded-md bg-white border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        </div>
-
-                                                    </TabsContent>
-                                                </Tabs>
-
-                                                {/* Unified Save Button with Cancelar - outside all tabs */}
-                                                <div className="flex gap-2 justify-end mt-6">
-                                                    <Button
-                                                        variant="outline"
-                                                        className="text-sm"
-                                                        onClick={() => {
-                                                            setMostrarFormInmueble(false);
-                                                            setMostrarFormularioRecibo(false);
-                                                            setInmuebleEnEdicion(null);
-                                                            setInmuebleIdEnEdicion(null);
-                                                            setReciboDetalleSeleccionado(null);
-                                                        }}
-                                                    >
-                                                        Cancelar
-                                                    </Button>
-                                                    <Button
-                                                        className="bg-green-600 hover:bg-green-700 text-sm"
-                                                        onClick={handleGuardarInmueble}
-                                                        disabled={cargandoGuardarInmueble}
-                                                    >
-                                                        {cargandoGuardarInmueble && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                                                        {cargandoGuardarInmueble
-                                                            ? (inmuebleIdEnEdicion ? 'Actualizando...' : 'Guardando...')
-                                                            : (inmuebleIdEnEdicion ? 'Actualizar Inmueble' : 'Guardar Inmueble')
-                                                        }
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            )}
-
-                                        </TabsContent>
-                                    </Tabs>
+                                  <InmueblesForm
+                                        inmueblesExpediente={inmueblesExpediente}
+                                        cargandoInmueblesExpediente={cargandoInmueblesExpediente}
+                                        mostrarFormInmueble={mostrarFormInmueble}
+                                        setMostrarFormInmueble={setMostrarFormInmueble}
+                                        cargandoGuardarInmueble={cargandoGuardarInmueble}
+                                        formInmueble={formInmueble}
+                                        setFormInmueble={setFormInmueble}
+                                        inmuebleEnEdicion={inmuebleEnEdicion}
+                                        setInmuebleEnEdicion={setInmuebleEnEdicion}
+                                        inmuebleIdEnEdicion={inmuebleIdEnEdicion}
+                                        setInmuebleIdEnEdicion={setInmuebleIdEnEdicion}
+                                        checkboxesAntecedentes={checkboxesAntecedentes}
+                                        setCheckboxesAntecedentes={setCheckboxesAntecedentes}
+                                        tiposFactura={tiposFactura}
+                                        tiposInmuebleFiltrados={tiposInmuebleFiltrados}
+                                        tiposDeclaranot={tiposDeclaranot}
+                                        handleGuardarInmueble={handleGuardarInmueble}
+                                        handleEditarInmueble={handleEditarInmueble}
+                                    />
                                 </TabsContent>
                                 )}
 
                                 {/* GRUPO 4: FINANCIERO & CONTROL - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="financiero-control" className="space-y-6">
-                                    <Tabs defaultValue="presupuesto" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-6 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
-                                            <TabsTrigger value="presupuesto" className="text-xs">Presupuesto</TabsTrigger>
-                                            <TabsTrigger value="recibos" className="text-xs">Recibos</TabsTrigger>
-                                            <TabsTrigger value="estado-cuenta" className="text-xs">Estado Cuenta</TabsTrigger>
-                                            <TabsTrigger value="pld" className="text-xs">PLD</TabsTrigger>
-                                            <TabsTrigger value="operaciones-lavado" className="text-xs">Op. Lavado</TabsTrigger>
-                                            <TabsTrigger value="exportaciones" className="text-xs">Exportaciones</TabsTrigger>
-                                        </TabsList>
-
-                                        {/* SubTab: Presupuesto */}
-                                        <TabsContent value="presupuesto" className="space-y-6">
-                                            <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
-                                                <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-0">Presupuestos Generados</h3>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-purple-600 hover:bg-purple-700"
-                                                    onClick={() => {
-                                                        setMostrarFormularioPresupuesto(true);
-                                                        setClienteSelectedPresupuesto(null);
-                                                        setClienteFiltro('');
-                                                        setOperacionFiltro('');
-                                                        setRetISRCheck(false);
-                                                        setRetIVACheck(false);
-                                                        setFormPresupuesto({
-                                                            cliente: '',
-                                                            operacion: '',
-                                                            zona_municipio: '',
-                                                            observaciones: '',
-                                                            valor_operacion: 0,
-                                                            valor_avaluo: 0,
-                                                            valor_catastral: 0,
-                                                            parametro: '',
-                                                            honorarios: 0,
-                                                            descuento: 0,
-                                                            incluir_iva: false,
-                                                            iva: 0,
-                                                            retencion_isr: 0,
-                                                            retencion_iva: 0,
-                                                            impuestos_derechos: [],
-                                                            gastos_notariales: [],
-                                                            activo: true,
-                                                        });
-                                                    }}
-                                                >
-                                                    <Plus className="h-4 w-4 mr-2" />
-                                                    Generar Presupuesto
-                                                </Button>
-                                            </div>
-
-                                            {cargandoPresupuestos && (
-                                                <div className="flex items-center justify-center py-8">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                                    <span className="ml-2 text-sm text-muted-foreground">Cargando presupuestos...</span>
-                                                </div>
-                                            )}
-
-                                            {!cargandoPresupuestos && presupuestos.length === 0 && (
-                                                <div className="border rounded-lg p-4">
-                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay presupuestos registrados para este expediente.</p>
-                                                </div>
-                                            )}
-
-                                            {!cargandoPresupuestos && presupuestos.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden">
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                                                <tr>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Nº Presupuesto</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Cliente</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Descripción</th>
-                                                                    <th className="px-4 py-2 text-right font-semibold">Honorarios</th>
-                                                                    <th className="px-4 py-2 text-right font-semibold">Impuestos/Derechos</th>
-                                                                    <th className="px-4 py-2 text-right font-semibold">Gastos Notariales</th>
-                                                                    <th className="px-4 py-2 text-right font-semibold">Total Presupuesto</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {presupuestos.map((presupuesto, idx) => (
-                                                                    <tr key={idx} className="border-b hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors">
-                                                                        <td className="px-4 py-2 font-semibold text-purple-600 dark:text-purple-400">{presupuesto.numero_Presupuesto}</td>
-                                                                        <td className="px-4 py-2">{presupuesto.cliente}</td>
-                                                                        <td className="px-4 py-2 text-xs">{presupuesto.descripcion}</td>
-                                                                        <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
-                                                                            ${(presupuesto.total_Honorarios || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
-                                                                            ${(presupuesto.total_Impuestos_Derechos || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
-                                                                            ${(presupuesto.total_Gastos_Notariales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                        </td>
-                                                                        <td className="px-4 py-2 text-right font-semibold text-green-600 dark:text-green-400">
-                                                                            ${(presupuesto.total_Presupuesto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Formulario para Nuevo Presupuesto */}
-                                            {mostrarFormularioPresupuesto && (
-                                            <div className="border rounded-lg p-6 bg-purple-50 dark:bg-purple-950/20 space-y-6">
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <h4 className="font-semibold text-lg text-purple-900 dark:text-purple-100">Nuevo Presupuesto</h4>
-                                                </div>
-
-                                                {/* SECCIÓN SUPERIOR: DATOS DEL PRESUPUESTO */}
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <h3 className="text-lg font-bold mb-4">Datos del presupuesto</h3>
-
-                                                    <div className="grid grid-cols-3 gap-4 mb-6">
-                                                        <div className="space-y-2 relative">
-                                                            <label className="text-sm font-medium">Cliente</label>
-                                                            <div className="relative">
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Busca o selecciona"
-                                                                    value={clienteFiltro}
-                                                                    onChange={(e) => {
-                                                                        setClienteFiltro(e.target.value);
-                                                                        setShowClienteDropdown(true);
-                                                                    }}
-                                                                    onFocus={() => setShowClienteDropdown(true)}
-                                                                    onBlur={() => setTimeout(() => setShowClienteDropdown(false), 200)}
-                                                                    className="w-full pr-10"
-                                                                />
-                                                                {clienteFiltro && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setClienteFiltro('');
-                                                                            setClienteSelectedPresupuesto(null);
-                                                                            setFormPresupuesto(prev => ({ ...prev, cliente: '' }));
-                                                                            setShowClienteDropdown(false);
-                                                                        }}
-                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                                    >
-                                                                        <X className="h-4 w-4" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                            {showClienteDropdown && filasComparecientes.length > 0 && (
-                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
-                                                                    {filasComparecientes
-                                                                        .filter(fila =>
-                                                                            fila.nombreCompareciente
-                                                                                .toLowerCase()
-                                                                                .includes(clienteFiltro.toLowerCase())
-                                                                        )
-                                                                        .map(fila => (
-                                                                            <button
-                                                                                key={fila.id}
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    const cliente = clientesDisponibles.find(c => c.id === fila.cliente_Id);
-                                                                                    if (cliente) {
-                                                                                        setClienteSelectedPresupuesto(cliente);
-                                                                                        setFormPresupuesto(prev => ({ ...prev, cliente: cliente.id.toString() }));
-                                                                                        setClienteFiltro(`${cliente.nombre} ${cliente.apellido_Paterno}`);
-                                                                                        setShowClienteDropdown(false);
-                                                                                    }
-                                                                                }}
-                                                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0 text-sm"
-                                                                            >
-                                                                                {fila.nombreCompareciente}
-                                                                            </button>
-                                                                        ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="space-y-2 relative">
-                                                            <label className="text-sm font-medium">Operación</label>
-                                                            <div className="relative">
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Busca o selecciona"
-                                                                    value={operacionFiltro}
-                                                                    onChange={(e) => {
-                                                                        setOperacionFiltro(e.target.value);
-                                                                        setShowOperacionDropdown(true);
-                                                                    }}
-                                                                    onFocus={() => setShowOperacionDropdown(true)}
-                                                                    onBlur={() => setTimeout(() => setShowOperacionDropdown(false), 200)}
-                                                                    className="w-full pr-10"
-                                                                />
-                                                                {operacionFiltro && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setOperacionFiltro('');
-                                                                            setFormPresupuesto(prev => ({ ...prev, operacion: '' }));
-                                                                            setShowOperacionDropdown(false);
-                                                                        }}
-                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                                    >
-                                                                        <X className="h-4 w-4" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                            {showOperacionDropdown && operacionesDelExpediente.length > 0 && (
-                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
-                                                                    {operacionesDelExpediente
-                                                                        .filter(op =>
-                                                                            op.descripcion
-                                                                                .toLowerCase()
-                                                                                .includes(operacionFiltro.toLowerCase())
-                                                                        )
-                                                                        .map(operacion => (
-                                                                            <button
-                                                                                key={operacion.id}
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setFormPresupuesto(prev => ({ ...prev, operacion: operacion.id.toString() }));
-                                                                                    setOperacionFiltro(operacion.descripcion);
-                                                                                    setShowOperacionDropdown(false);
-                                                                                }}
-                                                                                className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
-                                                                            >
-                                                                                {operacion.descripcion}
-                                                                            </button>
-                                                                        ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="space-y-2 relative">
-                                                            <label className="text-sm font-medium">Zona o Municipio</label>
-                                                            <div className="relative">
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Busca o selecciona"
-                                                                    value={formPresupuesto.zona_municipio || formData.municipio}
-                                                                    onChange={(e) => {
-                                                                        setFormPresupuesto(prev => ({ ...prev, zona_municipio: e.target.value }));
-                                                                        setShowMunicipioPresupuestoDropdown(true);
-                                                                    }}
-                                                                    onFocus={() => setShowMunicipioPresupuestoDropdown(true)}
-                                                                    onBlur={() => setTimeout(() => setShowMunicipioPresupuestoDropdown(false), 200)}
-                                                                    className="w-full pr-10"
-                                                                />
-                                                                {(formPresupuesto.zona_municipio || formData.municipio) && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setFormPresupuesto(prev => ({ ...prev, zona_municipio: formData.municipio }));
-                                                                            setShowMunicipioPresupuestoDropdown(false);
-                                                                        }}
-                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                                    >
-                                                                        <X className="h-4 w-4" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                            {showMunicipioPresupuestoDropdown && municipiosDisponibles.length > 0 && (
-                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
-                                                                    {municipiosDisponibles
-                                                                        .filter(municipio =>
-                                                                            municipio.descripcion
-                                                                                .toLowerCase()
-                                                                                .includes((formPresupuesto.zona_municipio || formData.municipio || '').toLowerCase())
-                                                                        )
-                                                                        .map(municipio => (
-                                                                            <button
-                                                                                key={municipio.id}
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    setFormPresupuesto(prev => ({ ...prev, zona_municipio: municipio.descripcion }));
-                                                                                    setShowMunicipioPresupuestoDropdown(false);
-                                                                                }}
-                                                                                className="w-full text-left px-3 py-2 hover:bg-green-50 border-b last:border-b-0 text-sm"
-                                                                            >
-                                                                                {municipio.descripcion}
-                                                                            </button>
-                                                                        ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* SECCIÓN: VALORES */}
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <h3 className="text-lg font-bold mb-4">Valores</h3>
-                                                    <div className="grid grid-cols-3 gap-4">
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">Valor Operación</label>
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                value={formPresupuesto.valor_operacion}
-                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_operacion: parseFloat(e.target.value) || 0 }))}
-                                                                placeholder="0.00"
-                                                                className="text-right font-bold text-green-600"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">Valor Avalúo</label>
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                value={formPresupuesto.valor_avaluo}
-                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_avaluo: parseFloat(e.target.value) || 0 }))}
-                                                                placeholder="0.00"
-                                                                className="text-right font-bold text-green-600"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">Valor Catastral</label>
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                value={formPresupuesto.valor_catastral}
-                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, valor_catastral: parseFloat(e.target.value) || 0 }))}
-                                                                placeholder="0.00"
-                                                                className="text-right font-bold text-green-600"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* SECCIÓN: HONORARIOS */}
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <h3 className="text-lg font-bold mb-4">Detalles Honorarios</h3>
-                                                    <div className="grid grid-cols-4 gap-4 mb-4">
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">Honorarios</label>
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                value={formPresupuesto.honorarios}
-                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, honorarios: parseFloat(e.target.value) || 0 }))}
-                                                                placeholder="0.00"
-                                                                className="text-right font-bold"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">Descuento</label>
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                value={formPresupuesto.descuento}
-                                                                onChange={(e) => setFormPresupuesto(prev => ({ ...prev, descuento: parseFloat(e.target.value) || 0 }))}
-                                                                placeholder="0.00"
-                                                                className="text-right font-bold"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">Subtotal</label>
-                                                            <div className="px-3 py-2 border rounded-md bg-gray-100 text-right font-bold text-green-600">
-                                                                ${(formPresupuesto.honorarios - formPresupuesto.descuento).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={formPresupuesto.incluir_iva}
-                                                                    onChange={(e) => setFormPresupuesto(prev => ({ ...prev, incluir_iva: e.target.checked }))}
-                                                                    className="mr-2"
-                                                                />
-                                                                IVA 16%
-                                                            </label>
-                                                            <div className="px-3 py-2 border rounded-md bg-gray-100 text-right font-bold text-blue-600">
-                                                                ${(formPresupuesto.incluir_iva ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 : 0).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-4 gap-4">
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={ret_isr_check}
-                                                                    onChange={(e) => setRetISRCheck(e.target.checked)}
-                                                                    className="mr-2"
-                                                                />
-                                                                Ret. ISR 10%
-                                                            </label>
-                                                            <div className="px-3 py-2 border rounded-md bg-gray-100 text-right font-bold text-red-600">
-                                                                -${(ret_isr_check ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.10 : 0).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-sm font-medium">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={ret_iva_check}
-                                                                    onChange={(e) => setRetIVACheck(e.target.checked)}
-                                                                    className="mr-2"
-                                                                />
-                                                                Ret. IVA
-                                                            </label>
-                                                            <div className="px-3 py-2 border rounded-md bg-gray-100 text-right font-bold text-red-600">
-                                                                -${(ret_iva_check && formPresupuesto.incluir_iva ? ((formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 * 0.6666667) : 0).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                        <div className="col-span-2 space-y-1">
-                                                            <label className="text-sm font-medium">Total Honorarios</label>
-                                                            <div className="px-3 py-2 border rounded-md bg-green-100 text-right font-bold text-green-700 text-lg">
-                                                                ${
-                                                                    (
-                                                                        (formPresupuesto.honorarios - formPresupuesto.descuento) +
-                                                                        (formPresupuesto.incluir_iva ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 : 0) -
-                                                                        (ret_isr_check ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.10 : 0) -
-                                                                        (ret_iva_check && formPresupuesto.incluir_iva ? ((formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 * 0.6666667) : 0)
-                                                                    ).toFixed(2)
-                                                                }
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* SECCIÓN: IMPUESTOS Y DERECHOS */}
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <h3 className="text-lg font-bold">Impuestos y Derechos</h3>
-                                                        <Button
-                                                            size="sm"
-                                                            type="button"
-                                                            onClick={() => setFormPresupuesto(prev => ({
-                                                                ...prev,
-                                                                impuestos_derechos: [...prev.impuestos_derechos, { id: Date.now().toString(), descripcion: '', importe: 0, observaciones: '' }]
-                                                            }))}
-                                                            className="bg-blue-600 hover:bg-blue-700"
-                                                        >
-                                                            <Plus className="h-4 w-4 mr-1" />
-                                                            Agregar
-                                                        </Button>
-                                                    </div>
-                                                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                                                        {formPresupuesto.impuestos_derechos.map((impuesto, idx) => (
-                                                            <div key={idx} className="grid grid-cols-4 gap-2 items-end pb-2 border-b">
-                                                                <div className="space-y-1 col-span-2">
-                                                                    <label className="text-xs font-medium">Descripción</label>
-                                                                    <Input
-                                                                        type="text"
-                                                                        value={impuesto.descripcion}
-                                                                        onChange={(e) => setFormPresupuesto(prev => ({
-                                                                            ...prev,
-                                                                            impuestos_derechos: prev.impuestos_derechos.map((item, i) => i === idx ? { ...item, descripcion: e.target.value } : item)
-                                                                        }))}
-                                                                        placeholder="Descripción del impuesto"
-                                                                        className="text-xs"
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <label className="text-xs font-medium">Importe</label>
-                                                                    <Input
-                                                                        type="number"
-                                                                        step="0.01"
-                                                                        value={impuesto.importe}
-                                                                        onChange={(e) => setFormPresupuesto(prev => ({
-                                                                            ...prev,
-                                                                            impuestos_derechos: prev.impuestos_derechos.map((item, i) => i === idx ? { ...item, importe: parseFloat(e.target.value) || 0 } : item)
-                                                                        }))}
-                                                                        placeholder="0.00"
-                                                                        className="text-right font-bold text-xs"
-                                                                    />
-                                                                </div>
-                                                                <Button
-                                                                    size="sm"
-                                                                    type="button"
-                                                                    onClick={() => setFormPresupuesto(prev => ({
-                                                                        ...prev,
-                                                                        impuestos_derechos: prev.impuestos_derechos.filter((_, i) => i !== idx)
-                                                                    }))}
-                                                                    className="bg-red-600 hover:bg-red-700 h-9"
-                                                                >
-                                                                    <X className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded text-right font-bold text-blue-600">
-                                                        Total Impuestos: ${formPresupuesto.impuestos_derechos.reduce((sum, item) => sum + item.importe, 0).toFixed(2)}
-                                                    </div>
-                                                </div>
-                                                {/* SECCIÓN: GASTOS NOTARIALES */}
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <h3 className="text-lg font-bold">Gastos Notariales</h3>
-                                                        <Button
-                                                            size="sm"
-                                                            type="button"
-                                                            onClick={() => setFormPresupuesto(prev => ({
-                                                                ...prev,
-                                                                gastos_notariales: [...prev.gastos_notariales, { id: Date.now().toString(), descripcion: '', importe: 0 }]
-                                                            }))}
-                                                            className="bg-blue-600 hover:bg-blue-700"
-                                                        >
-                                                            <Plus className="h-4 w-4 mr-1" />
-                                                            Agregar
-                                                        </Button>
-                                                    </div>
-                                                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                                                        {formPresupuesto.gastos_notariales.map((gasto, idx) => (
-                                                            <div key={idx} className="grid grid-cols-4 gap-2 items-end pb-2 border-b">
-                                                                <div className="space-y-1 col-span-2">
-                                                                    <label className="text-xs font-medium">Concepto</label>
-                                                                    <Input
-                                                                        type="text"
-                                                                        value={gasto.descripcion}
-                                                                        onChange={(e) => setFormPresupuesto(prev => ({
-                                                                            ...prev,
-                                                                            gastos_notariales: prev.gastos_notariales.map((item, i) => i === idx ? { ...item, descripcion: e.target.value } : item)
-                                                                        }))}
-                                                                        placeholder="Concepto del gasto"
-                                                                        className="text-xs"
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-1">
-                                                                    <label className="text-xs font-medium">Importe</label>
-                                                                    <Input
-                                                                        type="number"
-                                                                        step="0.01"
-                                                                        value={gasto.importe}
-                                                                        onChange={(e) => setFormPresupuesto(prev => ({
-                                                                            ...prev,
-                                                                            gastos_notariales: prev.gastos_notariales.map((item, i) => i === idx ? { ...item, importe: parseFloat(e.target.value) || 0 } : item)
-                                                                        }))}
-                                                                        placeholder="0.00"
-                                                                        className="text-right font-bold text-xs"
-                                                                    />
-                                                                </div>
-                                                                <Button
-                                                                    size="sm"
-                                                                    type="button"
-                                                                    onClick={() => setFormPresupuesto(prev => ({
-                                                                        ...prev,
-                                                                        gastos_notariales: prev.gastos_notariales.filter((_, i) => i !== idx)
-                                                                    }))}
-                                                                    className="bg-red-600 hover:bg-red-700 h-9"
-                                                                >
-                                                                    <X className="h-4 w-4" />
-                                                                </Button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded text-right font-bold text-blue-600">
-                                                        Total Gastos: ${formPresupuesto.gastos_notariales.reduce((sum, item) => sum + item.importe, 0).toFixed(2)}
-                                                    </div>
-                                                </div>
-                                                {/* SECCIÓN: RESUMEN FINAL */}
-                                                <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-950/20">
-                                                    <h3 className="text-lg font-bold mb-4 text-green-900 dark:text-green-100">Resumen Total del Presupuesto</h3>
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        <div className="space-y-2 bg-white dark:bg-slate-900 p-3 rounded border">
-                                                            <label className="text-xs font-medium text-muted-foreground">Total Honorarios</label>
-                                                            <div className="text-lg font-bold text-green-600">
-                                                                ${(
-                                                                    (formPresupuesto.honorarios - formPresupuesto.descuento) +
-                                                                    (formPresupuesto.incluir_iva ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 : 0) -
-                                                                    (ret_isr_check ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.10 : 0) -
-                                                                    (ret_iva_check && formPresupuesto.incluir_iva ? ((formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 * 0.6666667) : 0)
-                                                                ).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-2 bg-white dark:bg-slate-900 p-3 rounded border">
-                                                            <label className="text-xs font-medium text-muted-foreground">Total Impuestos</label>
-                                                            <div className="text-lg font-bold text-blue-600">
-                                                                ${formPresupuesto.impuestos_derechos.reduce((sum, item) => sum + item.importe, 0).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-2 bg-white dark:bg-slate-900 p-3 rounded border">
-                                                            <label className="text-xs font-medium text-muted-foreground">Total Gastos</label>
-                                                            <div className="text-lg font-bold text-blue-600">
-                                                                ${formPresupuesto.gastos_notariales.reduce((sum, item) => sum + item.importe, 0).toFixed(2)}
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-2 bg-white dark:bg-slate-900 p-3 rounded border border-green-500">
-                                                            <label className="text-xs font-medium text-muted-foreground">TOTAL PRESUPUESTO</label>
-                                                            <div className="text-2xl font-bold text-green-700">
-                                                                ${
-                                                                    (
-                                                                        (formPresupuesto.honorarios - formPresupuesto.descuento) +
-                                                                        (formPresupuesto.incluir_iva ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 : 0) -
-                                                                        (ret_isr_check ? (formPresupuesto.honorarios - formPresupuesto.descuento) * 0.10 : 0) -
-                                                                        (ret_iva_check && formPresupuesto.incluir_iva ? ((formPresupuesto.honorarios - formPresupuesto.descuento) * 0.16 * 0.6666667) : 0) +
-                                                                        formPresupuesto.impuestos_derechos.reduce((sum, item) => sum + item.importe, 0) +
-                                                                        formPresupuesto.gastos_notariales.reduce((sum, item) => sum + item.importe, 0)
-                                                                    ).toFixed(2)
-                                                                }
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex justify-end gap-2 mt-6">
-                                                    <Button
-                                                        variant="outline"
-                                                        className="text-sm"
-                                                        onClick={() => {
-                                                            setMostrarFormularioPresupuesto(false);
-                                                            setFormPresupuesto({
-                                                                cliente: '',
-                                                                operacion: '',
-                                                                zona_municipio: '',
-                                                                observaciones: '',
-                                                                valor_operacion: 0,
-                                                                valor_avaluo: 0,
-                                                                valor_catastral: 0,
-                                                                parametro: '',
-                                                                honorarios: 0,
-                                                                descuento: 0,
-                                                                incluir_iva: false,
-                                                                iva: 0,
-                                                                retencion_isr: 0,
-                                                                retencion_iva: 0,
-                                                                impuestos_derechos: [],
-                                                                gastos_notariales: [],
-                                                                activo: true,
-                                                            });
-                                                            setOperacionFiltro('');
-                                                            setClienteFiltro('');
-                                                            setRetISRCheck(false);
-                                                            setRetIVACheck(false);
-                                                            setClienteSelectedPresupuesto(null);
-                                                        }}
-                                                    >
-                                                        Cancelar
-                                                    </Button>
-                                                    <Button
-                                                        onClick={() => {
-                                                            addToast('Presupuesto guardado correctamente', 'success');
-                                                            setMostrarFormularioPresupuesto(false);
-                                                            setFormPresupuesto({
-                                                                cliente: '',
-                                                                operacion: '',
-                                                                zona_municipio: '',
-                                                                observaciones: '',
-                                                                valor_operacion: 0,
-                                                                valor_avaluo: 0,
-                                                                valor_catastral: 0,
-                                                                parametro: '',
-                                                                honorarios: 0,
-                                                                descuento: 0,
-                                                                incluir_iva: false,
-                                                                iva: 0,
-                                                                retencion_isr: 0,
-                                                                retencion_iva: 0,
-                                                                impuestos_derechos: [],
-                                                                gastos_notariales: [],
-                                                                activo: true,
-                                                            });
-                                                            setOperacionFiltro('');
-                                                            setClienteFiltro('');
-                                                            setRetISRCheck(false);
-                                                            setRetIVACheck(false);
-                                                            setClienteSelectedPresupuesto(null);
-                                                            fetchPresupuestos(currentExpedienteId!);
-                                                        }}
-                                                        className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
-                                                    >
-                                                        Guardar Presupuesto
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            )}
-                                        </TabsContent>
-
-                                        {/* SubTab: Recibos */}
-                                        <TabsContent value="recibos" className="space-y-6">
-                                            {/* Tabla de Recibos Provisionales */}
-                                            <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
-                                                <h3 className="font-semibold text-green-900 dark:text-green-100 mb-0">Recibos Provisionales Generados</h3>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    onClick={() => {
-                                                        setMostrarFormularioRecibo(true);
-                                                        setReciboDetalleSeleccionado(null);
-                                                        setReciboData({
-                                                            impuestosDerechos: 0,
-                                                            gastosNotariales: 0,
-                                                            honorarios: 0,
-                                                            concepto: '',
-                                                            formaPago: '',
-                                                            observaciones: '',
-                                                            clienteId: null
-                                                        });
-                                                    }}
-                                                >
-                                                    <Plus className="h-4 w-4 mr-2" />
-                                                    Generar Recibo
-                                                </Button>
-                                            </div>
-
-                                            {cargandoRecibos && (
-                                                <div className="flex items-center justify-center py-8">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                                    <span className="ml-2 text-sm text-muted-foreground">Cargando recibos...</span>
-                                                </div>
-                                            )}
-
-                                            {!cargandoRecibos && recibosProvisionales.length === 0 && (
-                                                <div className="border rounded-lg p-4">
-                                                    <p className="text-sm text-muted-foreground text-center py-8">No hay recibos provisionales registrados para este expediente.</p>
-                                                </div>
-                                            )}
-
-                                            {!cargandoRecibos && recibosProvisionales.length > 0 && (
-                                                <div className="border rounded-lg overflow-hidden">
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead className="bg-slate-200 dark:bg-slate-700 border-b">
-                                                                <tr>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Nº Recibo</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Expediente</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Escritura</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Nombre</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Operación / Concepto</th>
-                                                                    <th className="px-4 py-2 text-right font-semibold">Total</th>
-                                                                    <th className="px-4 py-2 text-center font-semibold">Estatus</th>
-                                                                    <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
-                                                                    <th className="px-4 py-2 text-center font-semibold">Acciones</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {recibosProvisionales.map((recibo, idx) => (
-                                                                    <tr key={idx} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors" onClick={() => fetchReciboDetalle(recibo.id)}>
-                                                                        <td className="px-4 py-2 font-semibold text-blue-600 dark:text-blue-400 cursor-pointer">{recibo.numero_Recibo}</td>
-                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.expediente}</td>
-                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.escritura_Numero || '-'}</td>
-                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.nombre}</td>
-                                                                        <td className="px-4 py-2 text-xs cursor-pointer">{recibo.operacion_Concepto}</td>
-                                                                        <td className="px-4 py-2 text-right font-semibold text-green-600 dark:text-green-400 cursor-pointer">${recibo.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                                                        <td className="px-4 py-2 text-center cursor-pointer">
-                                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                                                recibo.estatus === 'PAGADO'
-                                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                                                                : recibo.estatus === 'CANCELADO'
-                                                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                                                : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                                                                            }`}>
-                                                                                {recibo.estatus}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-4 py-2 cursor-pointer">{recibo.fecha_Creacion}</td>
-                                                                        <td className="px-4 py-2 text-center">
-                                                                            {recibo.estatus !== 'PENDIENTE' && (
-                                                                                <button
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleImprimirRecibo(recibo.id);
-                                                                                    }}
-                                                                                    disabled={cargandoReciboDetalle}
-                                                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                                                                                    title="Imprimir recibo"
-                                                                                >
-                                                                                    🖨️ Imprimir
-                                                                                </button>
-                                                                            )}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Formulario para Nuevo Recibo */}
-                                            {mostrarFormularioRecibo && (
-                                            <div className="border rounded-lg p-6 bg-purple-50 dark:bg-purple-950/20">
-                                                <h4 className="font-semibold mb-6 text-purple-900 dark:text-purple-100">{reciboDetalleSeleccionado ? `Recibo #${reciboDetalleSeleccionado.numero_Recibo}` : 'Nuevo Recibo'}</h4>
-                                                <div className="grid grid-cols-4 gap-4 mb-6">
-                                                    {/* Row 1: Información Básica */}
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Recibo Número</label>
-                                                        <Input
-                                                            type="text"
-                                                            readOnly
-                                                            value={reciboDetalleSeleccionado?.id || ''}
-                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            placeholder="Auto-generado"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Expediente</label>
-                                                        <Input
-                                                            type="text"
-                                                            readOnly
-                                                            value={reciboDetalleSeleccionado?.expediente || formData.expediente}
-                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Escritura</label>
-                                                        <Input
-                                                            type="text"
-                                                            readOnly
-                                                            value={reciboDetalleSeleccionado?.escritura_Numero || '-'}
-                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            placeholder="-"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Estatus</label>
-                                                        <Input
-                                                            type="text"
-                                                            readOnly
-                                                            value={reciboDetalleSeleccionado?.estatus || '-'}
-                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            placeholder="-"
-                                                        />
-                                                    </div>
-
-                                                    {/* Row 2: Notario, Forma de Pago, Fecha Emisión */}
-                                                    <div className="col-span-2 space-y-2">
-                                                        <label className="text-sm font-medium">Notario</label>
-                                                        <Input
-                                                            type="text"
-                                                            readOnly
-                                                            value={reciboDetalleSeleccionado?.notario || formData.notario}
-                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            placeholder="-"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Forma de Pago</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <Input
-                                                                type="text"
-                                                                readOnly
-                                                                value={reciboDetalleSeleccionado.forma_Pago}
-                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            />
-                                                        ) : (
-                                                            <select value={reciboData.formaPago} onChange={(e) => setReciboData(prev => ({ ...prev, formaPago: e.target.value }))} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                                <option value="">Selecciona</option>
-                                                                <option value="EFECTIVO">EFECTIVO</option>
-                                                                <option value="TARJETA CREDITO">TARJETA CREDITO</option>
-                                                                <option value="TARJETA DEBITO">TARJETA DEBITO</option>
-                                                                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                                                                <option value="DEPOSITO">DEPOSITO</option>
-                                                                <option value="PAGO EN LINEA">PAGO EN LINEA</option>
-                                                                <option value="CHEQUE">CHEQUE</option>
-                                                            </select>
-                                                        )}
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Fecha Emisión</label>
-                                                        <Input
-                                                            type="text"
-                                                            readOnly
-                                                            value={reciboDetalleSeleccionado?.fecha_Creacion || new Date().toLocaleDateString('es-MX', { day: '2-digit' , month: '2-digit', year: 'numeric' })}
-                                                            className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                        />
-                                                    </div>
-
-                                                    {/* Row 3: Recibí De (Full Width) */}
-                                                    <div className="col-span-4 space-y-2">
-                                                        <label className="text-sm font-medium">Recibí De</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <Input
-                                                                type="text"
-                                                                readOnly
-                                                                value={reciboDetalleSeleccionado.nombre}
-                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            />
-                                                        ) : (
-                                                            <select onChange={(e) => { const clienteSeleccionado = filasComparecientes.find(f => f.nombreCompareciente === e.target.value); setReciboData(prev => ({ ...prev, clienteId: clienteSeleccionado?.cliente_Id || null })); }} className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                                <option value="">Selecciona</option>
-                                                                {filasComparecientes.map((fila) => (
-                                                                    <option key={fila.id} value={fila.nombreCompareciente}>
-                                                                        {fila.nombreCompareciente}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Row 4: Impuestos y Derechos, Gastos Notariales, Honorarios, Total */}
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Impuestos y Derechos</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <Input
-                                                                type="text"
-                                                                readOnly
-                                                                value={`$${reciboDetalleSeleccionado.total_Gastos_Impuestos_Derechos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            />
-                                                        ) : (
-                                                            <Input
-                                                                type="number"
-                                                                step="0.5"
-                                                                min="0"
-                                                                value={reciboData.impuestosDerechos}
-                                                                onChange={(e) => setReciboData(prev => ({
-                                                                    ...prev,
-                                                                    impuestosDerechos: Math.max(0, parseFloat(e.target.value) || 0)
-                                                                }))}
-                                                                placeholder="0.00"
-                                                                className="text-sm bg-white dark:bg-white"
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Gastos Notariales</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <Input
-                                                                type="text"
-                                                                readOnly
-                                                                value={`$${reciboDetalleSeleccionado.total_Gastos_Notariales.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            />
-                                                        ) : (
-                                                            <Input
-                                                                type="number"
-                                                                step="0.5"
-                                                                min="0"
-                                                                value={reciboData.gastosNotariales}
-                                                                onChange={(e) => setReciboData(prev => ({
-                                                                    ...prev,
-                                                                    gastosNotariales: Math.max(0, parseFloat(e.target.value) || 0)
-                                                                }))}
-                                                                placeholder="0.00"
-                                                                className="text-sm bg-white dark:bg-white"
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Honorarios</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <Input
-                                                                type="text"
-                                                                readOnly
-                                                                value={`$${reciboDetalleSeleccionado.total_Honorarios.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
-                                                            />
-                                                        ) : (
-                                                            <Input
-                                                                type="number"
-                                                                step="0.5"
-                                                                min="0"
-                                                                value={reciboData.honorarios}
-                                                                onChange={(e) => setReciboData(prev => ({
-                                                                    ...prev,
-                                                                    honorarios: Math.max(0, parseFloat(e.target.value) || 0)
-                                                                }))}
-                                                                placeholder="0.00"
-                                                                className="text-sm bg-white dark:bg-white"
-                                                            />
-                                                        )}
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Total</label>
-                                                        <div className="px-3 py-2 border rounded-md text-right font-bold text-green-500 bg-white dark:bg-white">
-                                                            $ {reciboDetalleSeleccionado ? reciboDetalleSeleccionado.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (reciboData.impuestosDerechos + reciboData.gastosNotariales + reciboData.honorarios).toFixed(2)}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Row 4: Concepto (Full Width) */}
-                                                    <div className="col-span-4 space-y-2">
-                                                        <label className="text-sm font-medium">Concepto</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <textarea
-                                                                readOnly
-                                                                value={reciboDetalleSeleccionado.operacion_Concepto}
-                                                                rows={4}
-                                                                className="w-full px-3 py-2 border rounded-md bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-sm"
-                                                            />
-                                                        ) : (
-                                                            <textarea
-                                                                value={reciboData.concepto || formData.operaciones.join(', ')}
-                                                                onChange={(e) => setReciboData(prev => ({ ...prev, concepto: e.target.value }))}
-                                                                placeholder="Descripción del concepto del recibo..."
-                                                                rows={4}
-                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        )}
-                                                    </div>
-
-                                                    {/* Row 5: Observaciones (Full Width) */}
-                                                    <div className="col-span-4 space-y-2">
-                                                        <label className="text-sm font-medium">Observaciones</label>
-                                                        {reciboDetalleSeleccionado ? (
-                                                            <textarea
-                                                                readOnly
-                                                                value={reciboDetalleSeleccionado.observacion || ''}
-                                                                rows={3}
-                                                                className="w-full px-3 py-2 border rounded-md bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-sm"
-                                                            />
-                                                        ) : (
-                                                            <textarea
-                                                                value={reciboData.observaciones}
-                                                                onChange={(e) => setReciboData(prev => ({ ...prev, observaciones: e.target.value }))}
-                                                                placeholder="Observaciones adicionales..."
-                                                                rows={3}
-                                                                className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                                            />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex justify-end gap-2">
-                                                    {reciboDetalleSeleccionado ? (
-                                                        <>
-                                                            {/* Botón Cerrar - Siempre disponible */}
-                                                            <Button
-                                                                variant="outline"
-                                                                className="text-sm"
-                                                                onClick={() => {
-                                                                    setMostrarFormularioRecibo(false);
-                                                                    setMostrarFormInmueble(false);
-                                                                    setReciboDetalleSeleccionado(null);
-                                                                    setReciboData({
-                                                                        impuestosDerechos: 0,
-                                                                        gastosNotariales: 0,
-                                                                        honorarios: 0,
-                                                                        concepto: '',
-                                                                        formaPago: '',
-                                                                        observaciones: '',
-                                                                        clienteId: null
-                                                                    });
-                                                                }}
-                                                            >
-                                                                Cerrar
-                                                            </Button>
-
-                                                            {/* Botón Pagar - Solo si status es PENDIENTE */}
-                                                            {reciboDetalleSeleccionado.estatus === 'PENDIENTE' && (
-                                                                <Button
-                                                                    onClick={handlePagarRecibo}
-                                                                    disabled={cargandoReciboDetalle}
-                                                                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:bg-gray-400"
-                                                                >
-                                                                    {cargandoReciboDetalle ? 'Procesando...' : 'Pagar'}
-                                                                </Button>
-                                                            )}
-
-                                                            {/* Botón Cancelar - Solo si status es PENDIENTE o PAGADO */}
-                                                            {(reciboDetalleSeleccionado.estatus === 'PENDIENTE' || reciboDetalleSeleccionado.estatus === 'PAGADO') && (
-                                                                <Button
-                                                                    onClick={handleCancelarRecibo}
-                                                                    disabled={cargandoReciboDetalle}
-                                                                    className="bg-red-600 hover:bg-red-700 text-white text-sm disabled:bg-gray-400"
-                                                                >
-                                                                    {cargandoReciboDetalle ? 'Procesando...' : 'Cancelar Recibo'}
-                                                                </Button>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Button
-                                                                variant="outline"
-                                                                className="text-sm"
-                                                                onClick={() => {
-                                                                    setMostrarFormularioRecibo(false);
-                                                                    setMostrarFormInmueble(false);
-                                                                    setReciboDetalleSeleccionado(null);
-                                                                    setReciboData({
-                                                                        impuestosDerechos: 0,
-                                                                        gastosNotariales: 0,
-                                                                        honorarios: 0,
-                                                                        concepto: '',
-                                                                        formaPago: '',
-                                                                        observaciones: '',
-                                                                        clienteId: null
-                                                                    });
-                                                                }}
-                                                            >
-                                                                Cancelar
-                                                            </Button>
-                                                            <Button className="bg-green-600 hover:bg-green-700 text-sm" onClick={handleGuardarRecibo}>
-                                                                Generar Recibo
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            )}
-                                        </TabsContent>
-
-                                        {/* SubTab: Estado de Cuenta */}
-                                        <TabsContent value="estado-cuenta" className="space-y-4">
-                                            <div className="grid grid-cols-3 gap-4 mb-6">
-                                                <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-950/30">
-                                                    <p className="text-xs text-muted-foreground mb-1">Saldo Pendiente</p>
-                                                    <p className="text-2xl font-bold text-green-600">$0.00</p>
-                                                </div>
-                                                <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/30">
-                                                    <p className="text-xs text-muted-foreground mb-1">Total Pagado</p>
-                                                    <p className="text-2xl font-bold text-blue-600">$0.00</p>
-                                                </div>
-                                                <div className="border rounded-lg p-4 bg-amber-50 dark:bg-amber-950/30">
-                                                    <p className="text-xs text-muted-foreground mb-1">Total Adeudado</p>
-                                                    <p className="text-2xl font-bold text-amber-600">$0.00</p>
-                                                </div>
-                                            </div>
-                                            <div className="border rounded-lg p-4">
-                                                <h4 className="font-semibold mb-4">Histórico de Movimientos</h4>
-                                                <div className="text-sm text-muted-foreground text-center py-8">No hay movimientos registrados</div>
-                                            </div>
-                                        </TabsContent>
-
-                                        {/* SubTab: PLD (Prevención de Lavado de Dinero) */}
-                                        <TabsContent value="pld" className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Revisión PLD Realizada</label>
-                                                    <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona</option>
-                                                        <option value="SI">Sí</option>
-                                                        <option value="NO">No</option>
-                                                        <option value="PENDIENTE">Pendiente</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Fecha Revisión</label>
-                                                    <Input type="date" className="text-sm" />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Observaciones PLD</label>
-                                                <textarea placeholder="Resultado de la revisión PLD..." rows={4} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                            </div>
-                                        </TabsContent>
-
-                                        {/* SubTab: Operaciones de Lavado */}
-                                        <TabsContent value="operaciones-lavado" className="space-y-4">
-                                            <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-md mb-6">
-                                                <h3 className="font-semibold text-red-900 dark:text-red-100 mb-2">Registro de Operaciones Sospechosas</h3>
-                                                <Button size="sm" className="bg-red-600 hover:bg-red-700">+ Registrar Operación</Button>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <div className="border rounded-lg p-4 bg-background/50">
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Tipo de Operación</label>
-                                                            <Input type="text" placeholder="Tipo" className="text-sm" />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <label className="text-sm font-medium">Monto</label>
-                                                            <Input type="number" step="0.01" placeholder="0.00" className="text-sm" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Descripción/Justificación</label>
-                                                        <textarea placeholder="Justificación de la operación..." rows={3} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </TabsContent>
-
-                                        {/* SubTab: Exportaciones */}
-                                        <TabsContent value="exportaciones" className="space-y-4">
-                                            <div className="space-y-4 mb-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Requiere Exportación</label>
-                                                    <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona</option>
-                                                        <option value="SI">Sí, requiere exportación</option>
-                                                        <option value="NO">No requiere</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Tipo de Exportación</label>
-                                                    <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona tipo</option>
-                                                        <option value="SAT">SAT</option>
-                                                        <option value="BANCO">Sistema Bancario</option>
-                                                        <option value="OTRA">Otra</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Estatus de Exportación</label>
-                                                    <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona</option>
-                                                        <option value="PENDIENTE">Pendiente</option>
-                                                        <option value="En_PROCESO">En Proceso</option>
-                                                        <option value="COMPLETADA">Completada</option>
-                                                        <option value="RECHAZADA">Rechazada</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
+                                   <FinancieroControlForm
+                                        presupuestos={presupuestos}
+                                        cargandoPresupuestos={cargandoPresupuestos}
+                                        mostrarFormularioPresupuesto={mostrarFormularioPresupuesto}
+                                        setMostrarFormularioPresupuesto={setMostrarFormularioPresupuesto}
+                                        formPresupuesto={formPresupuesto}
+                                        setFormPresupuesto={setFormPresupuesto}
+                                        operacionFiltro={operacionFiltro}
+                                        setOperacionFiltro={setOperacionFiltro}
+                                        showOperacionDropdown={showOperacionDropdown}
+                                        setShowOperacionDropdown={setShowOperacionDropdown}
+                                        ret_isr_check={ret_isr_check}
+                                        setRetISRCheck={setRetISRCheck}
+                                        ret_iva_check={ret_iva_check}
+                                        setRetIVACheck={setRetIVACheck}
+                                        clienteSelectedPresupuesto={clienteSelectedPresupuesto}
+                                        setClienteSelectedPresupuesto={setClienteSelectedPresupuesto}
+                                        clienteFiltro={clienteFiltro}
+                                        setClienteFiltro={setClienteFiltro}
+                                        showClienteDropdown={showClienteDropdown}
+                                        setShowClienteDropdown={setShowClienteDropdown}
+                                        municipioFiltroPresupuesto={municipioFiltroPresupuesto}
+                                        setMunicipioFiltroPresupuesto={setMunicipioFiltroPresupuesto}
+                                        showMunicipioPresupuestoDropdown={showMunicipioPresupuestoDropdown}
+                                        setShowMunicipioPresupuestoDropdown={setShowMunicipioPresupuestoDropdown}
+                                        recibosProvisionales={recibosProvisionales}
+                                        cargandoRecibos={cargandoRecibos}
+                                        mostrarFormularioRecibo={mostrarFormularioRecibo}
+                                        setMostrarFormularioRecibo={setMostrarFormularioRecibo}
+                                        reciboDetalleSeleccionado={reciboDetalleSeleccionado}
+                                        setReciboDetalleSeleccionado={setReciboDetalleSeleccionado}
+                                        cargandoReciboDetalle={cargandoReciboDetalle}
+                                        reciboData={reciboData}
+                                        setReciboData={setReciboData}
+                                        datosPLD={datosPLD}
+                                        cargandoPLD={cargandoPLD}
+                                        operacionesDelExpediente={operacionesDelExpediente}
+                                        municipiosDisponibles={municipiosDisponibles}
+                                        filasComparecientes={filasComparecientes}
+                                        clientesDisponibles={clientesDisponibles}
+                                        formData={formData}
+                                        currentExpedienteId={currentExpedienteId}
+                                        handleGuardarRecibo={handleGuardarRecibo}
+                                        handlePagarRecibo={handlePagarRecibo}
+                                        handleCancelarRecibo={handleCancelarRecibo}
+                                        handleImprimirRecibo={handleImprimirRecibo}
+                                        fetchPresupuestos={fetchPresupuestos}
+                                        fetchReciboDetalle={fetchReciboDetalle}
+                                        showPresupuestoPrevioModal={showPresupuestoPrevioModal}
+                                        setShowPresupuestoPrevioModal={setShowPresupuestoPrevioModal}
+                                        presupuestosPrevios={presupuestosPrevios}
+                                        filtroPresupuestoPrevio={filtroPresupuestoPrevio}
+                                        setFiltroPresupuestoPrevio={setFiltroPresupuestoPrevio}
+                                        isSearchingPresupuestoPrevio={isSearchingPresupuestoPrevio}
+                                        errorPresupuestoPrevio={errorPresupuestoPrevio}
+                                        setErrorPresupuestoPrevio={setErrorPresupuestoPrevio}
+                                        fetchPresupuestosPrevios={fetchPresupuestosPrevios}
+                                        handleSelectPresupuestoPrevio={handleSelectPresupuestoPrevio}
+                                        addToast={addToast}
+                                        isLoadingHonorarios={isLoadingHonorarios}
+                                        setIsLoadingHonorarios={setIsLoadingHonorarios}
+                                        isLoadingImpuestos={isLoadingImpuestos}
+                                        setIsLoadingImpuestos={setIsLoadingImpuestos}
+                                        impuestosCalculados={impuestosCalculados}
+                                        setImpuestosCalculados={setImpuestosCalculados}
+                                        showImpuestosModal={showImpuestosModal}
+                                        setShowImpuestosModal={setShowImpuestosModal}
+                                        impuestosFiltro={impuestosFiltro}
+                                        setImpuestosFiltro={setImpuestosFiltro}
+                                        impuestosResultados={impuestosResultados}
+                                        isSearchingImpuestos={isSearchingImpuestos}
+                                        impuestosError={impuestosError}
+                                        dependenciasUnicas={dependenciasUnicas}
+                                        activeDependenciaTab={activeDependenciaTab}
+                                        setActiveDependenciaTab={setActiveDependenciaTab}
+                                        handleCalcularHonorarios={handleCalcularHonorarios}
+                                        handleCalcularImpuestos={handleCalcularImpuestos}
+                                        addImpuestoDerechos={addImpuestoDerechos}
+                                        addGastoNotarial={addGastoNotarial}
+                                        removeImpuestoDerechos={removeImpuestoDerechos}
+                                        updateImpuestoDerechos={updateImpuestoDerechos}
+                                        removeGastoNotarial={removeGastoNotarial}
+                                        updateGastoNotarial={updateGastoNotarial}
+                                        calcularTotales={calcularTotales}
+                                        ret_isr_check={ret_isr_check}
+                                        ret_iva_check={ret_iva_check}
+                                        handleSelectImpuesto={handleSelectImpuesto}
+                                        handleGuardarPresupuesto={handleGuardarPresupuesto}
+                                        handleObtenerDetallesPresupuesto={handleObtenerDetallesPresupuesto}
+                                        presupuestoEditandoId={presupuestoEditandoId}
+                                        setPresupuestoEditandoId={setPresupuestoEditandoId}
+                                        presupuestoValidado={presupuestoValidado}
+                                        setPresupuestoValidado={setPresupuestoValidado}
+                                        handleValidarPresupuesto={handleValidarPresupuesto}
+                                        handleEliminarPresupuesto={handleEliminarPresupuesto}
+                                        isSaving={isSaving}
+                                    />
                                 </TabsContent>
                                 )}
 
                                 {/* GRUPO 5: PROCESO & TRÁMITES - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="proceso-tramites" className="space-y-6">
-                                    <Tabs defaultValue="etapas-expediente" className="w-full">
-                                        <TabsList className="grid w-full grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
-                                            <TabsTrigger value="etapas-expediente" className="text-xs">Etapas</TabsTrigger>
-                                            <TabsTrigger value="solicitud-seguimiento" className="text-xs">Solicitud</TabsTrigger>
-                                            <TabsTrigger value="recibo-general" className="text-xs">Recibo General</TabsTrigger>
-                                        </TabsList>
-
-                                        {/* SubTab: Etapas del Expediente */}
-                                        <TabsContent value="etapas-expediente" className="space-y-4">
-                                            <div className="space-y-4">
-                                                {[
-                                                    { nombre: 'Recepción de Documentos', estatus: 'completada', fecha: '2024-01-15' },
-                                                    { nombre: 'Revisión Inicial', estatus: 'completada', fecha: '2024-01-16' },
-                                                    { nombre: 'Análisis Jurídico', estatus: 'completada', fecha: '2024-01-17' },
-                                                    { nombre: 'Validación PLD', estatus: 'en_proceso', fecha: null },
-                                                    { nombre: 'Firma de Escritura', estatus: 'pendiente', fecha: null },
-                                                    { nombre: 'Registro en RPC', estatus: 'pendiente', fecha: null }
-                                                ].map((etapa, idx) => (
-                                                    <div key={idx} className="border rounded-lg p-4">
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <h4 className="font-semibold text-sm">{etapa.nombre}</h4>
-                                                                {etapa.fecha && <p className="text-xs text-muted-foreground mt-1">Completado: {etapa.fecha}</p>}
-                                                            </div>
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                                etapa.estatus === 'completada' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-100' :
-                                                                etapa.estatus === 'en_proceso' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-100' :
-                                                                'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-100'
-                                                            }`}>
-                                                                {etapa.estatus.replace('_', ' ').toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </TabsContent>
-
-                                        {/* SubTab: Solicitud y Seguimiento de Trámites */}
-                                        <TabsContent value="solicitud-seguimiento" className="space-y-4">
-                                            <div className="space-y-4">
-                                                <div className="space-y-2 mb-6">
-                                                    <label className="text-sm font-medium">Tipo de Solicitud</label>
-                                                    <Input type="text" placeholder="Tipo de solicitud tramitada" className="text-sm" />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Fecha de Solicitud</label>
-                                                        <Input type="date" className="text-sm" />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-sm font-medium">Instancia</label>
-                                                        <Input type="text" placeholder="Dependencia tramitadora" className="text-sm" />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Estatus Actual</label>
-                                                    <select className="w-full px-3 py-2 border rounded-md bg-background border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm">
-                                                        <option value="">Selecciona estatus</option>
-                                                        <option value="PRETRÁMITE">Pretrámite</option>
-                                                        <option value="EN_TRAMITE">En Trámite</option>
-                                                        <option value="RESUELTO">Resuelto</option>
-                                                        <option value="RECHAZADO">Rechazado</option>
-                                                    </select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-sm font-medium">Observaciones</label>
-                                                    <textarea placeholder="Seguimiento y observaciones..." rows={4} className="w-full px-3 py-2 border rounded-md bg-background border-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
-                                                </div>
-                                            </div>
-                                        </TabsContent>
-
-                                        {/* SubTab: Recibo General */}
-                                        <TabsContent value="recibo-general" className="space-y-4">
-                                            <div className="border rounded-lg p-6 bg-slate-50 dark:bg-slate-900">
-                                                <div className="text-center mb-6">
-                                                    <h3 className="text-2xl font-bold mb-2">RECIBO GENERAL</h3>
-                                                    <p className="text-sm text-muted-foreground">Expediente Control Notarial</p>
-                                                </div>
-                                                <div className="space-y-3 text-sm">
-                                                    <div className="flex justify-between border-b pb-2">
-                                                        <span>Número de Expediente:</span>
-                                                        <span className="font-semibold">-</span>
-                                                    </div>
-                                                    <div className="flex justify-between border-b pb-2">
-                                                        <span>Fecha de Emisión:</span>
-                                                        <span className="font-semibold">-</span>
-                                                    </div>
-                                                    <div className="flex justify-between border-b pb-2">
-                                                        <span>Notario:</span>
-                                                        <span className="font-semibold">-</span>
-                                                    </div>
-                                                    <div className="flex justify-between border-b pb-2">
-                                                        <span>Monto Total:</span>
-                                                        <span className="font-semibold">$0.00</span>
-                                                    </div>
-                                                    <div className="flex justify-between font-bold pt-2">
-                                                        <span>TOTAL A PAGAR:</span>
-                                                        <span className="text-lg text-green-600">$0.00</span>
-                                                    </div>
-                                                </div>
-                                                <Button className="w-full mt-6 bg-blue-600 hover:bg-blue-700">Descargar Recibo</Button>
-                                            </div>
-                                        </TabsContent>
-
-
-                                    </Tabs>
+                                    <ProcesosForm formData={formData} currentExpedienteId={currentExpedienteId} />
                                 </TabsContent>
                                 )}
-
                             </Tabs>
-
-                        {/* BOTONES DE ACCIÓN */}
-                        {activeTab === 'formulario' && (
-                            <div className="flex gap-2 justify-end pt-6 border-t mt-6">
-                                <Button variant="outline" onClick={handleCancelEdit}>
-                                    <X className="h-4 w-4 mr-2" />
-                                    Cerrar
-                                </Button>
-                                {activeInternalTab === 'info-general' && (
-                                    <Button
-                                        onClick={handleSaveExpediente}
-                                        disabled={isSaving}
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                    >
-                                        {isSaving ? (
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        ) : (
-                                            <Plus className="h-4 w-4 mr-2" />
-                                        )}
-                                        {isEditing ? 'Actualizar' : 'Crear'} Expediente
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
 
-            {/* MODAL DE RECIBO DE DOCUMENTOS */}
-            {showReciboModal && reciboUrl && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-                    <div className="bg-white rounded-lg shadow-lg w-[95vw] h-[95vh] flex flex-col">
-                        <div className="flex justify-between items-center p-3 border-b bg-gray-50">
-                            <h2 className="text-lg font-bold">Recibo de Documentos</h2>
-                            <button
-                                onClick={closeReciboModal}
-                                className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <iframe
-                                src={reciboUrl}
-                                width="100%"
-                                height="100%"
-                                style={{ border: 'none' }}
-                                title="PDF Recibo"
-                            />
-                        </div>
-                        <div className="flex gap-2 justify-end p-3 border-t bg-gray-50">
-                            <a
-                                href={reciboUrl}
-                                download={`Recibo_Documentos_${currentExpedienteId}_${clienteSeleccionadoDocumentos}.pdf`}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-                            >
-                                Descargar PDF
-                            </a>
-                            <button
-                                onClick={closeReciboModal}
-                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
-                            >
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* VISOR DE PDF PARA RECIBOS PROVISIONALES */}
-            {showRecibosPdfViewer && recibosPdfUrl && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-                    <div className="bg-white rounded-lg shadow-lg w-[95vw] h-[95vh] flex flex-col">
-                        <div className="flex justify-between items-center p-3 border-b bg-gray-50">
-                            <h2 className="text-lg font-bold">Recibo Provisional</h2>
-                            <button
-                                onClick={closeRecibosPdfViewer}
-                                className="text-gray-500 hover:text-gray-700 text-3xl font-bold"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <iframe
-                                src={recibosPdfUrl}
-                                width="100%"
-                                height="100%"
-                                style={{ border: 'none' }}
-                                title="PDF Recibo Provisional"
-                            />
-                        </div>
-                        <div className="flex gap-2 justify-end p-3 border-t bg-gray-50">
-                            <a
-                                href={recibosPdfUrl}
-                                download={`Recibo_Provisional_${currentExpedienteId}.pdf`}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-                            >
-                                Descargar PDF
-                            </a>
-                            <button
-                                onClick={closeRecibosPdfViewer}
-                                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
-                            >
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* MODAL DE BÚSQUEDA DE CLIENTES PARA COMPARECIENTES */}
-            {showClienteModalComparecientes && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-background border rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
-                        {/* Header */}
-                        <div className="border-b px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <Users className="h-5 w-5" />
-                                Búsqueda de Clientes
-                            </h2>
-                            <button
-                                onClick={() => setShowClienteModalComparecientes(false)}
-                                className="text-muted-foreground hover:text-foreground"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
 
-                        {/* Body - Búsqueda */}
-                        <div className="border-b px-6 py-4 space-y-3">
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Input
-                                        value={clienteFiltroComparecientes}
-                                        onChange={(e) => setClienteFiltroComparecientes(e.target.value)}
-                                        placeholder="Buscar por nombre, RFC, CURP..."
-                                        className="pr-10 bg-white dark:bg-slate-900/50"
-                                    />
-                                    {clienteFiltroComparecientes && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setClienteFiltroComparecientes('');
-                                                setClienteResultadosComparecientes([]);
-                                                setClienteErrorComparecientes(null);
-                                            }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                                <Button
-                                    onClick={() => fetchClientesModal(clienteFiltroComparecientes)}
-                                    disabled={isSearchingClientesComparecientes}
-                                    className="bg-amber-600 hover:bg-amber-700"
-                                >
-                                    {isSearchingClientesComparecientes ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Search className="h-4 w-4" />
-                                    )}
-                                    <span className="ml-2">Buscar</span>
-                                </Button>
-                            </div>
-                            {clienteErrorComparecientes && (
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-red-50 border-red-200 text-red-800 text-sm">
-                                    <AlertCircle className="h-4 w-4 shrink-0" />
-                                    <span>{clienteErrorComparecientes}</span>
-                                </div>
-                            )}
-                        </div>
 
-                        {/* Table */}
-                        <div className="border rounded-lg overflow-hidden m-2">
-                            <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-200 dark:bg-slate-700 border-b sticky top-0">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left font-semibold">Nombre</th>
-                                            <th className="px-4 py-2 text-left font-semibold">RFC</th>
-                                            <th className="px-4 py-2 text-left font-semibold">CURP</th>
-                                            <th className="px-4 py-2 text-left font-semibold">Tipo</th>
-                                            <th className="px-4 py-2 text-center font-semibold w-20">Seleccionar</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {isSearchingClientesComparecientes ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
-                                                    <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                                                    Buscando clientes...
-                                                </td>
-                                            </tr>
-                                        ) : clienteResultadosComparecientes.filter(c => !filasComparecientes.some(f => f.cliente_Id === c.id)).length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-8 text-muted-foreground px-4">
-                                                    No se encontraron clientes disponibles.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            clienteResultadosComparecientes.filter(c => !filasComparecientes.some(f => f.cliente_Id === c.id)).map((cliente) => (
-                                                <tr key={cliente.id} className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors cursor-pointer">
-                                                    <td className="px-4 py-2 font-medium">{cliente.nombre} {cliente.apellido_Paterno} {cliente.apellido_Materno}</td>
-                                                    <td className="px-4 py-2 font-mono text-sm">{cliente.rfc}</td>
-                                                    <td className="px-4 py-2 font-mono text-sm">{cliente.curp}</td>
-                                                    <td className="px-4 py-2">{cliente.tipo_Cliente}</td>
-                                                    <td className="px-4 py-2 text-center">
-                                                        <Button
-                                                            onClick={() => handleSelectClienteFromModalComparecientes(cliente)}
-                                                            size="sm"
-                                                            className="bg-green-600 hover:bg-green-700"
-                                                        >
-                                                            <Plus className="h-4 w-4" />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
 
-                        {/* Footer */}
-                        <div className="border-t px-6 py-4 flex justify-end gap-2">
-                            <Button
-                                onClick={() => setShowClienteModalComparecientes(false)}
-                                variant="outline"
-                            >
-                                Cerrar
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
+
         </>
     );
 }

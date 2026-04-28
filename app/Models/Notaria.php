@@ -43,6 +43,7 @@ class Notaria extends Model
         'legacy_identifier',
         'legacy_busquedas_count',
         'legacy_ultima_busqueda',
+        'tenant_db_name',
     ];
 
     protected $casts = [
@@ -443,27 +444,35 @@ class Notaria extends Model
 
     /**
      * Nombre de la base de datos tenant de esta notaría.
+     *
+     * Usa el valor guardado en `tenant_db_name` si existe (recomendado por el
+     * desarrollador del API C# para conexión dinámica vía header X-Cn-Database).
+     * Si no está guardado, lo calcula automáticamente a partir del estado y número
+     * y lo persiste para que el API C# siempre tenga el valor disponible vía X-Cn-Database.
      * Ejemplo: atinet_edomex_notaria_10
      */
     public function tenantDatabaseName(): string
     {
-        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
+        if (! empty($this->tenant_db_name)) {
+            return $this->tenant_db_name;
+        }
 
-        return "atinet_{$estadoCodigo}_notaria_{$this->numero_notaria}";
+        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
+        $computed = "atinet_{$estadoCodigo}_notaria_{$this->numero_notaria}";
+
+        // Persistir para que el C# siempre tenga el valor disponible
+        $this->updateQuietly(['tenant_db_name' => $computed]);
+
+        return $computed;
     }
 
     /**
-     * Identificador corto que se pasa al C# como nombre_Notaria.
-     * Es el mismo sufijo del nombre de la BD (sin el prefijo 'atinet_').
+     * Identificador corto para el header X-Cn-Tenant.
+     * Es el nombre de la BD sin el prefijo 'atinet_'.
      * Ejemplo: edomex_notaria_10
-     *
-     * El C# usa este valor (campo nombre_Notaria en Login/Authentication)
-     * para seleccionar qué base de datos utilizar.
      */
     public function cnIdentifier(): string
     {
-        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
-
-        return "{$estadoCodigo}_notaria_{$this->numero_notaria}";
+        return str_replace('atinet_', '', $this->tenantDatabaseName());
     }
 }

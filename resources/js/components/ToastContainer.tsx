@@ -4,11 +4,11 @@ import { useToast, Toast } from '@/contexts/ToastContext';
 
 const ToastItem: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onClose }) => {
     React.useEffect(() => {
-        if (!toast.duration || toast.duration === 0) return;
+        if (!toast.duration || toast.duration <= 0) return;
 
         const timer = setTimeout(onClose, toast.duration);
         return () => clearTimeout(timer);
-    }, [toast.duration, onClose]);
+    }, [toast.id, toast.duration, onClose]);
 
     const styles: Record<string, { bg: string; border: string; icon: React.ReactNode; text: string }> = {
         success: {

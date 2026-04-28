@@ -1,9 +1,10 @@
-﻿import { Head } from '@inertiajs/react';
-import { BarChart3, Download, Filter, MapPin } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import { BarChart3, Download, Filter, MapPin, Loader2 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 import { removeToken } from '@/services/authService';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ const getTodayDate = () => {
 
 export default function ControlNotarialReporteUsuarios() {
     // --- Estado Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     const { addToast } = useToast();
     const api = useApi();
@@ -42,14 +44,18 @@ export default function ControlNotarialReporteUsuarios() {
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(false);
 
-    // Validar autenticación al montar — esperar isReady antes de fetching
-    const { isReady } = useAuthGuard();
+    // Validar autenticación al montar
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+        },
+    });
 
     // Cargar usuarios al montar el componente
     useEffect(() => {
-        if (!isReady) return;
         cargarUsuarios('');
-    }, [isReady]);
+    }, []);
 
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
@@ -58,6 +64,7 @@ export default function ControlNotarialReporteUsuarios() {
             const response = await api.get(endpoint);
 
             await handleControlNotarialResponse(response, {
+                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             // Si es 401, useAuthGuard maneja el toast
@@ -94,7 +101,7 @@ export default function ControlNotarialReporteUsuarios() {
                 return fecha.replace(/-/g, '/');
             };
 
-            // Construir URL con parámetros, omitiendo operacion si es 'all'
+            // Construir endpoint con parámetros
             const params = new URLSearchParams();
             params.append('userId', userId && userId !== 'all' ? userId : '0');
             if (operacion && operacion !== 'all') {
@@ -106,40 +113,41 @@ export default function ControlNotarialReporteUsuarios() {
             const endpoint = `/Bitacora/GenerateReporteBitacora?${params.toString()}`;
             console.log(`[DEBUG] Solicitando PDF a: ${endpoint}`);
 
-            // Hacer fetch directo para obtener el PDF como blob
-            // (Esta es una llamada especial que devuelve binario, no JSON)
-            const token = localStorage.getItem('auth_token');
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+            // Usar api.getBlob() para obtener el PDF
+            const { blob, response } = await api.getBlob(endpoint);
 
-            const responseBlob = await fetch(api.baseUrl + endpoint, {
-                method: 'GET',
-                headers,
-            });
-
-            // Detectar 401 - el gateway renovará el token en la siguiente llamada
-            if (responseBlob.status === 401) {
+            if (response?.isUnauthorized) {
                 removeToken();
-                addToast('Tu sesión ha expirado. Por favor, intenta de nuevo.', 'error');
+                setLoginModalOpen(true);
+                addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
                 return;
             }
 
-            if (!responseBlob.ok) {
-                throw new Error(`Error ${responseBlob.status}: ${responseBlob.statusText}`);
+            if (!blob) {
+                addToast(response?.message || 'Error al generar el reporte', 'error');
+                return;
             }
 
-            // Obtener el PDF como blob
-            const pdfBlob = await responseBlob.blob();
-            console.log(`[DEBUG] PDF recibido, tamaño: ${pdfBlob.size} bytes`);
+            // Detectar si el blob es JSON (error/sin datos) en lugar de PDF
+            const blobText = await blob.text();
+            if (blobText.startsWith('{') || blobText.startsWith('[')) {
+                try {
+                    const jsonData = JSON.parse(blobText);
+                    addToast(jsonData.message || 'No hay datos para generar el reporte', 'info');
+                    return;
+                } catch (e) {
+                    // Si no se puede parsear, continuar con el blob normal
+                }
+            }
 
-            // Crear una URL para el blob
-            const blobUrl = URL.createObjectURL(pdfBlob);
-            setPdfUrl(blobUrl);
-            addToast('Reporte generado correctamente', 'success');
+            if (response?.success !== false) {
+                const blobUrl = URL.createObjectURL(blob);
+                setPdfUrl(blobUrl);
+                console.log(`[DEBUG] PDF recibido, tamaño: ${blob.size} bytes`);
+                addToast('Reporte generado correctamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al generar el reporte', 'error');
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error desconocido';
             console.error('[DEBUG] Error:', message);
@@ -167,6 +175,8 @@ export default function ControlNotarialReporteUsuarios() {
     return (
         <>
             <Head title="Reporte de Bitácora - Control Notarial" />
+            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+
               <div className="space-y-6 px-6 pt-6">
 
 
@@ -231,7 +241,11 @@ export default function ControlNotarialReporteUsuarios() {
                                 disabled={isLoading}
                                 className="gap-2"
                             >
-                                <Filter className="h-4 w-4" />
+                                {isLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Filter className="h-4 w-4" />
+                                )}
                                 {isLoading ? 'Generando...' : 'Generar Reporte'}
                             </Button>
                             {pdfUrl && (
@@ -261,7 +275,17 @@ export default function ControlNotarialReporteUsuarios() {
                         </div>
                     )}
 
-                    {!pdfUrl && (
+                    {isLoading && !pdfUrl && (
+                        <div className="bg-background border rounded-lg p-12 text-center">
+                            <Loader2 className="h-12 w-12 mx-auto text-blue-500 mb-4 animate-spin" />
+                            <h3 className="text-lg font-semibold mb-2">Generando reporte...</h3>
+                            <p className="text-muted-foreground">
+                                Por favor espera mientras se genera el reporte
+                            </p>
+                        </div>
+                    )}
+
+                    {!isLoading && !pdfUrl && (
                         <div className="bg-background border rounded-lg p-12 text-center">
                             <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                             <h3 className="text-lg font-semibold mb-2">Sin reporte generado</h3>

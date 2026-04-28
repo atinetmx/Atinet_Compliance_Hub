@@ -1,10 +1,9 @@
-﻿import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
+import LoginModal from '@/components/Modals/LoginModal';
 
 import type { BreadcrumbItem } from '@/types';
 
@@ -138,8 +138,6 @@ const formatCurrency = (value: number): string => {
 };
 
 export default function PresupuestoPrevioIndex() {
-    // --- Autenticación ---
-
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<PresupuestoPrevioBusqueda[]>([]);
@@ -194,31 +192,49 @@ export default function PresupuestoPrevioIndex() {
     const [dependenciasUnicas, setDependenciasUnicas] = useState<string[]>([]);
     const [activeDependenciaTab, setActiveDependenciaTab] = useState<string>('');
 
+    // --- Autenticación ---
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+    const initializedRef = useRef(false);
     const { addToast } = useToast();
     const api = useApi();
     const { props } = usePage();
-    const apiBaseUrl = (props as any).apiBaseUrl || '/admin/cn-api';
+    const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
-    // ✅ Validar token al montar la página — esperar isReady antes de fetching
-    const { isReady } = useAuthGuard();
+    // ✅ Validar token al montar la página
+    useAuthGuard({
+        onUnauthorized: () => {
+            setLoginModalOpen(true);
+            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
+        }
+    });
 
-    // fetchPresupuestos ya lo maneja el useEffect([filtro, isReady]) con debounce — no duplicar aquí
-
-    // Cargar clientes al montar
+    // Cargar todos los datos al montar (solo una vez)
     useEffect(() => {
-        if (!isReady) return;
+        // Prevenir doble fetch en React Strict Mode (desarrollo)
+        if (initializedRef.current) return;
+        initializedRef.current = true;
+
+        // Cargar presupuestos al montar (filtro vacío = todos)
+        fetchPresupuestos('');
+
+        // Cargar clientes al montar
         const fetchClientes = async () => {
             try {
                 setIsLoadingClientes(true);
                 const response = await api.get('/Clientes/GetClientes');
 
-                // ✅ Usar helper para manejar respuesta
-                const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error')
-                });
+                // ✅ Verificar si el token expiró
+                if (response?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
 
-                if (datos) {
-                    setClientes(datos);
+                if (response && response.dataResponse) {
+                    setClientes(response.dataResponse || []);
+                } else if (!response?.isUnauthorized) {
+                    const message = response?.message || 'Error al obtener los clientes';
+                    addToast(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cargando clientes:', error);
@@ -229,23 +245,24 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchClientes();
-    }, [isReady, addToast, api]);
 
-    // Cargar operaciones al montar
-    useEffect(() => {
-        if (!isReady) return;
+        // Cargar operaciones al montar
         const fetchOperaciones = async () => {
             try {
                 setIsLoadingOperaciones(true);
-                const response = await getCatalogoCacheado('/Catalogos/GetOperaciones', () => api.get('/Catalogos/GetOperaciones'));
+                const response = await api.get('/Catalogos/GetOperaciones');
 
-                // ✅ Usar helper
-                const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error')
-                });
+                // ✅ Verificar si el token expiró
+                if (response?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
 
-                if (datos) {
-                    setOperaciones(datos);
+                if (response && response.dataResponse) {
+                    setOperaciones(response.dataResponse || []);
+                } else if (!response?.isUnauthorized) {
+                    const message = response?.message || 'Error al obtener las operaciones';
+                    addToast(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cargando operaciones:', error);
@@ -256,23 +273,24 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchOperaciones();
-    }, [isReady, addToast, api]);
 
-    // Cargar zonas/municipios al montar
-    useEffect(() => {
-        if (!isReady) return;
+        // Cargar zonas/municipios al montar
         const fetchZonas = async () => {
             try {
                 setIsLoadingZonas(true);
-                const response = await getCatalogoCacheado('/Catalogos/GetZonasMunicipios', () => api.get('/Catalogos/GetZonasMunicipios'));
+                const response = await api.get('/Catalogos/GetZonasMunicipios');
 
-                // ✅ Usar helper
-                const datos = handleControlNotarialResponse(response, {
-                    onError: (msg) => addToast(msg, 'error')
-                });
+                // ✅ Verificar si el token expiró
+                if (response?.isUnauthorized) {
+                    setLoginModalOpen(true);
+                    return;
+                }
 
-                if (datos) {
-                    setZonas(datos);
+                if (response && response.dataResponse) {
+                    setZonas(response.dataResponse || []);
+                } else if (!response?.isUnauthorized) {
+                    const message = response?.message || 'Error al obtener las zonas/municipios';
+                    addToast(message, 'error');
                 }
             } catch (error) {
                 console.error('Error cargando zonas:', error);
@@ -283,19 +301,16 @@ export default function PresupuestoPrevioIndex() {
             }
         };
         fetchZonas();
-    }, [isReady, addToast, api]);
+    }, []);
 
     // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
-    // isReady incluido para no disparar antes de que el JWT esté disponible
     useEffect(() => {
-        if (!isReady) return;
-
         const debounceTimer = setTimeout(() => {
             fetchPresupuestos(filtro);
         }, 300); // Esperar 300ms después de que el usuario deje de escribir
 
         return () => clearTimeout(debounceTimer);
-    }, [filtro, isReady]);
+    }, [filtro]);
 
     // Cargar impuestos y derechos por operación
     useEffect(() => {
@@ -465,15 +480,19 @@ export default function PresupuestoPrevioIndex() {
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
-            if (data.isUnauthorized) {
-                // 401 manejado por useAuthGuard — no mostrar banner
+            const response = await api.get(endpoint);
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setResultados([]);
                 return;
             }
-            if (data.success && data.dataResponse) {
-                setResultados(data.dataResponse || []);
+
+            if (response && response.dataResponse) {
+                setResultados(response.dataResponse || []);
             } else {
-                setSearchError(data.message || 'No se pudieron cargar los presupuestos previos.');
+                setSearchError(response?.message || 'No se pudieron cargar los presupuestos previos.');
                 setResultados([]);
             }
         } catch (error) {
@@ -509,16 +528,23 @@ export default function PresupuestoPrevioIndex() {
         setIsSearchingImpuestos(true);
         setImpuestosError(null);
         try {
-            const data = await getCatalogoCacheado('/Catalogos/GetImpuestosDerechos', () => api.get('/Catalogos/GetImpuestosDerechos'));
-            if (data && data.dataResponse) {
-                setImpuestosResultados(data.dataResponse || []);
+            const response = await api.get('/Catalogos/GetImpuestosDerechos');
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                return;
+            }
+
+            if (response && response.dataResponse) {
+                setImpuestosResultados(response.dataResponse || []);
                 // Extraer dependencias únicas
-                const deps = Array.from(new Set(data.dataResponse.map((item: any) => item.dependencia_Publica)));
+                const deps = Array.from(new Set(response.dataResponse.map((item: any) => item.dependencia_Publica)));
                 const allDeps = ['Todas', ...deps.filter(d => d) as string[]];
                 setDependenciasUnicas(allDeps);
                 setActiveDependenciaTab('Todas');
             } else {
-                setImpuestosError(data?.message || 'No se pudieron cargar los impuestos');
+                setImpuestosError(response?.message || 'No se pudieron cargar los impuestos');
             }
         } catch (error) {
             console.error('Error cargando impuestos:', error);
@@ -687,24 +713,17 @@ export default function PresupuestoPrevioIndex() {
                 ? `/Presupuestos/UpdatePresupuestoPrevio?presupuestoPrevioId=${formData.id}`
                 : '/Presupuestos/CreatePresupuestoPrevio';
 
-            const response = isEditing && formData.id
+            const data = isEditing && formData.id
                 ? await api.put(url, payload)
                 : await api.post(url, payload);
 
-            // Verificar si fue éxito
-            const isSuccess = response?.success !== false;
-
-            if (isSuccess) {
-                addToast(response?.message || `Presupuesto ${isEditing ? 'actualizado' : 'creado'} correctamente`, 'success');
+            if (data) {
                 setFormData(defaultPresupuestoData);
                 setOperacionFiltro('');
                 setZonaFiltro('');
                 setIsEditing(false);
                 setActiveTab('busqueda');
                 fetchPresupuestos(filtro);
-            } else {
-                setSaveError(response?.message || 'Error al guardar el presupuesto');
-                addToast(response?.message || 'Error al guardar el presupuesto', 'error');
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
@@ -726,20 +745,19 @@ export default function PresupuestoPrevioIndex() {
             // Llamar a la API para obtener los detalles completos del presupuesto
             const response = await api.get(`/Presupuestos/GetPresupuestoPrevioById?presupuestoPrevioId=${presupuesto.id}`);
 
-            const data_response = handleControlNotarialResponse(response, {
-                onError: (msg) => addToast(msg, 'error')
-            });
-
-            // Si fue 401, detener aquí
-            if (!data_response && response?.isUnauthorized) {
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
                 setIsEditing(false);
+                setActiveTab('busqueda');
                 return;
             }
 
-            if (!data_response) {
+            if (!response || !response.dataResponse) {
                 throw new Error('Error al obtener los detalles del presupuesto');
             }
 
+            const data_response = response.dataResponse;
             const { presupuestoPrevio, impuestosDerechos, gastosNotariales } = data_response;
 
             // Mapear impuestos y derechos al formato DetalleItem
@@ -818,11 +836,19 @@ export default function PresupuestoPrevioIndex() {
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
-            const data = await api.get(endpoint);
-            if (data.success && data.dataResponse) {
-                setClienteResultados(data.dataResponse || []);
+            const response = await api.get(endpoint);
+
+            // ✅ Verificar si el token expiró
+            if (response?.isUnauthorized) {
+                setLoginModalOpen(true);
+                setClienteResultados([]);
+                return;
+            }
+
+            if (response && response.dataResponse) {
+                setClienteResultados(response.dataResponse || []);
             } else {
-                setClienteError(data.message || 'No se encontraron clientes.');
+                setClienteError(response?.message || 'No se encontraron clientes.');
                 setClienteResultados([]);
             }
         } catch (error) {
@@ -848,23 +874,24 @@ export default function PresupuestoPrevioIndex() {
 
         try {
             setIsLoadingPdf(true);
-            const response = await fetch(`${apiBaseUrl}/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`, {
-                method: 'GET',
-            });
+            const { blob, response } = await api.getBlob(`/Presupuestos/GenerateReciboPresupuestoPrevio?presupuestoPrevioId=${formData.id}`);
 
-            if (!response.ok) {
-                throw new Error('Error al generar el PDF');
+            if (response?.isUnauthorized) {
+                addToast('No autorizado para generar el PDF', 'error');
+                return;
             }
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            setPdfUrl(url);
-            setShowPdfViewer(true);
-            addToast('PDF cargado correctamente', 'success');
+            if (blob && response?.success !== false) {
+                const url = URL.createObjectURL(blob);
+                setPdfUrl(url);
+                setShowPdfViewer(true);
+                addToast('PDF cargado correctamente', 'success');
+            } else {
+                addToast(response?.message || 'Error al generar el PDF', 'error');
+            }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Error al generar el PDF';
-            addToast(message, 'error');
-            console.error('Error:', error);
+            console.error('Error generando PDF:', error);
+            addToast('No se pudo generar el PDF', 'error');
         } finally {
             setIsLoadingPdf(false);
         }
@@ -1182,7 +1209,7 @@ export default function PresupuestoPrevioIndex() {
                                                                         setZonaFiltro(zona.descripcion);
                                                                         setShowZonaDropdown(false);
                                                                     }}
-                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-50 border-b last:border-b-0 text-sm"
+                                                                    className="w-full text-left px-3 py-2 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-sm"
                                                                 >
                                                                     {zona.descripcion}
                                                                 </button>
@@ -1219,7 +1246,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_operacion"
                                                     type="number"
-                                                    step="1"
+                                                    step="0.01"
                                                     value={formData.valor_operacion}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1231,7 +1258,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_avaluo"
                                                     type="number"
-                                                    step="1"
+                                                    step="0.01"
                                                     value={formData.valor_avaluo}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1243,7 +1270,7 @@ export default function PresupuestoPrevioIndex() {
                                                 <Input
                                                     name="valor_catastral"
                                                     type="number"
-                                                    step="1"
+                                                    step="0.01"
                                                     value={formData.valor_catastral}
                                                     onChange={handleInputChange}
                                                     placeholder="0.00"
@@ -1923,7 +1950,14 @@ export default function PresupuestoPrevioIndex() {
                         </div>
                     </div>
                 </div>
-            )}        </>
+            )}
+
+            <LoginModal
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+                onSuccess={() => setLoginModalOpen(false)}
+            />
+        </>
     );
 }
 
