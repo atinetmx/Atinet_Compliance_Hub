@@ -1,10 +1,10 @@
-import { Head, usePage } from '@inertiajs/react';
+﻿import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Building, Users, Check } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
+
 import { useToast } from '@/contexts/ToastContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -226,8 +226,6 @@ const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlF
 );
 
 export default function ExpedientesIndex() {
-    // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
     const messageModal = useMessageModal();
 
@@ -238,12 +236,7 @@ export default function ExpedientesIndex() {
     const [searchError, setSearchError] = useState<string | null>(null);
 
     // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    useAuthGuard();
 
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');
@@ -695,7 +688,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 setPresupuestos([]);
@@ -725,7 +717,6 @@ export default function ExpedientesIndex() {
 
             const response = await api.get(`/Presupuestos/GetPresupuestosPrevios?${params}`);
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (response?.isUnauthorized) {
@@ -752,7 +743,6 @@ export default function ExpedientesIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -898,7 +888,6 @@ export default function ExpedientesIndex() {
             const response = await api.post('/Presupuestos/CreatePresupuesto', payload);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -928,7 +917,6 @@ export default function ExpedientesIndex() {
             const response = await api.get(`/Presupuestos/GetPresupuestoById?presupuestoId=${presupuestoId}`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1018,7 +1006,6 @@ export default function ExpedientesIndex() {
             const response = await api.put(`/Presupuestos/ValidateInvalidatePresupuesto?presupuestoId=${presupuestoEditandoId}`, {});
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1064,7 +1051,6 @@ export default function ExpedientesIndex() {
             const response = await api.delete(`/Presupuestos/DeletePresupuesto?presupuestoId=${presupuestoEditandoId}`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1192,7 +1178,6 @@ export default function ExpedientesIndex() {
             const response = await api.get('/Catalogos/GetImpuestosDerechos');
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1318,7 +1303,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetOperaciones');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1341,7 +1325,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetZonasMunicipios');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1364,7 +1347,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/User/GetRolesUsuarios');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1386,7 +1368,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetDependenciasPublicas');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1408,7 +1389,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Clientes/GetClientes');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1429,7 +1409,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetComparecientes');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1455,7 +1434,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetTipoInmueble');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1626,7 +1604,6 @@ export default function ExpedientesIndex() {
                 : await api.post(endpoint, payload);
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -1704,7 +1681,6 @@ export default function ExpedientesIndex() {
         try {
             const { blob, response } = await api.getBlob('/Catalogos/GetDocumentos');
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para cargar documentos', 'error');
                 return;
             }
@@ -1831,7 +1807,6 @@ export default function ExpedientesIndex() {
             );
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar el recibo', 'error');
                 return;
             }
@@ -1916,7 +1891,6 @@ export default function ExpedientesIndex() {
             );
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -1965,7 +1939,6 @@ export default function ExpedientesIndex() {
             );
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -2296,7 +2269,6 @@ export default function ExpedientesIndex() {
             const response = await api.get(endpoint);
 
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             // Si es 401, useAuthGuard maneja el toast
@@ -2752,7 +2724,6 @@ export default function ExpedientesIndex() {
                 : await api.post(endpoint, requestPayload);
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -2896,7 +2867,6 @@ export default function ExpedientesIndex() {
             );
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para asignar folios', 'error');
                 return;
             }
@@ -3248,7 +3218,6 @@ export default function ExpedientesIndex() {
             const data = await api.post('/ReciboProvisional/CreateReciboProvisional', payload);
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -3285,7 +3254,6 @@ export default function ExpedientesIndex() {
             const data = await api.put(`/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -3322,7 +3290,6 @@ export default function ExpedientesIndex() {
             const data = await api.put(`/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -3354,7 +3321,6 @@ export default function ExpedientesIndex() {
             const { blob, response } = await api.getBlob(`/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar el recibo', 'error');
                 return;
             }
@@ -3386,7 +3352,6 @@ export default function ExpedientesIndex() {
     return (
         <>
             <Head title="Expedientes - Control Notarial" />
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
             <PDFViewerModal
                 isOpen={showRecibosPdfViewer}
                 onClose={closeRecibosPdfViewer}

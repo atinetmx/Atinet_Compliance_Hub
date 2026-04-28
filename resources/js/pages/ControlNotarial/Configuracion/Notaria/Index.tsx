@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import {
     Building2,
     Settings,
@@ -23,8 +23,6 @@ import { useApi } from '@/services/api';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RequiredLabel } from '@/components/ui/label';
@@ -142,15 +140,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function ControlNotarialConfiguracionIndex() {
     const { addToast } = useToast();
     const api = useApi();
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // ✅ Validar token al montar la página
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
-        }
-    });
+    useAuthGuard();
+
     const [notariaData, setNotariaData] = useState<NotariaData>({
         nombre: '',
         domicilio: '',
@@ -244,7 +237,6 @@ export default function ControlNotarialConfiguracionIndex() {
             const response = await api.get(`/Folios/EstatusFolios`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 setErrorFoliosCreacion('No autorizado');
                 return;
             }
@@ -274,7 +266,6 @@ export default function ControlNotarialConfiguracionIndex() {
             const response = await api.post('/Folios/CreateFolios', {});
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar folios', 'error');
                 return;
             }
@@ -305,7 +296,6 @@ export default function ControlNotarialConfiguracionIndex() {
             const { blob, response } = await api.getBlob?.(`/Folios/GenerarReporteFoliosI`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar folios', 'error');
                 return;
             }
@@ -346,7 +336,6 @@ export default function ControlNotarialConfiguracionIndex() {
             const { blob, response } = await api.getBlob?.(url);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar folios', 'error');
                 return;
             }
@@ -376,7 +365,6 @@ export default function ControlNotarialConfiguracionIndex() {
 
                 const notaria = handleControlNotarialResponse(response, {
                     onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
                 });
 
                 // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
@@ -428,7 +416,6 @@ export default function ControlNotarialConfiguracionIndex() {
 
                 const config = handleControlNotarialResponse(response, {
                     onError: (msg) => addToast(msg, 'error'),
-                    onUnauthorized: () => setLoginModalOpen(true)
                 });
 
                 // Si es 401, NO mostrar error adicional (ya se maneja en onUnauthorized)
@@ -527,7 +514,6 @@ export default function ControlNotarialConfiguracionIndex() {
 
             // Verificar si fue 401
             if (notariaResponse?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -578,7 +564,6 @@ export default function ControlNotarialConfiguracionIndex() {
 
                 // Verificar si fue 401
                 if (controlResponse?.isUnauthorized) {
-                    setLoginModalOpen(true);
                     return;
                 }
 
@@ -675,7 +660,6 @@ export default function ControlNotarialConfiguracionIndex() {
             const response = await api.get(url);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 setErrorFolios('No autorizado');
                 return;
             }
@@ -1773,11 +1757,6 @@ export default function ControlNotarialConfiguracionIndex() {
 
         </div>
 
-        <LoginModal
-            isOpen={loginModalOpen}
-            onClose={() => setLoginModalOpen(false)}
-            onSuccess={() => setLoginModalOpen(false)}
-        />
         <PDFViewerModal
             isOpen={showPdfFoliosViewer}
             onClose={closePdfFoliosViewer}

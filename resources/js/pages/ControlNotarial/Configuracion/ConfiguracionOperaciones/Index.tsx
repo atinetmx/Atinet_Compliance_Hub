@@ -290,7 +290,6 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 const response = await api.post(url, payload);
 
                 await handleControlNotarialResponse(response, {
-                    onUnauthorized: () => setLoginModalOpen(true),
                 });
 
                 if (response?.isUnauthorized) {

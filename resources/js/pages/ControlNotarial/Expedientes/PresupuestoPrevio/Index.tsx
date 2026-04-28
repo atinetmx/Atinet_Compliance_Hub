@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+﻿import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, DollarSign, Eye, Users } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
@@ -18,8 +18,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { useToast } from '@/contexts/ToastContext';
-import LoginModal from '@/components/Modals/LoginModal';
-
 import type { BreadcrumbItem } from '@/types';
 
 interface PresupuestoPrevioData {
@@ -192,9 +190,6 @@ export default function PresupuestoPrevioIndex() {
     const [dependenciasUnicas, setDependenciasUnicas] = useState<string[]>([]);
     const [activeDependenciaTab, setActiveDependenciaTab] = useState<string>('');
 
-    // --- Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
-
     const initializedRef = useRef(false);
     const { addToast } = useToast();
     const api = useApi();
@@ -202,12 +197,7 @@ export default function PresupuestoPrevioIndex() {
     const apiBaseUrl = (props as any).apiBaseUrl || 'https://localhost:44327/api';
 
     // ✅ Validar token al montar la página
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor inicia sesión.', 'warning');
-        }
-    });
+    useAuthGuard();
 
     // Cargar todos los datos al montar (solo una vez)
     useEffect(() => {
@@ -226,7 +216,6 @@ export default function PresupuestoPrevioIndex() {
 
                 // ✅ Verificar si el token expiró
                 if (response?.isUnauthorized) {
-                    setLoginModalOpen(true);
                     return;
                 }
 
@@ -254,7 +243,6 @@ export default function PresupuestoPrevioIndex() {
 
                 // ✅ Verificar si el token expiró
                 if (response?.isUnauthorized) {
-                    setLoginModalOpen(true);
                     return;
                 }
 
@@ -282,7 +270,6 @@ export default function PresupuestoPrevioIndex() {
 
                 // ✅ Verificar si el token expiró
                 if (response?.isUnauthorized) {
-                    setLoginModalOpen(true);
                     return;
                 }
 
@@ -484,7 +471,6 @@ export default function PresupuestoPrevioIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 setResultados([]);
                 return;
             }
@@ -532,7 +518,6 @@ export default function PresupuestoPrevioIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -747,7 +732,6 @@ export default function PresupuestoPrevioIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 setIsEditing(false);
                 setActiveTab('busqueda');
                 return;
@@ -840,7 +824,6 @@ export default function PresupuestoPrevioIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 setClienteResultados([]);
                 return;
             }
@@ -1952,11 +1935,6 @@ export default function PresupuestoPrevioIndex() {
                 </div>
             )}
 
-            <LoginModal
-                isOpen={loginModalOpen}
-                onClose={() => setLoginModalOpen(false)}
-                onSuccess={() => setLoginModalOpen(false)}
-            />
         </>
     );
 }
