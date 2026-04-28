@@ -162,6 +162,16 @@ class Notaria extends Model
     }
 
     /**
+     * Módulos de Control Notarial habilitados para esta notaría.
+     */
+    public function cnModulos(): BelongsToMany
+    {
+        return $this->belongsToMany(CnModulo::class, 'notaria_cn_modulos', 'notaria_id', 'cn_modulo_id')
+            ->withPivot(['is_enabled', 'configuracion'])
+            ->withTimestamps();
+    }
+
+    /**
      * Servicios asignados a esta notaría
      */
     public function services(): BelongsToMany
