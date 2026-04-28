@@ -102,12 +102,14 @@ return [
     */
 
     'control_notarial' => [
+        // URL pública (frontend → C# directo, con JWT del usuario)
         'api_url' => env('CONTROL_NOTARIAL_API_URL', 'https://srvatinet.atinet.com.mx:7443/api'),
-        
-        // Future Gateway configuration (not used yet)
-        'server_user' => env('CONTROL_NOTARIAL_SERVER_USER'),
-        'server_password' => env('CONTROL_NOTARIAL_SERVER_PASSWORD'),
-        'token_cache_ttl' => (int) env('CONTROL_NOTARIAL_TOKEN_CACHE', 3600),
+        // URL interna server-to-server (Laravel → C#, sin pasar por internet)
+        'internal_url' => env('CONTROL_NOTARIAL_INTERNAL_URL', 'http://192.168.1.1:5000/api'),
+        // Credenciales del usuario gateway
+        'gw_user' => env('CONTROL_NOTARIAL_GW_USER', 'LARAVEL_GW'),
+        'gw_password' => env('CONTROL_NOTARIAL_GW_PASSWORD'),
+        'token_cache_ttl' => (int) env('CONTROL_NOTARIAL_TOKEN_CACHE', 3300),
     ],
 
 ];

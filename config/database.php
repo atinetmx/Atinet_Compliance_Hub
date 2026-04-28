@@ -64,16 +64,35 @@ return [
         ],
 
         // =========================================================
-        // CONEXIÓN BD CONTROL NOTARIAL (sistema de Alex)
-        // Origen de migración: bd_sistemacontrolnotarial_principal
+        // ARQUITECTURA CONTROL NOTARIAL — LEER ANTES DE MODIFICAR
+        // =========================================================
+        // El sistema Control Notarial fue desarrollado originalmente por Alex
+        // en C# con su propia BD SQL Server separada.
+        //
+        // Al integrarlo con este proyecto Laravel, Alex NO corrió las
+        // migraciones completas. Solo ejecutó las básicas de Laravel y
+        // unificó manualmente sus tablas funcionales (tbl_cat_usuarios,
+        // tbl_log_sesiones_activas, tbl_cat_*, etc.) dentro de la BD
+        // principal de Laravel: atinet_compliance_hub.
+        //
+        // RESULTADO: TODAS las tablas de Control Notarial viven en la
+        // misma BD MySQL que usa Laravel (conexión 'mysql' / default).
+        // La API C# en http://192.168.1.1:5000/api también apunta a
+        // esta misma BD para poder funcionar.
+        //
+        // POR LO TANTO:
+        //   - DB::table('tbl_cat_usuarios') → correcto (usa conexión default)
+        //   - DB::connection('controlnotarial')->table(...) → INNECESARIO,
+        //     esta entrada es solo un alias a la misma BD para claridad.
+        //   - NO existe una BD separada en puerto 3307 ni SQL Server propio.
         // =========================================================
         'controlnotarial' => [
             'driver' => 'mysql',
-            'host' => env('CN_DB_HOST', '127.0.0.1'),
-            'port' => env('CN_DB_PORT', '3307'),
-            'database' => env('CN_DB_DATABASE', 'bd_sistemacontrolnotarial_principal'),
-            'username' => env('CN_DB_USERNAME', env('DB_USERNAME', 'root')),
-            'password' => env('CN_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_DATABASE', 'atinet_compliance_hub'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',

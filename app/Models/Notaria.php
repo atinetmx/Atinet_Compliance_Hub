@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoMexico;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,6 +43,7 @@ class Notaria extends Model
         'legacy_identifier',
         'legacy_busquedas_count',
         'legacy_ultima_busqueda',
+        'tenant_db_name',
     ];
 
     protected $casts = [
@@ -158,6 +160,16 @@ class Notaria extends Model
     public function busquedas(): HasMany
     {
         return $this->hasMany(Busqueda::class);
+    }
+
+    /**
+     * Módulos de Control Notarial habilitados para esta notaría.
+     */
+    public function cnModulos(): BelongsToMany
+    {
+        return $this->belongsToMany(CnModulo::class, 'notaria_cn_modulos', 'notaria_id', 'cn_modulo_id')
+            ->withPivot(['is_enabled', 'configuracion'])
+            ->withTimestamps();
     }
 
     /**
@@ -424,5 +436,43 @@ class Notaria extends Model
         $usoActual = $this->getUsoServicioMesActual($serviceCode);
 
         return $usoActual < $limite;
+    }
+
+    // -------------------------------------------------------------------------
+    // Multi-Tenant helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Nombre de la base de datos tenant de esta notaría.
+     *
+     * Usa el valor guardado en `tenant_db_name` si existe (recomendado por el
+     * desarrollador del API C# para conexión dinámica vía header X-Cn-Database).
+     * Si no está guardado, lo calcula automáticamente a partir del estado y número
+     * y lo persiste para que el API C# siempre tenga el valor disponible vía X-Cn-Database.
+     * Ejemplo: atinet_edomex_notaria_10
+     */
+    public function tenantDatabaseName(): string
+    {
+        if (! empty($this->tenant_db_name)) {
+            return $this->tenant_db_name;
+        }
+
+        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
+        $computed = "atinet_{$estadoCodigo}_notaria_{$this->numero_notaria}";
+
+        // Persistir para que el C# siempre tenga el valor disponible
+        $this->updateQuietly(['tenant_db_name' => $computed]);
+
+        return $computed;
+    }
+
+    /**
+     * Identificador corto para el header X-Cn-Tenant.
+     * Es el nombre de la BD sin el prefijo 'atinet_'.
+     * Ejemplo: edomex_notaria_10
+     */
+    public function cnIdentifier(): string
+    {
+        return str_replace('atinet_', '', $this->tenantDatabaseName());
     }
 }

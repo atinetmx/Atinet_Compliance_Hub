@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Notaria;
 use App\Models\User;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -20,12 +21,45 @@ class UserObserver
     ];
 
     /**
+     * Devuelve el nombre de la conexión de BD tenant para el usuario dado.
+     * Registra dinámicamente la conexión si todavía no existe.
+     */
+    private function tenantConnectionForUser(User $user): string
+    {
+        $notaria = $user->notaria;
+
+        if (! $notaria) {
+            return 'mysql';
+        }
+
+        $key = 'cn_tenant_'.$notaria->id;
+
+        if (Config::get("database.connections.{$key}") === null) {
+            Config::set("database.connections.{$key}", [
+                'driver' => 'mysql',
+                'host' => config('database.connections.mysql.host'),
+                'port' => config('database.connections.mysql.port'),
+                'database' => $notaria->tenantDatabaseName(),
+                'username' => config('database.connections.mysql.username'),
+                'password' => config('database.connections.mysql.password'),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => false,
+            ]);
+        }
+
+        return $key;
+    }
+
+    /**
      * Handle the User "created" event.
      */
     public function created(User $user): void
     {
         $this->updateNotariaUserCount($user->notaria_id);
         $this->sincronizarEnCN($user);
+        $this->sincronizarUsersEnTenant($user);
     }
 
     /**
@@ -39,7 +73,15 @@ class UserObserver
             $this->updateNotariaUserCount($user->notaria_id);
         }
 
-        $this->sincronizarEnCN($user);
+        // Solo sincronizar al tenant cuando cambien campos que realmente importan.
+        // Ignorar actualizaciones de sesión (remember_token, updated_at, etc.)
+        // para evitar conexiones innecesarias a la BD tenant en cada login.
+        $camposRelevantes = ['name', 'email', 'password', 'notaria_id', 'tipo_cuenta', 'cn_rol_id', 'cn_password', 'cn_usuario_id'];
+
+        if ($user->isDirty($camposRelevantes)) {
+            $this->sincronizarEnCN($user);
+            $this->sincronizarUsersEnTenant($user);
+        }
     }
 
     /**
@@ -49,6 +91,7 @@ class UserObserver
     {
         $this->updateNotariaUserCount($user->notaria_id);
         $this->desactivarEnCN($user);
+        $this->eliminarUsersEnTenant($user);
     }
 
     /**
@@ -65,35 +108,149 @@ class UserObserver
     }
 
     /**
+     * Crea o actualiza el registro en la tabla `users` del tenant BD.
+     * Garantiza que el usuario esté disponible tanto en master como en su BD tenant.
+     */
+    protected function sincronizarUsersEnTenant(User $user): void
+    {
+        $conn = $this->tenantConnectionForUser($user);
+
+        if ($conn === 'mysql') {
+            return; // sin tenant BD configurado
+        }
+
+        try {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
+
+            $existe = DB::connection($conn)->table('users')->where('email', $user->email)->exists();
+
+            if ($existe) {
+                DB::connection($conn)->table('users')->where('email', $user->email)->update([
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'password' => $user->password,
+                    'notaria_id' => $user->notaria_id,
+                    'cn_usuario_id' => $user->cn_usuario_id,
+                    'cn_rol_id' => $user->cn_rol_id,
+                    'cn_password' => $user->cn_password,
+                    'tipo_cuenta' => $user->tipo_cuenta,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::connection($conn)->table('users')->insert([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'email_verified_at' => $user->email_verified_at,
+                    'password' => $user->password,
+                    'recoverable_password' => $user->recoverable_password,
+                    'notaria_id' => $user->notaria_id,
+                    'cn_usuario_id' => $user->cn_usuario_id,
+                    'cn_rol_id' => $user->cn_rol_id,
+                    'cn_password' => $user->cn_password,
+                    'tipo_cuenta' => $user->tipo_cuenta,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                ]);
+            }
+
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+        } catch (\Throwable $e) {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            Log::error('UserObserver: error al sincronizar users en tenant', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Elimina el registro de la tabla `users` del tenant cuando el usuario es borrado.
+     */
+    protected function eliminarUsersEnTenant(User $user): void
+    {
+        $conn = $this->tenantConnectionForUser($user);
+
+        if ($conn === 'mysql') {
+            return;
+        }
+
+        try {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
+            DB::connection($conn)->table('users')->where('email', $user->email)->delete();
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+        } catch (\Throwable $e) {
+            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            Log::error('UserObserver: error al eliminar users en tenant', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Crea o actualiza el registro en tbl_cat_usuarios manteniendo sincronía.
+     *
+     * IMPORTANTE — reglas de sincronización:
+     *
+     * En UPDATE:
+     *   - Solo se sincronizan Nombre, Correo, Rol_Id, Numero_Notaria y Activo.
+     *   - NO se toca Usuario: el nombre en CN puede ser distinto al prefijo del email
+     *     y C# lo gestiona de forma independiente.
+     *   - NO se toca Sesion_Iniciada: resetearlo en cada update mataría sesiones activas.
+     *   - Contrasena SOLO se actualiza si el password del usuario Laravel cambió en este
+     *     evento; y cuando se actualiza se convierte a formato $2b$ (BCrypt.Net) para
+     *     mantener compatibilidad con la API C#.
+     *
+     * En CREATE:
+     *   - Se fija Usuario desde el prefijo del email (único momento).
+     *   - Contrasena se genera en formato $2b$ desde el hash inicial de Laravel.
      */
     protected function sincronizarEnCN(User $user): void
     {
         try {
             $rolId = $this->resolverRolCN($user);
             $numeroNotaria = $this->resolverNumeroNotaria($user->notaria_id);
-            $usuario = strtoupper(explode('@', $user->email)[0]);
-
-            $datos = [
-                'Nombre' => $user->name,
-                'Correo' => $user->email,
-                'Usuario' => $usuario,
-                'Contrasena' => $user->getRawOriginal('password') ?? $user->password,
-                'Rol_Id' => $rolId,
-                'Numero_Notaria' => $numeroNotaria,
-                'Activo' => 1,
-                'Sesion_Iniciada' => 0,
-            ];
+            $conn = $this->tenantConnectionForUser($user);
 
             if ($user->cn_usuario_id) {
-                // Actualizar registro existente
-                DB::table('tbl_cat_usuarios')
+                // ── UPDATE ──────────────────────────────────────────────────
+                // Campos seguros de sincronizar en cualquier actualización
+                $datos = [
+                    'Nombre' => $user->name,
+                    'Correo' => $user->email,
+                    'Rol_Id' => $rolId,
+                    'Numero_Notaria' => $numeroNotaria,
+                    'Activo' => 1,
+                ];
+
+                // Solo sincronizar contraseña si cambió en este evento
+                if ($user->wasChanged('password')) {
+                    // Convertir $2y$ (PHP/Argon2) a $2b$ (BCrypt.Net de C#)
+                    $datos['Contrasena'] = str_replace('$2y$', '$2b$', $user->password);
+                }
+
+                DB::connection($conn)
+                    ->table('tbl_cat_usuarios')
                     ->where('Id', $user->cn_usuario_id)
                     ->update($datos);
             } else {
-                // Crear nuevo y guardar el ID de vuelta en users
-                $datos['Fecha_Creacion'] = now();
-                $cnId = DB::table('tbl_cat_usuarios')->insertGetId($datos);
+                // ── CREATE ──────────────────────────────────────────────────
+                $usuario = strtoupper(explode('@', $user->email)[0]);
+
+                $datos = [
+                    'Nombre' => $user->name,
+                    'Correo' => $user->email,
+                    'Usuario' => $usuario,
+                    'Contrasena' => str_replace('$2y$', '$2b$', $user->password),
+                    'Rol_Id' => $rolId,
+                    'Numero_Notaria' => $numeroNotaria,
+                    'Activo' => 1,
+                    'Sesion_Iniciada' => 0,
+                    'Fecha_Creacion' => now(),
+                ];
+
+                $cnId = DB::connection($conn)->table('tbl_cat_usuarios')->insertGetId($datos);
 
                 // Evitar recursión: actualizar sin disparar observer
                 User::withoutEvents(fn () => $user->updateQuietly(['cn_usuario_id' => $cnId]));
@@ -116,7 +273,8 @@ class UserObserver
         }
 
         try {
-            DB::table('tbl_cat_usuarios')
+            DB::connection($this->tenantConnectionForUser($user))
+                ->table('tbl_cat_usuarios')
                 ->where('Id', $user->cn_usuario_id)
                 ->update(['Activo' => 0]);
         } catch (\Throwable $e) {

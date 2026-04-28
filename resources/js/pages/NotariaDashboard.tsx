@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { gsap } from 'gsap';
 import {
     Search,
@@ -61,6 +61,10 @@ export default function NotariaDashboard({
     stats,
 }: NotariaDashboardProps) {
     const isAdmin = auth.user.tipo_cuenta === 'admin_notaria';
+    const { auth: sharedAuth } = usePage<{ auth: { servicios?: Array<{ code: string; is_included: boolean }> } }>().props;
+    const servicios = sharedAuth?.servicios ?? [];
+    // Dashboard avanzado: siempre visible para admin_notaria; para usuario_notaria solo si el plan incluye DASHBOARD_AVANZADO
+    const hasDashboardAvanzado = isAdmin || servicios.some((s) => s.code === 'DASHBOARD_AVANZADO');
     const headerCardRef = useRef<HTMLDivElement>(null);
     const statsCardsRef = useRef<HTMLDivElement>(null);
     const actionCardsRef = useRef<HTMLDivElement>(null);
@@ -277,13 +281,13 @@ export default function NotariaDashboard({
                                 </p>
                                 <p className="text-2xl font-bold">
                                     {stats.busquedas_mes}
-                                    {subscription?.plan && (
+                                    {hasDashboardAvanzado && subscription?.plan && (
                                         <span className="text-sm text-muted-foreground ml-1">
-                                            / {subscription.plan.limite_busquedas_mes}
+                                            / {subscription.plan.limite_busquedas_mes ?? '∞'}
                                         </span>
                                     )}
                                 </p>
-                                {subscription?.plan && (
+                                {hasDashboardAvanzado && subscription?.plan && (
                                     <div className="space-y-1">
                                         <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                                             <div
@@ -330,9 +334,9 @@ export default function NotariaDashboard({
                                 </p>
                                 <p className="text-2xl font-bold">
                                     {stats.usuarios_notaria}
-                                    {subscription?.plan && (
+                                    {hasDashboardAvanzado && subscription?.plan && (
                                         <span className="text-sm text-muted-foreground ml-1">
-                                            / {subscription.plan.limite_usuarios}
+                                            / {subscription.plan.limite_usuarios ?? '∞'}
                                         </span>
                                     )}
                                 </p>
@@ -421,7 +425,7 @@ export default function NotariaDashboard({
                         </Link>
                     )}
 
-                    {subscription && (
+                    {hasDashboardAvanzado && subscription && (
                         <div className="dashboard-card relative overflow-hidden rounded-xl border border-sidebar-border/70 bg-background p-6 hover:shadow-lg dark:border-sidebar-border">
                             <div className="mb-4 flex items-center gap-4">
                                 <div className="rounded-lg bg-primary/10 p-3">
@@ -474,7 +478,9 @@ export default function NotariaDashboard({
                                     Tu notaría cuenta con el plan <strong>{subscription.plan.nombre}</strong>.{' '}
                                     {isAdmin
                                         ? 'Como administrador, puedes gestionar el acceso de los usuarios a estos servicios.'
-                                        : 'Puedes acceder a los siguientes servicios:'
+                                        : hasDashboardAvanzado
+                                            ? 'Con tu Dashboard Avanzado puedes ver los detalles de tu plan y uso.'
+                                            : 'Puedes acceder a los siguientes servicios:'
                                     }
                                 </p>
                             </div>
@@ -500,6 +506,7 @@ export default function NotariaDashboard({
                                 ))}
                             </div>
 
+                            {hasDashboardAvanzado && (
                             <div className="grid gap-4 md:grid-cols-2 pt-4 border-t">
                                 <div className="space-y-2">
                                     <h4 className="font-medium text-sm">Límites del Plan</h4>
@@ -536,6 +543,7 @@ export default function NotariaDashboard({
                                     </div>
                                 </div>
                             </div>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-4">

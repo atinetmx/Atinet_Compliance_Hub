@@ -31,7 +31,8 @@ class ApiService {
 
         // Agregar token JWT si existe en localStorage
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('auth_token');
+            // Buscar el token con prefijo SCN
+            const token = localStorage.getItem('scn_auth_access_token');
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
@@ -145,6 +146,75 @@ class ApiService {
         }
 
         return this.normalizeResponse<T>(data, response.status);
+    }
+
+    /**
+     * Obtener un archivo blob (PDF, etc) manteniendo autorización
+     */
+    async getBlob(endpoint: string): Promise<{ blob: Blob | null; response: ApiResponse<Blob> }> {
+        const url = `${this.baseUrl}${endpoint}`;
+        const headers = this.getHeaders({
+            'Accept': 'application/pdf, application/octet-stream',
+        });
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers,
+        });
+
+        // Manejar 401 Unauthorized
+        if (response.status === 401) {
+            return {
+                blob: null,
+                response: {
+                    message: 'No autorizado',
+                    success: false,
+                    statusCode: 401,
+                    isUnauthorized: true,
+                }
+            };
+        }
+
+        // Si es exitoso, obtener el blob
+        if (response.ok) {
+            const blob = await response.blob();
+            return {
+                blob,
+                response: {
+                    message: 'Archivo obtenido exitosamente',
+                    dataResponse: blob,
+                    success: true,
+                    statusCode: response.status,
+                    isUnauthorized: false,
+                }
+            };
+        }
+
+        // Manejar otros errores
+        try {
+            const errorData = await response.json();
+            return {
+                blob: null,
+                response: {
+                    message: errorData.message || 'Error al obtener el archivo',
+                    dataResponse: undefined,
+                    success: false,
+                    statusCode: response.status,
+                    isUnauthorized: false,
+                }
+            };
+        } catch {
+            return {
+                blob: null,
+                response: {
+                    message: 'Error al obtener el archivo',
+                    dataResponse: undefined,
+                    success: false,
+                    statusCode: response.status,
+                    isUnauthorized: false,
+                }
+            };
+        }
     }
 
     /**

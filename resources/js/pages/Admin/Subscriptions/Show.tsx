@@ -390,7 +390,7 @@ export default function Show({ subscription }: SubscriptionShowProps) {
                                     Límite de Usuarios
                                 </p>
                                 <p className="text-base">
-                                    {subscription.plan.limite_usuarios === -1
+                                    {subscription.plan.limite_usuarios === -1 || subscription.plan.limite_usuarios === null
                                         ? 'Ilimitado'
                                         : subscription.plan.limite_usuarios}
                                 </p>

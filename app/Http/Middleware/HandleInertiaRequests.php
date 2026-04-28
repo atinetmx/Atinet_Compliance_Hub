@@ -38,10 +38,12 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $servicios = [];
 
-        // Cargar servicios disponibles para admin_notaria
-        if ($user && $user->tipo_cuenta === 'admin_notaria' && $user->notaria_id) {
+        // Cargar servicios disponibles para admin_notaria y usuario_notaria
+        $cnModulos = [];
+
+        if ($user && in_array($user->tipo_cuenta, ['admin_notaria', 'usuario_notaria']) && $user->notaria_id) {
             $notaria = $user->notaria()
-                ->with(['subscripcionActiva.plan.services'])
+                ->with(['subscripcionActiva.plan.services', 'cnModulos'])
                 ->first();
 
             if ($notaria?->subscripcionActiva?->plan?->services) {
@@ -55,15 +57,30 @@ class HandleInertiaRequests extends Middleware
                     return $service['is_included'];
                 })->values()->toArray();
             }
+
+            if ($notaria?->cnModulos) {
+                $cnModulos = $notaria->cnModulos
+                    ->filter(fn ($m) => $m->pivot->is_enabled)
+                    ->map(fn ($m) => [
+                        'code' => $m->code,
+                        'nombre' => $m->nombre,
+                        'grupo' => $m->grupo,
+                        'configuracion' => $m->pivot->configuracion ? json_decode($m->pivot->configuracion, true) : null,
+                    ])
+                    ->values()->toArray();
+            }
         }
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            'apiBaseUrl' => config('api.base_url'),
+            // Proxy path local: el frontend llama /cn-api/... y Laravel reenvía a C# internamente.
+            // Nunca exponer api.base_url al browser (hostname interno no resolvible).
+            'apiBaseUrl' => config('api.proxy_path', '/cn-api'),
             'auth' => [
                 'user' => $user,
                 'servicios' => $servicios,
+                'cn_modulos' => $cnModulos,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

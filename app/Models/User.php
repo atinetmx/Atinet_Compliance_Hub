@@ -31,6 +31,7 @@ class User extends Authenticatable
         'recoverable_password',
         'cn_usuario_id',
         'cn_rol_id',
+        'cn_password',
     ];
 
     /**
@@ -41,6 +42,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'recoverable_password',
+        'cn_password',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',

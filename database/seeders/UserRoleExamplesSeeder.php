@@ -39,67 +39,65 @@ class UserRoleExamplesSeeder extends Seeder
      */
     private function createPlans(): void
     {
-        Plan::firstOrCreate([
+        Plan::updateOrCreate(['slug' => 'plan-basico'], [
             'nombre' => 'Plan Básico',
-        ], [
-            'slug' => 'plan-basico',
-            'descripcion' => 'Plan básico para notarías pequeñas',
-            'precio_mensual' => 499.00,
-            'precio_anual' => 4990.00,
-            'limite_usuarios' => 5,
-            'limite_busquedas_mes' => 100,
-            'herramientas_activas' => ['busquedas', 'reportes_basicos'],
+            'descripcion' => 'Control Notarial, Agenda Web y búsquedas en listas negras para notarías pequeñas',
+            'precio_mensual' => 2999.00,
+            'precio_anual' => 29990.00,  // 2 meses gratis
+            'limite_usuarios' => 2,
+            'limite_busquedas_mes' => 50,
+            'herramientas_activas' => ['control_notarial', 'agenda_web', 'busquedas_basicas'],
             'caracteristicas' => [
-                'Hasta 5 usuarios',
-                'Hasta 100 búsquedas por mes',
-                'Búsquedas básicas (SAT, OFAC)',
-                'Dashboard básico',
+                '2 usuarios incluidos',
+                'Control Notarial (Sistema ATINET)',
+                'Agenda Web',
+                'Registro Web (50 personas/mes)',
+                'Lista Negra SAT (50 búsquedas/mes)',
+                'Lista OFAC (50 búsquedas/mes)',
+                'Escáner Inteligente (20 docs/mes)',
                 'Soporte por email',
             ],
             'is_active' => true,
             'orden' => 1,
         ]);
 
-        Plan::firstOrCreate([
+        Plan::updateOrCreate(['slug' => 'plan-premium'], [
             'nombre' => 'Plan Profesional',
-        ], [
-            'slug' => 'plan-premium',
-            'descripcion' => 'Plan profesional con herramientas avanzadas',
-            'precio_mensual' => 999.00,
-            'precio_anual' => 9990.00,
-            'limite_usuarios' => 15,
-            'limite_busquedas_mes' => 500,
-            'herramientas_activas' => ['busquedas', 'reportes_basicos', 'reportes_avanzados', 'analytics'],
+            'descripcion' => 'Todas las herramientas con mayor capacidad para notarías activas',
+            'precio_mensual' => 5999.00,
+            'precio_anual' => 59990.00,  // 2 meses gratis
+            'limite_usuarios' => 5,
+            'limite_busquedas_mes' => -1,  // ilimitado
+            'herramientas_activas' => ['control_notarial', 'agenda_web', 'busquedas_avanzadas', 'registro_web', 'escaner'],
             'caracteristicas' => [
-                'Hasta 15 usuarios',
-                'Hasta 500 búsquedas por mes',
-                'Todas las búsquedas ilimitadas',
-                'Dashboard avanzado',
-                'Reportes personalizados',
-                'APIs y conectores',
+                '5 usuarios incluidos',
+                'Control Notarial ilimitado',
+                'Agenda Web ilimitada',
+                'Registro Web (200 personas/mes)',
+                'Búsquedas SAT y OFAC ilimitadas',
+                'Escáner Inteligente (100 docs/mes)',
                 'Soporte prioritario',
             ],
             'is_active' => true,
             'orden' => 2,
         ]);
 
-        Plan::firstOrCreate([
+        Plan::updateOrCreate(['slug' => 'plan-empresa'], [
             'nombre' => 'Plan Empresa',
-        ], [
-            'slug' => 'plan-empresa',
-            'descripcion' => 'Plan empresarial con todo ilimitado',
-            'precio_mensual' => 1999.00,
-            'precio_anual' => 19990.00,
-            'limite_usuarios' => 50,
-            'limite_busquedas_mes' => -1, // -1 = ilimitado
-            'herramientas_activas' => ['busquedas', 'reportes_basicos', 'reportes_avanzados', 'analytics', 'apis'],
+            'descripcion' => 'Todo ilimitado para notarías con alto volumen de operaciones',
+            'precio_mensual' => 9999.00,
+            'precio_anual' => 99990.00,  // 2 meses gratis
+            'limite_usuarios' => -1,  // ilimitado
+            'limite_busquedas_mes' => -1,  // ilimitado
+            'herramientas_activas' => ['control_notarial', 'agenda_web', 'busquedas_avanzadas', 'registro_web', 'escaner', 'apis'],
             'caracteristicas' => [
                 'Usuarios ilimitados',
-                'Búsquedas ilimitadas',
-                'Todas las herramientas',
-                'APIs ilimitadas',
-                'Firma digital',
-                'Capacitación mensual',
+                'Control Notarial ilimitado',
+                'Agenda Web ilimitada',
+                'Registro Web ilimitado',
+                'Búsquedas ilimitadas (SAT, OFAC)',
+                'Escáner Inteligente ilimitado',
+                'Capacitación mensual incluida',
                 'Soporte 24/7',
             ],
             'is_active' => true,

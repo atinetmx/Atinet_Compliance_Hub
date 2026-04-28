@@ -1,10 +1,10 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import { X, AlertCircle, Search, Loader2, Building2, Save, Settings, SettingsIcon } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,7 +68,6 @@ interface ImpuestoDerechoOperacion {
 
 export default function ControlNotarialConfiguracionOperacionesIndex() {
     // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     const { addToast } = useToast();
     const api = useApi();
@@ -108,27 +107,22 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     const [isLoadingSubTab, setIsLoadingSubTab] = useState(false);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-    // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    // Validar autenticación al montar — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     // Cargar operaciones al montar (filtro vacío = todas)
     useEffect(() => {
+        if (!isReady) return;
         fetchOperaciones('');
-    }, []);
+    }, [isReady]);
 
     const fetchOperaciones = async (filtroValue: string) => {
         setIsSearching(true);
         setSearchError(null);
         try {
-            const response = await api.get('/Catalogos/GetOperaciones');
+            const response = await getCatalogoCacheado('/Catalogos/GetOperaciones', () => api.get('/Catalogos/GetOperaciones'));
 
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (response?.isUnauthorized) {
@@ -177,7 +171,6 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             // Cargar etapas configuradas
             const responseEtapasConfiguradas = await api.get(`/ConfiguracionOperacion/GetEtapasOperacion?idOperacion=${operacion.id}`);
             await handleControlNotarialResponse(responseEtapasConfiguradas, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (!responseEtapasConfiguradas?.isUnauthorized && responseEtapasConfiguradas?.success !== false && responseEtapasConfiguradas?.dataResponse) {
                 setEtapasConfiguradasOperacion(responseEtapasConfiguradas.dataResponse);
@@ -186,9 +179,8 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar etapas disponibles
-            const responseEtapasDisponibles = await api.get('/Catalogos/GetEtapas');
+            const responseEtapasDisponibles = await getCatalogoCacheado('/Catalogos/GetEtapas', () => api.get('/Catalogos/GetEtapas'));
             await handleControlNotarialResponse(responseEtapasDisponibles, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             setEtapasDisponibles(responseEtapasDisponibles?.dataResponse || []);
             setEtapasSeleccionadas([]);
@@ -197,7 +189,6 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             // Cargar documentos configurados
             const responseDocumentosConfigurados = await api.get(`/ConfiguracionOperacion/GetDocumentoOperacion?idOperacion=${operacion.id}`);
             await handleControlNotarialResponse(responseDocumentosConfigurados, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (!responseDocumentosConfigurados?.isUnauthorized && responseDocumentosConfigurados?.success !== false && responseDocumentosConfigurados?.dataResponse) {
                 setDocumentosConfiguradosOperacion(responseDocumentosConfigurados.dataResponse);
@@ -206,9 +197,8 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar documentos disponibles
-            const responseDocumentosDisponibles = await api.get('/Catalogos/GetDocumentos');
+            const responseDocumentosDisponibles = await getCatalogoCacheado('/Catalogos/GetDocumentos', () => api.get('/Catalogos/GetDocumentos'));
             await handleControlNotarialResponse(responseDocumentosDisponibles, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             setDocumentosDisponibles(responseDocumentosDisponibles?.dataResponse || []);
             setDocumentosSeleccionados([]);
@@ -217,7 +207,6 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             // Cargar impuestos configurados
             const responseImpuestosConfigurados = await api.get(`/ConfiguracionOperacion/GetImpuestoDerechoOperacion?idOperacion=${operacion.id}`);
             await handleControlNotarialResponse(responseImpuestosConfigurados, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             console.log('Impuestos Configurados:', responseImpuestosConfigurados?.dataResponse);
             if (responseImpuestosConfigurados?.dataResponse && responseImpuestosConfigurados.dataResponse.length > 0) {
@@ -230,9 +219,8 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             }
 
             // Cargar impuestos disponibles
-            const responseImpuestosDisponibles = await api.get('/Catalogos/GetImpuestosDerechos');
+            const responseImpuestosDisponibles = await getCatalogoCacheado('/Catalogos/GetImpuestosDerechos', () => api.get('/Catalogos/GetImpuestosDerechos'));
             await handleControlNotarialResponse(responseImpuestosDisponibles, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             console.log('Impuestos Disponibles:', responseImpuestosDisponibles?.dataResponse);
             if (responseImpuestosDisponibles?.dataResponse && responseImpuestosDisponibles.dataResponse.length > 0) {
@@ -252,15 +240,145 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     const handleChangeSubTab = async (subtab: string) => {
         if (!operacionSeleccionada) return;
 
+        // Verificar si hay cambios en la pestaña actual antes de cambiar
+        const hayChangesEnTabActual = () => {
+            if (activeSubTab === 'etapas') {
+                return etapasSeleccionadas.length > 0 || etapasRemovidasOperacion.length > 0;
+            } else if (activeSubTab === 'documentos') {
+                return documentosSeleccionados.length > 0 || documentosRemovidosOperacion.length > 0;
+            } else if (activeSubTab === 'impuestos') {
+                return impuestosSeleccionados.length > 0 || impuestosRemovidosOperacion.length > 0;
+            }
+            return false;
+        };
+
+        // Si hay cambios, guardar antes de cambiar de pestaña
+        if (hayChangesEnTabActual()) {
+            setIsSavingConfig(true);
+
+            try {
+                let url = '';
+                let listaFinal: number[] = [];
+
+                if (activeSubTab === 'etapas') {
+                    const etapasMantenidas = etapasConfiguradasOperacion
+                        .filter((e) => !etapasRemovidasOperacion.includes(e.etapa_Id))
+                        .map((e) => e.etapa_Id);
+                    listaFinal = [...new Set([...etapasMantenidas, ...etapasSeleccionadas])];
+                    url = '/ConfiguracionOperacion/AddEtapasOperacion';
+                } else if (activeSubTab === 'documentos') {
+                    const documentosMantenidos = documentosConfiguradosOperacion
+                        .filter((d) => !documentosRemovidosOperacion.includes(d.documento_Id))
+                        .map((d) => d.documento_Id);
+                    listaFinal = [...new Set([...documentosMantenidos, ...documentosSeleccionados])];
+                    url = '/ConfiguracionOperacion/AddDocumentoOperacion';
+                } else if (activeSubTab === 'impuestos') {
+                    const impuestosMantenidos = impuestosConfiguradosOperacion
+                        .filter((i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id))
+                        .map((i) => i.impuestos_derechos_Id)
+                        .filter((id) => id !== null && id !== undefined);
+                    listaFinal = [...new Set([...impuestosMantenidos, ...impuestosSeleccionados])];
+                    url = '/ConfiguracionOperacion/AddImpuestoDerechoOperacion';
+                }
+
+                const payload = {
+                    id: 0,
+                    operacion_Id: operacionSeleccionada.id,
+                    lista_N: listaFinal,
+                };
+
+                const response = await api.post(url, payload);
+
+                await handleControlNotarialResponse(response, {
+                    onUnauthorized: () => setLoginModalOpen(true),
+                });
+
+                if (response?.isUnauthorized) {
+                    setIsSavingConfig(false);
+                    return;
+                }
+
+                const isSuccess = response?.success !== false;
+                if (isSuccess) {
+                    // Actualizar estado local inmediatamente
+                    if (activeSubTab === 'etapas') {
+                        const etapasMantenidas = etapasConfiguradasOperacion.filter(
+                            (e) => !etapasRemovidasOperacion.includes(e.etapa_Id)
+                        );
+                        const nuevasEtapas = etapasSeleccionadas.map((id) => {
+                            const etapa = etapasDisponibles.find((e) => e.id === id);
+                            return {
+                                id: 0,
+                                operacion_Id: operacionSeleccionada.id,
+                                etapa_Id: id,
+                                descripcion: etapa?.descripcion || '',
+                            };
+                        });
+                        setEtapasConfiguradasOperacion([...etapasMantenidas, ...nuevasEtapas]);
+                    } else if (activeSubTab === 'documentos') {
+                        const documentosMantenidos = documentosConfiguradosOperacion.filter(
+                            (d) => !documentosRemovidosOperacion.includes(d.documento_Id)
+                        );
+                        const nuevosDocumentos = documentosSeleccionados.map((id) => {
+                            const doc = documentosDisponibles.find((d) => d.id === id);
+                            return {
+                                id: 0,
+                                operacion_Id: operacionSeleccionada.id,
+                                documento_Id: id,
+                                descripcion: doc?.descripcion || '',
+                            };
+                        });
+                        setDocumentosConfiguradosOperacion([...documentosMantenidos, ...nuevosDocumentos]);
+                    } else if (activeSubTab === 'impuestos') {
+                        const impuestosMantenidos = impuestosConfiguradosOperacion.filter(
+                            (i) => !impuestosRemovidosOperacion.includes(i.impuestos_derechos_Id)
+                        );
+                        const nuevosImpuestos = impuestosSeleccionados.map((id) => {
+                            const imp = impuestosDisponibles.find((i) => i.id === id);
+                            return {
+                                id: 0,
+                                operacion_Id: operacionSeleccionada.id,
+                                impuestos_derechos_Id: id,
+                                descripcion: imp?.descripcion || '',
+                            };
+                        });
+                        setImpuestosConfiguradosOperacion([...impuestosMantenidos, ...nuevosImpuestos]);
+                    }
+
+                    // Limpiar selecciones después de guardar
+                    setEtapasSeleccionadas([]);
+                    setEtapasRemovidasOperacion([]);
+                    setDocumentosSeleccionados([]);
+                    setDocumentosRemovidosOperacion([]);
+                    setImpuestosSeleccionados([]);
+                    setImpuestosRemovidosOperacion([]);
+                } else {
+                    addToast(response?.message || 'Error al guardar', 'error');
+                    setIsSavingConfig(false);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error al guardar antes de cambiar pestaña:', error);
+                addToast('Error al guardar cambios', 'error');
+                setIsSavingConfig(false);
+                return;
+            } finally {
+                setIsSavingConfig(false);
+            }
+        }
+
+        // Cambiar de pestaña y limpiar estados
         setActiveSubTab(subtab);
         setIsLoadingSubTab(true);
         setEtapasSeleccionadas([]);
         setEtapasRemovidasOperacion([]);
         setDocumentosSeleccionados([]);
         setDocumentosRemovidosOperacion([]);
+        setImpuestosSeleccionados([]);
+        setImpuestosRemovidosOperacion([]);
 
         try {
-            if (subtab === 'etapas' || subtab === 'documentos') {
+            if (subtab === 'etapas' || subtab === 'documentos' || subtab === 'impuestos') {
                 // Ya están precargadas
                 setIsLoadingSubTab(false);
             }
@@ -382,7 +500,6 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             const response = await api.post(url, payload);
 
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             // Si es 401, useAuthGuard maneja el toast, no mostrar nada más
@@ -460,8 +577,6 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
     return (
         <>
             <Head title="Configuración Operaciones - Control Notarial" />
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
-
             <div className="space-y-6 px-6 pt-6">
 
 
@@ -1026,6 +1141,10 @@ ControlNotarialConfiguracionOperacionesIndex.layout = (page: React.ReactNode) =>
         {
             title: 'Control Notarial',
             href: '/admin/control-notarial',
+        },
+        {
+            title: 'Configuración',
+            href: '/admin/control-notarial/configuracion',
         },
         {
             title: 'Configuración Operaciones',

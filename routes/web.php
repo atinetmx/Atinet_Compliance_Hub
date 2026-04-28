@@ -11,6 +11,17 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+// Endpoint para refrescar el CSRF token silenciosamente desde el frontend.
+// Excluido de VerifyCsrfToken porque se llama precisamente cuando el token expiró.
+// Solo requiere sesión activa; si la sesión también expiró retorna 401.
+Route::get('/csrf-refresh', function () {
+    if (! Auth::check()) {
+        return response()->json(['error' => 'Unauthenticated.'], 401);
+    }
+
+    return response()->json(['token' => csrf_token()]);
+})->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 Route::get('dashboard', function () {
     $user = Auth::user();
 
@@ -184,6 +195,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // === MÓDULO CONTROL NOTARIAL ===
     // Sistema de gestión notarial (migración desde VB6)
+    // Auto-login gateway para módulo CN (devuelve JWT de C# sin doble login)
+    Route::post('control-notarial/auto-login', [\App\Http\Controllers\ControlNotarialController::class, 'autoLogin'])->name('control-notarial.auto-login');
+
+    // Proxy transparente hacia la API C# de Control Notarial.
+    // El browser llama /cn-api/{cualquier-endpoint} → Laravel reenvía a srvatinet.atinet.com.mx:7443/api/{endpoint}
+    // Esto evita que srvatinet.atinet.com.mx sea resuelto directamente por el browser (dominio interno).
+    Route::any('cn-api/{path}', [\App\Http\Controllers\CnProxyController::class, 'proxy'])
+        ->where('path', '.*')
+        ->name('cn-api.proxy');
+
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');

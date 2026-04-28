@@ -343,6 +343,9 @@ class NotariaController extends Controller
             // ✅ 1. CREAR BASE DE DATOS ESPECÍFICA (SIN CAMBIAR CONEXIÓN ACTUAL)
             DB::statement("CREATE DATABASE IF NOT EXISTS `{$databaseName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 
+            // ✅ Persistir nombre de BD en la tabla notarias para routing C# multitenant
+            $notaria->updateQuietly(['tenant_db_name' => $databaseName]);
+
             Log::info('Base de datos creada para notaría', [
                 'notaria_id' => $notaria->id,
                 'numero_notaria' => $notaria->numero_notaria,

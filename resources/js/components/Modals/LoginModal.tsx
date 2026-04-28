@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import {
     getClientIp,
-    saveToken,
+    saveAuthData,
     AuthResponse,
     useAuthApi,
 } from '@/services/authService';
@@ -55,20 +55,24 @@ export default function LoginModal({
             );
 
             // Verificar si la autenticación fue exitosa
-            if (!response.dataResponse?.token) {
+            if (!response.dataResponse?.accessToken) {
                 throw new Error(response.message || 'Error en la autenticación');
             }
 
-            // Guardar token
-            const token = response.dataResponse.token;
-            saveToken(token);
+            // Guardar datos de autenticación
+            const authData = {
+                user: response.dataResponse.user,
+                accessToken: response.dataResponse.accessToken,
+                refreshToken: response.dataResponse.refreshToken,
+            };
+            saveAuthData(authData);
 
             // Limpiar formulario
             setUsuario('');
             setContrasena('');
 
             // Llamar callback de éxito
-            onSuccess?.(token);
+            onSuccess?.(response.dataResponse.accessToken);
 
             // Cerrar modal
             onClose();

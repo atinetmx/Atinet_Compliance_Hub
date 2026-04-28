@@ -110,7 +110,7 @@
         // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
         "skipLibCheck": true /* Skip type checking all .d.ts files. */,
         "jsx": "react-jsx",
-        "ignoreDeprecations": "6.0"
+        "ignoreDeprecations": "5.0"
     },
     "include": ["resources/js/**/*.ts", "resources/js/**/*.d.ts", "resources/js/**/*.tsx", "index.d.ts"]
 }

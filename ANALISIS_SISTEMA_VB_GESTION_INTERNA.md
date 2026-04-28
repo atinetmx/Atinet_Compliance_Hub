@@ -4,6 +4,66 @@
 
 ---
 
+## 📝 Notas de Sesión — 22 de Abril 2026
+
+### Fixes aplicados en esta sesión
+
+#### 1. Timezone — `config/app.php`
+- **Problema:** App corría en UTC. Registros creados después de las 6 PM hora México aparecían con fecha de "ayer".
+- **Fix:** `'timezone' => env('APP_TIMEZONE', 'America/Mexico_City')`
+- **Commit:** `0a8a59c`
+
+#### 2. Registro Web — campo `notaria` en `atinet65_aplicativos.registro`
+- El sistema legacy guarda el slug de la notaría (ej. `60ecatepec`) en el campo `notaria` de la tabla `registro`.
+- La URL del iframe en nuestro sistema usa `legacy_identifier` de la notaría, que coincide exactamente con ese slug.
+- **Verificado:** registros hechos desde el nuevo sistema aparecen correctamente en VB Control Notarial.
+- No se requirió ningún cambio de código.
+
+---
+
+### Aclaración importante — `atinet65_aplicativos`
+
+Esta BD **solo contiene los sistemas web legacy** de Atinet, todos considerados mal implementados y en proceso de reemplazo:
+- `registro` → Registro Web (anterior al actual)
+- `agenda` → Agenda Web (mal hecha)
+- `busquedas` → Listas negras / OFAC (mal hechas)
+
+**NO es la BD del sistema Control Notarial VB.** No mezclar.
+
+---
+
+### Próximo paso: Feature Tree / Customización por Notaría
+
+#### Objetivo
+Construir un panel en Compliance Hub donde los **admins de Atinet** puedan configurar qué herramientas, módulos, botones y reportes ve cada notaría en Control Notarial, replicando la customización manual que hoy se hace editando el ejecutable VB.
+
+#### Arquitectura acordada (pendiente de implementar)
+```
+features  (catálogo master — árbol de todas las herramientas CN)
+├── id
+├── parent_id        → estructura jerárquica
+├── code             → 'REGISTRO.NUEVO_REGISTRO'
+├── label            → 'Nuevo Registro'
+├── tipo             → 'modulo' | 'herramienta' | 'boton' | 'reporte'
+└── orden
+
+notaria_features  (config por notaría)
+├── notaria_id
+├── feature_id
+└── is_enabled       (default: según plan)
+```
+
+Lógica de herencia: **Plan → Notaría → (futuro) Usuario**
+
+#### Pre-requisito bloqueante
+Antes de implementar se necesita un inventario completo del sistema VB:
+- Módulos, formularios, botones, reportes de la versión **master**
+- Versiones para **notarías** y **corredurías**
+
+El usuario tiene acceso al código fuente VB y BDs de ambas versiones. Pendiente de analizar en sesión dedicada con acceso a esos archivos.
+
+---
+
 ## 📊 Resumen Ejecutivo
 
 El sistema VB legacy (`Sistema Atinet-/`) es un sistema completo de Control Notarial con **cientos de formularios**, pero según el usuario **solo se usa una pequeña parte para gestión interna** (control de usuarios y clientes). NO necesitamos migrar todo el sistema, solo lo que se usa actualmente.

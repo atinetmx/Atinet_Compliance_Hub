@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import  LoginModal   from '@/components/Modals/LoginModal';
+import { getCatalogoCacheado } from '@/services/cnCatalogCache';
+
 import { useToast } from '@/contexts/ToastContext';
 
 import { Button } from '@/components/ui/button';
@@ -35,9 +36,6 @@ interface ConfiguracionEditada extends ConfiguracionTarifaria {
 }
 
 export default function ConfiguracionesTarifariasIndex() {
-    // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
-
     const api = useApi();
     const { addToast } = useToast();
     const [zonasMunicipios, setZonasMunicipios] = useState<ZonaMunicipio[]>([]);
@@ -71,17 +69,13 @@ export default function ConfiguracionesTarifariasIndex() {
         },
     ];
 
-    // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    // Validar autenticación al montar — esperar isReady antes de fetching
+    const { isReady } = useAuthGuard();
 
     useEffect(() => {
+        if (!isReady) return;
         fetchZonasMunicipios();
-    }, [api]);
+    }, [isReady, api]);
 
     useEffect(() => {
         if (selectedZona) {
@@ -93,10 +87,8 @@ export default function ConfiguracionesTarifariasIndex() {
     const fetchZonasMunicipios = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/Catalogos/GetZonasMunicipios');
-            const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
-            });
+            const response = await getCatalogoCacheado('/Catalogos/GetZonasMunicipios', () => api.get('/Catalogos/GetZonasMunicipios'));
+            const data = await handleControlNotarialResponse(response, {});
             if (data) {
                 setZonasMunicipios(data);
             }
@@ -111,9 +103,7 @@ export default function ConfiguracionesTarifariasIndex() {
         setLoadingTarifas(true);
         try {
             const response = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaImpuestosDerechos?zonaMunicipioId=${zonaMunicipioId}`);
-            const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
-            });
+            const data = await handleControlNotarialResponse(response, {});
             if (data) {
                 const configuraciones = data.map((config: ConfiguracionTarifaria) => ({
                     ...config,
@@ -135,9 +125,7 @@ export default function ConfiguracionesTarifariasIndex() {
         setLoadingHonorarios(true);
         try {
             const response = await api.get(`/ConfiguracionTarifaria/GetConfiguracionTarifariaHonorarios?zonaMunicipioId=${zonaMunicipioId}`);
-            const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
-            });
+            const data = await handleControlNotarialResponse(response, {});
             if (data) {
                 const configuraciones = data.map((config: ConfiguracionTarifaria) => ({
                     ...config,
@@ -171,9 +159,7 @@ export default function ConfiguracionesTarifariasIndex() {
                 : `/ConfiguracionTarifaria/UpdateConfiguracionTarifariaImpuestosDerechos?configuracionId=${config.id}`;
 
             const response = await api.put(endpoint, payload);
-            await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
-            });
+            await handleControlNotarialResponse(response, {});
 
             const isSuccess = response?.success !== false;
             if (isSuccess) {
@@ -280,7 +266,6 @@ export default function ConfiguracionesTarifariasIndex() {
             const response = await api.post('/ConfiguracionTarifaria/UpdateConfiguracionTarifaria', payload);
             await handleControlNotarialResponse(response, {
                 onError: (msg) => addToast(msg || 'Error al guardar cambios', 'error'),
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             const isSuccess = response?.success !== false;
@@ -621,7 +606,7 @@ export default function ConfiguracionesTarifariasIndex() {
                     </div>
                 )}
             </div>
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+
         </>
     );
 }

@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import '../css/app.css';
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeCsrfHandler } from './utils/csrf-handler';
+import { AuthProvider } from './contexts/AuthContext';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -24,7 +25,9 @@ createInertiaApp({
 
         root.render(
             <StrictMode>
-                <App {...props} />
+                <AuthProvider>
+                    <App {...props} />
+                </AuthProvider>
                 <Toaster position="top-right" richColors />
             </StrictMode>,
         );

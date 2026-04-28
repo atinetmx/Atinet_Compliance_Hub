@@ -58,17 +58,35 @@ class ServicesSeeder extends Seeder
             [
                 'code' => 'REGISTRO_WEB',
                 'name' => 'Registro Web',
-                'description' => 'Captura de datos de clientes con OCR y QR (80+ campos)',
+                'description' => 'Captura de datos de personas físicas y morales con OCR, QR y análisis IA (80+ campos)',
                 'category' => ServiceCategory::SISTEMA,
                 'billing_model' => BillingModel::LIMITED,
                 'unit_price' => null,
                 'is_active' => true,
                 'implementation_status' => 'implemented',
                 'metadata' => [
-                    'ocr_scanners' => ['ine', 'curp', 'acta_nacimiento'],
-                    'qr_scanners' => ['sat_constancia'],
-                    'features' => ['pdf_qr_generation', 'email_automation'],
-                    'ai_engine' => 'gemini_vision',
+                    // Escaneo OCR de documentos con Gemini Vision (server-side)
+                    'ocr_scanners' => ['ine_frontal', 'ine_reverso', 'acta_nacimiento'],
+                    // Lectura QR (client-side: TensorFlow.js + COCO-SSD)
+                    'qr_scanners' => ['sat_constancia_fiscal', 'acta_nacimiento'],
+                    // Extracción de documentos notariales
+                    'document_extractors' => ['pdf', 'word', 'testamento_ai'],
+                    // Motores de IA
+                    'ai_engines' => [
+                        // Gemini Vision: OCR de imágenes (INE, actas) — con fallback entre modelos
+                        'gemini_vision' => ['gemini-2.5-flash-preview', 'gemini-2.0-flash'],
+                        // OpenAI GPT: análisis semántico de documentos notariales (testamentos, contratos)
+                        'openai_gpt' => ['gpt-4o'],
+                    ],
+                    // Integraciones externas
+                    'external_apis' => [
+                        'sat_scraping' => true,  // Constancias fiscales (cURL directo al SAT)
+                        'curp_lookup' => true,  // Validación y búsqueda CURP
+                        'rfc_lookup' => true,  // Validación y búsqueda RFC
+                        'codigo_postal' => true,  // Autocompletado colonias/municipio/estado
+                    ],
+                    'person_types' => ['fisica', 'moral'],
+                    'form_fields' => 80,
                 ],
             ],
 
@@ -106,16 +124,41 @@ class ServicesSeeder extends Seeder
             [
                 'code' => 'ESCANER_INTELIGENTE',
                 'name' => 'Escáner Inteligente de Documentos',
-                'description' => 'Análisis de documentos con IA (GPT-4o Vision)',
+                'description' => 'Captura fotográfica de documentos en papel con IA. Convierte a PDF/Word y extrae datos clave para llenar formularios automáticamente.',
                 'category' => ServiceCategory::API,
                 'billing_model' => BillingModel::LIMITED,
                 'unit_price' => 10.00,
                 'is_active' => true,
                 'implementation_status' => 'implemented',
                 'metadata' => [
-                    'ai_engine' => 'openai_gpt4o_vision',
-                    'document_types' => ['escritura', 'contrato', 'poder', 'testamento'],
-                    'features' => ['auto_detection', 'key_extraction', 'pdf_to_word'],
+                    // Motores de IA
+                    'ai_engines' => [
+                        // Gemini Vision: captura fotográfica → texto estructurado
+                        'gemini_vision' => ['gemini-2.5-flash-preview', 'gemini-2.0-flash'],
+                        // OpenAI GPT-4o: análisis semántico profundo y extracción de datos clave
+                        'openai_gpt' => ['gpt-4o'],
+                    ],
+                    // Tipos de documentos notariales soportados
+                    'document_types' => [
+                        'acta_nacimiento',
+                        'acta_matrimonio',
+                        'acta_defuncion',
+                        'escritura_publica',
+                        'contrato',
+                        'poder_notarial',
+                        'testamento',
+                        'acta_constitutiva',
+                        'documento_generico',
+                    ],
+                    // Formatos de salida
+                    'output_formats' => ['pdf', 'word', 'json_estructurado'],
+                    // Flujos principales
+                    'features' => [
+                        'foto_a_pdf',           // Captura foto → convierte a PDF/Word legible
+                        'foto_a_formulario',    // Captura foto → extrae datos → llena formulario → guarda en BD
+                        'analisis_semantico',   // Comprende contexto del documento notarial
+                        'multi_pagina',         // Documentos de múltiples páginas
+                    ],
                 ],
             ],
 
@@ -249,12 +292,32 @@ class ServicesSeeder extends Seeder
             );
         }
 
+        // Eliminar servicios obsoletos que ya no están en el catálogo
+        // (solo si no tienen registros de uso activos)
+        $newCodes = collect($services)->pluck('code')->toArray();
+        $codigosConUsage = \DB::table('service_usage')
+            ->join('services', 'services.id', '=', 'service_usage.service_id')
+            ->whereNotIn('services.code', $newCodes)
+            ->pluck('services.code')
+            ->unique()
+            ->toArray();
+
+        $eliminados = Service::whereNotIn('code', $newCodes)
+            ->whereNotIn('code', $codigosConUsage)
+            ->delete();
+
         $implementedCount = collect($services)->where('implementation_status', 'implemented')->count();
         $plannedCount = collect($services)->where('implementation_status', 'planned')->count();
 
-        $this->command->info('✅ Catálogo de servicios creado:');
+        $this->command->info('✅ Catálogo de servicios actualizado:');
         $this->command->info("   • {$implementedCount} servicios IMPLEMENTADOS");
         $this->command->info("   • {$plannedCount} servicios PLANIFICADOS");
         $this->command->info('   • Total: '.count($services).' servicios');
+        if ($eliminados > 0) {
+            $this->command->info("   • {$eliminados} servicios obsoletos eliminados");
+        }
+        if (! empty($codigosConUsage)) {
+            $this->command->warn('   ⚠️  Servicios obsoletos con usage preservados: '.implode(', ', $codigosConUsage));
+        }
     }
 }

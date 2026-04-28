@@ -9,7 +9,7 @@ import {
     Users,
     Building2,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,14 +35,12 @@ interface Props {
     users: {
         data: User[];
         links: Array<{ url: string | null; label: string; active: boolean }>;
-        meta: {
-            current_page: number;
-            last_page: number;
-            per_page: number;
-            total: number;
-            from: number;
-            to: number;
-        };
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number | null;
+        to: number | null;
     };
     notarias: Array<{
         id: number;
@@ -70,6 +68,7 @@ export default function Index({
     tiposCuenta,
 }: Props) {
     const [showFilters, setShowFilters] = useState(false);
+    const isFirstRender = useRef(true);
     const { data, setData } = useForm({
         search: filters.search || '',
         tipo_cuenta: filters.tipo_cuenta || '',
@@ -78,15 +77,17 @@ export default function Index({
 
     const handlePaginationClick = (url: string | null) => {
         if (!url) return;
-        // Extract query params from URL and merge with current filters
         const urlObj = new URL(url, window.location.origin);
-        const params = {
-            page: urlObj.searchParams.get('page'),
+        const params: Record<string, string | undefined> = {
+            page: urlObj.searchParams.get('page') ?? undefined,
             search: data.search || undefined,
             tipo_cuenta: data.tipo_cuenta || undefined,
             notaria_id: data.notaria_id || undefined,
         };
-        router.get('/admin/users', params);
+        router.get('/admin/users', params, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     const clearFilters = () => {
@@ -94,8 +95,12 @@ export default function Index({
         router.get('/admin/users');
     };
 
-    // Búsqueda dinámica con debounce
+    // Búsqueda dinámica con debounce — no disparar en el primer render
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         const delayDebounceFn = setTimeout(() => {
             const params = {
                 search: data.search || undefined,
@@ -106,7 +111,7 @@ export default function Index({
                 preserveState: true,
                 preserveScroll: true,
             });
-        }, 500); // 500ms de delay
+        }, 500);
 
         return () => clearTimeout(delayDebounceFn);
     }, [data.search, data.tipo_cuenta, data.notaria_id]);
@@ -386,8 +391,8 @@ export default function Index({
                 {users.links && users.links.length > 3 && (
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            Mostrando {users.meta.from} a {users.meta.to} de{' '}
-                            {users.meta.total} usuarios
+                            Mostrando {users.from ?? 0} a {users.to ?? 0} de{' '}
+                            {users.total} usuarios
                         </div>
                         <div className="flex items-center gap-2">
                             {users.links.map((link, index) => (
