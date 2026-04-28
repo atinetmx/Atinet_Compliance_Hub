@@ -888,11 +888,15 @@ export default function ExpedientesIndex() {
 
             const response = await api.post('/Presupuestos/CreatePresupuesto', payload);
 
+            await handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+            });
+
             if (response?.isUnauthorized) {
                 return;
             }
 
-            if (response) {
+            if (response?.success === true) {
                 addToast('Presupuesto guardado correctamente', 'success');
                 setMostrarFormularioPresupuesto(false);
                 // Recargar presupuestos si es necesario
@@ -1576,8 +1580,8 @@ export default function ExpedientesIndex() {
                 clave_Catastral: formInmueble.claveCatastral,
                 superficie_Terreno: parseFloat(formInmueble.superficieTerreno) || 0,
                 superficie_Construccion: parseFloat(formInmueble.superficieConstruida) || 0,
-                cuenta_Agua: formInmueble.ctaAgua || '',
-                cuenta_Predial: formInmueble.ctaPredial || '',
+                cuenta_Agua: parseFloat(formInmueble.ctaAgua) || 0,
+                cuenta_Predial: parseFloat(formInmueble.ctaPredial) || 0,
                 fecha_Registro: formInmueble.fechaRegistro ? new Date(formInmueble.fechaRegistro).toISOString() : new Date().toISOString(),
                 folio_Real: formInmueble.folioReal,
                 inscripcion: formInmueble.inscripcion,
@@ -1605,13 +1609,14 @@ export default function ExpedientesIndex() {
                 : await api.post(endpoint, payload);
 
             await handleControlNotarialResponse(data, {
+                onError: (msg) => addToast(msg, 'error'),
             });
 
             if (data?.isUnauthorized) {
                 return;
             }
 
-            if (data?.success !== false) {
+            if (data?.success === true) {
                 addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
             setMostrarFormInmueble(false);
             // Limpiar formulario
@@ -1661,8 +1666,6 @@ export default function ExpedientesIndex() {
             setInmuebleIdEnEdicion(null);
             // Recargar inmuebles
             await fetchInmueblesExpediente(currentExpedienteId);
-            } else {
-                addToast(data?.message || 'Error al guardar el inmueble', 'error');
             }
         } catch (error) {
             console.error('Error guardando inmueble:', error);
@@ -2248,7 +2251,7 @@ export default function ExpedientesIndex() {
             if (data && data.dataResponse) {
                 setInmueblesExpediente(data.dataResponse);
             } else {
-                console.error('Error al cargar inmuebles:', data?.message);
+                // Sin inmuebles es estado normal, no un error
                 setInmueblesExpediente([]);
             }
         } catch (error) {
@@ -2725,13 +2728,14 @@ export default function ExpedientesIndex() {
                 : await api.post(endpoint, requestPayload);
 
             await handleControlNotarialResponse(data, {
+                onError: (msg) => addToast(msg, 'error'),
             });
 
             if (data?.isUnauthorized) {
                 return;
             }
 
-            if (data?.success !== false) {
+            if (data?.success === true) {
                 const messageAction = isEditing ? 'actualizado' : 'creado';
                 addToast(`Expediente ${messageAction} exitosamente`, 'success', 4000);
 

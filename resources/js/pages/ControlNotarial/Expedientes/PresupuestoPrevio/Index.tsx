@@ -703,7 +703,16 @@ export default function PresupuestoPrevioIndex() {
                 ? await api.put(url, payload)
                 : await api.post(url, payload);
 
-            if (data) {
+            await handleControlNotarialResponse(data, {
+                onError: (msg) => addToast(msg, 'error'),
+            });
+
+            if (data?.isUnauthorized) {
+                return;
+            }
+
+            if (data?.success === true) {
+                addToast(isEditing ? 'Presupuesto actualizado correctamente' : 'Presupuesto guardado correctamente', 'success');
                 setFormData(defaultPresupuestoData);
                 setOperacionFiltro('');
                 setZonaFiltro('');

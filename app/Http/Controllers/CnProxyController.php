@@ -77,6 +77,16 @@ class CnProxyController extends Controller
                 default => $httpClient->get($targetUrl),
             };
 
+            // Loguear respuestas de error de C# para diagnóstico
+            if ($response->status() >= 400) {
+                Log::warning('CnProxy respuesta de error desde C#', [
+                    'url'    => $targetUrl,
+                    'method' => strtoupper($method),
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+            }
+
             return response($response->body(), $response->status())
                 ->header('Content-Type', $response->header('Content-Type') ?? 'application/json');
 

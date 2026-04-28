@@ -47,11 +47,13 @@ export function handleControlNotarialResponse<T = any>(
     }
 
     // ESTATUS 400 o ERROR (mensaje personalizado del servidor)
-    if (!response.success || !response.dataResponse) {
+    // Solo disparar error si success es explícitamente false.
+    // No verificar dataResponse vacío: operaciones de actualización devuelven success:true sin dataResponse.
+    if (response.success === false) {
         onError?.(response.message || 'Error en la solicitud');
         return null;
     }
 
-    // ESTATUS 200 OK - Retorna los datos
-    return response.dataResponse;
+    // ESTATUS 200 OK - Retorna los datos (puede ser null en updates sin retorno)
+    return response.dataResponse ?? null;
 }

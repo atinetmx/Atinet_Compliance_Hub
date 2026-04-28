@@ -290,6 +290,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 const response = await api.post(url, payload);
 
                 await handleControlNotarialResponse(response, {
+                    onError: (msg) => addToast(msg, 'error'),
                 });
 
                 if (response?.isUnauthorized) {
@@ -297,7 +298,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                     return;
                 }
 
-                const isSuccess = response?.success !== false;
+                const isSuccess = response?.success === true;
                 if (isSuccess) {
                     // Actualizar estado local inmediatamente
                     if (activeSubTab === 'etapas') {
@@ -499,6 +500,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
             const response = await api.post(url, payload);
 
             await handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
             });
 
             // Si es 401, useAuthGuard maneja el toast, no mostrar nada más
@@ -506,7 +508,7 @@ export default function ControlNotarialConfiguracionOperacionesIndex() {
                 return;
             }
 
-            const isSuccess = response?.success !== false;
+            const isSuccess = response?.success === true;
             if (isSuccess) {
                 addToast(response?.message || 'Configuración guardada correctamente', 'success');
 
