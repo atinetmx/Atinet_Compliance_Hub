@@ -437,24 +437,25 @@ class ControlNotarialApiService
 
     private function obtenerTokenCN(string $usuario, string $password): string
     {
-        $nombreNotaria = $this->cnNombreNotaria();
+        // Obtener IP del cliente
+        $clientIp = request()->ip() ?? 'unknown';
+
+        // Usar notaria_id si existe contexto tenant, sino enviar string vacío
+        $notariaId = $this->notaria?->id ? (string) $this->notaria->id : '';
 
         $response = Http::withoutVerifying()
             ->timeout(15)
             ->post($this->internalUrl.'/Login/Authentication', [
                 'usuario' => $usuario,
                 'contrasena' => $password,
-                // Identificador de la notaría; el C# lo usa para seleccionar la BD correcta.
-                // Formato: "{estado_codigo}_notaria_{numero}" (ej. edomex_notaria_10)
-                // Valor 'NOTARIA' cuando opera desde el master (sin contexto de notaría).
-                'nombre_Notaria' => $nombreNotaria,
-                'equipo' => 'Laravel-Server',
+                'notaria' => $notariaId,
+                'equipo' => $clientIp,
             ]);
 
         if (! $response->successful()) {
             Log::error('ControlNotarialApiService::obtenerTokenCN falló', [
                 'usuario' => $usuario,
-                'nombre_Notaria' => $nombreNotaria,
+                'notaria' => $notariaId,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
