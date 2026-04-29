@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings, LogOut } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Receipt, Settings, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 import AppLayout from '@/layouts/app-layout';
@@ -161,41 +161,54 @@ export default function ControlNotarialIndex({
                 </div>
 
                 {/* Acceso Rápido - Botones Principales */}
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                     {/* Botón Expedientes */}
                     <Link href="/admin/control-notarial/expedientes" prefetch>
-                        <div className="group cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-8 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200">
-                            <div className="flex items-center gap-4">
-                                <div className="rounded-lg bg-blue-500 p-3 text-white shadow-md group-hover:bg-blue-600 transition-colors">
-                                    <FileText className="size-8" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-semibold text-blue-900 dark:text-blue-100 group-hover:text-blue-600 dark:group-hover:text-blue-200">
-                                        Expedientes
-                                    </h3>
-                                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                                        Gestionar expedientes y documentos
-                                    </p>
-                                </div>
+                        <div className="group h-full cursor-pointer rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6 hover:shadow-lg hover:border-blue-400 dark:border-blue-800 dark:from-blue-950/50 dark:to-blue-900/30 transition-all duration-200 flex flex-col sm:flex-row sm:items-center gap-4 justify-center sm:justify-start">
+                            <div className="flex-shrink-0 rounded-lg bg-blue-500 p-3 text-white shadow-md group-hover:bg-blue-600 transition-colors">
+                                <FileText className="size-8" />
+                            </div>
+                            <div className="text-center sm:text-left flex-1">
+                                <h3 className="text-lg sm:text-xl font-semibold text-blue-900 dark:text-blue-100 group-hover:text-blue-600 dark:group-hover:text-blue-200">
+                                    Expedientes
+                                </h3>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Gestionar expedientes y documentos
+                                </p>
                             </div>
                         </div>
                     </Link>
 
                     {/* Botón Configuración */}
                     <Link href="/admin/control-notarial/configuracion" prefetch>
-                        <div className="group cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-8 hover:shadow-lg hover:border-emerald-400 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-emerald-900/30 transition-all duration-200">
-                            <div className="flex items-center gap-4">
-                                <div className="rounded-lg bg-emerald-500 p-3 text-white shadow-md group-hover:bg-emerald-600 transition-colors">
-                                    <Settings className="size-8" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-200">
-                                        Configuración
-                                    </h3>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                        Configurar notaría, usuarios y catálogos
-                                    </p>
-                                </div>
+                        <div className="group h-full cursor-pointer rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 hover:shadow-lg hover:border-emerald-400 dark:border-emerald-800 dark:from-emerald-950/50 dark:to-emerald-900/30 transition-all duration-200 flex flex-col sm:flex-row sm:items-center gap-4 justify-center sm:justify-start">
+                            <div className="flex-shrink-0 rounded-lg bg-emerald-500 p-3 text-white shadow-md group-hover:bg-emerald-600 transition-colors">
+                                <Settings className="size-8" />
+                            </div>
+                            <div className="text-center sm:text-left flex-1">
+                                <h3 className="text-lg sm:text-xl font-semibold text-emerald-900 dark:text-emerald-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-200">
+                                    Configuración
+                                </h3>
+                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    Configurar notaría, usuarios y catálogos
+                                </p>
+                            </div>
+                        </div>
+                    </Link>
+
+                    {/* Botón Recibos */}
+                    <Link href="/admin/control-notarial/recibos" prefetch>
+                        <div className="group h-full cursor-pointer rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 p-6 hover:shadow-lg hover:border-purple-400 dark:border-purple-800 dark:from-purple-950/50 dark:to-purple-900/30 transition-all duration-200 flex flex-col sm:flex-row sm:items-center gap-4 justify-center sm:justify-start">
+                            <div className="flex-shrink-0 rounded-lg bg-purple-500 p-3 text-white shadow-md group-hover:bg-purple-600 transition-colors">
+                                <Receipt className="size-8" />
+                            </div>
+                            <div className="text-center sm:text-left flex-1">
+                                <h3 className="text-lg sm:text-xl font-semibold text-purple-900 dark:text-purple-100 group-hover:text-purple-600 dark:group-hover:text-purple-200">
+                                    Recibos
+                                </h3>
+                                <p className="text-sm text-purple-700 dark:text-purple-300">
+                                    Gestionar y visualizar recibos
+                                </p>
                             </div>
                         </div>
                     </Link>
