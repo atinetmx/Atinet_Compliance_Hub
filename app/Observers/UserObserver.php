@@ -304,7 +304,12 @@ class UserObserver
             // Sincronizar también en BD master para control centralizado de usuarios,
             // siempre que sea un usuario de notaría y no ya estemos operando en master.
             if ($user->notaria_id !== null && $conn !== 'mysql') {
-                $this->sincronizarEnCNMaster($user, $rolId, $numeroNotaria);
+                $masterCnId = $this->sincronizarEnCNMaster($user, $rolId, $numeroNotaria);
+
+                // Si es una creación nueva en master, ese Id es la referencia canónica.
+                if ($masterCnId !== null) {
+                    User::withoutEvents(fn () => $user->updateQuietly(['cn_usuario_id' => $masterCnId]));
+                }
             }
         } catch (\Throwable $e) {
             Log::error('UserObserver: error al sincronizar usuario en CN', [
@@ -317,9 +322,10 @@ class UserObserver
     /**
      * Sincroniza el usuario en la tabla tbl_cat_usuarios de la BD master.
      * El master actúa como registro centralizado de todos los usuarios de todas las notarías.
-     * El Id en master puede diferir del tenant; NO se usa para autenticación C# (eso usa cn_usuario_id).
+     * El Id en master es la referencia canónica guardada en users.cn_usuario_id.
+     * Retorna el Id master recién insertado (o null si el registro ya existía o hubo error).
      */
-    protected function sincronizarEnCNMaster(User $user, int $rolId, string $numeroNotaria): void
+    protected function sincronizarEnCNMaster(User $user, int $rolId, string $numeroNotaria): ?int
     {
         try {
             $existe = DB::connection('mysql')
@@ -343,10 +349,12 @@ class UserObserver
                     ->table('tbl_cat_usuarios')
                     ->where('Id', $existe->Id)
                     ->update($datos);
+
+                return null; // Ya existía, no hay Id nuevo
             } else {
                 $usuario = strtoupper(substr(explode('@', $user->email)[0], 0, 20));
 
-                DB::connection('mysql')->table('tbl_cat_usuarios')->insert([
+                $masterCnId = DB::connection('mysql')->table('tbl_cat_usuarios')->insertGetId([
                     'Nombre' => $user->name,
                     'Correo' => $user->email,
                     'Usuario' => $usuario,
@@ -357,12 +365,16 @@ class UserObserver
                     'Sesion_Iniciada' => 0,
                     'Fecha_Creacion' => now(),
                 ]);
+
+                return $masterCnId;
             }
         } catch (\Throwable $e) {
             Log::warning('UserObserver: error al sincronizar usuario en CN master', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
+
+            return null;
         }
     }
 
