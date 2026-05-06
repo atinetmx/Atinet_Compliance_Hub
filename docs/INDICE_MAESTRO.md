@@ -28,6 +28,12 @@
    - SQL de activity_log, search_histories
    - Checklist de implementación
 
+4. **[Fix: Creación de Notaría y Sync CN](development/FIX_CREACION_NOTARIA_Y_SYNC_CN.md)** ✅ Mayo 2026
+   - Fix DDL (CREATE DATABASE) dentro de DB::transaction()
+   - Provisión de tbl_cat_roles, tbl_cat_modulos y LARAVEL_GW en tenants nuevos
+   - UserObserver usa API C# para crear usuarios con hash correcto
+   - Migraciones para tablas/columnas importadas directamente por Alex
+
 4. **[Listas Negras OFAC/SAT](LISTAS_NEGRAS_OFAC_SAT.md)**
    - Integración con BDs legacy
    - Búsquedas en OFAC (11 tablas)
@@ -259,6 +265,7 @@ docs/
 
 **Documentos Clave:**
 - [ACTUALIZACION_NOTARIA_CONTROLLER.md](development/ACTUALIZACION_NOTARIA_CONTROLLER.md) - Tablas tenant
+- [FIX_CREACION_NOTARIA_Y_SYNC_CN.md](development/FIX_CREACION_NOTARIA_Y_SYNC_CN.md) - Fix creación + sync CN (Mayo 2026)
 - [PLAN_CONSOLIDACION_BDS_LEGACY.md](development/PLAN_CONSOLIDACION_BDS_LEGACY.md) - Migraciones legacy
 
 ---
