@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface Task {
     total: number;
@@ -41,6 +42,8 @@ export default function ControlNotarialIndex({
     phase,
     tasks,
 }: Props) {
+    useAuthGuard();
+
     const breadcrumbs = [
         {
             title: 'Dashboard',
