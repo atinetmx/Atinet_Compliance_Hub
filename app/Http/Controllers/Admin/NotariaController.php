@@ -96,48 +96,68 @@ class NotariaController extends Controller
             'calle' => 'nullable|string|max:255',
         ]);
 
-        // Crear la notaría
-        $notaria = Notaria::create(array_merge($validated, [
-            'fecha_registro' => now(),
-            'total_usuarios' => 0,
-            'busquedas_mes_actual' => 0,
-            'activa' => $validated['activa'] ?? true,
-        ]));
+        // ⚠️ createNotariaDatabase() se llama FUERA de la transacción porque ejecuta DDL (CREATE DATABASE)
+        // que en MySQL causa un IMPLICIT COMMIT, rompiendo la transacción activa.
+        // El flujo correcto: primero crear los registros en BD principal (transacción), luego crear la BD tenant.
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+            // ✅ 1. CREAR LA NOTARÍA
+            $notaria = Notaria::create(array_merge($validated, [
+                'fecha_registro' => now(),
+                'total_usuarios' => 0,
+                'busquedas_mes_actual' => 0,
+                'activa' => $validated['activa'] ?? true,
+            ]));
 
-        // ✅ 1. CREAR USUARIO ADMINISTRADOR DE LA NOTARÍA
-        $tempPassword = 'admin123'; // Contraseña temporal
-        $adminUser = User::create([
-            'name' => $validated['contacto_principal'],
-            'email' => $validated['email_contacto'],
-            'password' => Hash::make($tempPassword),
-            'recoverable_password' => \Illuminate\Support\Facades\Crypt::encryptString($tempPassword),
-            'tipo_cuenta' => 'admin_notaria',
-            'notaria_id' => $notaria->id,
-            'email_verified_at' => now(),
-        ]);
+            // ✅ 2. CREAR USUARIO ADMINISTRADOR SIN DISPARAR OBSERVERS
+            // Los observers intentan sincronizar al tenant BD, que aún no existe en este punto.
+            // La sincronización ocurre luego en createNotariaDatabase() → createLocalAdminUser().
+            $tempPassword = 'admin123';
+            $adminUser = User::withoutEvents(function () use ($validated, $notaria, $tempPassword) {
+                return User::create([
+                    'name' => $validated['contacto_principal'],
+                    'email' => $validated['email_contacto'],
+                    'password' => Hash::make($tempPassword),
+                    'recoverable_password' => \Illuminate\Support\Facades\Crypt::encryptString($tempPassword),
+                    'tipo_cuenta' => 'admin_notaria',
+                    'notaria_id' => $notaria->id,
+                    'email_verified_at' => now(),
+                ]);
+            });
 
-        // ✅ 2. CREAR BASE DE DATOS ESPECÍFICA PARA LA NOTARÍA
-        $this->createNotariaDatabase($notaria);
+            // ✅ 3. CREAR SUSCRIPCIÓN INICIAL
+            $plan = Plan::find($validated['plan_id']);
+            Subscription::create([
+                'notaria_id' => $notaria->id,
+                'plan_id' => $validated['plan_id'],
+                'status' => 'trial',
+                'fecha_inicio' => now(),
+                'fecha_vencimiento' => now()->addMonth(),
+                'precio_pagado' => $plan ? $plan->precio_mensual : 0,
+                'moneda' => 'MXN',
+                'ciclo_facturacion' => 'mensual',
+                'auto_renovacion' => true,
+            ]);
 
-        // ✅ 3. CREAR SUSCRIPCIÓN INICIAL
-        $plan = Plan::find($validated['plan_id']);
-        Subscription::create([
-            'notaria_id' => $notaria->id,
-            'plan_id' => $validated['plan_id'],
-            'status' => 'trial', // Primer mes de prueba
-            'fecha_inicio' => now(),
-            'fecha_vencimiento' => now()->addMonth(), // Primer mes gratis
-            'precio_pagado' => $plan ? $plan->precio_mensual : 0,
-            'moneda' => 'MXN',
-            'ciclo_facturacion' => 'mensual',
-            'auto_renovacion' => true,
-        ]);
+            // ✅ 4. ACTUALIZAR CONTADOR DE USUARIOS
+            $notaria->increment('total_usuarios');
 
-        // ✅ 4. ACTUALIZAR CONTADOR DE USUARIOS
-        $notaria->increment('total_usuarios');
+            return [$notaria, $adminUser];
+        });
+
+        [$notaria, $adminUser] = $result;
+
+        // ✅ 5. CREAR BD TENANT FUERA DE LA TRANSACCIÓN (DDL no puede ir dentro de una transacción MySQL)
+        $this->createNotariaDatabase($notaria->fresh());
+
+        // ✅ 6. SINCRONIZAR USUARIO ADMIN CON tbl_cat_usuarios (master y tenant)
+        // El observer fue omitido con withoutEvents porque la BD no existía aún.
+        // Ahora que la BD está lista, disparamos manualmente los métodos de sincronización.
+        app(\App\Observers\UserObserver::class)->created($adminUser->fresh());
+
+        $adminEmail = $validated['email_contacto'];
 
         return redirect()->route('admin.notarias.index')
-            ->with('success', "Notaría creada exitosamente. Usuario admin creado: {$adminUser->email} (contraseña: admin123)");
+            ->with('success', "Notaría creada exitosamente. Usuario admin creado: {$adminEmail} (contraseña: admin123)");
     }
 
     /**
@@ -339,35 +359,23 @@ class NotariaController extends Controller
         // Generar nombre de BD: atinet_{estado}_notaria_{numero}
         $databaseName = "atinet_{$estadoCodigo}_notaria_{$notaria->numero_notaria}";
 
-        try {
-            // ✅ 1. CREAR BASE DE DATOS ESPECÍFICA (SIN CAMBIAR CONEXIÓN ACTUAL)
-            DB::statement("CREATE DATABASE IF NOT EXISTS `{$databaseName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        // ✅ 1. CREAR BASE DE DATOS ESPECÍFICA (SIN CAMBIAR CONEXIÓN ACTUAL)
+        DB::statement("CREATE DATABASE IF NOT EXISTS `{$databaseName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 
-            // ✅ Persistir nombre de BD en la tabla notarias para routing C# multitenant
-            $notaria->updateQuietly(['tenant_db_name' => $databaseName]);
+        // ✅ Persistir nombre de BD en la tabla notarias para routing C# multitenant
+        $notaria->updateQuietly(['tenant_db_name' => $databaseName]);
 
-            Log::info('Base de datos creada para notaría', [
-                'notaria_id' => $notaria->id,
-                'numero_notaria' => $notaria->numero_notaria,
-                'estado' => $notaria->estado,
-                'estado_codigo' => $estadoCodigo,
-                'database_name' => $databaseName,
-                'contacto' => $notaria->email_contacto,
-            ]);
+        Log::info('Base de datos creada para notaría', [
+            'notaria_id' => $notaria->id,
+            'numero_notaria' => $notaria->numero_notaria,
+            'estado' => $notaria->estado,
+            'estado_codigo' => $estadoCodigo,
+            'database_name' => $databaseName,
+            'contacto' => $notaria->email_contacto,
+        ]);
 
-            // ✅ 2. PREPARAR DATOS INICIALES EN LA BD DEL TENANT
-            // Esto se hace en background para no afectar el flujo principal
-            $this->seedNotariaDatabase($databaseName, $notaria);
-
-        } catch (\Exception $e) {
-            Log::error('Error al crear BD de notaría', [
-                'notaria_id' => $notaria->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            // No fallar la creación de la notaría por esto
-            // En producción, esto se haría en un job separado
-        }
+        // ✅ 2. PREPARAR DATOS INICIALES EN LA BD DEL TENANT
+        $this->seedNotariaDatabase($databaseName, $notaria);
     }
 
     /**
@@ -828,7 +836,106 @@ class NotariaController extends Controller
             ]);
         }
 
-        // ✅ 5. COPIAR CUSTOMIZACIONES SI EXISTEN (tenant_services)
+        // ✅ 5. COPIAR CATÁLOGOS BASE DEL CN (tbl_cat_roles y otros catálogos estáticos)
+        // Estos catálogos son los mismos en todos los tenants y son requeridos por FKs en tbl_cat_usuarios.
+        try {
+            $roles = DB::table('tbl_cat_roles')->get();
+
+            foreach ($roles as $role) {
+                $sql = "INSERT INTO `{$databaseName}`.`tbl_cat_roles`
+                        (`Id`, `Nombre`, `Descripcion`, `Activo`, `Fecha_Creacion`)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                            `Nombre` = VALUES(`Nombre`),
+                            `Descripcion` = VALUES(`Descripcion`),
+                            `Activo` = VALUES(`Activo`)";
+
+                DB::statement($sql, [
+                    $role->Id,
+                    $role->Nombre,
+                    $role->Descripcion,
+                    $role->Activo,
+                    $role->Fecha_Creacion,
+                ]);
+            }
+
+            Log::info('Catálogo tbl_cat_roles copiado a BD del tenant', [
+                'database_name' => $databaseName,
+                'roles_count' => $roles->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error copiando tbl_cat_roles al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ✅ 6. COPIAR tbl_cat_modulos (requerido por la API C# y relaciones internas)
+        try {
+            $modulos = DB::table('tbl_cat_modulos')->get();
+
+            foreach ($modulos as $modulo) {
+                DB::statement(
+                    "INSERT INTO `{$databaseName}`.`tbl_cat_modulos`
+                     SELECT * FROM (SELECT ? AS Id, ? AS Nombre, ? AS Descripcion, ? AS Activo, ? AS Fecha_Creacion) AS tmp
+                     WHERE NOT EXISTS (SELECT 1 FROM `{$databaseName}`.`tbl_cat_modulos` WHERE Id = ?)",
+                    [$modulo->Id, $modulo->Nombre, $modulo->Descripcion, $modulo->Activo, $modulo->Fecha_Creacion, $modulo->Id]
+                );
+            }
+
+            Log::info('Catálogo tbl_cat_modulos copiado a BD del tenant', [
+                'database_name' => $databaseName,
+                'modulos_count' => $modulos->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error copiando tbl_cat_modulos al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ✅ 7. CREAR USUARIO LARAVEL_GW EN tbl_cat_usuarios DEL TENANT
+        // Sin este usuario el servicio ControlNotarialApiService no puede obtener un token JWT
+        // y todas las operaciones de la API C# fallarán para esta notaría.
+        try {
+            $gwMaster = DB::table('tbl_cat_usuarios')->where('Usuario', config('services.control_notarial.gw_user', 'LARAVEL_GW'))->first();
+
+            if ($gwMaster) {
+                $sql = "INSERT INTO `{$databaseName}`.`tbl_cat_usuarios`
+                        (`Nombre`, `Correo`, `Usuario`, `Contrasena`, `Rol_Id`, `Numero_Notaria`,
+                         `Activo`, `Sesion_Iniciada`, `Fecha_Creacion`)
+                        SELECT ?, ?, ?, ?, ?, ?, 1, 0, NOW()
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM `{$databaseName}`.`tbl_cat_usuarios`
+                            WHERE `Usuario` = ?
+                        )";
+
+                DB::statement($sql, [
+                    $gwMaster->Nombre,
+                    $gwMaster->Correo,
+                    $gwMaster->Usuario,
+                    $gwMaster->Contrasena,
+                    $gwMaster->Rol_Id,
+                    $notaria->numero_notaria,
+                    $gwMaster->Usuario,
+                ]);
+
+                Log::info('Usuario LARAVEL_GW provisionado en BD del tenant', [
+                    'database_name' => $databaseName,
+                ]);
+            } else {
+                Log::warning('Usuario LARAVEL_GW no encontrado en BD principal — tenant no tendrá acceso a la API C#', [
+                    'database_name' => $databaseName,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error provisionando LARAVEL_GW al tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ✅ 8. COPIAR CUSTOMIZACIONES SI EXISTEN (tenant_services)
         // Si hay customizaciones en la BD central para esta notaría, copiarlas
         try {
             $tenantServices = DB::table('tenant_services')

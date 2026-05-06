@@ -119,6 +119,20 @@ class UserObserver
             return; // sin tenant BD configurado
         }
 
+        // Verificar que la BD tenant realmente existe antes de intentar conectarse
+        // (protege el caso en que se crea el usuario antes de que se haya creado la BD del tenant)
+        try {
+            DB::connection($conn)->getPdo();
+        } catch (\Throwable $e) {
+            Log::warning('UserObserver: BD tenant no disponible aún, omitiendo sincronización', [
+                'user_id' => $user->id,
+                'connection' => $conn,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
         try {
             DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=0');
 
@@ -156,7 +170,11 @@ class UserObserver
 
             DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
         } catch (\Throwable $e) {
-            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            try {
+                DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            } catch (\Throwable) {
+                // Ignorar si la conexión no está disponible
+            }
             Log::error('UserObserver: error al sincronizar users en tenant', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -180,7 +198,11 @@ class UserObserver
             DB::connection($conn)->table('users')->where('email', $user->email)->delete();
             DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
         } catch (\Throwable $e) {
-            DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            try {
+                DB::connection($conn)->statement('SET FOREIGN_KEY_CHECKS=1');
+            } catch (\Throwable) {
+                // Ignorar si la conexión no está disponible
+            }
             Log::error('UserObserver: error al eliminar users en tenant', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
@@ -236,21 +258,44 @@ class UserObserver
                     ->update($datos);
             } else {
                 // ── CREATE ──────────────────────────────────────────────────
-                $usuario = strtoupper(explode('@', $user->email)[0]);
+                // Prioridad: llamar a la API C# con la contraseña en texto plano para que
+                // C# (BCrypt.Net) genere el hash correctamente. Solo se usa INSERT directo
+                // como fallback cuando no hay contraseña recuperable o la API no responde.
+                $cnId = null;
 
-                $datos = [
-                    'Nombre' => $user->name,
-                    'Correo' => $user->email,
-                    'Usuario' => $usuario,
-                    'Contrasena' => str_replace('$2y$', '$2b$', $user->password),
-                    'Rol_Id' => $rolId,
-                    'Numero_Notaria' => $numeroNotaria,
-                    'Activo' => 1,
-                    'Sesion_Iniciada' => 0,
-                    'Fecha_Creacion' => now(),
-                ];
+                $plainPassword = $this->resolverContraseniaPlana($user);
 
-                $cnId = DB::connection($conn)->table('tbl_cat_usuarios')->insertGetId($datos);
+                if ($plainPassword !== null && $user->notaria !== null) {
+                    try {
+                        $cnId = app(\App\Services\ControlNotarialApiService::class)
+                            ->forNotaria($user->notaria)
+                            ->createUsuarioCN($user, $plainPassword);
+                    } catch (\Throwable $apiErr) {
+                        Log::warning('UserObserver: API C# no disponible al crear usuario, usando INSERT directo', [
+                            'user_id' => $user->id,
+                            'error' => $apiErr->getMessage(),
+                        ]);
+                    }
+                }
+
+                // Fallback: INSERT directo con conversión de hash $2y$ → $2b$
+                if ($cnId === null) {
+                    $usuario = strtoupper(explode('@', $user->email)[0]);
+
+                    $datos = [
+                        'Nombre' => $user->name,
+                        'Correo' => $user->email,
+                        'Usuario' => $usuario,
+                        'Contrasena' => str_replace('$2y$', '$2b$', $user->password),
+                        'Rol_Id' => $rolId,
+                        'Numero_Notaria' => $numeroNotaria,
+                        'Activo' => 1,
+                        'Sesion_Iniciada' => 0,
+                        'Fecha_Creacion' => now(),
+                    ];
+
+                    $cnId = DB::connection($conn)->table('tbl_cat_usuarios')->insertGetId($datos);
+                }
 
                 // Evitar recursión: actualizar sin disparar observer
                 User::withoutEvents(fn () => $user->updateQuietly(['cn_usuario_id' => $cnId]));
@@ -260,6 +305,23 @@ class UserObserver
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * Intenta obtener la contraseña en texto plano desde recoverable_password (campo cifrado).
+     * Retorna null si no está disponible o no se puede descifrar.
+     */
+    private function resolverContraseniaPlana(User $user): ?string
+    {
+        if (empty($user->recoverable_password)) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Facades\Crypt::decryptString($user->recoverable_password);
+        } catch (\Throwable) {
+            return null;
         }
     }
 
