@@ -984,5 +984,80 @@ class NotariaController extends Controller
             'database_name' => $databaseName,
             'notaria_id' => $notaria->id,
         ]);
+
+        // ✅ 9. POBLAR tbl_cfg_notaria EN EL TENANT (configuración que lee el C#)
+        // El C# lee esta tabla una vez conectado al tenant para obtener datos del notario.
+        $this->poblarCfgNotaria($databaseName, $notaria);
+    }
+
+    /**
+     * Inserta o actualiza el registro en tbl_cfg_notaria con los datos de la notaría.
+     * Se aplica tanto en la BD del tenant como en la BD master (para el panel del super-admin).
+     */
+    private function poblarCfgNotaria(string $databaseName, Notaria $notaria): void
+    {
+        $domicilio = trim(implode(' ', array_filter([
+            $notaria->calle,
+            $notaria->colonia,
+        ])));
+        $domicilio = $domicilio ?: ($notaria->direccion ?? '');
+
+        $params = [
+            $notaria->contacto_principal ?? $notaria->nombre,        // Nombre_Notario
+            $notaria->numero_notaria,                                 // Numero_Notaria
+            substr($notaria->telefono ?? '', 0, 10),                  // Telefono
+            'N/A',                                                    // RFC
+            $domicilio,                                               // Domicilio
+            $notaria->municipio ?? '',                                // Municipio
+            $notaria->estado ?? '',                                   // Estado
+            substr($notaria->codigo_postal ?? '', 0, 10),             // Codigo_Postal
+        ];
+
+        // ── Tenant DB ──────────────────────────────────────────────────────────
+        try {
+            $sql = "INSERT INTO `{$databaseName}`.`tbl_cfg_notaria`
+                        (`Id`, `Nombre_Notario`, `Numero_Notaria`, `Telefono`, `RFC`,
+                         `Domicilio`, `Municipio`, `Estado`, `Codigo_Postal`, `Logotipo`, `Fecha_Creacion`)
+                    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, '', NOW())
+                    ON DUPLICATE KEY UPDATE
+                        `Nombre_Notario` = VALUES(`Nombre_Notario`),
+                        `Numero_Notaria` = VALUES(`Numero_Notaria`),
+                        `Telefono`       = VALUES(`Telefono`),
+                        `Domicilio`      = VALUES(`Domicilio`),
+                        `Municipio`      = VALUES(`Municipio`),
+                        `Estado`         = VALUES(`Estado`),
+                        `Codigo_Postal`  = VALUES(`Codigo_Postal`)";
+
+            DB::statement($sql, $params);
+
+            Log::info('tbl_cfg_notaria poblada en BD tenant', ['database_name' => $databaseName]);
+        } catch (\Exception $e) {
+            Log::error('Error poblando tbl_cfg_notaria en BD tenant', [
+                'database_name' => $databaseName,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // ── Master DB ──────────────────────────────────────────────────────────
+        // El panel super-admin del C# también consulta la BD master para listar notarías.
+        try {
+            $sqlMaster = "INSERT INTO `tbl_cfg_notaria`
+                              (`Nombre_Notario`, `Numero_Notaria`, `Telefono`, `RFC`,
+                               `Domicilio`, `Municipio`, `Estado`, `Codigo_Postal`, `Logotipo`, `Fecha_Creacion`)
+                          SELECT ?, ?, ?, ?, ?, ?, ?, ?, '', NOW()
+                          WHERE NOT EXISTS (
+                              SELECT 1 FROM `tbl_cfg_notaria`
+                              WHERE `Numero_Notaria` = ?
+                          )";
+
+            DB::statement($sqlMaster, array_merge($params, [$notaria->numero_notaria]));
+
+            Log::info('tbl_cfg_notaria poblada en BD master', ['numero_notaria' => $notaria->numero_notaria]);
+        } catch (\Exception $e) {
+            Log::error('Error poblando tbl_cfg_notaria en BD master', [
+                'numero_notaria' => $notaria->numero_notaria,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

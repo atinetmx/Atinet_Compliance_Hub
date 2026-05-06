@@ -87,11 +87,21 @@ class ControlNotarialApiService
 
     /**
      * Devuelve el identificador que se envía al C# como nombre_Notaria.
-     * El C# solo reconoce 'NOTARIA' (su BD master); el routing multitenant
-     * se gestiona en Laravel (proxy y conexiones tenant), NO via este parámetro.
+     *
+     * El C# usa este valor para resolver la BD tenant: concatena "atinet_" + nombre_Notaria.
+     * Por ejemplo, nombre_Notaria="edomex_notaria_10" → el C# conecta a "atinet_edomex_notaria_10".
+     *
+     * Cuando opera sin contexto de notaría (super-admin / master), se envía 'NOTARIA'
+     * que es la clave especial que el C# reconoce para usar su BD master.
      */
     private function cnNombreNotaria(): string
     {
+        if ($this->notaria !== null) {
+            // Quitar el prefijo "atinet_" del tenant_db_name para obtener el identificador
+            // que el C# espera: "edomex_notaria_10", "oax_notaria_113", etc.
+            return str_replace('atinet_', '', $this->notaria->tenant_db_name ?? '');
+        }
+
         return 'NOTARIA';
     }
 
