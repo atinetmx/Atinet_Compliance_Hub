@@ -184,6 +184,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'usuarios'])->name('usuarios');
         Route::get('alta-catalogos', [\App\Http\Controllers\ControlNotarialController::class, 'altaCatalogos'])->name('alta-catalogos');
         Route::get('reporte-usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'reporteUsuarios'])->name('reporte-usuarios');
+        Route::get('recibos', [\App\Http\Controllers\ControlNotarialController::class, 'recibos'])->name('recibos');
+        Route::get('recibos/expediente', [\App\Http\Controllers\ControlNotarialController::class, 'recibosExpediente'])->name('recibos-expediente');
+        Route::get('reportes', [\App\Http\Controllers\ControlNotarialController::class, 'reportes'])->name('reportes');
     });
 
     // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===

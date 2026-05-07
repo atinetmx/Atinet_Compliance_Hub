@@ -158,4 +158,28 @@ class ControlNotarialController extends Controller
     {
         return Inertia::render('ControlNotarial/Configuracion/Clientes/Index');
     }
+
+    /**
+     * Display recibos module
+     */
+    public function recibos(): Response
+    {
+        return Inertia::render('ControlNotarial/Recibos/Index');
+    }
+
+    /**
+     * Display recibos expediente module
+     */
+    public function recibosExpediente(): Response
+    {
+        return Inertia::render('ControlNotarial/Recibos/Expediente/Index');
+    }
+
+    /**
+     * Display reportes del sistema module
+     */
+    public function reportes(): Response
+    {
+        return Inertia::render('ControlNotarial/Reportes/Index');
+    }
 }

@@ -1476,15 +1476,13 @@ export default function ControlNotarialConfiguracionIndex() {
                                 {/* Subpestaña 2: Verificador Folios */}
                                 <TabsContent value="verificador" className="space-y-6">
                                     {/* Búsqueda de Folios */}
-                                    <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className="bg-blue-600 text-white p-3 rounded-lg">
-                                                <Search className="h-5 w-5" />
-                                            </div>
+                                    <div className="border-2 border-blue-200 rounded-lg p-6 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow mb-2">
+                                        <div className="flex items-center gap-3 mb-2">
+
                                             <h3 className="text-lg font-bold text-gray-900">Búsqueda de Folios</h3>
                                         </div>
 
-                                        <form onSubmit={handleBuscarFolios} className="flex gap-2 mb-6">
+                                        <form onSubmit={handleBuscarFolios} className="flex gap-2">
                                             <div className="flex-1 max-w-sm">
                                                 <label htmlFor="tomo_search" className="text-sm font-medium text-gray-700">Número de Tomo (Opcional)</label>
                                                 <div className="relative mt-2">
@@ -1538,7 +1536,7 @@ export default function ControlNotarialConfiguracionIndex() {
                                     {estatusFolios && (
                                         <div className="space-y-6">
                                             {/* Botón de Imprimir Folios */}
-                                            <div className="flex justify-end mb-4">
+                                            <div className="flex justify-end mb-2">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -1558,7 +1556,7 @@ export default function ControlNotarialConfiguracionIndex() {
 
                                             {/* Tabla de Resultados */}
                                             <div className="border rounded-lg overflow-hidden mb-5">
-                                                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                                <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
                                                     <table className="w-full text-sm">
                                                         <thead className="sticky top-0 z-10 bg-slate-400 dark:bg-slate-800 border-b uppercase">
                                                             <tr>

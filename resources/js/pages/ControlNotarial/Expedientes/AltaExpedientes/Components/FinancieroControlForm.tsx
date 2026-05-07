@@ -13,7 +13,7 @@ interface Presupuesto {
     numero_Presupuesto: string;
     cliente: string;
     tipo_Compareciente: string;
-    operacion: string;
+    operacion: any;
     total_Honorarios: number;
     total_Impuestos_Derechos: number;
     total_Gastos_Notariales: number;
@@ -284,6 +284,28 @@ export default function FinancieroControlForm({
     const [showPdfPresupuestoViewer, setShowPdfPresupuestoViewer] = useState(false);
     const [isLoadingPdfPresupuesto, setIsLoadingPdfPresupuesto] = useState(false);
 
+    // Estado para Orden de Caja
+    const [detallesOrdenCaja, setDetallesOrdenCaja] = useState<any>(null);
+    const [cargandoOrdenCaja, setCargandoOrdenCaja] = useState(false);
+    const [cargoTotal, setCargoTotal] = useState<number>(0);
+    const [ordenesCaja, setOrdenesCaja] = useState<any[]>([]);
+    const [cargandoOrdenesCaja, setCargandoOrdenesCaja] = useState(false);
+    const [ordenCajaSeleccionada, setOrdenCajaSeleccionada] = useState<any>(null);
+    const [detallesFormularioCargo, setDetallesFormularioCargo] = useState<any>(null);
+    const [cargandoFormularioCargo, setCargandoFormularioCargo] = useState(false);
+    const [mostrarFormularioNuevaOrden, setMostrarFormularioNuevaOrden] = useState(false);
+    const [detallesNuevaOrden, setDetallesNuevaOrden] = useState<any>(null);
+    const [cargandoNuevaOrden, setCargandoNuevaOrden] = useState(false);
+    const [importesNuevaOrden, setImportesNuevaOrden] = useState<{ [key: string]: number }>({});
+    const [formasPago, setFormasPago] = useState<any[]>([]);
+    const [formaPagoSeleccionada, setFormaPagoSeleccionada] = useState<number>(0);
+    const [cargandoFormasPago, setCargandoFormasPago] = useState(false);
+    const [comparecienteSeleccionado, setComparecienteSeleccionado] = useState<any>(null);
+    const [clienteIdSeleccionado, setClienteIdSeleccionado] = useState<number | null>(null);
+
+    // Estado local para cargar recibo desde orden activa
+    const [cargandoReciboDesdeOrdenActiva, setCargandoReciboDesdeOrdenActiva] = useState(false);
+
     // Servicios
     const api = useApi();
     const { addToast } = useToast();
@@ -319,11 +341,277 @@ export default function FinancieroControlForm({
         }
     };
 
+    // Función para cargar detalles de Orden de Caja
+    const fetchDetallesOrdenCaja = async () => {
+        if (!currentExpedienteId) return;
+
+        try {
+            setCargandoOrdenCaja(true);
+            const response = await api.get(`/OrdenCaja/GetDetallesOrdenCajaXExpediente?expedienteId=${currentExpedienteId}`);
+
+            if (response.operationStatus === 'Success') {
+                setDetallesOrdenCaja(response.dataResponse);
+                addToast('Detalles de orden de caja cargados', 'success');
+            } else {
+                throw new Error(response.message || 'Error al obtener detalles');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al cargar orden de caja';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setCargandoOrdenCaja(false);
+        }
+    };
+
+    // Función para cargar órdenes de caja
+    const fetchOrdenesCaja = async () => {
+        if (!currentExpedienteId) return;
+
+        try {
+            setCargandoOrdenesCaja(true);
+            const response = await api.get(`/OrdenCaja/GetOrdenesCajaExpediente?expedienteId=${currentExpedienteId}`);
+
+            if (response.operationStatus === 'Success') {
+                setOrdenesCaja(response.dataResponse || []);
+            } else {
+                throw new Error(response.message || 'Error al obtener órdenes');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al cargar órdenes de caja';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setCargandoOrdenesCaja(false);
+        }
+    };
+
+    // Obtener detalles de una orden de caja por ID
+    const fetchDetallesOrdenCajaXId = async (ordenCajaId: number) => {
+        if (!ordenCajaId) return;
+
+        try {
+            setCargandoOrdenCaja(true);
+            const response = await api.get(`/OrdenCaja/GetDetallesOrdenCajaXId?ordenCajaId=${ordenCajaId}`);
+
+            if (response.operationStatus === 'Success') {
+                setDetallesOrdenCaja(response.dataResponse || null);
+                setCargoTotal(0);
+            } else {
+                throw new Error(response.message || 'Error al obtener detalles');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al cargar detalles de orden';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setCargandoOrdenCaja(false);
+        }
+    };
+
+    // Obtener detalles del expediente para el formulario de crear cargo
+    const fetchDetallesFormularioCargo = async () => {
+        if (!currentExpedienteId) return;
+
+        try {
+            setCargandoFormularioCargo(true);
+            const response = await api.get(`/OrdenCaja/GetDetallesOrdenCajaXExpediente?expedienteId=${currentExpedienteId}`);
+
+            if (response.operationStatus === 'Success') {
+                setDetallesFormularioCargo(response.dataResponse || null);
+            } else {
+                throw new Error(response.message || 'Error al obtener detalles');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al cargar detalles del formulario';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setCargandoFormularioCargo(false);
+        }
+    };
+
+    // Cargar detalles para crear una nueva orden
+    const handleNuevaOrden = async () => {
+        if (!currentExpedienteId) return;
+
+        try {
+            setCargandoNuevaOrden(true);
+            setCargandoFormasPago(true);
+            setMostrarFormularioNuevaOrden(true);
+
+            // Pre-llenar cliente con el primero de la lista (si existe)
+            if (formData?.clientes && formData.clientes.length > 0) {
+                setClienteIdSeleccionado(formData.clientes[0].cliente_Id);
+            }
+
+            // Cargar detalles y formas de pago en paralelo
+            const [detallesResponse, formasPagoResponse] = await Promise.all([
+                api.get(`/OrdenCaja/GetDetallesOrdenCajaXExpediente?expedienteId=${currentExpedienteId}`),
+                api.get(`/Catalogos/GetFormasPago`)
+            ]);
+
+            if (detallesResponse.operationStatus === 'Success') {
+                setDetallesNuevaOrden(detallesResponse.dataResponse || null);
+                setImportesNuevaOrden({});
+                setFormaPagoSeleccionada(0);
+            } else {
+                throw new Error(detallesResponse.message || 'Error al obtener detalles');
+            }
+
+            if (formasPagoResponse.operationStatus === 'Success') {
+                setFormasPago(formasPagoResponse.dataResponse || []);
+                // Seleccionar primera forma de pago por defecto
+                if (formasPagoResponse.dataResponse?.length > 0) {
+                    setFormaPagoSeleccionada(formasPagoResponse.dataResponse[0].id);
+                }
+            } else {
+                throw new Error(formasPagoResponse.message || 'Error al obtener formas de pago');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al cargar datos de nueva orden';
+            addToast(message, 'error');
+            console.error('Error:', error);
+            setMostrarFormularioNuevaOrden(false);
+        } finally {
+            setCargandoNuevaOrden(false);
+            setCargandoFormasPago(false);
+        }
+    };
+
+    // Seleccionar una orden y cargar sus detalles
+    const handleSelectOrdenCaja = (orden: any) => {
+        setOrdenCajaSeleccionada(orden);
+        fetchDetallesOrdenCajaXId(orden.id);
+    };
+
+    // Cargar órdenes de caja al cambiar el expediente
+    React.useEffect(() => {
+        if (currentExpedienteId) {
+            fetchOrdenesCaja();
+            setOrdenCajaSeleccionada(null);
+            setDetallesOrdenCaja(null);
+        }
+    }, [currentExpedienteId]);
+
+    // Cargar detalles del formulario de cargo cuando se va a mostrar
+    React.useEffect(() => {
+        const debesMostrarFormularioCargo = !detallesOrdenCaja && !ordenesCaja.some(orden => orden.clave?.toUpperCase() === 'PENDIENTE');
+
+        if (debesMostrarFormularioCargo && !detallesFormularioCargo && currentExpedienteId) {
+            fetchDetallesFormularioCargo();
+        }
+    }, [detallesOrdenCaja, ordenesCaja, currentExpedienteId]);
+
+    // Generar recibo desde orden activa
+    const handleGenerarReciboDesdeOrdenActiva = async () => {
+        if (!currentExpedienteId) return;
+
+        try {
+            setCargandoReciboDesdeOrdenActiva(true);
+            const response = await api.get(`/OrdenCaja/GetDetallesOrdenCajaActiva?expedienteId=${currentExpedienteId}`);
+
+            if (response.operationStatus === 'Success' && response.dataResponse) {
+                const datos = response.dataResponse;
+
+                // Extraer datos de HONORARIOS
+                const honorariosData = {
+                    concepto: 'HONORARIOS',
+                    presupuesto: datos.honorarios?.presupuesto_Honorarios || 0,
+                    total: datos.honorarios?.presupuesto_Honorarios || 0,
+                    importeOrdenActual: datos.honorarios?.importe_Orden_Actual || 0,
+                    abono: datos.honorarios?.abono_Completo_Honorarios || 0,
+                    saldo: datos.honorarios?.abono_Pendiente_Honorarios || 0
+                };
+
+                // Extraer datos de IVA
+                const ivaData = {
+                    concepto: 'IVA',
+                    presupuesto: datos.honorarios?.presupuesto_IVA || 0,
+                    total: datos.honorarios?.presupuesto_IVA || 0,
+                    importeOrdenActual: datos.honorarios?.importe_Orden_Actual_IVA || 0,
+                    abono: datos.honorarios?.abono_Completo_IVA || 0,
+                    saldo: datos.honorarios?.abono_Pendiente_IVA || 0
+                };
+
+                // Extraer datos de GASTOS NOTARIALES
+                const gastosData = {
+                    concepto: 'GASTOS NOTARIALES',
+                    presupuesto: datos.gastos_Notariales?.total_Presupuesto || 0,
+                    total: datos.gastos_Notariales?.total_Presupuesto || 0,
+                    importeOrdenActual: datos.gastos_Notariales?.importe_Orden_Actual || 0,
+                    abono: datos.gastos_Notariales?.abono_Completo || 0,
+                    saldo: datos.gastos_Notariales?.abono_Pendiente || 0
+                };
+
+                // Extraer datos de IMPUESTOS Y DERECHOS
+                const impuestosDetalles = datos.impuestos_Derechos?.lista?.map((item: any) => ({
+                    concepto: item.descripcion || 'Impuesto/Derecho',
+                    presupuesto: item.importe || 0,
+                    total: item.importe || 0,
+                    importeOrdenActual: item.importe_Orden_Actual || 0,
+                    abono: item.abono_Completo || 0,
+                    saldo: item.abono_Pendiente || 0
+                })) || [];
+
+                // Calcular totales
+                const totalHonorarios = (honorariosData.importeOrdenActual || 0) + (ivaData.importeOrdenActual || 0);
+                const totalImpuestosDerechos = impuestosDetalles.reduce((sum: number, item: any) => sum + (item.importeOrdenActual || 0), 0);
+                const totalGastos = gastosData.importeOrdenActual || 0;
+                const granTotal = totalHonorarios + totalImpuestosDerechos + totalGastos;
+
+                setReciboData({
+                    // Datos del desglose
+                    desglose: {
+                        honorarios: datos.desglose?.honorarios || 0,
+                        iva: datos.desglose?.iva || 0,
+                        total_Honorarios_IVA: datos.desglose?.total_Honorarios_IVA || 0,
+                        gastos_Notariales: datos.desglose?.gastos_Notariales || 0,
+                        impuestos_Derechos: datos.desglose?.impuestos_Derechos || 0,
+                        total_Orden: datos.desglose?.total_Orden || 0
+                    },
+
+                    // Datos agrupados por sección
+                    honorariosData: honorariosData,
+                    ivaData: ivaData,
+                    gastosData: gastosData,
+                    impuestosDerechosDetalle: impuestosDetalles,
+
+                    // Totales
+                    totalHonorarios: totalHonorarios,
+                    totalGastos: totalGastos,
+                    totalImpuestosDerechos: totalImpuestosDerechos,
+                    granTotal: granTotal,
+
+                    // Datos del recibo
+                    concepto: '',
+                    formaPago: datos.forma_Pago?.nombre || '',
+                    observaciones: '',
+                    clienteId: datos.cliente?.id || null,
+                    clienteNombre: datos.cliente?.nombre || '',
+                    ordenActiva: true,
+                    formaPayId: datos.forma_Pago?.id || null
+                } as any);
+                setMostrarFormularioRecibo(true);
+                setReciboDetalleSeleccionado(null);
+                addToast('Orden activa cargada correctamente', 'success');
+            } else {
+                addToast(response.message || 'No hay órdenes de caja activas', 'warning');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al obtener la orden activa';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setCargandoReciboDesdeOrdenActiva(false);
+        }
+    };
 
     return (
         <Tabs defaultValue="presupuesto" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
+            <TabsList className="grid w-full grid-cols-7 gap-1 bg-slate-100 dark:bg-slate-800 mb-4 p-1">
                 <TabsTrigger value="presupuesto" className="text-xs">Presupuesto</TabsTrigger>
+                <TabsTrigger value="orden-de-caja" className="text-xs">Orden de Caja</TabsTrigger>
                 <TabsTrigger value="recibos" className="text-xs">Recibos</TabsTrigger>
                 <TabsTrigger value="estado-cuenta" className="text-xs">Estado Cuenta</TabsTrigger>
                 <TabsTrigger value="pld" className="text-xs">PLD</TabsTrigger>
@@ -412,7 +700,20 @@ export default function FinancieroControlForm({
                                             <td className="px-4 py-2 font-semibold text-purple-600 dark:text-purple-400">{presupuesto.numero_Presupuesto}</td>
                                             <td className="px-4 py-2 text-xs">{presupuesto.tipo_Compareciente}</td>
                                             <td className="px-4 py-2">{presupuesto.cliente}</td>
-                                            <td className="px-4 py-2 text-xs">{presupuesto.operacion}</td>
+                                            <td className="px-4 py-2 text-xs">
+                                                {(() => {
+                                                    if (typeof presupuesto.operacion === 'string') {
+                                                        return presupuesto.operacion;
+                                                    }
+                                                    // Si es un número, buscar en operacionesDelExpediente
+                                                    if (typeof presupuesto.operacion === 'number' || (typeof presupuesto.operacion === 'object' && presupuesto.operacion?.id)) {
+                                                        const opId = typeof presupuesto.operacion === 'number' ? presupuesto.operacion : presupuesto.operacion?.id;
+                                                        const operacionEncontrada = operacionesDelExpediente.find((op: any) => op.id === opId);
+                                                        return operacionEncontrada?.descripcion || 'N/A';
+                                                    }
+                                                    return 'N/A';
+                                                })()}
+                                            </td>
                                             <td className="px-4 py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
                                                 ${(presupuesto.total_Honorarios || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
@@ -662,6 +963,7 @@ export default function FinancieroControlForm({
                                 <div></div>
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2 mb-1">
+                                        {/* @ts-ignore */}
                                         <input
                                             id="incluir_iva"
                                             type="checkbox"
@@ -692,6 +994,7 @@ export default function FinancieroControlForm({
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2 mb-1">
+                                        {/* @ts-ignore */}
                                         <input
                                             id="ret_isr_check"
                                             type="checkbox"
@@ -710,6 +1013,7 @@ export default function FinancieroControlForm({
                                 </div>
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2 mb-1">
+                                        {/* @ts-ignore */}
                                         <input
                                             id="ret_iva_check"
                                             type="checkbox"
@@ -1024,6 +1328,738 @@ export default function FinancieroControlForm({
                 )}
             </TabsContent>
 
+            {/* SubTab: Orden de Caja */}
+            <TabsContent value="orden-de-caja" className="space-y-6">
+                {/* Tabla de Órdenes de Caja */}
+                <div>
+                    <div className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                        <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-0">Órdenes de Caja</h3>
+                        <div className="flex gap-2">
+                            {!ordenesCaja.some(orden => orden.clave?.toUpperCase() === 'PENDIENTE') && (
+                                <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={handleNuevaOrden}
+                                    disabled={cargandoNuevaOrden || !currentExpedienteId}
+                                >
+                                    {cargandoNuevaOrden ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Cargando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Nueva Orden
+                                        </>
+                                    )}
+                                </Button>
+                            )}
+                            <Button
+                                size="sm"
+                                className="bg-orange-600 hover:bg-orange-700"
+                                onClick={fetchOrdenesCaja}
+                                disabled={cargandoOrdenesCaja || !currentExpedienteId}
+                            >
+                                {cargandoOrdenesCaja ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Cargando...
+                                    </>
+                                ) : (
+                                    'Recargar'
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {cargandoOrdenesCaja && (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            <span className="ml-2 text-sm text-muted-foreground">Cargando órdenes de caja...</span>
+                        </div>
+                    )}
+
+                    {!cargandoOrdenesCaja && ordenesCaja.length === 0 && (
+                        <div className="border rounded-lg p-4">
+                            <p className="text-sm text-muted-foreground text-center py-8">No hay órdenes de caja registradas para este expediente.</p>
+                        </div>
+                    )}
+
+                    {!cargandoOrdenesCaja && ordenesCaja.length > 0 && (
+                        <div className="border rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-orange-200 dark:bg-orange-700 border-b">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-semibold">ID</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Folio</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Forma de Pago</th>
+                                            <th className="px-4 py-2 text-right font-semibold">Total</th>
+                                            <th className="px-4 py-2 text-center font-semibold">Estatus</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Usuario</th>
+                                            <th className="px-4 py-2 text-left font-semibold">Fecha Creación</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {ordenesCaja.map((orden, idx) => {
+                                            const getStatusColor = (clave: string) => {
+                                                switch (clave?.toUpperCase()) {
+                                                    case 'PAGADO':
+                                                        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+                                                    case 'PENDIENTE':
+                                                        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+                                                    case 'CANCELADO':
+                                                        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+                                                    default:
+                                                        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+                                                }
+                                            };
+
+                                            return (
+                                                <tr
+                                                    key={idx}
+                                                    onClick={() => handleSelectOrdenCaja(orden)}
+                                                    className={`border-b cursor-pointer transition-colors ${
+                                                        ordenCajaSeleccionada?.id === orden.id
+                                                            ? 'bg-orange-100 dark:bg-orange-900/50'
+                                                            : 'hover:bg-orange-50 dark:hover:bg-orange-900/30'
+                                                    }`}
+                                                >
+                                                    <td className="px-4 py-2 font-semibold text-gray-600 dark:text-gray-400">{orden.id}</td>
+                                                    <td className="px-4 py-2 font-semibold text-orange-600 dark:text-orange-400">{orden.folio}</td>
+                                                    <td className="px-4 py-2">{orden.nombre}</td>
+                                                    <td className="px-4 py-2 text-right font-semibold text-orange-600 dark:text-orange-400">${(orden.total_Orden || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-4 py-2 text-center">
+                                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(orden.clave)}`}>
+                                                            {orden.clave}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-2">{orden.usuario}</td>
+                                                    <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{orden.fecha_Creacion}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Divider */}
+                {detallesOrdenCaja && <hr className="border-gray-300 dark:border-gray-600" />}
+
+                {/* Detalles de Orden de Caja - Solo mostrar si hay una orden seleccionada */}
+                {detallesOrdenCaja && <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Detalles de Orden de Caja</h3>}
+
+                {detallesOrdenCaja && (
+                    <div className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
+                        <h3 className="font-semibold text-orange-900 dark:text-orange-100 mb-0">Detalles Cargados</h3>
+                        <Button
+                            size="sm"
+                            className="bg-orange-600 hover:bg-orange-700"
+                            onClick={() => {
+                                setOrdenCajaSeleccionada(null);
+                                setDetallesOrdenCaja(null);
+                            }}
+                        >
+                            Cerrar
+                        </Button>
+                    </div>
+                )}
+
+                {/* Filtros */}
+                {detallesOrdenCaja && (
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                        {/* Campo Operación - Solo Lectura */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Operación</label>
+                            <Input
+                                type="text"
+                                readOnly
+                                value={detallesOrdenCaja.operacion || ''}
+                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                placeholder="N/A"
+                            />
+                        </div>
+
+                        {/* Dropdown Comparecientes - Solo Lectura */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Compareciente</label>
+                            <Input
+                                type="text"
+                                readOnly
+                                value={detallesOrdenCaja.cliente || ''}
+                                className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                placeholder="N/A"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {detallesOrdenCaja && cargandoOrdenCaja && (
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <span className="ml-2 text-sm text-muted-foreground">Cargando detalles...</span>
+                    </div>
+                )}
+
+                {detallesOrdenCaja && !cargandoOrdenCaja && (
+                    <>
+                        {/* TABLA 1: HONORARIOS + IVA */}
+                        <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900/50">
+                            <div className="overflow-x-auto">
+                                <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 border-b flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-blue-600" />
+                                    <h4 className="font-bold text-lg text-gray-900 dark:text-gray-100">HONORARIOS E IVA</h4>
+                                </div>
+                                <table className="w-full text-sm">
+                                    <thead className="bg-blue-600 dark:bg-blue-800 text-white">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Monto Total</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Abono Completo</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Abono Pendiente/Saldo</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Importe Actual</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                            <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">HONORARIOS</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-blue-600">${detallesOrdenCaja.honorarios?.presupuesto_Honorarios?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">${detallesOrdenCaja.honorarios?.abono_Completo_Honorarios?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">${detallesOrdenCaja.honorarios?.abono_Pendiente_Honorarios?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-blue-700 dark:text-blue-300">${detallesOrdenCaja.honorarios?.importe_Orden_Actual?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                        <tr className="border-b hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                                            <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">IVA (16%)</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-blue-600">${detallesOrdenCaja.honorarios?.presupuesto_IVA?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">${detallesOrdenCaja.honorarios?.abono_Completo_IVA?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">${detallesOrdenCaja.honorarios?.abono_Pendiente_IVA?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-blue-700 dark:text-blue-300">${detallesOrdenCaja.honorarios?.importe_Orden_Actual_IVA?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                        <tr className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 text-white border-t-4 border-blue-800">
+                                            <td className="px-4 py-3 font-bold text-lg">TOTAL</td>
+                                            <td className="px-4 py-3 text-right font-bold text-lg">${detallesOrdenCaja.honorarios?.total_Presupuesto?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-lg">${detallesOrdenCaja.honorarios?.abono_Completo_Total?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-lg">${detallesOrdenCaja.honorarios?.abono_Pendiente_Total?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-lg">${(parseFloat(detallesOrdenCaja.honorarios?.importe_Orden_Actual || 0) + parseFloat(detallesOrdenCaja.honorarios?.importe_Orden_Actual_IVA || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* TABLA 3: GASTOS NOTARIALES */}
+                        <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900/50">
+                            <div className="overflow-x-auto">
+                                <div className="px-4 py-3 bg-green-50 dark:bg-green-900/30 border-b flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-green-600" />
+                                    <h4 className="font-bold text-lg text-gray-900 dark:text-gray-100">GASTOS NOTARIALES</h4>
+                                </div>
+                                <table className="w-full text-sm">
+                                    <thead className="bg-green-600 dark:bg-green-800 text-white">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Monto Total</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Abono Completo</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Abono Pendiente/Saldo</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Importe Actual</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr className="border-b hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+                                            <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">GASTOS NOTARIALES</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-green-600">${detallesOrdenCaja.gastos_Notariales?.total_Presupuesto?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">${detallesOrdenCaja.gastos_Notariales?.abono_Completo?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">${detallesOrdenCaja.gastos_Notariales?.abono_Pendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-green-700 dark:text-green-300">${detallesOrdenCaja.gastos_Notariales?.importe_Orden_Actual?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* TABLA 4: IMPUESTOS Y DERECHOS */}
+                        {detallesOrdenCaja.impuestos_Derechos?.lista && detallesOrdenCaja.impuestos_Derechos.lista.length > 0 && (
+                            <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900/50">
+                                <div className="overflow-x-auto">
+                                    <div className="px-4 py-3 bg-purple-50 dark:bg-purple-900/30 border-b flex items-center gap-2">
+                                        <TrendingUp className="h-5 w-5 text-purple-600" />
+                                        <h4 className="font-bold text-lg text-gray-900 dark:text-gray-100">IMPUESTOS Y DERECHOS</h4>
+                                    </div>
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-purple-600 dark:bg-purple-800 text-white">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left font-semibold">Descripción</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Monto Total</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Abono Completo</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Abono Pendiente/Saldo</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Importe Actual</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {detallesOrdenCaja.impuestos_Derechos.lista.map((impuesto: any, idx: number) => (
+                                                <tr key={idx} className="border-b hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors">
+                                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{impuesto.descripcion}</td>
+                                                    <td className="px-4 py-3 text-right font-semibold text-purple-600">${impuesto.importe?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">${impuesto.abono_Completo?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className={`px-4 py-3 text-right font-semibold ${impuesto.abono_Pendiente > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'}`}>
+                                                        ${impuesto.abono_Pendiente?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-bold text-purple-700 dark:text-purple-300">${impuesto.importe_Orden_Actual?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {(!detallesOrdenCaja.impuestos_Derechos?.lista || detallesOrdenCaja.impuestos_Derechos.lista.length === 0) && (
+                            <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-950/30">
+                                <p className="text-sm text-muted-foreground text-center py-8">No hay impuestos y derechos registrados.</p>
+                            </div>
+                        )}
+                    </>
+                )}
+
+
+
+                {!detallesOrdenCaja && ordenesCaja.some(orden => orden.clave?.toUpperCase() === 'PENDIENTE') && (
+                    <div className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-300">
+                        <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0">
+                                <div className="flex items-center justify-center h-8 w-8 rounded-md bg-yellow-200 dark:bg-yellow-800">
+                                    <span className="text-yellow-800 dark:text-yellow-200 font-bold">⚠</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">Formulario bloqueado</h3>
+                                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">No puedes ingresar cargo/ingreso mientras haya órdenes de caja con estatus PENDIENTE. Por favor, resuelve todas las órdenes pendientes primero.</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal/Formulario Nueva Orden */}
+                {mostrarFormularioNuevaOrden && detallesNuevaOrden && (
+                    <div className="border-2 border-green-300 rounded-lg p-6 bg-green-50 dark:bg-green-950/20 space-y-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Crear Nueva Orden de Caja</h3>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setMostrarFormularioNuevaOrden(false);
+                                    setDetallesNuevaOrden(null);
+                                    setImportesNuevaOrden({});
+                                    setFormaPagoSeleccionada(0);
+                                    setComparecienteSeleccionado(null);
+                                }}
+                            >
+                                ✕
+                            </Button>
+                        </div>
+
+                        {/* Información General */}
+                        <div className="bg-white dark:bg-slate-900/50 border rounded-lg p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Operación</label>
+                                    <input
+                                        type="text"
+                                        value={operacionesDelExpediente?.[0]?.descripcion || ''}
+                                        readOnly
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 cursor-not-allowed"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Compareciente</label>
+                                    <select
+                                        value={clienteIdSeleccionado?.toString() || ''}
+                                        onChange={(e) => setClienteIdSeleccionado(parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white dark:bg-slate-900/50 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    >
+                                        <option value="">Selecciona un cliente</option>
+                                        {formData?.clientes?.map((cliente: any) => (
+                                            <option key={cliente.cliente_Id} value={cliente.cliente_Id.toString()}>
+                                                {cliente.nombre} ({cliente.compareciente})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Forma de Pago</label>
+                                    <select
+                                        value={formaPagoSeleccionada}
+                                        onChange={(e) => setFormaPagoSeleccionada(Number(e.target.value))}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white dark:bg-slate-900/50 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                        <option value="">Selecciona forma de pago</option>
+                                        {formasPago?.map((forma: any) => (
+                                            <option key={forma.id} value={forma.id}>
+                                                {forma.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabla de Honorarios e IVA */}
+                        <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900/50">
+                            <div className="overflow-x-auto">
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-green-600" />
+                                    <h4 className="font-bold text-lg text-gray-900 dark:text-gray-100">Honorarios e IVA</h4>
+                                </div>
+                                <table className="w-full text-sm">
+                                    <thead className="bg-green-600 dark:bg-green-800 text-white">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Presupuesto</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Abono</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Saldo</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Importe</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(() => {
+                                            const honorariosPresupuesto = (detallesNuevaOrden.honorarios?.presupuesto_Honorarios || 0);
+                                            const ivaPresupuesto = (detallesNuevaOrden.honorarios?.presupuesto_IVA || 0);
+                                            const sumaPresupuestos = honorariosPresupuesto + ivaPresupuesto;
+                                            const totalIngresado = importesNuevaOrden['total'] || 0;
+                                            const honorariosCalculado = sumaPresupuestos > 0 ? totalIngresado * (honorariosPresupuesto / sumaPresupuestos) : 0;
+                                            const ivaCalculado = sumaPresupuestos > 0 ? totalIngresado * (ivaPresupuesto / sumaPresupuestos) : 0;
+                                            return (
+                                                <>
+                                                    <tr className="border-b hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+                                                        <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">HONORARIOS</td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
+                                                            ${honorariosPresupuesto.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                            ${detallesNuevaOrden.honorarios?.abono_Completo_Honorarios?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">
+                                                            ${detallesNuevaOrden.honorarios?.abono_Pendiente_Honorarios?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
+                                                            ${honorariosCalculado.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                    <tr className="border-b hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors">
+                                                        <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">IVA</td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
+                                                            ${ivaPresupuesto.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                            ${detallesNuevaOrden.honorarios?.abono_Completo_IVA?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">
+                                                            ${detallesNuevaOrden.honorarios?.abono_Pendiente_IVA?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-blue-700 dark:text-blue-300">
+                                                            ${ivaCalculado.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                    <tr className="bg-gradient-to-r from-green-600 to-green-700 dark:from-green-800 dark:to-green-900 text-white border-t-4 border-green-800">
+                                                        <td className="px-4 py-3 font-bold text-lg">TOTAL HONORARIOS + IVA</td>
+                                                        <td className="px-4 py-3 text-right font-bold text-lg">
+                                                            ${(detallesNuevaOrden.honorarios?.total_Presupuesto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-bold text-lg">
+                                                            ${(detallesNuevaOrden.honorarios?.abono_Completo_Total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-bold text-lg">
+                                                            ${(detallesNuevaOrden.honorarios?.abono_Pendiente_Total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0.00"
+                                                                    step="0.01"
+                                                                    min="0"
+                                                                    max={detallesNuevaOrden.honorarios?.abono_Pendiente_Total || 0}
+                                                                    value={importesNuevaOrden['total'] || ''}
+                                                                    onChange={(e) => {
+                                                                        const valor = parseFloat(e.target.value) || 0;
+                                                                        const maximo = detallesNuevaOrden.honorarios?.abono_Pendiente_Total || 0;
+                                                                        setImportesNuevaOrden({ ...importesNuevaOrden, total: Math.min(valor, maximo) });
+                                                                    }}
+                                                                    onFocus={() => {
+                                                                        const valorAuto = (detallesNuevaOrden.honorarios?.abono_Pendiente_Total || 0) > 0
+                                                                            ? (detallesNuevaOrden.honorarios?.abono_Pendiente_Total || 0)
+                                                                            : (detallesNuevaOrden.honorarios?.total_Presupuesto || 0);
+                                                                        if (!importesNuevaOrden['total']) {
+                                                                            setImportesNuevaOrden({ ...importesNuevaOrden, total: valorAuto });
+                                                                        }
+                                                                    }}
+                                                                    className="flex-1 px-2 py-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400 text-right font-bold focus:outline-none focus:ring-2 focus:ring-green-500 text-sm cursor-pointer"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setImportesNuevaOrden({ ...importesNuevaOrden, total: 0 })}
+                                                                    className="p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 transition-colors"
+                                                                    title="Limpiar"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </>
+                                            );
+                                        })()}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Tabla de Gastos Notariales */}
+                        <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900/50">
+                            <div className="overflow-x-auto">
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-cyan-600" />
+                                    <h4 className="font-bold text-lg text-gray-900 dark:text-gray-100">Gastos Notariales</h4>
+                                </div>
+                                <table className="w-full text-sm">
+                                    <thead className="bg-cyan-600 dark:bg-cyan-800 text-white">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Presupuesto</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Abono</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Saldo</th>
+                                            <th className="px-4 py-3 text-right font-semibold">Importe</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(() => {
+                                            const gastosNota = detallesNuevaOrden.gastosNotariales || {};
+                                            return (
+                                                <tr className="border-b hover:bg-cyan-50 dark:hover:bg-cyan-900/30 transition-colors">
+                                                    <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">GASTOS NOTARIALES</td>
+                                                    <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
+                                                        ${(gastosNota.total_Presupuesto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                        ${(gastosNota.abono_Completo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">
+                                                        ${(gastosNota.abono_Pendiente || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="number"
+                                                                placeholder="0.00"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max={gastosNota.abono_Pendiente || 0}
+                                                                value={importesNuevaOrden['gastos'] || ''}
+                                                                onChange={(e) => {
+                                                                    const valor = parseFloat(e.target.value) || 0;
+                                                                    const maximo = gastosNota.abono_Pendiente || 0;
+                                                                    setImportesNuevaOrden({ ...importesNuevaOrden, gastos: Math.min(valor, maximo) });
+                                                                }}
+                                                                onFocus={() => {
+                                                                    const valorAuto = (gastosNota.abono_Pendiente || 0) > 0 ? gastosNota.abono_Pendiente : gastosNota.total_Presupuesto;
+                                                                    setImportesNuevaOrden({ ...importesNuevaOrden, gastos: valorAuto });
+                                                                }}
+                                                                className="flex-1 px-2 py-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400 text-right font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm cursor-pointer"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setImportesNuevaOrden({ ...importesNuevaOrden, gastos: 0 })}
+                                                                className="p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 transition-colors"
+                                                                title="Limpiar"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })()}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Tabla de Impuestos y Derechos */}
+                        <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900/50">
+                                <div className="overflow-x-auto">
+                                    <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b flex items-center gap-2">
+                                        <TrendingUp className="h-5 w-5 text-purple-600" />
+                                        <h4 className="font-bold text-lg text-gray-900 dark:text-gray-100">Impuestos y Derechos</h4>
+                                    </div>
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-purple-600 dark:bg-purple-800 text-white">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left font-semibold">Concepto</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Presupuesto</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Abono</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Saldo</th>
+                                                <th className="px-4 py-3 text-right font-semibold">Importe</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {detallesNuevaOrden.impuestosDerechos?.lista && detallesNuevaOrden.impuestosDerechos.lista.length > 0 ? (
+                                                detallesNuevaOrden.impuestosDerechos.lista.map((tramite: any, idx: number) => (
+                                                    <tr key={idx} className="border-b hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors">
+                                                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{tramite?.descripcion || 'N/A'}</td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
+                                                            ${(tramite?.importe || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">
+                                                            ${(tramite?.abono_Completo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-orange-600 dark:text-orange-400">
+                                                            ${(tramite?.abono_Pendiente || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                placeholder="0.00"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max={tramite.abono_Pendiente}
+                                                                value={importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`] || ''}
+                                                                onChange={(e) => {
+                                                                    const valor = parseFloat(e.target.value) || 0;
+                                                                    const maximo = tramite.abono_Pendiente || 0;
+                                                                    setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: Math.min(valor, maximo) });
+                                                                }}
+                                                                onFocus={() => {
+                                                                    if (!importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`]) {
+                                                                        const valorAuto = tramite.abono_Pendiente > 0 ? tramite.abono_Pendiente : tramite.importe;
+                                                                        setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: valorAuto });
+                                                                    }
+                                                                }}
+                                                                className="flex-1 px-2 py-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400 text-right font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm cursor-pointer"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: 0 })}
+                                                                className="p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 transition-colors"
+                                                                title="Limpiar"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={5} className="px-4 py-3 text-center text-gray-500">
+                                                        No hay trámites registrados
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        {/* Botones de Acción */}
+                        <div className="flex gap-3 justify-end pt-6 border-t-2 border-gray-200">
+                            <Button
+                                variant="outline"
+                                className="text-sm"
+                                onClick={() => {
+                                    setMostrarFormularioNuevaOrden(false);
+                                    setDetallesNuevaOrden(null);
+                                    setImportesNuevaOrden({});
+                                    setFormaPagoSeleccionada(0);
+                                    setComparecienteSeleccionado(null);
+                                }}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold"
+                                onClick={async () => {
+                                    try {
+                                        if (!formaPagoSeleccionada) {
+                                            addToast('Debes seleccionar una forma de pago', 'error');
+                                            return;
+                                        }
+
+                                        if (!clienteIdSeleccionado) {
+                                            addToast('Debes seleccionar un cliente', 'error');
+                                            return;
+                                        }
+
+                                        // Construir lista de impuestos derechos con los importes ingresados
+                                        const listaImpuestosDerechos = (detallesNuevaOrden.impuestosDerechos?.lista || []).map((tramite: any) => ({
+                                            tramite_Id: parseInt(String(tramite.impuestos_Derechos_Id), 10),
+                                            importe: parseFloat(String(importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`] || 0))
+                                        }));
+
+                                        const expedienteId = parseInt(String(currentExpedienteId), 10);
+                                        const clienteId = parseInt(String(clienteIdSeleccionado), 10);
+                                        const formaPagoId = parseInt(String(formaPagoSeleccionada), 10);
+                                        const operacionPrincipalId = operacionesDelExpediente && operacionesDelExpediente.length > 0 ? operacionesDelExpediente[0].id : 0;
+                                        const honorariosTotal = parseFloat(String(importesNuevaOrden['total'] || 0));
+                                        const gastosNotariales = parseFloat(String(importesNuevaOrden['gastos'] || 0));
+
+                                        const payload = {
+                                            expediente_Id: expedienteId,
+                                            operacion_Principal_Id: operacionPrincipalId,
+                                            cliente_Id: clienteId,
+                                            forma_Pago_Id: formaPagoId,
+                                            honorarios: honorariosTotal,
+                                            gastos_Notariales: gastosNotariales,
+                                            listaImpuestosDerechos: listaImpuestosDerechos
+                                        };
+
+                                        setCargandoNuevaOrden(true);
+                                        const response = await api.post(`/OrdenCaja/CreateOrdenCajaXExpediente`, payload);
+
+                                        if (response.operationStatus === 'Success') {
+                                            addToast('Orden de caja creada correctamente', 'success');
+                                            setMostrarFormularioNuevaOrden(false);
+                                            setDetallesNuevaOrden(null);
+                                            setImportesNuevaOrden({});
+                                            setFormaPagoSeleccionada(0);
+                                            setComparecienteSeleccionado(null);
+                                            setClienteIdSeleccionado(null);
+                                            // Recargar órdenes
+                                            await fetchOrdenesCaja();
+                                        } else {
+                                            throw new Error(response.message || 'Error al crear la orden');
+                                        }
+                                    } catch (error) {
+                                        const message = error instanceof Error ? error.message : 'Error al crear la orden';
+                                        addToast(message, 'error');
+                                        console.error('Error:', error);
+                                    } finally {
+                                        setCargandoNuevaOrden(false);
+                                    }
+                                }}
+                                disabled={cargandoNuevaOrden}
+                            >
+                                {cargandoNuevaOrden ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Creando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Crear Orden
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </TabsContent>
+
             {/* SubTab: Recibos */}
             <TabsContent value="recibos" className="space-y-6">
                 <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-md mb-4 flex items-center justify-between">
@@ -1031,22 +2067,20 @@ export default function FinancieroControlForm({
                     <Button
                         size="sm"
                         className="bg-green-600 hover:bg-green-700"
-                        onClick={() => {
-                            setMostrarFormularioRecibo(true);
-                            setReciboDetalleSeleccionado(null);
-                            setReciboData({
-                                impuestosDerechos: 0,
-                                gastosNotariales: 0,
-                                honorarios: 0,
-                                concepto: '',
-                                formaPago: '',
-                                observaciones: '',
-                                clienteId: null
-                            });
-                        }}
+                        onClick={handleGenerarReciboDesdeOrdenActiva}
+                        disabled={cargandoReciboDesdeOrdenActiva}
                     >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Generar Recibo
+                        {cargandoReciboDesdeOrdenActiva ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Cargando...
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Generar Recibo
+                            </>
+                        )}
                     </Button>
                 </div>
 
@@ -1190,11 +2224,11 @@ export default function FinancieroControlForm({
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Forma de Pago</label>
-                                {reciboDetalleSeleccionado ? (
+                                {reciboDetalleSeleccionado || (reciboData as any).ordenActiva ? (
                                     <Input
                                         type="text"
                                         readOnly
-                                        value={reciboDetalleSeleccionado.forma_Pago}
+                                        value={reciboDetalleSeleccionado?.forma_Pago || reciboData.formaPago}
                                         className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                     />
                                 ) : (
@@ -1223,11 +2257,11 @@ export default function FinancieroControlForm({
                             {/* Row 3: Recibí De (Full Width) */}
                             <div className="col-span-4 space-y-2">
                                 <label className="text-sm font-medium">Recibí De</label>
-                                {reciboDetalleSeleccionado ? (
+                                {reciboDetalleSeleccionado || (reciboData as any).ordenActiva ? (
                                     <Input
                                         type="text"
                                         readOnly
-                                        value={reciboDetalleSeleccionado.nombre}
+                                        value={reciboDetalleSeleccionado?.nombre || (reciboData as any)?.nombre || ''}
                                         className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                     />
                                 ) : (
@@ -1246,75 +2280,140 @@ export default function FinancieroControlForm({
                                 )}
                             </div>
 
-                            {/* Row 4: Impuestos y Derechos, Gastos Notariales, Honorarios, Total */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Impuestos y Derechos</label>
-                                {reciboDetalleSeleccionado ? (
+                            {/* Row 4: Desglose Summary (6 readonly inputs) */}
+                            <div className="col-span-4 grid grid-cols-6 gap-2 mb-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-600">Honorarios</label>
                                     <Input
                                         type="text"
                                         readOnly
-                                        value={`$${reciboDetalleSeleccionado.total_Gastos_Impuestos_Derechos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                        value={`$${((reciboData as any).desglose?.honorarios || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-center"
                                     />
-                                ) : (
-                                    <Input
-                                        type="number"
-                                        step="0.5"
-                                        min="0"
-                                        value={reciboData.impuestosDerechos}
-                                        onChange={(e) => setReciboData({ ...reciboData, impuestosDerechos: Math.max(0, parseFloat(e.target.value) || 0) })}
-                                        placeholder="0.00"
-                                        className="text-sm bg-white dark:bg-white"
-                                    />
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Gastos Notariales</label>
-                                {reciboDetalleSeleccionado ? (
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-600">IVA</label>
                                     <Input
                                         type="text"
                                         readOnly
-                                        value={`$${reciboDetalleSeleccionado.total_Gastos_Notariales.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                        value={`$${((reciboData as any).desglose?.iva || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-center"
                                     />
-                                ) : (
-                                    <Input
-                                        type="number"
-                                        step="0.5"
-                                        min="0"
-                                        value={reciboData.gastosNotariales}
-                                        onChange={(e) => setReciboData({ ...reciboData, gastosNotariales: Math.max(0, parseFloat(e.target.value) || 0) })}
-                                        placeholder="0.00"
-                                        className="text-sm bg-white dark:bg-white"
-                                    />
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Honorarios</label>
-                                {reciboDetalleSeleccionado ? (
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-600">Total H+IVA</label>
                                     <Input
                                         type="text"
                                         readOnly
-                                        value={`$${reciboDetalleSeleccionado.total_Honorarios.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                                        value={`$${((reciboData as any).desglose?.total_Honorarios_IVA || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-center font-semibold"
                                     />
-                                ) : (
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-600">Gastos Notariales</label>
                                     <Input
-                                        type="number"
-                                        step="0.5"
-                                        min="0"
-                                        value={reciboData.honorarios}
-                                        onChange={(e) => setReciboData({ ...reciboData, honorarios: Math.max(0, parseFloat(e.target.value) || 0) })}
-                                        placeholder="0.00"
-                                        className="text-sm bg-white dark:bg-white"
+                                        type="text"
+                                        readOnly
+                                        value={`$${((reciboData as any).desglose?.gastos_Notariales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-center"
                                     />
-                                )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-600">Impuestos Derechos</label>
+                                    <Input
+                                        type="text"
+                                        readOnly
+                                        value={`$${((reciboData as any).desglose?.impuestos_Derechos || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed text-center"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-green-600 font-semibold">Total Orden</label>
+                                    <Input
+                                        type="text"
+                                        readOnly
+                                        value={`$${((reciboData as any).desglose?.total_Orden || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                        className="text-sm bg-green-100 dark:bg-green-900/30 cursor-not-allowed text-center font-bold text-green-700"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Total</label>
-                                <div className="px-3 py-2 border rounded-md text-right font-bold text-green-500 bg-white dark:bg-white">
-                                    $ {reciboDetalleSeleccionado ? reciboDetalleSeleccionado.total.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (reciboData.impuestosDerechos + reciboData.gastosNotariales + reciboData.honorarios).toFixed(2)}
+                            {/* Tabla de Detalles Financieros */}
+                            <div className="col-span-4 space-y-4">
+                                <label className="text-sm font-medium">Detalles Financieros</label>
+                                <div className="border rounded-lg overflow-hidden">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-gray-200 dark:bg-gray-700">
+                                                <th className="px-3 py-2 text-left">Concepto</th>
+                                                <th className="px-3 py-2 text-right">Total</th>
+                                                <th className="px-3 py-2 text-right">Abono</th>
+                                                <th className="px-3 py-2 text-right">Saldo</th>
+                                                <th className="px-3 py-2 text-right">Importe Actual</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {/* HONORARIOS */}
+                                            {(reciboData as any).honorariosData && (
+                                                <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                    <td className="px-3 py-2 font-medium">HONORARIOS</td>
+                                                    <td className="px-3 py-2 text-right">${((reciboData as any).honorariosData?.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right">${((reciboData as any).honorariosData?.abono || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right text-green-600 font-medium">${((reciboData as any).honorariosData?.saldo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right font-semibold text-blue-600">${((reciboData as any).honorariosData?.importeOrdenActual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            )}
+
+                                            {/* IVA */}
+                                            {(reciboData as any).ivaData && (
+                                                <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                    <td className="px-3 py-2 font-medium">IVA</td>
+                                                    <td className="px-3 py-2 text-right">${((reciboData as any).ivaData?.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right">${((reciboData as any).ivaData?.abono || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right text-green-600 font-medium">${((reciboData as any).ivaData?.saldo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right font-semibold text-blue-600">${((reciboData as any).ivaData?.importeOrdenActual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            )}
+
+                                            {/* GASTOS NOTARIALES */}
+                                            {(reciboData as any).gastosData && (
+                                                <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                    <td className="px-3 py-2 font-medium">GASTOS NOTARIALES</td>
+                                                    <td className="px-3 py-2 text-right">${((reciboData as any).gastosData?.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right">${((reciboData as any).gastosData?.abono || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right text-green-600 font-medium">${((reciboData as any).gastosData?.saldo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right font-semibold text-blue-600">${((reciboData as any).gastosData?.importeOrdenActual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            )}
+
+                                            {/* IMPUESTOS Y DERECHOS - Header */}
+                                            {((reciboData as any).impuestosDerechosDetalle || []).length > 0 && (
+                                                <tr className="border-t bg-purple-100 dark:bg-purple-900/30">
+                                                    <td colSpan={5} className="px-3 py-2 font-semibold text-purple-700 dark:text-purple-300">IMPUESTOS Y DERECHOS</td>
+                                                </tr>
+                                            )}
+
+                                            {/* IMPUESTOS Y DERECHOS - Filas individuales */}
+                                            {((reciboData as any).impuestosDerechosDetalle || []).map((item: any, idx: number) => (
+                                                <tr key={idx} className="border-t hover:bg-gray-50 dark:hover:bg-gray-800 bg-purple-50 dark:bg-purple-950/20">
+                                                    <td className="px-3 py-2 text-sm">{item.concepto}</td>
+                                                    <td className="px-3 py-2 text-right">${(item.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right">${(item.abono || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right text-green-600">${(item.saldo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                    <td className="px-3 py-2 text-right font-semibold text-blue-600">${(item.importeOrdenActual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            ))}
+
+                                            {/* TOTAL */}
+                                            <tr className="border-t bg-green-100 dark:bg-green-900/30 font-bold">
+                                                <td className="px-3 py-2 text-green-700 dark:text-green-300">TOTAL</td>
+                                                <td className="px-3 py-2"></td>
+                                                <td className="px-3 py-2"></td>
+                                                <td className="px-3 py-2"></td>
+                                                <td className="px-3 py-2 text-right text-green-700 dark:text-green-300 font-bold">${((reciboData as any).granTotal || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 

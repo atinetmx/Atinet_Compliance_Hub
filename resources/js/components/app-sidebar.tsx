@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, Settings, FileText, DollarSign, Users } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, Settings, FileText, DollarSign, Users, Receipt } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -90,6 +90,10 @@ export function AppSidebar() {
                               ],
                           },
                           {
+                              title: 'Recibos',
+                              href: '/admin/control-notarial/recibos',
+                          },
+                          {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               items: [
@@ -160,6 +164,11 @@ export function AppSidebar() {
                                       icon: DollarSign,
                                   },
                               ],
+                          },
+                          {
+                              title: 'Recibos',
+                              href: '/admin/control-notarial/recibos',
+                              icon: Receipt,
                           },
                           {
                               title: 'Configuración',

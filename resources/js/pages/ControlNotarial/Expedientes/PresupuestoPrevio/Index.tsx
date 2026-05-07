@@ -141,6 +141,7 @@ export default function PresupuestoPrevioIndex() {
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<PresupuestoPrevioBusqueda[]>([]);
+    const [todosPresupuestos, setTodosPresupuestos] = useState<PresupuestoPrevioBusqueda[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -215,8 +216,8 @@ export default function PresupuestoPrevioIndex() {
         if (initializedRef.current) return;
         initializedRef.current = true;
 
-        // Cargar presupuestos al montar (filtro vacío = todos)
-        fetchPresupuestos('');
+        // Cargar presupuestos al montar (sin filtro = todos)
+        fetchPresupuestos();
 
         // Cargar clientes al montar
         const fetchClientes = async () => {
@@ -302,15 +303,6 @@ export default function PresupuestoPrevioIndex() {
         };
         fetchZonas();
     }, []);
-
-    // Búsqueda dinámica: actualizar resultados cuando cambia el filtro
-    useEffect(() => {
-        const debounceTimer = setTimeout(() => {
-            fetchPresupuestos(filtro);
-        }, 300); // Esperar 300ms después de que el usuario deje de escribir
-
-        return () => clearTimeout(debounceTimer);
-    }, [filtro]);
 
     // Cargar impuestos y derechos por operación
     useEffect(() => {
@@ -472,27 +464,28 @@ export default function PresupuestoPrevioIndex() {
         }
     };
 
-    const fetchPresupuestos = async (filtroValue: string) => {
+    const fetchPresupuestos = async () => {
         setIsSearching(true);
         setSearchError(null);
         try {
-            let endpoint = '/Presupuestos/GetPresupuestosPrevios';
-            if (filtroValue) {
-                endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
-            }
-            const response = await api.get(endpoint);
+            // Traer TODOS los datos sin filtrar
+            const response = await api.get('/Presupuestos/GetPresupuestosPrevios');
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
                 setLoginModalOpen(true);
+                setTodosPresupuestos([]);
                 setResultados([]);
                 return;
             }
 
             if (response && response.dataResponse) {
-                setResultados(response.dataResponse || []);
+                const allData = response.dataResponse || [];
+                setTodosPresupuestos(allData);
+                // NO establecer resultados aquí, dejar que el useEffect lo haga
             } else {
                 setSearchError(response?.message || 'No se pudieron cargar los presupuestos previos.');
+                setTodosPresupuestos([]);
                 setResultados([]);
             }
         } catch (error) {
@@ -503,9 +496,35 @@ export default function PresupuestoPrevioIndex() {
         }
     };
 
+    // Filtrar resultados en el cliente cuando cambia el filtro
+    useEffect(() => {
+        console.log('🔍 Filtrando:', { filtro, todosPresupuestosCount: todosPresupuestos.length });
+        if (todosPresupuestos.length > 0) {
+            console.log('📋 Estructura de datos:', todosPresupuestos[0]);
+        }
+
+        if (!filtro.trim()) {
+            setResultados(todosPresupuestos);
+        } else {
+            const filtroLower = filtro.toLowerCase();
+            const filtered = todosPresupuestos.filter(presupuesto => {
+                // Buscar en múltiples campos
+                const nombreCompleto = `${presupuesto.nombre || ''} ${presupuesto.apellido_Paterno || ''} ${presupuesto.apellido_Materno || ''}`.toLowerCase();
+                return (
+                    nombreCompleto.includes(filtroLower) ||
+                    (presupuesto.operacion && presupuesto.operacion.toLowerCase().includes(filtroLower)) ||
+                    (presupuesto.fecha_Creacion && presupuesto.fecha_Creacion.includes(filtro)) ||
+                    (presupuesto.id && presupuesto.id.toString().includes(filtro))
+                );
+            });
+            console.log('✅ Resultados filtrados:', filtered.length);
+            setResultados(filtered);
+        }
+    }, [filtro, todosPresupuestos]);
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        fetchPresupuestos(filtro);
+        fetchPresupuestos();
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -723,7 +742,7 @@ export default function PresupuestoPrevioIndex() {
                 setZonaFiltro('');
                 setIsEditing(false);
                 setActiveTab('busqueda');
-                fetchPresupuestos(filtro);
+                fetchPresupuestos();
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al guardar';
@@ -957,7 +976,6 @@ export default function PresupuestoPrevioIndex() {
                                         onClick={() => {
                                             setFiltro('');
                                             setSearchError(null);
-                                            setResultados([]);
                                         }}
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                         title="Limpiar búsqueda"
@@ -966,7 +984,7 @@ export default function PresupuestoPrevioIndex() {
                                     </button>
                                 )}
                             </div>
-                            <Button disabled={isSearching} className="bg-green-600 hover:bg-green-700" onClick={() => fetchPresupuestos(filtro)}>
+                            <Button disabled={isSearching} className="bg-green-600 hover:bg-green-700" onClick={() => fetchPresupuestos()}>
                                 {isSearching ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
