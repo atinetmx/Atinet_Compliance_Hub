@@ -44,6 +44,8 @@ class Notaria extends Model
         'legacy_busquedas_count',
         'legacy_ultima_busqueda',
         'tenant_db_name',
+        // Integración Control Notarial (C#)
+        'cn_notaria_id',
     ];
 
     protected $casts = [

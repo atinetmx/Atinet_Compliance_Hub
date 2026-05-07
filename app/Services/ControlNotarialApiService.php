@@ -86,23 +86,25 @@ class ControlNotarialApiService
     }
 
     /**
-     * Devuelve el identificador que se envía al C# como nombre_Notaria.
+     * Devuelve el identificador que se envía al C# como campo "notaria" (int).
      *
-     * El C# usa este valor para resolver la BD tenant: concatena "atinet_" + nombre_Notaria.
-     * Por ejemplo, nombre_Notaria="edomex_notaria_10" → el C# conecta a "atinet_edomex_notaria_10".
+     * IMPORTANTE — resolución DINÁMICA en C#:
+     * El C# recibe este ID numérico y lo usa para construir dinámicamente el connection
+     * string al tenant MySQL. No hay registro estático — funciona con notarías nuevas
+     * sin configuración adicional en C#.
      *
-     * Cuando opera sin contexto de notaría (super-admin / master), se envía 'NOTARIA'
-     * que es la clave especial que el C# reconoce para usar su BD master.
+     * FORMATO: ID entero de la notaría (PK de la tabla notarias en Laravel).
+     *   tenant → 10   (notaria->id)
+     *   master → 0    (super_admin sin notaría, BD master)
      */
     private function cnNombreNotaria(): string
     {
         if ($this->notaria !== null) {
-            // Quitar el prefijo "atinet_" del tenant_db_name para obtener el identificador
-            // que el C# espera: "edomex_notaria_10", "oax_notaria_113", etc.
-            return str_replace('atinet_', '', $this->notaria->tenant_db_name ?? '');
+            // cn_notaria_id es el Id en tbl_cfg_notaria del master C# (≠ Laravel notaria.id)
+            return (string) ($this->notaria->cn_notaria_id ?? $this->notaria->id);
         }
 
-        return 'NOTARIA';
+        return '0';
     }
 
     /**
@@ -454,17 +456,16 @@ class ControlNotarialApiService
             ->post($this->internalUrl.'/Login/Authentication', [
                 'usuario' => $usuario,
                 'contrasena' => $password,
-                // Identificador de la notaría; el C# lo usa para seleccionar la BD correcta.
-                // Formato: "{estado_codigo}_notaria_{numero}" (ej. edomex_notaria_10)
-                // Valor 'NOTARIA' cuando opera desde el master (sin contexto de notaría).
-                'nombre_Notaria' => $nombreNotaria,
+                // ID de la notaría como string. C# lo usa para construir el connection string
+                // dinámicamente — campo confirmado en Swagger como string "notaria".
+                'notaria' => $nombreNotaria,
                 'equipo' => 'Laravel-Server',
             ]);
 
         if (! $response->successful()) {
             Log::error('ControlNotarialApiService::obtenerTokenCN falló', [
                 'usuario' => $usuario,
-                'nombre_Notaria' => $nombreNotaria,
+                'notaria' => $nombreNotaria,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);

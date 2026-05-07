@@ -1048,9 +1048,22 @@ class NotariaController extends Controller
                           WHERE NOT EXISTS (
                               SELECT 1 FROM `tbl_cfg_notaria`
                               WHERE `Numero_Notaria` = ?
+                                AND `Estado` = ?
                           )";
 
-            DB::statement($sqlMaster, array_merge($params, [$notaria->numero_notaria]));
+            DB::statement($sqlMaster, array_merge($params, [$notaria->numero_notaria, $notaria->estado ?? '']));
+
+            // Obtener el Id asignado (recién insertado o preexistente) y guardarlo en notarias
+            $cnNotariaId = DB::scalar(
+                'SELECT `Id` FROM `tbl_cfg_notaria` WHERE `Numero_Notaria` = ? AND `Estado` = ? LIMIT 1',
+                [$notaria->numero_notaria, $notaria->estado ?? '']
+            );
+
+            if ($cnNotariaId) {
+                $notaria->cn_notaria_id = $cnNotariaId;
+                $notaria->saveQuietly();
+                Log::info('cn_notaria_id actualizado', ['notaria_id' => $notaria->id, 'cn_notaria_id' => $cnNotariaId]);
+            }
 
             Log::info('tbl_cfg_notaria poblada en BD master', ['numero_notaria' => $notaria->numero_notaria]);
         } catch (\Exception $e) {
