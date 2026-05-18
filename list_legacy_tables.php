@@ -13,9 +13,9 @@ $connection = 'aplicativos';
 
 try {
     DB::connection($connection)->getPdo();
-    echo "✓ Conexión exitosa a: " . config("database.connections.{$connection}.database") . "\n\n";
+    echo '✓ Conexión exitosa a: '.config("database.connections.{$connection}.database")."\n\n";
 } catch (\Exception $e) {
-    echo "✗ Error de conexión: " . $e->getMessage() . "\n";
+    echo '✗ Error de conexión: '.$e->getMessage()."\n";
     exit(1);
 }
 

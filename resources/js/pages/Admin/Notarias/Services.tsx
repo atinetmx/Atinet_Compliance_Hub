@@ -108,7 +108,7 @@ export default function NotariasServices({
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Notarías', href: '/admin/notarias' },
         { title: notaria.nombre, href: `/admin/notarias/${notaria.id}` },
-        { title: 'Gestionar Servicios', href: '#' },
+        { title: 'Gestionar Servicios', href: '#', icon: Settings },
     ];
 
     const getCategoryColor = (category: string) => {

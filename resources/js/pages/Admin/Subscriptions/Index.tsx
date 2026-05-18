@@ -104,6 +104,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Suscripciones',
         href: '/admin/subscriptions',
+        icon: CreditCard,
     },
 ];
 
@@ -327,14 +328,8 @@ export default function Index({
             <Head title="Suscripciones" />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">Suscripciones</h1>
-                        <p className="text-muted-foreground">
-                            Gestiona todas las suscripciones del sistema
-                        </p>
-                    </div>
+                {/* Botón de acción */}
+                <div className="flex justify-end">
                     <Link href="/admin/subscriptions/create">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />

@@ -40,12 +40,12 @@ foreach ($notarias as $search) {
 
     // OFAC
     $ofac = DB::connection('aplicativos')
-        ->selectOne("SELECT COUNT(*) as total FROM atinet65_listasofac.consultas WHERE proyecto = ?", [$search]);
+        ->selectOne('SELECT COUNT(*) as total FROM atinet65_listasofac.consultas WHERE proyecto = ?', [$search]);
     echo "  listasofac.consultas.proyecto = '{$search}': {$ofac->total} búsquedas\n";
 
     // SAT
     $sat = DB::connection('aplicativos')
-        ->selectOne("SELECT COUNT(*) as total FROM atinet65_listassat.consultas WHERE proyecto = ?", [$search]);
+        ->selectOne('SELECT COUNT(*) as total FROM atinet65_listassat.consultas WHERE proyecto = ?', [$search]);
     echo "  listassat.consultas.proyecto = '{$search}': {$sat->total} búsquedas\n";
 
     echo "\n";
@@ -61,13 +61,13 @@ foreach ($patterns as $pattern) {
 
     // OFAC
     $ofacResults = DB::connection('aplicativos')
-        ->select("
+        ->select('
             SELECT DISTINCT proyecto, COUNT(*) as total
             FROM atinet65_listasofac.consultas
             WHERE proyecto LIKE ?
             GROUP BY proyecto
             ORDER BY total DESC
-        ", [$pattern]);
+        ', [$pattern]);
 
     if (count($ofacResults) > 0) {
         echo "  OFAC:\n";
@@ -78,13 +78,13 @@ foreach ($patterns as $pattern) {
 
     // SAT
     $satResults = DB::connection('aplicativos')
-        ->select("
+        ->select('
             SELECT DISTINCT proyecto, COUNT(*) as total
             FROM atinet65_listassat.consultas
             WHERE proyecto LIKE ?
             GROUP BY proyecto
             ORDER BY total DESC
-        ", [$pattern]);
+        ', [$pattern]);
 
     if (count($satResults) > 0) {
         echo "  SAT:\n";

@@ -1,10 +1,9 @@
-import { Head } from '@inertiajs/react';
+﻿import { Head } from '@inertiajs/react';
 import { BarChart3, Download, Filter, MapPin, Loader2 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import { removeToken } from '@/services/authService';
-import LoginModal from '@/components/Modals/LoginModal';
+
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,9 +28,6 @@ const getTodayDate = () => {
 };
 
 export default function ControlNotarialReporteUsuarios() {
-    // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
-
     const { addToast } = useToast();
     const api = useApi();
     const [userId, setUserId] = useState('all');
@@ -45,17 +41,13 @@ export default function ControlNotarialReporteUsuarios() {
     const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(false);
 
     // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    const { isReady } = useAuthGuard();
 
     // Cargar usuarios al montar el componente
     useEffect(() => {
+        if (!isReady) return;
         cargarUsuarios('');
-    }, []);
+    }, [isReady]);
 
     const cargarUsuarios = async (filtro: string) => {
         setIsLoadingUsuarios(true);
@@ -64,7 +56,6 @@ export default function ControlNotarialReporteUsuarios() {
             const response = await api.get(endpoint);
 
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             // Si es 401, useAuthGuard maneja el toast
@@ -117,8 +108,6 @@ export default function ControlNotarialReporteUsuarios() {
             const { blob, response } = await api.getBlob(endpoint);
 
             if (response?.isUnauthorized) {
-                removeToken();
-                setLoginModalOpen(true);
                 addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
                 return;
             }
@@ -175,7 +164,6 @@ export default function ControlNotarialReporteUsuarios() {
     return (
         <>
             <Head title="Reporte de Bitácora - Control Notarial" />
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
               <div className="space-y-6 px-6 pt-6">
 

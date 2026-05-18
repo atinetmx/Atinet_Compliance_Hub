@@ -50,13 +50,13 @@ if ($notariasAplicativos->isEmpty()) {
     $notariasCandidatas = $notariasAplicativos;
 }
 
-echo "Notarías candidatas: " . $notariasCandidatas->implode(', ') . "\n\n";
+echo 'Notarías candidatas: '.$notariasCandidatas->implode(', ')."\n\n";
 
 // Análisis detallado de cada notaría
 foreach ($notariasCandidatas as $notaria) {
-    echo str_repeat('═', 80) . "\n";
+    echo str_repeat('═', 80)."\n";
     echo "📋 ANÁLISIS: {$notaria}\n";
-    echo str_repeat('═', 80) . "\n\n";
+    echo str_repeat('═', 80)."\n\n";
 
     // 1. Contar en aplicativos.busquedas
     try {
@@ -103,18 +103,18 @@ foreach ($notariasCandidatas as $notaria) {
     $totalUnionAll = $totalAplicativos + $totalListas;
 
     echo "📊 Conteo por tabla:\n";
-    echo "  aplicativos.busquedas:       " . number_format($countAplicativos) . "\n";
-    echo "  aplicativos.busquedas_escritorio: " . number_format($countEscritorio) . "\n";
+    echo '  aplicativos.busquedas:       '.number_format($countAplicativos)."\n";
+    echo '  aplicativos.busquedas_escritorio: '.number_format($countEscritorio)."\n";
     echo "  ─────────────────────────────────────\n";
-    echo "  SUBTOTAL aplicativos:        " . number_format($totalAplicativos) . "\n\n";
+    echo '  SUBTOTAL aplicativos:        '.number_format($totalAplicativos)."\n\n";
 
-    echo "  listasofac.consultas:        " . number_format($countOfac) . "\n";
-    echo "  listassat.consultas:         " . number_format($countSat) . "\n";
+    echo '  listasofac.consultas:        '.number_format($countOfac)."\n";
+    echo '  listassat.consultas:         '.number_format($countSat)."\n";
     echo "  ─────────────────────────────────────\n";
-    echo "  SUBTOTAL listas negras:      " . number_format($totalListas) . "\n\n";
+    echo '  SUBTOTAL listas negras:      '.number_format($totalListas)."\n\n";
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    echo "  TOTAL UNION ALL:             " . number_format($totalUnionAll) . "\n";
+    echo '  TOTAL UNION ALL:             '.number_format($totalUnionAll)."\n";
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
     // Análisis de duplicación
@@ -173,10 +173,10 @@ foreach ($notariasCandidatas as $notaria) {
             echo "  • Si listas >> aplicativos: Búsquedas antiguas (VB6)\n";
             echo "  • Si aplicativos >> listas: App web sin listas negras\n\n";
         }
-    } else if ($totalAplicativos == 0 && $totalListas > 0) {
+    } elseif ($totalAplicativos == 0 && $totalListas > 0) {
         echo "✅ NO HAY DUPLICACIÓN\n";
         echo "Solo usa sistema legacy (Desktop VB6)\n\n";
-    } else if ($totalAplicativos > 0 && $totalListas == 0) {
+    } elseif ($totalAplicativos > 0 && $totalListas == 0) {
         echo "✅ NO HAY DUPLICACIÓN\n";
         echo "Solo usa app web/moderna (sin listas negras)\n\n";
     }

@@ -112,6 +112,11 @@ const breadcrumbs: BreadcrumbItem[] = [
         title: 'Notarías Cerca del Límite',
         href: ReportsController.notariasNearLimit.url(),
     },
+    {
+        title: 'Estadísticas de Notaría',
+        href: '#',
+        icon: TrendingUp,
+    },
 ];
 
 const getStatusBadgeVariant = (status: string) => {

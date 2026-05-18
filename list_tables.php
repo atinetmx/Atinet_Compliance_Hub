@@ -11,9 +11,9 @@ $tables = DB::select('SHOW TABLES');
 $dbName = DB::getDatabaseName();
 
 echo "Base de datos: {$dbName}\n";
-echo "Total de tablas: " . count($tables) . "\n\n";
+echo 'Total de tablas: '.count($tables)."\n\n";
 
 foreach ($tables as $table) {
-    $tableName = array_values((array)$table)[0];
+    $tableName = array_values((array) $table)[0];
     echo "- {$tableName}\n";
 }

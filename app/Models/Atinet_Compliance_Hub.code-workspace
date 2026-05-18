@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "D:/000. PROYECTO MASTER 30Campeche"
+		}
+	],
+	"settings": {
+		"intelephense.environment.phpVersion": "8.2.12",
+		"intelephense.files.associations": [
+			"*.php",
+			"*.phtml"
+		],
+		"intelephense.diagnostics.undefinedMethods": false,
+		"intelephense.diagnostics.undefinedFunctions": false,
+		"php.suggest.basic": false
+	}
+}

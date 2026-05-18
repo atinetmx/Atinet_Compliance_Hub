@@ -16,7 +16,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 // 1. Tabla aplicativos.busquedas (Web)
 echo "1️⃣  BÚSQUEDAS WEB (aplicativos.busquedas)\n";
-echo str_repeat('─', 60) . "\n";
+echo str_repeat('─', 60)."\n";
 try {
     $busquedasWeb = DB::connection('aplicativos')
         ->table('busquedas')
@@ -30,9 +30,9 @@ try {
         ')
         ->first();
 
-    echo "Total registros: " . number_format($busquedasWeb->total) . "\n";
-    echo "  ├─ OFAC: " . number_format($busquedasWeb->ofac) . "\n";
-    echo "  └─ SAT: " . number_format($busquedasWeb->sat) . "\n";
+    echo 'Total registros: '.number_format($busquedasWeb->total)."\n";
+    echo '  ├─ OFAC: '.number_format($busquedasWeb->ofac)."\n";
+    echo '  └─ SAT: '.number_format($busquedasWeb->sat)."\n";
     echo "Primera: {$busquedasWeb->primera}\n";
     echo "Última: {$busquedasWeb->ultima}\n";
 
@@ -49,14 +49,14 @@ try {
         echo "  • {$b->fecha} | {$b->fuente} | RFC: {$b->RFC} | Nombre: {$b->NOMBRE}\n";
     }
 } catch (\Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo '❌ Error: '.$e->getMessage()."\n";
 }
 
 echo "\n\n";
 
 // 2. Tabla aplicativos.busquedas_escritorio (Desktop/VB6)
 echo "2️⃣  BÚSQUEDAS ESCRITORIO (aplicativos.busquedas_escritorio)\n";
-echo str_repeat('─', 60) . "\n";
+echo str_repeat('─', 60)."\n";
 try {
     $busquedasEscritorio = DB::connection('aplicativos')
         ->table('busquedas_escritorio')
@@ -70,9 +70,9 @@ try {
         ')
         ->first();
 
-    echo "Total registros: " . number_format($busquedasEscritorio->total) . "\n";
-    echo "  ├─ OFAC: " . number_format($busquedasEscritorio->ofac) . "\n";
-    echo "  └─ SAT: " . number_format($busquedasEscritorio->sat) . "\n";
+    echo 'Total registros: '.number_format($busquedasEscritorio->total)."\n";
+    echo '  ├─ OFAC: '.number_format($busquedasEscritorio->ofac)."\n";
+    echo '  └─ SAT: '.number_format($busquedasEscritorio->sat)."\n";
     echo "Primera: {$busquedasEscritorio->primera}\n";
     echo "Última: {$busquedasEscritorio->ultima}\n";
 
@@ -89,14 +89,14 @@ try {
         echo "  • {$b->fecha} | {$b->fuente} | RFC: {$b->RFC} | Nombre: {$b->NOMBRE}\n";
     }
 } catch (\Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo '❌ Error: '.$e->getMessage()."\n";
 }
 
 echo "\n\n";
 
 // 3. Tabla listasofac.consultas (OFAC directo)
 echo "3️⃣  CONSULTAS OFAC DIRECTAS (listasofac.consultas)\n";
-echo str_repeat('─', 60) . "\n";
+echo str_repeat('─', 60)."\n";
 try {
     $consultasOfac = DB::connection('ofac')
         ->table('consultas')
@@ -108,7 +108,7 @@ try {
         ')
         ->first();
 
-    echo "Total registros: " . number_format($consultasOfac->total) . "\n";
+    echo 'Total registros: '.number_format($consultasOfac->total)."\n";
     echo "Primera: {$consultasOfac->primera}\n";
     echo "Última: {$consultasOfac->ultima}\n";
 
@@ -125,14 +125,14 @@ try {
         echo "  • {$b->fecha} | Término: {$b->termino} | Resultados: {$b->resultados}\n";
     }
 } catch (\Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo '❌ Error: '.$e->getMessage()."\n";
 }
 
 echo "\n\n";
 
 // 4. Tabla listassat.consultas (SAT directo)
 echo "4️⃣  CONSULTAS SAT DIRECTAS (listassat.consultas)\n";
-echo str_repeat('─', 60) . "\n";
+echo str_repeat('─', 60)."\n";
 try {
     $consultasSat = DB::connection('sat')
         ->table('consultas')
@@ -144,7 +144,7 @@ try {
         ')
         ->first();
 
-    echo "Total registros: " . number_format($consultasSat->total) . "\n";
+    echo 'Total registros: '.number_format($consultasSat->total)."\n";
     echo "Primera: {$consultasSat->primera}\n";
     echo "Última: {$consultasSat->ultima}\n";
 
@@ -161,7 +161,7 @@ try {
         echo "  • {$b->fecha} | Término: {$b->termino} | Resultados: {$b->resultados}\n";
     }
 } catch (\Exception $e) {
-    echo "❌ Error: " . $e->getMessage() . "\n";
+    echo '❌ Error: '.$e->getMessage()."\n";
 }
 
 echo "\n\n";
@@ -179,17 +179,17 @@ $totalListas = $totalOfac + $totalSat;
 $totalGeneral = $totalAplicativos + $totalListas;
 
 echo "📦 Tabla aplicativos (Web + Escritorio):\n";
-echo "  ├─ busquedas (Web):           " . number_format($totalWeb) . "\n";
-echo "  ├─ busquedas_escritorio:      " . number_format($totalEscritorio) . "\n";
-echo "  └─ SUBTOTAL aplicativos:      " . number_format($totalAplicativos) . "\n\n";
+echo '  ├─ busquedas (Web):           '.number_format($totalWeb)."\n";
+echo '  ├─ busquedas_escritorio:      '.number_format($totalEscritorio)."\n";
+echo '  └─ SUBTOTAL aplicativos:      '.number_format($totalAplicativos)."\n\n";
 
 echo "🔍 Tablas de listas negras:\n";
-echo "  ├─ listasofac.consultas:      " . number_format($totalOfac) . "\n";
-echo "  ├─ listassat.consultas:       " . number_format($totalSat) . "\n";
-echo "  └─ SUBTOTAL listas:           " . number_format($totalListas) . "\n\n";
+echo '  ├─ listasofac.consultas:      '.number_format($totalOfac)."\n";
+echo '  ├─ listassat.consultas:       '.number_format($totalSat)."\n";
+echo '  └─ SUBTOTAL listas:           '.number_format($totalListas)."\n\n";
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-echo "TOTAL UNION ALL (con posible duplicación): " . number_format($totalGeneral) . "\n";
+echo 'TOTAL UNION ALL (con posible duplicación): '.number_format($totalGeneral)."\n";
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
 echo "💡 ANÁLISIS:\n\n";
@@ -208,7 +208,7 @@ if ($totalAplicativos > 0 && $totalListas > 0) {
     echo "📌 RECOMENDACIÓN:\n";
     echo "Usar SOLO aplicativos.busquedas + busquedas_escritorio como conteo\n";
     echo "real de \"búsquedas del usuario\". Las tablas de listas son audit trail.\n\n";
-} else if ($totalAplicativos == 0 && $totalListas > 0) {
+} elseif ($totalAplicativos == 0 && $totalListas > 0) {
     echo "✅ NO HAY DUPLICACIÓN\n\n";
     echo "Esta notaría solo tiene registros en listasofac/sat.consultas,\n";
     echo "lo que significa que:\n";
@@ -217,7 +217,7 @@ if ($totalAplicativos > 0 && $totalListas > 0) {
 
     echo "📌 RECOMENDACIÓN:\n";
     echo "Usar listasofac.consultas + listassat.consultas como conteo.\n\n";
-} else if ($totalAplicativos > 0 && $totalListas == 0) {
+} elseif ($totalAplicativos > 0 && $totalListas == 0) {
     echo "✅ SOLO APLICATIVOS\n\n";
     echo "Esta notaría solo usa aplicativos (Web/Desktop moderno).\n";
     echo "No hay registros en las tablas de listas negras.\n\n";

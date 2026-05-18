@@ -14,7 +14,7 @@ try {
     echo "1. ESTRUCTURA DE LA TABLA 'usuario'\n";
     echo "-----------------------------------------------------------------------\n";
     $columns = DB::connection('aplicativos')
-        ->select("SHOW COLUMNS FROM usuario");
+        ->select('SHOW COLUMNS FROM usuario');
 
     foreach ($columns as $col) {
         echo sprintf("  %-30s %-20s %-10s %-10s\n",
@@ -68,13 +68,27 @@ try {
     if ($sample->count() > 0) {
         foreach ($sample as $s) {
             echo "  ---\n";
-            if (isset($s->id)) echo "  ID: {$s->id}\n";
-            if (isset($s->proyecto)) echo "  proyecto: {$s->proyecto}\n";
-            if (isset($s->numeroNotaria)) echo "  numeroNotaria: {$s->numeroNotaria}\n";
-            if (isset($s->nombre)) echo "  nombre: {$s->nombre}\n";
-            if (isset($s->usuario)) echo "  usuario: {$s->usuario}\n";
-            if (isset($s->tipo)) echo "  tipo: {$s->tipo}\n";
-            if (isset($s->perfil)) echo "  perfil: {$s->perfil}\n";
+            if (isset($s->id)) {
+                echo "  ID: {$s->id}\n";
+            }
+            if (isset($s->proyecto)) {
+                echo "  proyecto: {$s->proyecto}\n";
+            }
+            if (isset($s->numeroNotaria)) {
+                echo "  numeroNotaria: {$s->numeroNotaria}\n";
+            }
+            if (isset($s->nombre)) {
+                echo "  nombre: {$s->nombre}\n";
+            }
+            if (isset($s->usuario)) {
+                echo "  usuario: {$s->usuario}\n";
+            }
+            if (isset($s->tipo)) {
+                echo "  tipo: {$s->tipo}\n";
+            }
+            if (isset($s->perfil)) {
+                echo "  perfil: {$s->perfil}\n";
+            }
         }
     }
 
@@ -87,7 +101,7 @@ try {
     // Ver qué valores tiene el campo 'tipo' o 'perfil'
     $columnsCheck = ['tipo', 'perfil', 'tipoUsuario', 'rol'];
     foreach ($columnsCheck as $colName) {
-        $exists = collect($columns)->contains(fn($col) => $col->Field === $colName);
+        $exists = collect($columns)->contains(fn ($col) => $col->Field === $colName);
         if ($exists) {
             echo "\n  Campo '{$colName}' - Valores únicos:\n";
             $values = DB::connection('aplicativos')
@@ -123,9 +137,15 @@ try {
         if ($found->count() > 0) {
             foreach ($found as $f) {
                 echo "    ✓ ID: {$f->id}";
-                if (isset($f->proyecto)) echo " | proyecto: {$f->proyecto}";
-                if (isset($f->numeroNotaria)) echo " | numeroNotaria: {$f->numeroNotaria}";
-                if (isset($f->nombre)) echo " | nombre: {$f->nombre}";
+                if (isset($f->proyecto)) {
+                    echo " | proyecto: {$f->proyecto}";
+                }
+                if (isset($f->numeroNotaria)) {
+                    echo " | numeroNotaria: {$f->numeroNotaria}";
+                }
+                if (isset($f->nombre)) {
+                    echo " | nombre: {$f->nombre}";
+                }
                 echo "\n";
             }
         } else {
@@ -134,8 +154,8 @@ try {
     }
 
 } catch (Exception $e) {
-    echo "❌ ERROR: " . $e->getMessage() . "\n";
-    echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
+    echo '❌ ERROR: '.$e->getMessage()."\n";
+    echo "Stack trace:\n".$e->getTraceAsString()."\n";
 }
 
 echo "\n=======================================================================\n";

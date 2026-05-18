@@ -89,6 +89,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Gestión de Servicios',
         href: '/admin/services',
+        icon: Package,
     },
 ];
 
@@ -195,19 +196,7 @@ export default function ServicesIndex({
             <Head title="Gestión de Servicios" />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Package className="h-6 w-6 text-primary" />
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                Gestión de Servicios
-                            </h1>
-                            <p className="text-sm text-muted-foreground">
-                                {services.total} servicios en el catálogo
-                            </p>
-                        </div>
-                    </div>
+                <div className="mb-6 flex items-center justify-end">
                     <Link href="/admin/services/create">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />

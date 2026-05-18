@@ -62,22 +62,23 @@ interface SubscriptionShowProps {
     subscription: Subscription;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-    {
-        title: 'Suscripciones',
-        href: '/admin/subscriptions',
-    },
-    {
-        title: 'Detalle',
-        href: '#',
-    },
-];
-
 export default function Show({ subscription }: SubscriptionShowProps) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Dashboard',
+            href: '/dashboard',
+        },
+        {
+            title: 'Suscripciones',
+            href: '/admin/subscriptions',
+        },
+        {
+            title: subscription.notaria.nombre,
+            href: '#',
+            icon: Package,
+        },
+    ];
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('es-MX', {
             style: 'currency',
@@ -108,24 +109,14 @@ export default function Show({ subscription }: SubscriptionShowProps) {
             <Head title={`Suscripción #${subscription.id}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
-                {/* Header */}
+                {/* Botones de acción */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href={SubscriptionController.index().url}>
-                            <Button variant="ghost" size="icon">
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <div>
-                            <h1 className="text-3xl font-bold">
-                                {subscription.notaria.nombre}
-                            </h1>
-                            <p className="text-muted-foreground">
-                                Suscripción #{subscription.id} · Notaría No.{' '}
-                                {subscription.notaria.numero_notaria}
-                            </p>
-                        </div>
-                    </div>
+                    <Link href={SubscriptionController.index().url}>
+                        <Button variant="outline" size="sm">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                    </Link>
                     <div className="flex items-center gap-2">
                         <SubscriptionStatusBadge status={subscription.status} />
                         <Link href={`/admin/subscriptions/${subscription.id}/edit`}>
@@ -303,7 +294,7 @@ export default function Show({ subscription }: SubscriptionShowProps) {
                                 <p className="text-sm font-medium text-muted-foreground">
                                     Email
                                 </p>
-                                <p className="text-base text-sm">
+                                <p className="text-sm">
                                     {subscription.notaria.email}
                                 </p>
                             </div>
@@ -399,7 +390,7 @@ export default function Show({ subscription }: SubscriptionShowProps) {
                                     Límite de Usuarios
                                 </p>
                                 <p className="text-base">
-                                    {subscription.plan.limite_usuarios === -1
+                                    {subscription.plan.limite_usuarios === -1 || subscription.plan.limite_usuarios === null
                                         ? 'Ilimitado'
                                         : subscription.plan.limite_usuarios}
                                 </p>

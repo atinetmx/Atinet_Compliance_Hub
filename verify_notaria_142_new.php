@@ -25,16 +25,24 @@ if ($notariaId) {
     $busquedas = DB::table('busquedas')
         ->where('notaria_id', $notariaId)
         ->get();
-    echo "   Total registros: " . $busquedas->count() . "\n";
+    echo '   Total registros: '.$busquedas->count()."\n";
 
     if ($busquedas->count() > 0) {
         echo "   Primeros 5 registros:\n";
         foreach ($busquedas->take(5) as $reg) {
             echo "   - ID: {$reg->id}";
-            if (isset($reg->tipo)) echo " | Tipo: {$reg->tipo}";
-            if (isset($reg->rfc)) echo " | RFC: {$reg->rfc}";
-            if (isset($reg->nombre)) echo " | Nombre: {$reg->nombre}";
-            if (isset($reg->created_at)) echo " | Fecha: {$reg->created_at}";
+            if (isset($reg->tipo)) {
+                echo " | Tipo: {$reg->tipo}";
+            }
+            if (isset($reg->rfc)) {
+                echo " | RFC: {$reg->rfc}";
+            }
+            if (isset($reg->nombre)) {
+                echo " | Nombre: {$reg->nombre}";
+            }
+            if (isset($reg->created_at)) {
+                echo " | Fecha: {$reg->created_at}";
+            }
             echo "\n";
         }
     }
@@ -49,15 +57,21 @@ if ($notariaId) {
     $usage = DB::table('service_usage')
         ->where('notaria_id', $notariaId)
         ->get();
-    echo "   Total registros: " . $usage->count() . "\n";
+    echo '   Total registros: '.$usage->count()."\n";
 
     if ($usage->count() > 0) {
         echo "   Primeros 5 registros:\n";
         foreach ($usage->take(5) as $reg) {
             echo "   - ID: {$reg->id}";
-            if (isset($reg->service_id)) echo " | Service ID: {$reg->service_id}";
-            if (isset($reg->quantity)) echo " | Cantidad: {$reg->quantity}";
-            if (isset($reg->consumed_at)) echo " | Fecha: {$reg->consumed_at}";
+            if (isset($reg->service_id)) {
+                echo " | Service ID: {$reg->service_id}";
+            }
+            if (isset($reg->quantity)) {
+                echo " | Cantidad: {$reg->quantity}";
+            }
+            if (isset($reg->consumed_at)) {
+                echo " | Fecha: {$reg->consumed_at}";
+            }
             echo "\n";
         }
 

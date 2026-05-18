@@ -22,7 +22,7 @@ try {
         ->orderBy('notaria')
         ->get();
 
-    echo "  Total de notarías diferentes: " . $notarias->count() . "\n\n";
+    echo '  Total de notarías diferentes: '.$notarias->count()."\n\n";
 
     // Mostrar primeras 20
     echo "  Primeras 20 notarías:\n";
@@ -31,7 +31,7 @@ try {
     }
 
     if ($notarias->count() > 20) {
-        echo "    ... y " . ($notarias->count() - 20) . " notarías más\n";
+        echo '    ... y '.($notarias->count() - 20)." notarías más\n";
     }
 
     echo "\n";
@@ -49,7 +49,7 @@ try {
         '142',
         '2',
         'etla',
-        'tlatlauquitepec'
+        'tlatlauquitepec',
     ];
 
     foreach ($testNotarias as $test) {
@@ -178,7 +178,7 @@ try {
     }
 
 } catch (Exception $e) {
-    echo "❌ ERROR: " . $e->getMessage() . "\n";
+    echo '❌ ERROR: '.$e->getMessage()."\n";
 }
 
 echo "\n=======================================================================\n";

@@ -11,6 +11,17 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+// Endpoint para refrescar el CSRF token silenciosamente desde el frontend.
+// Excluido de VerifyCsrfToken porque se llama precisamente cuando el token expiró.
+// Solo requiere sesión activa; si la sesión también expiró retorna 401.
+Route::get('/csrf-refresh', function () {
+    if (! Auth::check()) {
+        return response()->json(['error' => 'Unauthenticated.'], 401);
+    }
+
+    return response()->json(['token' => csrf_token()]);
+})->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+
 Route::get('dashboard', function () {
     $user = Auth::user();
 
@@ -129,14 +140,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('plans/{plan}/services/bulk-assign', [\App\Http\Controllers\Admin\PlanServiceController::class, 'bulkAssign'])->name('plans.services.bulk-assign');
 
     // Gestión de usuarios del sistema
-    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
     Route::get('users/reports', [\App\Http\Controllers\Admin\UserController::class, 'reports'])->name('users.reports');
+    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
 
     // Configuración del sistema
     Route::resource('settings', \App\Http\Controllers\Admin\SettingsController::class);
     Route::get('settings/logs', [\App\Http\Controllers\Admin\SettingsController::class, 'logs'])->name('settings.logs');
     Route::post('settings/cache/clear', [\App\Http\Controllers\Admin\SettingsController::class, 'clearCache'])->name('settings.cache.clear');
     Route::post('settings/optimize', [\App\Http\Controllers\Admin\SettingsController::class, 'optimize'])->name('settings.optimize');
+
+    // Documentación del sistema
+    Route::get('documentacion', [\App\Http\Controllers\Admin\DocumentationController::class, 'index'])->name('documentation.index');
 
     // Reportes y estadísticas de uso de servicios
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -147,7 +161,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usage-trends', [\App\Http\Controllers\Admin\ReportsController::class, 'usageTrends'])->name('usage-trends');
         Route::get('top-services', [\App\Http\Controllers\Admin\ReportsController::class, 'topServices'])->name('top-services');
         Route::get('near-limit', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasNearLimit'])->name('near-limit');
-        Route::get('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
+        Route::post('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
     });
 
     // Rutas para gestión de contraseñas
@@ -167,8 +181,30 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('notarias/{legacyIdentifier}/estadisticas', [\App\Http\Controllers\Admin\LegacyController::class, 'getEstadisticasNotaria'])->name('notarias.estadisticas');
     });
 
+    // === MÓDULO AGENDA WEB ===
+    // Calendario y gestión de eventos (replicado desde sistema PHP legacy)
+    Route::prefix('agenda')->name('agenda.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\AgendaController::class, 'index'])->name('index');
+        Route::get('events', [\App\Http\Controllers\AgendaController::class, 'events'])->name('events');
+        Route::get('today', [\App\Http\Controllers\AgendaController::class, 'today'])->name('today');
+        Route::get('log', [\App\Http\Controllers\AgendaController::class, 'log'])->name('log');
+        Route::post('/', [\App\Http\Controllers\AgendaController::class, 'store'])->name('store');
+        Route::put('{agendaEvent}', [\App\Http\Controllers\AgendaController::class, 'update'])->name('update');
+        Route::delete('{agendaEvent}', [\App\Http\Controllers\AgendaController::class, 'destroy'])->name('destroy');
+    });
+
     // === MÓDULO CONTROL NOTARIAL ===
     // Sistema de gestión notarial (migración desde VB6)
+    // Auto-login gateway para módulo CN (devuelve JWT de C# sin doble login)
+    Route::post('control-notarial/auto-login', [\App\Http\Controllers\ControlNotarialController::class, 'autoLogin'])->name('control-notarial.auto-login');
+
+    // Proxy transparente hacia la API C# de Control Notarial.
+    // El browser llama /cn-api/{cualquier-endpoint} → Laravel reenvía a srvatinet.atinet.com.mx:7443/api/{endpoint}
+    // Esto evita que srvatinet.atinet.com.mx sea resuelto directamente por el browser (dominio interno).
+    Route::any('cn-api/{path}', [\App\Http\Controllers\CnProxyController::class, 'proxy'])
+        ->where('path', '.*')
+        ->name('cn-api.proxy');
+
     Route::prefix('control-notarial')->name('control-notarial.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ControlNotarialController::class, 'index'])->name('index');
         Route::get('expedientes', [\App\Http\Controllers\ControlNotarialController::class, 'expedientes'])->name('expedientes');
@@ -185,9 +221,49 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'usuarios'])->name('usuarios');
         Route::get('alta-catalogos', [\App\Http\Controllers\ControlNotarialController::class, 'altaCatalogos'])->name('alta-catalogos');
         Route::get('reporte-usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'reporteUsuarios'])->name('reporte-usuarios');
+<<<<<<< HEAD
         Route::get('recibos', [\App\Http\Controllers\ControlNotarialController::class, 'recibos'])->name('recibos');
         Route::get('recibos/expediente', [\App\Http\Controllers\ControlNotarialController::class, 'recibosExpediente'])->name('recibos-expediente');
         Route::get('reportes', [\App\Http\Controllers\ControlNotarialController::class, 'reportes'])->name('reportes');
+=======
+        Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion.notaria');
+    });
+
+    // === MÓDULO REGISTRO WEB ===
+    // Sistema de registro de personas con OCR/QR (réplica del sistema PHP)
+    Route::prefix('registro-web')->name('registro-web.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\RegistroWebController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\RegistroWebController::class, 'store'])->name('store');
+        Route::get('search-curp', [\App\Http\Controllers\Admin\RegistroWebController::class, 'searchCurp'])->name('search-curp');
+        Route::get('search-rfc', [\App\Http\Controllers\Admin\RegistroWebController::class, 'searchRfc'])->name('search-rfc');
+        Route::get('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'show'])->name('show');
+        Route::put('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'update'])->name('update');
+        Route::delete('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'destroy'])->name('destroy');
+    });
+
+    // === MÓDULO ESCÁNER INTELIGENTE DE DOCUMENTOS ===
+    // Sistema para escanear, convertir y analizar documentos con OpenAI
+    Route::prefix('escaner-inteligente')->name('escaner-inteligente.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'store'])->name('store');
+        Route::get('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'show'])->name('show');
+        Route::delete('{documento}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'destroy'])->name('destroy');
+
+        // Acciones sobre documentos
+        Route::post('{documento}/analyze', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'analyze'])->name('analyze');
+        Route::get('{documento}/download/{formato}', [\App\Http\Controllers\Admin\EscanerInteligenteController::class, 'download'])
+            ->name('download')
+            ->where('formato', 'original|pdf|word|texto');
+    });
+
+    // === APIs para OCR y Scanners ===
+    Route::prefix('ocr')->name('ocr.')->group(function () {
+        Route::post('ine', [\App\Http\Controllers\Admin\OCRController::class, 'processINE'])->name('ine');
+        Route::post('curp', [\App\Http\Controllers\Admin\OCRController::class, 'processCURP'])->name('curp');
+        Route::post('acta', [\App\Http\Controllers\Admin\OCRController::class, 'processActa'])->name('acta');
+        Route::post('sat-qr', [\App\Http\Controllers\Admin\OCRController::class, 'processSATQR'])->name('sat-qr');
+        Route::post('qr', [\App\Http\Controllers\Admin\OCRController::class, 'processQR'])->name('qr');
+>>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
     });
 
     // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===
@@ -208,6 +284,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Página de búsqueda
     Route::get('listas-negras', function () {
         return Inertia::render('Admin/ListasNegras/Search');
+
     })->name('listas-negras');
 
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)
@@ -234,6 +311,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('pdf')->name('pdf.')->middleware(['subscription'])->group(function () {
         Route::get('ofac', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateOfacPdf'])->name('ofac');
         Route::get('sat', [\App\Http\Controllers\SuperAdmin\PdfController::class, 'generateSatPdf'])->name('sat');
+    });
+
+    // Exportación a Excel de resultados de búsqueda
+    // NOTA: Los exportes NO consumen límites porque son resultado de búsquedas ya realizadas
+    Route::prefix('export')->name('export.')->middleware(['subscription'])->group(function () {
+        Route::post('ofac', [\App\Http\Controllers\Admin\ExportController::class, 'exportOfac'])->name('ofac');
+        Route::post('sat', [\App\Http\Controllers\Admin\ExportController::class, 'exportSat'])->name('sat');
+        Route::post('combined', [\App\Http\Controllers\Admin\ExportController::class, 'exportCombined'])->name('combined');
+        Route::post('history', [\App\Http\Controllers\Admin\ExportController::class, 'exportHistory'])->name('history');
     });
 
     // === HISTORIAL DE BÚSQUEDAS EN LISTAS NEGRAS ===

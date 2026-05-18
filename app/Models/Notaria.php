@@ -2,17 +2,20 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoMexico;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Notaria extends Model
 {
     /** @use HasFactory<\Database\Factories\NotariaFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'nombre',
@@ -40,6 +43,7 @@ class Notaria extends Model
         'legacy_identifier',
         'legacy_busquedas_count',
         'legacy_ultima_busqueda',
+        'tenant_db_name',
     ];
 
     protected $casts = [
@@ -76,6 +80,24 @@ class Notaria extends Model
 
         // Fallback al campo direccion antiguo si existe
         return $this->direccion ?? 'No especificada';
+    }
+
+    /**
+     * Configuración para el registro de actividad
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['nombre', 'numero_notaria', 'plan_id', 'activa', 'email_contacto', 'telefono'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('notarias')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => "Creó notaría: {$this->nombre} (#{$this->numero_notaria})",
+                'updated' => "Actualizó notaría: {$this->nombre}",
+                'deleted' => "Eliminó notaría: {$this->nombre}",
+                default => "Modificó notaría: {$this->nombre}",
+            });
     }
 
     /**
@@ -141,6 +163,16 @@ class Notaria extends Model
     }
 
     /**
+     * Módulos de Control Notarial habilitados para esta notaría.
+     */
+    public function cnModulos(): BelongsToMany
+    {
+        return $this->belongsToMany(CnModulo::class, 'notaria_cn_modulos', 'notaria_id', 'cn_modulo_id')
+            ->withPivot(['is_enabled', 'configuracion'])
+            ->withTimestamps();
+    }
+
+    /**
      * Servicios asignados a esta notaría
      */
     public function services(): BelongsToMany
@@ -160,9 +192,18 @@ class Notaria extends Model
     /**
      * Registro de uso de servicios
      */
-    public function serviceUsage(): HasMany
+    public function serviceUsages(): HasMany
     {
         return $this->hasMany(ServiceUsage::class, 'notaria_id');
+    }
+
+    /**
+     * Alias de serviceUsages() para compatibilidad con API .NET de Control Notarial
+     * (mantiene convención singular usada por módulos externos)
+     */
+    public function serviceUsage(): HasMany
+    {
+        return $this->serviceUsages();
     }
 
     /**
@@ -245,5 +286,193 @@ class Notaria extends Model
     public function resetearBusquedasMes(): void
     {
         $this->update(['busquedas_mes_actual' => 0]);
+    }
+
+    /**
+     * Obtener todas las suscripciones activas y trial
+     */
+    public function suscripcionesActivas()
+    {
+        return $this->subscripciones()
+            ->whereIn('status', ['activa', 'trial'])
+            ->where('fecha_vencimiento', '>=', now());
+    }
+
+    /**
+     * Obtener TODOS los servicios disponibles (combinación de todas las suscripciones activas + trial)
+     * REGLA: Unión (OR) de servicios de todas las suscripciones
+     * FILTRO: Solo servicios IMPLEMENTADOS y ACTIVOS
+     */
+    public function getAllAvailableServices()
+    {
+        $suscripciones = $this->suscripcionesActivas()->with('plan.services')->get();
+
+        if ($suscripciones->isEmpty()) {
+            return collect();
+        }
+
+        // Combinar servicios de todas las suscripciones (sin duplicar)
+        $servicios = collect();
+
+        foreach ($suscripciones as $subscription) {
+            if ($subscription->plan && $subscription->plan->services) {
+                $servicios = $servicios->merge($subscription->plan->services);
+            }
+        }
+
+        // Eliminar duplicados por ID y FILTRAR solo implementados y activos
+        return $servicios->unique('id')
+            ->filter(fn ($service) => $service->implementation_status === 'implemented' && $service->is_active);
+    }
+
+    /**
+     * Verificar si tiene acceso a un servicio específico
+     * Busca en TODAS las suscripciones activas (activa + trial)
+     */
+    public function tieneAccesoServicio(string $serviceCode): bool
+    {
+        $servicios = $this->getAllAvailableServices();
+
+        return $servicios->contains('code', $serviceCode);
+    }
+
+    /**
+     * Obtener límites de la suscripción PRINCIPAL (solo 'activa')
+     * REGLA: Los límites se toman SOLO de la suscripción 'activa', no de las 'trial'
+     */
+    public function getLimitesFromMainSubscription(): array
+    {
+        $suscripcionPrincipal = $this->subscripciones()
+            ->where('status', 'activa')
+            ->where('fecha_vencimiento', '>=', now())
+            ->with('plan')
+            ->first();
+
+        if (! $suscripcionPrincipal || ! $suscripcionPrincipal->plan) {
+            return [
+                'limite_usuarios' => 0,
+                'limite_busquedas_mes' => 0,
+            ];
+        }
+
+        return [
+            'limite_usuarios' => $suscripcionPrincipal->plan->limite_usuarios,
+            'limite_busquedas_mes' => $suscripcionPrincipal->plan->limite_busquedas_mes,
+        ];
+    }
+
+    /**
+     * Obtener servicios agrupados por categoría para el dashboard
+     * Solo servicios IMPLEMENTADOS y ACTIVOS
+     */
+    public function getServiciosPorCategoria(): array
+    {
+        $servicios = $this->getAllAvailableServices();
+
+        return $servicios->groupBy('category')
+            ->map(fn ($group) => $group->values())
+            ->toArray();
+    }
+
+    /**
+     * Obtener límite de uso para un servicio específico
+     * Combina límite del plan + overrides de tenant_services
+     */
+    public function getLimiteServicio(string $serviceCode): ?int
+    {
+        // 1. Verificar si existe override en tenant_services
+        $tenantService = $this->services()
+            ->where('code', $serviceCode)
+            ->first();
+
+        if ($tenantService && $tenantService->pivot->custom_limit !== null) {
+            return $tenantService->pivot->custom_limit;
+        }
+
+        // 2. Obtener del plan en la suscripción activa
+        $suscripcion = $this->subscripcionActiva;
+        if (! $suscripcion || ! $suscripcion->plan) {
+            return null;
+        }
+
+        $planService = $suscripcion->plan->services()
+            ->where('code', $serviceCode)
+            ->first();
+
+        return $planService?->pivot->usage_limit;
+    }
+
+    /**
+     * Obtener uso actual de un servicio en el mes
+     */
+    public function getUsoServicioMesActual(string $serviceCode): int
+    {
+        return $this->serviceUsages()
+            ->whereHas('service', fn ($q) => $q->where('code', $serviceCode))
+            ->whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
+    }
+
+    /**
+     * Verificar si puede usar un servicio (no ha excedido límite)
+     */
+    public function puedeUsarServicio(string $serviceCode): bool
+    {
+        // 1. Verificar si tiene acceso al servicio
+        if (! $this->tieneAccesoServicio($serviceCode)) {
+            return false;
+        }
+
+        // 2. Obtener límite
+        $limite = $this->getLimiteServicio($serviceCode);
+
+        // 3. Si es ilimitado (null), siempre puede usar
+        if ($limite === null) {
+            return true;
+        }
+
+        // 4. Verificar uso actual vs límite
+        $usoActual = $this->getUsoServicioMesActual($serviceCode);
+
+        return $usoActual < $limite;
+    }
+
+    // -------------------------------------------------------------------------
+    // Multi-Tenant helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Nombre de la base de datos tenant de esta notaría.
+     *
+     * Usa el valor guardado en `tenant_db_name` si existe (recomendado por el
+     * desarrollador del API C# para conexión dinámica vía header X-Cn-Database).
+     * Si no está guardado, lo calcula automáticamente a partir del estado y número
+     * y lo persiste para que el API C# siempre tenga el valor disponible vía X-Cn-Database.
+     * Ejemplo: atinet_edomex_notaria_10
+     */
+    public function tenantDatabaseName(): string
+    {
+        if (! empty($this->tenant_db_name)) {
+            return $this->tenant_db_name;
+        }
+
+        $estadoCodigo = EstadoMexico::getCodeFromName($this->estado);
+        $computed = "atinet_{$estadoCodigo}_notaria_{$this->numero_notaria}";
+
+        // Persistir para que el C# siempre tenga el valor disponible
+        $this->updateQuietly(['tenant_db_name' => $computed]);
+
+        return $computed;
+    }
+
+    /**
+     * Identificador corto para el header X-Cn-Tenant.
+     * Es el nombre de la BD sin el prefijo 'atinet_'.
+     * Ejemplo: edomex_notaria_10
+     */
+    public function cnIdentifier(): string
+    {
+        return str_replace('atinet_', '', $this->tenantDatabaseName());
     }
 }

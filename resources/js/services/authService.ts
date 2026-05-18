@@ -33,7 +33,7 @@ export interface SavedAuthData {
  */
 export function useAuthApi(): ApiService {
     const { props } = usePage();
-    const authApiBaseUrl = (props as any).authApiBaseUrl || (props as any).apiBaseUrl || 'https://localhost:44327';
+    const authApiBaseUrl = (props as any).authApiBaseUrl || (props as any).apiBaseUrl || '/admin/cn-api';
 
     return new ApiService(authApiBaseUrl);
 }
@@ -45,9 +45,9 @@ export function useAuthApi(): ApiService {
 function getAuthApiBaseUrl(): string {
     // En contextos donde no podemos usar hooks, intentar desde window
     if (typeof window !== 'undefined') {
-        return (window as any).__AUTH_API_BASE_URL__ || (window as any).__API_BASE_URL__ || 'https://localhost:44327';
+        return (window as any).__AUTH_API_BASE_URL__ || (window as any).__API_BASE_URL__ || '/admin/cn-api';
     }
-    return 'https://localhost:44327';
+    return '/admin/cn-api';
 }
 
 /**

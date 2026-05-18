@@ -21,19 +21,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Trust Cloudflare proxy headers (fix HTTPS/Mixed Content en producción)
-        if (($_ENV['APP_ENV'] ?? 'local') === 'production') {
-            $middleware->trustProxies(
-                at: '*',
-                headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR |
-                    \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST |
-                    \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT |
-                    \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO |
-                    \Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB
-            );
-        }
+        // Trust Cloudflare proxy headers (fix HTTPS/Mixed Content)
+        // Sin condición — $_ENV no está disponible en bootstrap context
+        $middleware->trustProxies(
+            at: '*',
+            headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR |
+                \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST |
+                \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT |
+                \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO |
+                \Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB
+        );
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        // Las rutas del proxy CN ya están protegidas por JWT de C# — CSRF redundante
+        $middleware->validateCsrfTokens(except: ['admin/cn-api/*']);
 
         $middleware->web(append: [
             HandleAppearance::class,

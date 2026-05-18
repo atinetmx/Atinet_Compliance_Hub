@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    Eye,
     Package,
     Edit,
     ArrowLeft,
@@ -87,6 +88,7 @@ export default function PlansShow({ plan, stats }: PlansShowProps) {
         {
             title: plan.nombre,
             href: '#',
+            icon: Eye,
         },
     ];
 
@@ -124,44 +126,19 @@ export default function PlansShow({ plan, stats }: PlansShowProps) {
             <Head title={`Plan - ${plan.nombre}`} />
 
             <div className="flex h-full flex-1 flex-col gap-6 p-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.history.back()}
-                        >
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver
-                        </Button>
-                        <Package className="h-6 w-6 text-primary" />
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h1 className="text-2xl font-bold">
-                                    {plan.nombre}
-                                </h1>
-                                <Badge
-                                    variant={
-                                        plan.is_active ? 'default' : 'secondary'
-                                    }
-                                    className={
-                                        plan.is_active
-                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                                    }
-                                >
-                                    {plan.is_active ? 'Activo' : 'Inactivo'}
-                                </Badge>
-                            </div>
-                            {plan.descripcion && (
-                                <p className="text-sm text-muted-foreground">
-                                    {plan.descripcion}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
+                {/* Header Actions */}
+                <div className="flex items-center justify-end gap-2">
+                    <Badge
+                        variant={
+                            plan.is_active ? 'default' : 'secondary'
+                        }
+                        className={
+                            plan.is_active
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                        }
+                    >\n                        {plan.is_active ? 'Activo' : 'Inactivo'}
+                    </Badge>
                     <div className="flex gap-2">
                         <Button
                             variant="outline"

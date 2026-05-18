@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Subscription extends Model
 {
     /** @use HasFactory<\Database\Factories\SubscriptionFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'notaria_id',
@@ -69,6 +71,24 @@ class Subscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    /**
+     * Configuración para el registro de actividad
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'plan_id', 'fecha_vencimiento', 'auto_renovacion', 'ciclo_facturacion'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('suscripciones')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => 'Creó suscripción'.($this->plan ? " al plan {$this->plan->nombre}" : ''),
+                'updated' => "Actualizó suscripción (estado: {$this->status})",
+                'deleted' => 'Canceló suscripción'.($this->plan ? " del plan {$this->plan->nombre}" : ''),
+                default => 'Modificó suscripción',
+            });
     }
 
     /**
@@ -134,6 +154,8 @@ class Subscription extends Model
         $this->update([
             'fecha_vencimiento' => $this->fecha_vencimiento->addMonths($meses),
             'status' => self::STATUS_ACTIVA,
+            'razon_cancelacion' => null,
+            'fecha_cancelacion' => null,
         ]);
 
         return true;

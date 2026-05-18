@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\NotariasReportExport;
+use App\Exports\ServicesReportExport;
+use App\Exports\UsageReportExport;
 use App\Http\Controllers\Controller;
 use App\Models\Notaria;
 use App\Models\Service;
@@ -9,6 +12,7 @@ use App\Models\ServiceUsage;
 use App\Services\ServiceAccessManager;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Controlador para reportes y estadísticas de uso de servicios
@@ -28,9 +32,13 @@ class ReportsController extends Controller
         $notariaId = $request->input('notaria_id');
 
         $stats = $this->getGeneralStats($period, $notariaId);
+        $categoryStats = $this->getCategoryStats($period, $notariaId);
+        $billingModelStats = $this->getBillingModelStats($period, $notariaId);
 
         return Inertia::render('Admin/Reports/Index', [
             'stats' => $stats,
+            'categoryStats' => $categoryStats,
+            'billingModelStats' => $billingModelStats,
             'period' => $period,
             'notarias' => Notaria::select('id', 'nombre', 'numero_notaria')
                 ->where('activa', true)
@@ -151,10 +159,17 @@ class ReportsController extends Controller
             ->orderBy('service_usages_count', 'desc')
             ->get();
 
-        return response()->json([
+        $services = Service::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'category']);
+
+        return Inertia::render('Admin/Reports/NotariasComparison', [
             'notarias' => $notarias,
-            'period' => $period,
-            'service_code' => $serviceCode,
+            'services' => $services,
+            'filters' => [
+                'period' => $period,
+                'service_code' => $serviceCode,
+            ],
         ]);
     }
 
@@ -442,38 +457,47 @@ class ReportsController extends Controller
     }
 
     /**
-     * Exportar reporte a CSV
+     * Exportar reporte a Excel
      */
     public function export(Request $request)
     {
-        $type = $request->input('type', 'usage'); // usage, notarias, services
-        $period = $request->input('period', 'month');
+        $request->validate([
+            'type' => 'required|in:usage,notarias,services',
+            'period' => 'required|in:week,month,year',
+            'notaria_id' => 'nullable|exists:notarias,id',
+        ]);
 
-        $filename = "reporte_{$type}_".now()->format('Ymd_His').'.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
+        $type = $request->input('type');
+        $period = $request->input('period');
+        $notariaId = $request->input('notaria_id');
 
-        $callback = function () use ($type, $period) {
-            $file = fopen('php://output', 'w');
+        $date = now()->format('Y-m-d_His');
+        $filename = "reporte_{$type}_{$date}.xlsx";
 
-            switch ($type) {
-                case 'usage':
-                    $this->exportUsageReport($file, $period);
-                    break;
-                case 'notarias':
-                    $this->exportNotariasReport($file, $period);
-                    break;
-                case 'services':
-                    $this->exportServicesReport($file, $period);
-                    break;
-            }
-
-            fclose($file);
+        return match ($type) {
+            'usage' => Excel::download(
+                new UsageReportExport(
+                    $this->getUsageData($period, $notariaId),
+                    $period,
+                    $notariaId ? Notaria::find($notariaId)?->nombre : null
+                ),
+                $filename
+            ),
+            'notarias' => Excel::download(
+                new NotariasReportExport(
+                    $this->getNotariasData($period),
+                    $period
+                ),
+                $filename
+            ),
+            'services' => Excel::download(
+                new ServicesReportExport(
+                    $this->getServicesData($period),
+                    $period
+                ),
+                $filename
+            ),
         };
-
-        return response()->stream($callback, 200, $headers);
     }
 
     // ========== MÉTODOS PRIVADOS ==========
@@ -506,6 +530,195 @@ class ReportsController extends Controller
     }
 
     /**
+     * Obtener estadísticas por categoría de servicio
+     */
+    protected function getCategoryStats(string $period, ?int $notariaId = null): array
+    {
+        $query = ServiceUsage::with('service:id,name,code,category,billing_model')
+            ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId));
+
+        $this->applyPeriodFilter($query, $period);
+
+        $usages = $query->get();
+
+        if ($usages->isEmpty()) {
+            return [];
+        }
+
+        $total = $usages->count();
+
+        return $usages->groupBy('service.category')
+            ->map(function ($categoryUsages, $category) use ($total) {
+                $count = $categoryUsages->count();
+
+                return [
+                    'category' => $category,
+                    'label' => $this->getCategoryLabel($category),
+                    'icon' => $this->getCategoryIcon($category),
+                    'total_requests' => $count,
+                    'percentage' => $total > 0 ? round(($count / $total) * 100, 1) : 0,
+                    'total_cost' => round($categoryUsages->sum('cost'), 2),
+                    'total_quantity' => $categoryUsages->sum('quantity'),
+                    'unique_notarias' => $categoryUsages->pluck('notaria_id')->unique()->count(),
+                    'services_count' => $categoryUsages->pluck('service_id')->unique()->count(),
+                ];
+            })
+            ->sortByDesc('total_requests')
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Obtener estadísticas por modelo de facturación
+     */
+    protected function getBillingModelStats(string $period, ?int $notariaId = null): array
+    {
+        $query = ServiceUsage::with('service:id,name,code,billing_model,unit_price')
+            ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId));
+
+        $this->applyPeriodFilter($query, $period);
+
+        $usages = $query->get();
+
+        if ($usages->isEmpty()) {
+            return [];
+        }
+
+        return $usages->groupBy('service.billing_model')
+            ->map(function ($modelUsages, $model) {
+                $stats = [
+                    'billing_model' => $model,
+                    'label' => $this->getBillingModelLabel($model),
+                    'icon' => $this->getBillingModelIcon($model),
+                    'total_requests' => $modelUsages->count(),
+                    'total_cost' => round($modelUsages->sum('cost'), 2),
+                    'total_quantity' => $modelUsages->sum('quantity'),
+                    'services' => $modelUsages->groupBy('service_id')->map(function ($serviceUsages) {
+                        $service = $serviceUsages->first()->service;
+
+                        return [
+                            'name' => $service->name,
+                            'code' => $service->code,
+                            'requests' => $serviceUsages->count(),
+                            'cost' => round($serviceUsages->sum('cost'), 2),
+                        ];
+                    })->values()->toArray(),
+                ];
+
+                // Para servicios LIMITED, calcular porcentaje de uso
+                if ($model === 'limited') {
+                    $stats['near_limit'] = $this->checkLimitedServices($modelUsages);
+                }
+
+                return $stats;
+            })
+            ->sortByDesc('total_cost')
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Verificar servicios LIMITED cerca del límite
+     */
+    protected function checkLimitedServices($usages): array
+    {
+        $nearLimit = [];
+
+        foreach ($usages->groupBy('notaria_id') as $notariaId => $notariaUsages) {
+            $notaria = Notaria::find($notariaId);
+            if (! $notaria) {
+                continue;
+            }
+
+            foreach ($notariaUsages->groupBy('service_id') as $serviceId => $serviceUsages) {
+                $service = $serviceUsages->first()->service;
+                if (! $service) {
+                    continue;
+                }
+
+                // Obtener estadísticas de uso con el AccessManager
+                $usageStats = $this->accessManager->getUsageStats($notaria, $service->code);
+
+                if (isset($usageStats['usage_percentage']) && $usageStats['usage_percentage'] >= 60) {
+                    $nearLimit[] = [
+                        'notaria_id' => $notariaId,
+                        'notaria_nombre' => $notaria->nombre,
+                        'service_name' => $service->name,
+                        'service_code' => $service->code,
+                        'usage_percentage' => $usageStats['usage_percentage'],
+                        'used' => $usageStats['used'] ?? 0,
+                        'limit' => $usageStats['limit'] ?? 0,
+                        'remaining' => $usageStats['remaining'] ?? 0,
+                        'alert_level' => $usageStats['usage_percentage'] >= 80 ? 'critical' : 'warning',
+                    ];
+                }
+            }
+        }
+
+        return $nearLimit;
+    }
+
+    /**
+     * Obtener etiqueta legible para categoría
+     */
+    protected function getCategoryLabel(string $category): string
+    {
+        return match ($category) {
+            'consulta' => 'Consulta',
+            'api' => 'API',
+            'sistema' => 'Sistema',
+            'analisis' => 'Análisis',
+            'storage' => 'Almacenamiento',
+            'integration' => 'Integración',
+            default => ucfirst($category),
+        };
+    }
+
+    /**
+     * Obtener icono emoji para categoría
+     */
+    protected function getCategoryIcon(string $category): string
+    {
+        return match ($category) {
+            'consulta' => '🔍',
+            'api' => '🔌',
+            'sistema' => '⚙️',
+            'analisis' => '📊',
+            'storage' => '💾',
+            'integration' => '🔗',
+            default => '📦',
+        };
+    }
+
+    /**
+     * Obtener etiqueta legible para modelo de facturación
+     */
+    protected function getBillingModelLabel(string $model): string
+    {
+        return match ($model) {
+            'included' => 'Incluido',
+            'limited' => 'Con Límite',
+            'per_use' => 'Por Uso',
+            'unlimited' => 'Ilimitado',
+            default => ucfirst($model),
+        };
+    }
+
+    /**
+     * Obtener icono emoji para modelo de facturación
+     */
+    protected function getBillingModelIcon(string $model): string
+    {
+        return match ($model) {
+            'included' => '✅',
+            'limited' => '🔢',
+            'per_use' => '💰',
+            'unlimited' => '♾️',
+            default => '❓',
+        };
+    }
+
+    /**
      * Aplicar filtro de período a query
      */
     protected function applyPeriodFilter($query, string $period): void
@@ -519,39 +732,36 @@ class ReportsController extends Controller
     }
 
     /**
-     * Exportar reporte de uso
+     * Obtener datos de uso para exportación
      */
-    protected function exportUsageReport($file, string $period): void
+    protected function getUsageData(string $period, ?int $notariaId = null): array
     {
-        fputcsv($file, ['Fecha', 'Notaría', 'Servicio', 'Usuario', 'Cantidad', 'Costo']);
-
-        ServiceUsage::with(['notaria:id,nombre', 'service:id,name', 'user:id,name'])
-            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
+        $query = ServiceUsage::with(['notaria:id,nombre', 'service:id,name', 'user:id,name'])
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month)->whereYear('consumed_at', now()->year))
             ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
             ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
+            ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId))
             ->orderBy('consumed_at', 'desc')
-            ->chunk(1000, function ($usages) use ($file) {
-                foreach ($usages as $usage) {
-                    fputcsv($file, [
-                        $usage->consumed_at->format('Y-m-d H:i:s'),
-                        $usage->notaria->nombre,
-                        $usage->service->name,
-                        $usage->user->name,
-                        $usage->quantity,
-                        $usage->cost,
-                    ]);
-                }
-            });
+            ->get();
+
+        return $query->map(function ($usage) {
+            return [
+                'consumed_at' => $usage->consumed_at->format('Y-m-d H:i:s'),
+                'notaria_nombre' => $usage->notaria->nombre,
+                'service_name' => $usage->service->name,
+                'user_name' => $usage->user->name,
+                'quantity' => $usage->quantity,
+                'cost' => $usage->cost,
+            ];
+        })->toArray();
     }
 
     /**
-     * Exportar reporte de notarías
+     * Obtener datos de notarías para exportación
      */
-    protected function exportNotariasReport($file, string $period): void
+    protected function getNotariasData(string $period): array
     {
-        fputcsv($file, ['Notaría', 'Total Solicitudes', 'Total Cantidad', 'Total Costo']);
-
-        Notaria::withCount([
+        $notarias = Notaria::withCount([
             'serviceUsages' => fn ($q) => $this->applyPeriodFilter($q, $period),
         ])
             ->withSum([
@@ -561,26 +771,24 @@ class ReportsController extends Controller
                 'serviceUsages as total_cost' => fn ($q) => $this->applyPeriodFilter($q, $period),
             ], 'cost')
             ->where('activa', true)
-            ->chunk(100, function ($notarias) use ($file) {
-                foreach ($notarias as $notaria) {
-                    fputcsv($file, [
-                        $notaria->nombre,
-                        $notaria->service_usages_count ?? 0,
-                        $notaria->total_quantity ?? 0,
-                        $notaria->total_cost ?? 0,
-                    ]);
-                }
-            });
+            ->get();
+
+        return $notarias->map(function ($notaria) {
+            return [
+                'nombre' => $notaria->nombre,
+                'total_requests' => $notaria->service_usages_count ?? 0,
+                'total_quantity' => $notaria->total_quantity ?? 0,
+                'total_cost' => $notaria->total_cost ?? 0,
+            ];
+        })->toArray();
     }
 
     /**
-     * Exportar reporte de servicios
+     * Obtener datos de servicios para exportación
      */
-    protected function exportServicesReport($file, string $period): void
+    protected function getServicesData(string $period): array
     {
-        fputcsv($file, ['Servicio', 'Total Solicitudes', 'Total Cantidad', 'Total Costo', 'Notarías Únicas']);
-
-        Service::withCount([
+        $services = Service::withCount([
             'serviceUsages' => fn ($q) => $this->applyPeriodFilter($q, $period),
         ])
             ->withSum([
@@ -590,23 +798,23 @@ class ReportsController extends Controller
                 'serviceUsages as total_cost' => fn ($q) => $this->applyPeriodFilter($q, $period),
             ], 'cost')
             ->where('is_active', true)
-            ->chunk(100, function ($services) use ($file, $period) {
-                foreach ($services as $service) {
-                    $uniqueNotarias = ServiceUsage::where('service_id', $service->id)
-                        ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month))
-                        ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
-                        ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
-                        ->distinct('notaria_id')
-                        ->count('notaria_id');
+            ->get();
 
-                    fputcsv($file, [
-                        $service->name,
-                        $service->service_usages_count ?? 0,
-                        $service->total_quantity ?? 0,
-                        $service->total_cost ?? 0,
-                        $uniqueNotarias,
-                    ]);
-                }
-            });
+        return $services->map(function ($service) use ($period) {
+            $uniqueNotarias = ServiceUsage::where('service_id', $service->id)
+                ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month)->whereYear('consumed_at', now()->year))
+                ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+                ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
+                ->distinct('notaria_id')
+                ->count('notaria_id');
+
+            return [
+                'name' => $service->name,
+                'total_requests' => $service->service_usages_count ?? 0,
+                'total_quantity' => $service->total_quantity ?? 0,
+                'total_cost' => $service->total_cost ?? 0,
+                'unique_notarias' => $uniqueNotarias,
+            ];
+        })->toArray();
     }
 }

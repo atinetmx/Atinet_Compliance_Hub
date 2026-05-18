@@ -409,7 +409,7 @@ export default function SuperAdminDashboard({
                                 <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
                                     <Calendar className="h-4 w-4" />
                                     <span>
-                                        {new Date(legacy_stats.periodo.inicio).toLocaleDateString('es-MX')} 
+                                        {new Date(legacy_stats.periodo.inicio).toLocaleDateString('es-MX')}
                                         {' - '}
                                         {new Date(legacy_stats.periodo.fin).toLocaleDateString('es-MX')}
                                     </span>

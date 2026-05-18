@@ -1,5 +1,9 @@
 import { Link, usePage } from '@inertiajs/react';
+<<<<<<< HEAD
 import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, Settings, FileText, DollarSign, Users, Receipt } from 'lucide-react';
+=======
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode, ScanSearch } from 'lucide-react';
+>>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -37,6 +41,10 @@ export function AppSidebar() {
     // Check if user has Control Notarial service (future: will be checked from servicios)
     const hasControlNotarial = servicios.some((s) => s.code === 'CONTROL_NOTARIAL') || isSuperAdmin;
 
+    const hasAgenda = isSuperAdmin || servicios.some((s) => s.code === 'AGENDA');
+    const hasRegistroWeb = isSuperAdmin || servicios.some((s) => s.code === 'REGISTRO_WEB');
+    const hasEscanerInteligente = isSuperAdmin || servicios.some((s) => s.code === 'ESCANER_INTELIGENTE');
+
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
@@ -69,6 +77,33 @@ export function AppSidebar() {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',
                       icon: Shield,
+                      items: [
+                          {
+                              title: 'Búsqueda',
+                              href: '/admin/listas-negras',
+                              icon: Search,
+                          },
+                          {
+                              title: 'Historial',
+                              href: '/admin/search-history',
+                              icon: History,
+                          },
+                      ],
+                  },
+                  {
+                      title: 'Agenda',
+                      href: '/admin/agenda',
+                      icon: CalendarDays,
+                  },
+                  {
+                      title: 'Registro Web',
+                      href: '/admin/registro-web',
+                      icon: QrCode,
+                  },
+                  {
+                      title: 'Escáner Inteligente',
+                      href: '/admin/escaner-inteligente',
+                      icon: ScanSearch,
                   },
                   {
                       title: 'Control Notarial',
@@ -138,6 +173,45 @@ export function AppSidebar() {
                       title: 'Listas Negras',
                       href: '/admin/listas-negras',
                       icon: Shield,
+                      items: [
+                          {
+                              title: 'Búsqueda',
+                              href: '/admin/listas-negras',
+                              icon: Search,
+                          },
+                          {
+                              title: 'Historial',
+                              href: '/admin/search-history',
+                              icon: History,
+                          },
+                      ],
+                  },
+              ]
+            : []),
+        ...(hasAgenda && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Agenda',
+                      href: '/admin/agenda',
+                      icon: CalendarDays,
+                  },
+              ]
+            : []),
+        ...(hasRegistroWeb && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Registro Web',
+                      href: '/admin/registro-web',
+                      icon: QrCode,
+                  },
+              ]
+            : []),
+        ...(hasEscanerInteligente && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Escáner Inteligente',
+                      href: '/admin/escaner-inteligente',
+                      icon: ScanSearch,
                   },
               ]
             : []),
@@ -209,14 +283,17 @@ export function AppSidebar() {
     ];
 
     const footerNavItems: NavItem[] = [
+
+        // Boton para repositorio laravel.
+        // {
+        //     title: 'Repository',
+        //     href: 'https://github.com/laravel/react-starter-kit',
+        //     icon: Folder,
+        // },
+
         {
-            title: 'Repository',
-            href: 'https://github.com/laravel/react-starter-kit',
-            icon: Folder,
-        },
-        {
-            title: 'Documentation',
-            href: 'https://laravel.com/docs/starter-kits#react',
+            title: 'Documentación',
+            href: '/admin/documentacion',
             icon: BookOpen,
         },
     ];

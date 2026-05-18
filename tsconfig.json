@@ -109,14 +109,8 @@
         /* Completeness */
         // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
         "skipLibCheck": true /* Skip type checking all .d.ts files. */,
-        "baseUrl": ".",
-        "paths": {
-            "@/*": ["./resources/js/*"]
-        },
         "jsx": "react-jsx",
-
-        // Agrega esta línea para ignorar las deprecaciones de TypeScript 6.0
-        "ignoreDeprecations": "6.0"
+        "ignoreDeprecations": "5.0"
     },
     "include": ["resources/js/**/*.ts", "resources/js/**/*.d.ts", "resources/js/**/*.tsx", "index.d.ts"]
 }

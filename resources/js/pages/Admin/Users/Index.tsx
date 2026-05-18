@@ -9,7 +9,7 @@ import {
     Users,
     Building2,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,14 +35,12 @@ interface Props {
     users: {
         data: User[];
         links: Array<{ url: string | null; label: string; active: boolean }>;
-        meta: {
-            current_page: number;
-            last_page: number;
-            per_page: number;
-            total: number;
-            from: number;
-            to: number;
-        };
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number | null;
+        to: number | null;
     };
     notarias: Array<{
         id: number;
@@ -60,7 +58,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Administración', href: '/admin' },
-    { title: 'Usuarios', href: '/admin/users' },
+    { title: 'Gestión de Usuarios', href: '/admin/users', icon: Users },
 ];
 
 export default function Index({
@@ -70,6 +68,7 @@ export default function Index({
     tiposCuenta,
 }: Props) {
     const [showFilters, setShowFilters] = useState(false);
+    const isFirstRender = useRef(true);
     const { data, setData } = useForm({
         search: filters.search || '',
         tipo_cuenta: filters.tipo_cuenta || '',
@@ -78,15 +77,17 @@ export default function Index({
 
     const handlePaginationClick = (url: string | null) => {
         if (!url) return;
-        // Extract query params from URL and merge with current filters
         const urlObj = new URL(url, window.location.origin);
-        const params = {
-            page: urlObj.searchParams.get('page'),
+        const params: Record<string, string | undefined> = {
+            page: urlObj.searchParams.get('page') ?? undefined,
             search: data.search || undefined,
             tipo_cuenta: data.tipo_cuenta || undefined,
             notaria_id: data.notaria_id || undefined,
         };
-        router.get('/admin/users', params);
+        router.get('/admin/users', params, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     const clearFilters = () => {
@@ -94,8 +95,12 @@ export default function Index({
         router.get('/admin/users');
     };
 
-    // Búsqueda dinámica con debounce
+    // Búsqueda dinámica con debounce — no disparar en el primer render
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         const delayDebounceFn = setTimeout(() => {
             const params = {
                 search: data.search || undefined,
@@ -106,7 +111,7 @@ export default function Index({
                 preserveState: true,
                 preserveScroll: true,
             });
-        }, 500); // 500ms de delay
+        }, 500);
 
         return () => clearTimeout(delayDebounceFn);
     }, [data.search, data.tipo_cuenta, data.notaria_id]);
@@ -126,31 +131,33 @@ export default function Index({
         }
     };
 
+    const handleDelete = (user: User) => {
+        if (
+            confirm(
+                `¿Estás seguro de eliminar al usuario "${user.name}" (${user.email})? Esta acción no se puede deshacer.`,
+            )
+        ) {
+            router.post(
+                `/admin/users/${user.id}`,
+                {
+                    _method: 'DELETE',
+                },
+                {
+                    onSuccess: () => {
+                        // El mensaje de éxito lo maneja el backend
+                    },
+                    preserveScroll: true,
+                },
+            );
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Gestión de Usuarios" />
 
             <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Users className="h-6 w-6 text-primary" />
-                        <h1 className="text-2xl font-bold">
-                            Gestión de Usuarios
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Link href="/admin/users/reports">
-                            <Button variant="outline">Ver Reportes</Button>
-                        </Link>
-                        <Link href="/admin/users/create">
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Nuevo Usuario
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
+
 
                 {/* Filters */}
                 <div className="space-y-4">
@@ -174,6 +181,18 @@ export default function Index({
                             <Filter className="mr-2 h-4 w-4" />
                             Filtros
                         </Button>
+                        {/* Header con botones de acción */}
+                        <div className="flex items-center justify-end gap-2">
+                            <Link href="/admin/users/reports">
+                                <Button variant="outline">Ver Reportes</Button>
+                            </Link>
+                            <Link href="/admin/users/create">
+                                <Button>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Nuevo Usuario
+                                </Button>
+                            </Link>
+                        </div>
                         {(filters.search ||
                             filters.tipo_cuenta ||
                             filters.notaria_id) && (
@@ -353,6 +372,9 @@ export default function Index({
                                                     size="sm"
                                                     variant="ghost"
                                                     className="text-red-600 hover:text-red-700"
+                                                    onClick={() =>
+                                                        handleDelete(user)
+                                                    }
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -369,8 +391,8 @@ export default function Index({
                 {users.links && users.links.length > 3 && (
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            Mostrando {users.meta.from} a {users.meta.to} de{' '}
-                            {users.meta.total} usuarios
+                            Mostrando {users.from ?? 0} a {users.to ?? 0} de{' '}
+                            {users.total} usuarios
                         </div>
                         <div className="flex items-center gap-2">
                             {users.links.map((link, index) => (

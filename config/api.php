@@ -6,13 +6,21 @@ return [
     | API Base URL Configuration
     |--------------------------------------------------------------------------
     |
-    | This URL defines the base endpoint for all API calls from the frontend.
-    | Use environment variables to manage different URLs for dev and production.
+    | base_url: URL interna del servidor C# de Control Notarial.
+    | Usada server-to-server desde Laravel (nunca expuesta al browser).
     |
-    | Default (development): https://localhost:44327/api
-    | Production: http://api.atinet.com.mx:5000/api
+    | Development: https://localhost:44327/api
+    | Production:  https://srvatinet.atinet.com.mx:7443/api
+    |
+    | proxy_path: Ruta pública en Laravel que actúa como proxy transparente.
+    | El frontend llama a /cn-api/{endpoint} y Laravel reenvía internamente.
+    | Así el browser nunca intenta resolver srvatinet.atinet.com.mx.
     |
     */
 
-    'base_url' => env('API_BASE_URL', 'https://localhost:44327/api'),
+    // Preferir URL interna (server-to-server sin DNS externo).
+    // CONTROL_NOTARIAL_INTERNAL_URL debe apuntar a la IP/hostname interno de la C# API.
+    'base_url' => env('CONTROL_NOTARIAL_INTERNAL_URL', env('CONTROL_NOTARIAL_API_URL', env('API_BASE_URL', 'https://srvatinet.atinet.com.mx:7443/api'))),
+
+    'proxy_path' => '/admin/cn-api',
 ];

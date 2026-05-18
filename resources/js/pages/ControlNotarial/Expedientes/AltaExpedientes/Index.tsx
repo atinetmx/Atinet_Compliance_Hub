@@ -1,10 +1,10 @@
-import { Head, usePage } from '@inertiajs/react';
+﻿import { Head, usePage } from '@inertiajs/react';
 import { X, Plus, AlertCircle, Search, Loader2, FileText, ChevronDown, DollarSign, Building, Users, Check } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
+
 import { useToast } from '@/contexts/ToastContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -132,52 +132,53 @@ interface Usuario {
 }
 
 interface ReciboProvisor {
-    numero_Recibo: number;
+    id: number;
+    numero_Recibo: string;
     expediente: string;
-    escritura_Numero: number;
+    escritura_Numero?: string;
     nombre: string;
-    fecha_Creacion: string;
     operacion_Concepto: string;
     total: number;
-    estatus: string;
+    estatus: 'PENDIENTE' | 'PAGADO' | 'CANCELADO';
+    fecha_Creacion: string;
 }
 
 interface ReciboDetalle {
     id: number;
-    numero_Recibo: number;
+    numero_Recibo: string;
     expediente: string;
-    escritura_Numero: number;
+    escritura_Numero?: string;
+    nombre: string;
+    operacion_Concepto: string;
+    total: number;
+    estatus: 'PENDIENTE' | 'PAGADO' | 'CANCELADO';
+    fecha_Creacion: string;
     notario: string;
     forma_Pago: string;
-    nombre: string;
-    fecha_Creacion: string;
     total_Gastos_Impuestos_Derechos: number;
     total_Gastos_Notariales: number;
     total_Honorarios: number;
-    total: number;
-    operacion_Concepto: string;
-    observacion: string;
-    estatus: string;
+    observacion?: string;
 }
 
 interface Presupuesto {
-    id: number;
-    numero_Presupuesto: number;
+    id?: number;
+    numero_Presupuesto: string;
     cliente: string;
-    descripcion: string;
-    total_Honorarios: number | null;
-    total_Impuestos_Derechos: number | null;
-    total_Gastos_Notariales: number | null;
-    total_Presupuesto: number | null;
+    tipo_Compareciente: string;
+    operacion: string;
+    total_Honorarios: number;
+    total_Impuestos_Derechos: number;
+    total_Gastos_Notariales: number;
+    total_Presupuesto: number;
+    validado?: boolean;
 }
 
 interface DataPLD {
-    expediente: string;
     descripcion: string;
-    usuario: string | null;
-    realizado: boolean;
-    clave: string;
-    fecha_Realizado: string | null;
+    usuario?: string;
+    clave: 'PENDIENTE' | 'REALIZADO' | 'RECHAZADO';
+    fecha_Realizado?: string;
 }
 
 interface ExpedienteFormData {
@@ -227,8 +228,6 @@ const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlF
 );
 
 export default function ExpedientesIndex() {
-    // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const { addToast } = useToast();
     const messageModal = useMessageModal();
 
@@ -239,12 +238,7 @@ export default function ExpedientesIndex() {
     const [searchError, setSearchError] = useState<string | null>(null);
 
     // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    const { isReady } = useAuthGuard();
 
     // --- Control de pestaña activa ---
     const [activeTab, setActiveTab] = useState('busqueda');
@@ -495,7 +489,7 @@ export default function ExpedientesIndex() {
     }>>([]);
     const [cargandoDocumentosExpediente, setCargandoDocumentosExpediente] = useState(false);
     const [clienteSeleccionadoDocumentos, setClienteSeleccionadoDocumentos] = useState<number | null>(null);
-    const [documentosEditados, setDocumentosEditados] = useState<Record<number, {
+    const [documentosEditados, setDocumentosEditados] = useState<Record<string, {
         cliente_Id: number;
         documento_Id: number;
         fecha_Entrega: string | null;
@@ -566,8 +560,8 @@ export default function ExpedientesIndex() {
     });
 
     // Estado para controlar si está editando
-    const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState(null);
-    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState(null);
+    const [inmuebleEnEdicion, setInmuebleEnEdicion] = useState<number | null>(null);
+    const [inmuebleIdEnEdicion, setInmuebleIdEnEdicion] = useState<number | null>(null);
 
     // --- Estados para Antecedentes (Checkboxes) ---
     const [checkboxesAntecedentes, setCheckboxesAntecedentes] = useState({
@@ -611,7 +605,7 @@ export default function ExpedientesIndex() {
     const debounceNumeroEscrituraRef = useRef<NodeJS.Timeout | null>(null);
 
     // Ref para debounce de actualización de documentos individuales
-    const debounceTimersRef = useRef<Record<number, NodeJS.Timeout>>({});
+    const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
     const initializedRef = useRef(false);
 
     const api = useApi();
@@ -622,6 +616,7 @@ export default function ExpedientesIndex() {
     // SECCIÓN: INICIALIZACIÓN
     // ==========================================
     useEffect(() => {
+        if (!isReady) return;
         // Prevenir doble fetch en React Strict Mode (desarrollo)
         if (initializedRef.current) return;
         initializedRef.current = true;
@@ -643,7 +638,7 @@ export default function ExpedientesIndex() {
             Object.values(debounceTimersRef.current).forEach(timer => clearTimeout(timer));
             if (debounceNumeroEscrituraRef.current) clearTimeout(debounceNumeroEscrituraRef.current);
         };
-    }, []);
+    }, [isReady]);
 
     // Validar número de escritura con debounce (EXPEDIENTES)
     useEffect(() => {
@@ -662,7 +657,7 @@ export default function ExpedientesIndex() {
         debounceNumeroEscrituraRef.current = setTimeout(async () => {
             setValidandoNumeroEscritura(true);
             try {
-                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+                const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
                 // Si la respuesta es exitosa, no hay error
                 setNumeroEscrituraError(null);
 
@@ -700,7 +695,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get(`/Presupuestos/GetPresupuestosXExpediente?expedienteId=${expedienteId}`);
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 setPresupuestos([]);
@@ -730,7 +724,6 @@ export default function ExpedientesIndex() {
 
             const response = await api.get(`/Presupuestos/GetPresupuestosPrevios?${params}`);
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (response?.isUnauthorized) {
@@ -757,7 +750,6 @@ export default function ExpedientesIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -902,12 +894,15 @@ export default function ExpedientesIndex() {
 
             const response = await api.post('/Presupuestos/CreatePresupuesto', payload);
 
+            await handleControlNotarialResponse(response, {
+                onError: (msg) => addToast(msg, 'error'),
+            });
+
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
-            if (response) {
+            if (response?.success === true) {
                 addToast('Presupuesto guardado correctamente', 'success');
                 setMostrarFormularioPresupuesto(false);
                 // Recargar presupuestos si es necesario
@@ -933,7 +928,6 @@ export default function ExpedientesIndex() {
             const response = await api.get(`/Presupuestos/GetPresupuestoById?presupuestoId=${presupuestoId}`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -984,7 +978,7 @@ export default function ExpedientesIndex() {
             const operacionEnExpediente = operacionesDelExpediente.find(op => op.id === presupuestoPrevio.operacion_Id);
 
             if (clienteEnExpediente) {
-                setClienteFiltro(clienteEnExpediente.nombre || '');
+                setClienteFiltro(clienteEnExpediente.nombreCompareciente || '');
             }
 
             if (operacionEnExpediente) {
@@ -1023,7 +1017,6 @@ export default function ExpedientesIndex() {
             const response = await api.put(`/Presupuestos/ValidateInvalidatePresupuesto?presupuestoId=${presupuestoEditandoId}`, {});
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1069,7 +1062,6 @@ export default function ExpedientesIndex() {
             const response = await api.delete(`/Presupuestos/DeletePresupuesto?presupuestoId=${presupuestoEditandoId}`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1197,7 +1189,6 @@ export default function ExpedientesIndex() {
             const response = await api.get('/Catalogos/GetImpuestosDerechos');
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 return;
             }
 
@@ -1323,7 +1314,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetOperaciones');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1346,7 +1336,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetZonasMunicipios');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1369,7 +1358,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/User/GetRolesUsuarios');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1391,7 +1379,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetDependenciasPublicas');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1413,7 +1400,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Clientes/GetClientes');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1434,14 +1420,13 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetComparecientes');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
             }
             console.log('Respuesta Comparecientes:', response);
             // Manejar diferentes formatos de respuesta
-            const comparecientes = response?.dataResponse || response?.data || response;
+            const comparecientes = response?.dataResponse || response;
             if (Array.isArray(comparecientes)) {
                 setComparecientesDisponibles(comparecientes);
                 console.log('Comparecientes cargados:', comparecientes);
@@ -1460,7 +1445,6 @@ export default function ExpedientesIndex() {
         try {
             const response = await api.get('/Catalogos/GetTipoInmueble');
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
             if (response?.isUnauthorized) {
                 return;
@@ -1492,7 +1476,7 @@ export default function ExpedientesIndex() {
     // ==========================================
 
     // Editar Inmueble - Obtener datos y llenar formulario
-    const handleEditarInmueble = async (inmuebleId) => {
+    const handleEditarInmueble = async (inmuebleId: number) => {
         setCargandoGuardarInmueble(true);
         try {
             const data = await api.get(`/Expediente/GetInmueblesById?inmuebleId=${inmuebleId}`);
@@ -1602,8 +1586,8 @@ export default function ExpedientesIndex() {
                 clave_Catastral: formInmueble.claveCatastral,
                 superficie_Terreno: parseFloat(formInmueble.superficieTerreno) || 0,
                 superficie_Construccion: parseFloat(formInmueble.superficieConstruida) || 0,
-                cuenta_Agua: formInmueble.ctaAgua || '',
-                cuenta_Predial: formInmueble.ctaPredial || '',
+                cuenta_Agua: parseFloat(formInmueble.ctaAgua) || 0,
+                cuenta_Predial: parseFloat(formInmueble.ctaPredial) || 0,
                 fecha_Registro: formInmueble.fechaRegistro ? new Date(formInmueble.fechaRegistro).toISOString() : new Date().toISOString(),
                 folio_Real: formInmueble.folioReal,
                 inscripcion: formInmueble.inscripcion,
@@ -1623,7 +1607,7 @@ export default function ExpedientesIndex() {
 
             // Agregar expediente_Id solo para crear
             if (!isEditing) {
-                payload.expediente_Id = currentExpedienteId;
+                (payload as any).expediente_Id = currentExpedienteId;
             }
 
             const data = isEditing
@@ -1631,14 +1615,14 @@ export default function ExpedientesIndex() {
                 : await api.post(endpoint, payload);
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
+                onError: (msg) => addToast(msg, 'error'),
             });
 
             if (data?.isUnauthorized) {
                 return;
             }
 
-            if (data?.success !== false) {
+            if (data?.success === true) {
                 addToast(isEditing ? 'Inmueble actualizado exitosamente' : 'Inmueble guardado exitosamente', 'success');
             setMostrarFormInmueble(false);
             // Limpiar formulario
@@ -1688,8 +1672,6 @@ export default function ExpedientesIndex() {
             setInmuebleIdEnEdicion(null);
             // Recargar inmuebles
             await fetchInmueblesExpediente(currentExpedienteId);
-            } else {
-                addToast(data?.message || 'Error al guardar el inmueble', 'error');
             }
         } catch (error) {
             console.error('Error guardando inmueble:', error);
@@ -1709,7 +1691,6 @@ export default function ExpedientesIndex() {
         try {
             const { blob, response } = await api.getBlob('/Catalogos/GetDocumentos');
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para cargar documentos', 'error');
                 return;
             }
@@ -1836,7 +1817,6 @@ export default function ExpedientesIndex() {
             );
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar el recibo', 'error');
                 return;
             }
@@ -1921,7 +1901,6 @@ export default function ExpedientesIndex() {
             );
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -1942,7 +1921,7 @@ export default function ExpedientesIndex() {
 
     // Actualizar un documento individual
     const handleActualizarDocumentoIndividual = async (
-        docsId: number,
+        docsId: string,
         cambios: {
             fecha_Entrega: string | null;
             usuario_Recibe: string | null;
@@ -1970,7 +1949,6 @@ export default function ExpedientesIndex() {
             );
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -1990,7 +1968,7 @@ export default function ExpedientesIndex() {
     };
 
     // Handler para cambios de documento con debounce por documento específico
-    const handleDocumentoChange = (docId: number, field: string, value: any) => {
+    const handleDocumentoChange = (docId: string, field: string, value: any) => {
         // Actualizar el estado local
         setDocumentosEditados(prev => ({
             ...prev,
@@ -2279,7 +2257,7 @@ export default function ExpedientesIndex() {
             if (data && data.dataResponse) {
                 setInmueblesExpediente(data.dataResponse);
             } else {
-                console.error('Error al cargar inmuebles:', data?.message);
+                // Sin inmuebles es estado normal, no un error
                 setInmueblesExpediente([]);
             }
         } catch (error) {
@@ -2301,7 +2279,6 @@ export default function ExpedientesIndex() {
             const response = await api.get(endpoint);
 
             await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             // Si es 401, useAuthGuard maneja el toast
@@ -2355,7 +2332,7 @@ export default function ExpedientesIndex() {
         }
 
         try {
-            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`);
+            const response = await api.post(`/Expediente/ChecarNumeroEscritura?numEscritura=${formData.numeroEscritura}`, {});
 
             // Verificar si dataResponse es true
             if (response?.dataResponse === true) {
@@ -2600,7 +2577,7 @@ export default function ExpedientesIndex() {
 
                 // Inicializar busquedaTipo con los tipos de comparecientes cargados
                 const busquedaTipoInicial: Record<string, string> = {};
-                comparecientes.forEach(comp => {
+                comparecientes.forEach((comp: FilaCompareciente) => {
                     busquedaTipoInicial[comp.id] = comp.tipoCompareciente;
                 });
                 setBusquedaTipo(busquedaTipoInicial);
@@ -2765,14 +2742,14 @@ export default function ExpedientesIndex() {
                 : await api.post(endpoint, requestPayload);
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
+                onError: (msg) => addToast(msg, 'error'),
             });
 
             if (data?.isUnauthorized) {
                 return;
             }
 
-            if (data?.success !== false) {
+            if (data?.success === true) {
                 const messageAction = isEditing ? 'actualizado' : 'creado';
                 addToast(`Expediente ${messageAction} exitosamente`, 'success', 4000);
 
@@ -2861,7 +2838,7 @@ export default function ExpedientesIndex() {
                     setBusquedaAutorizado('');
                     setMostrarDropdownAutorizado(false);
                     setMostrarDropdownClientes(false);
-                    setMostrarDropdownOtorgante(false);
+                    setMostrarDropdownOperaciones(false);
                     setDropdownTipoAbierto({});
                     setBusquedaTipo({});
                     setEnabledDates({
@@ -2910,7 +2887,6 @@ export default function ExpedientesIndex() {
             );
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para asignar folios', 'error');
                 return;
             }
@@ -3028,7 +3004,7 @@ export default function ExpedientesIndex() {
         }
     };
 
-    const handleActualizarDatosDependencia = (campo: keyof DatosDepedencia, valor: string) => {
+    const handleActualizarDatosDependencia = (campo: string, valor: string) => {
         if (dependenciaSeleccionada) {
             setDatosDepdencias(prev => ({
                 ...prev,
@@ -3051,7 +3027,7 @@ export default function ExpedientesIndex() {
             }));
             // Si se desactiva el checkbox, limpiar la fecha
             if (checkboxesFecha[dependenciaSeleccionada]?.[campo]) {
-                handleActualizarDatosDependencia(campo as keyof DatosDepedencia, '');
+                handleActualizarDatosDependencia(campo, '');
             }
         }
     };
@@ -3060,7 +3036,7 @@ export default function ExpedientesIndex() {
         setFilasComparecientes(prev => prev.filter(row => row.id !== id));
     };
 
-    const handleActualizarCompareciente = (id: string, campo: keyof FilaCompareciente, valor: any) => {
+    const handleActualizarCompareciente = (id: string, campo: string, valor: any) => {
         setFilasComparecientes(prev =>
             prev.map(row =>
                 row.id === id ? { ...row, [campo]: valor } : row
@@ -3245,7 +3221,7 @@ export default function ExpedientesIndex() {
     };
 
     // Obtener Recibo Provisional por ID
-    const fetchReciboDetalle = async (reciboId: number) => {
+    const fetchReciboDetalle = async (reciboId: string | number) => {
         setCargandoReciboDetalle(true);
         try {
             const data = await api.get(`/ReciboProvisional/GetReciboProvicionalById?reciboId=${reciboId}`);
@@ -3286,7 +3262,6 @@ export default function ExpedientesIndex() {
             const data = await api.post('/ReciboProvisional/CreateReciboProvisional', payload);
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -3323,7 +3298,6 @@ export default function ExpedientesIndex() {
             const data = await api.put(`/ReciboProvisional/PagarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -3360,7 +3334,6 @@ export default function ExpedientesIndex() {
             const data = await api.put(`/ReciboProvisional/CancelarReciboProvisional?reciboId=${reciboDetalleSeleccionado.id}`, {});
 
             await handleControlNotarialResponse(data, {
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data?.isUnauthorized) {
@@ -3392,7 +3365,6 @@ export default function ExpedientesIndex() {
             const { blob, response } = await api.getBlob(`/ReciboProvisional/GenerateReporteRecibosProvisionales?reciboId=${reciboId}`);
 
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 addToast('No autorizado para generar el recibo', 'error');
                 return;
             }
@@ -3424,7 +3396,6 @@ export default function ExpedientesIndex() {
     return (
         <>
             <Head title="Expedientes - Control Notarial" />
-            <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
             <PDFViewerModal
                 isOpen={showRecibosPdfViewer}
                 onClose={closeRecibosPdfViewer}
@@ -3685,7 +3656,7 @@ export default function ExpedientesIndex() {
                                         cargandoDocumentosExpediente={cargandoDocumentosExpediente}
                                         handleDocumentoChange={handleDocumentoChange}
                                         handleEliminarDocumentoDeAll={handleEliminarDocumentoDeAll}
-                                        currentExpedienteId={currentExpedienteId}
+                                        currentExpedienteId={currentExpedienteId ?? undefined}
                                         api={api}
                                         addToast={addToast}
                                     />
@@ -3779,7 +3750,6 @@ export default function ExpedientesIndex() {
                                         setErrorPresupuestoPrevio={setErrorPresupuestoPrevio}
                                         fetchPresupuestosPrevios={fetchPresupuestosPrevios}
                                         handleSelectPresupuestoPrevio={handleSelectPresupuestoPrevio}
-                                        addToast={addToast}
                                         isLoadingHonorarios={isLoadingHonorarios}
                                         setIsLoadingHonorarios={setIsLoadingHonorarios}
                                         isLoadingImpuestos={isLoadingImpuestos}
@@ -3805,8 +3775,6 @@ export default function ExpedientesIndex() {
                                         removeGastoNotarial={removeGastoNotarial}
                                         updateGastoNotarial={updateGastoNotarial}
                                         calcularTotales={calcularTotales}
-                                        ret_isr_check={ret_isr_check}
-                                        ret_iva_check={ret_iva_check}
                                         handleSelectImpuesto={handleSelectImpuesto}
                                         handleGuardarPresupuesto={handleGuardarPresupuesto}
                                         handleObtenerDetallesPresupuesto={handleObtenerDetallesPresupuesto}
@@ -3824,7 +3792,7 @@ export default function ExpedientesIndex() {
                                 {/* GRUPO 5: PROCESO & TRÁMITES - Solo disponible al editar */}
                                 {isEditing && (
                                 <TabsContent value="proceso-tramites" className="space-y-6">
-                                    <ProcesosForm formData={formData} currentExpedienteId={currentExpedienteId} />
+                                    <ProcesosForm formData={formData} currentExpedienteId={currentExpedienteId ?? undefined} />
                                 </TabsContent>
                                 )}
                             </Tabs>

@@ -22,12 +22,15 @@ export function Breadcrumbs({
                     <BreadcrumbList>
                         {breadcrumbs.map((item, index) => {
                             const isLast = index === breadcrumbs.length - 1;
+                            const Icon = item.icon;
+
                             return (
                                 <Fragment key={index}>
                                     <BreadcrumbItem>
                                         {isLast ? (
-                                            <BreadcrumbPage>
-                                                {item.title}
+                                            <BreadcrumbPage className="flex items-center gap-2 text-2xl font-bold text-red-600">
+                                                {Icon && <Icon className="h-8 w-8" />}
+                                                <span>{item.title}</span>
                                             </BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>

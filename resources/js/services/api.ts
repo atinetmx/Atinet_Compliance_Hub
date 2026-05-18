@@ -47,6 +47,23 @@ class ApiService {
     private normalizeResponse<T = any>(data: any, statusCode: number = 200): ApiResponse<T> {
         // Detectar 401 Unauthorized
         const isUnauthorized = statusCode === 401;
+        // Detectar cualquier error HTTP (4xx / 5xx)
+        const isHttpError = statusCode >= 400;
+
+        // Para errores HTTP que no son 401, forzar siempre success = false
+        // independientemente de lo que diga el cuerpo de la respuesta
+        if (isHttpError && !isUnauthorized) {
+            const message = data?.message
+                || data?.title
+                || `Error del servidor (${statusCode})`;
+            return {
+                message: typeof message === 'string' ? message : `Error del servidor (${statusCode})`,
+                dataResponse: undefined,
+                success: false,
+                statusCode,
+                isUnauthorized: false,
+            };
+        }
 
         // Mapear operationStatus a success
         // 'Success' = success true, 'Information' = success false

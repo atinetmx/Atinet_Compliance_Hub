@@ -1,8 +1,40 @@
 # 📚 Índice de Documentación - Atinet Compliance Hub
 
-**Última actualización:** 10 de Febrero, 2026
+**Última actualización:** 8 de Abril, 2026
 
 Este documento sirve como índice central de toda la documentación del proyecto. Aquí encontrarás referencias organizadas a todos los documentos técnicos, guías y recursos disponibles.
+
+---
+
+## ⭐ DOCUMENTACIÓN ACTUALIZADA (8 Abril 2026)
+
+### 🎯 INICIO RÁPIDO
+
+| Documento | Para quién | Descripción |
+|-----------|-----------|-------------|
+| **[📋 Índice Maestro](docs/INDICE_MAESTRO.md)** | Todos | Índice completo de documentación por rol |
+| **[⚡ Guía Rápida](docs/GUIA_RAPIDA_SINCRONIZACION_Y_DESARROLLO.md)** | Desarrolladores | Comandos diarios, sincronización, troubleshooting |
+| **[🏗️ Arquitectura Completa](docs/architecture/ARQUITECTURA_COMPLETA_Y_SINCRONIZACION.md)** | Tech Lead, Arquitectos | Multi-tenancy, sincronización, roadmap servidores dedicados |
+| **[🔧 Actualización NotariaController](docs/development/ACTUALIZACION_NOTARIA_CONTROLLER.md)** | Backend PHP | 🚨 CRÍTICO - Migraciones faltantes, SQL completo |
+
+### 💎 DECISIÓN ESTRATÉGICA (8 Abril 2026)
+
+**1. Sistema de Registro Web - Opción B: Tablas Tenant**
+- **Decisión:** Implementar tablas tenant AHORA (registro_web, activity_log, etc.)
+- **Razón:** Preparación para transición desde sistemas legacy
+- **Timeline:** 8-15 Abril (implementación), Mayo-Junio (servidores dedicados)
+- **Ver:** [ACTUALIZACION_NOTARIA_CONTROLLER.md](docs/development/ACTUALIZACION_NOTARIA_CONTROLLER.md)
+
+**2. Consolidación de BDs Legacy a BD Master**
+- **Objetivo:** `php artisan migrate:fresh` crea TODAS las tablas (incluye OFAC, SAT, Catálogos, Aplicativos)
+- **Beneficio:** BD Master auto-suficiente, desarrollo sin dependencia de Hostgator
+- **Timeline:** 15-19 Abril (1 semana)
+- **Ver:** [PLAN_CONSOLIDACION_BDS_LEGACY.md](docs/development/PLAN_CONSOLIDACION_BDS_LEGACY.md)
+
+**3. Sistema de sincronización con Hostgator**
+- **Producción:** Automático cada 15 minutos (durante transición)
+- **Desarrollo:** php artisan db:seed --class=LegacyConsolidationSeeder
+- **Ver:** [Guía Rápida](docs/GUIA_RAPIDA_SINCRONIZACION_Y_DESARROLLO.md)
 
 ---
 
@@ -49,6 +81,30 @@ Este documento sirve como índice central de toda la documentación del proyecto
   - ✅ Interfaz React/TypeScript con Shadcn UI
   - ✅ Rutas protegidas por middleware de suscripción
 
+#### Módulo Agenda 📅 Completado (Marzo 2026)
+- [`MODULO_AGENDA.md`](docs/MODULO_AGENDA.md) - **Sistema completo de gestión de calendario**
+  - ✅ FullCalendar v7 con 3 tabs (Calendario, Citas del día, Bitácora)
+  - ✅ Eventos recurrentes con RRule (RFC 5545)
+  - ✅ Migración de 1,020 eventos legacy desde atinet65_aplicativos
+  - ✅ View selector para admins ("Ver todo" / "Solo míos")
+  - ✅ Modal read-only para eventos legacy compartidos
+  - ✅ Drag & Drop y Resize de eventos
+  - ✅ Sistema completo de permisos y visibilidad por notaría
+  - ✅ 4 tipos de eventos (General, Cita, Recordatorio, Festivo)
+  - ✅ Integración con React/TypeScript + Inertia.js v2
+  - 📖 **[Integración Legacy](docs/AGENDA_INTEGRACION_LEGACY.md)** - Documentación técnica completa de integración con sistema VB6/PHP
+
+#### Activity Logging System 📋 Completado (Marzo 2026)
+- [`ACTIVITY_LOGGING_IMPLEMENTACION.md`](docs/ACTIVITY_LOGGING_IMPLEMENTACION.md) - **Sistema de registro de actividades**
+  - ✅ Spatie Laravel Activity Log v4.12.3 instalado y configurado
+  - ✅ 5 modelos con logging automático (Agenda, Búsquedas, Suscripciones, Usuarios, Notarías)
+  - ✅ Bitácora mejorada que combina activity_log + datos legacy
+  - ✅ Seguimiento de operaciones create, update, delete con properties JSON
+  - ✅ Filtros inteligentes por notaría y usuario
+  - ✅ Causer automático en peticiones HTTP
+  - ✅ Visualización en pestaña Bitácora del módulo Agenda
+  - ✅ Issues resueltos: Error 500 (Collection merge) + whereHasMorph filter
+
 ### 📘 Documentos de Referencia Rápida
 
 | Documento | Descripción | Ubicación |
@@ -78,6 +134,48 @@ Este documento sirve como índice central de toda la documentación del proyecto
 - ✅ Aislamiento de datos por tenant
 
 ### Sistema de Servicios y Planes (Fase 1.5)
+- ✅ CRUD completo de servicios y planes
+- ✅ Control de límites de uso por suscripción
+- ✅ Dashboard con gráficos interactivos (Chart.js)
+- ✅ Gestión de suscripciones automáticas
+- ✅ Verificación automática de vencimientos
+
+### Sistema de Búsquedas en Listas Negras (Fase 2)
+- ✅ Búsqueda OFAC (Persona Física/Moral)
+- ✅ Búsqueda SAT (RFC - Artículo 69-B)
+- ✅ Búsqueda combinada (OFAC + SAT)
+- ✅ Generación de PDFs profesionales (tFPDF)
+- ✅ Visualización detallada de múltiples resultados
+- ✅ Middleware de protección por suscripción
+
+### Sistema de Agenda (Módulo Agenda)
+- ✅ Calendario completo con FullCalendar v7
+- ✅ 3 tabs: Calendario, Citas del día, Bitácora
+- ✅ Eventos recurrentes (Diario, Semanal, Mensual, Anual)
+- ✅ View selector ("Ver todo" / "Solo míos") para admins
+- ✅ 4 tipos de eventos: General, Cita, Recordatorio, Festivo
+- ✅ Drag & Drop y Resize de eventos
+- ✅ Migración de 1,020 eventos legacy de 'atinet'
+- ✅ Modal read-only para eventos legacy compartidos
+- ✅ Sistema de permisos multi-nivel (Super Admin, Admin Notaría, Usuario)
+- ✅ Integración con sistema legacy para bitácora de actividades
+
+### Sistema de Activity Logging (Auditoría)
+- ✅ **Spatie Activity Log v4.12.3** instalado y configurado
+- ✅ **5 modelos con logging automático:**
+  - AgendaEvent (log_name: 'agenda')
+  - Busqueda (log_name: 'listas_negras')
+  - Subscription (log_name: 'suscripciones')
+  - User (log_name: 'usuarios')
+  - Notaria (log_name: 'notarias')
+- ✅ **Tabla activity_log:** Estructura completa con subject/causer polymorphic
+- ✅ **Properties JSON:** Before/after data en cada operación
+- ✅ **Bitácora mejorada:** Combina logs nuevos + legacy (atinet65_aplicativos.log)
+- ✅ **Filtros inteligentes:** Por notaría, usuario, fecha
+- ✅ **Causer automático:** Detecta usuario autenticado en peticiones HTTP
+- ✅ **Eventos tracked:** created, updated, deleted con descripciones personalizadas
+- ✅ **Visualización:** Pestaña Bitácora en módulo Agenda
+- ✅ **Issues resueltos:** Error 500 + filtro whereHasMorph para eventos eliminados
 - ✅ CRUD de servicios con categorías
 - ✅ CRUD de planes con auto-sincronización
 - ✅ Asignación de servicios a planes

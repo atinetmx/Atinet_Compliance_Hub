@@ -78,9 +78,7 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: (url: string) => boolea
                                 {item.href ? (
                                     <Link href={item.href} prefetch>
                                         <SidebarMenuSubButton
-                                            tooltip={{ children: item.title }}
                                             className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
-                                            isActive={isCurrentUrl(item.href)}
                                         >
                                             {item.icon && <item.icon className="h-4 w-4" />}
                                             <span>{item.title}</span>
@@ -89,7 +87,6 @@ function renderMenuItems(items: NavItem[], isCurrentUrl: (url: string) => boolea
                                     </Link>
                                 ) : (
                                     <SidebarMenuSubButton
-                                        tooltip={{ children: item.title }}
                                         className="bg-background/30 hover:bg-amber-500/60 hover:text-amber-50 data-[active=true]:bg-amber-600/80 data-[active=true]:text-amber-50 backdrop-blur-sm transition-all duration-200"
                                     >
                                         {item.icon && <item.icon className="h-4 w-4" />}

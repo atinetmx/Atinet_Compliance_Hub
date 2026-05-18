@@ -7,9 +7,9 @@
  * en la BD de catálogos (cat_cp) para identificar diferencias
  */
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
@@ -36,7 +36,7 @@ try {
         ->orderBy('d_estado')
         ->get();
 
-    echo "Total de estados en BD: " . $estadosDB->count() . "\n\n";
+    echo 'Total de estados en BD: '.$estadosDB->count()."\n\n";
 
     $estadosDBArray = [];
     foreach ($estadosDB as $estado) {
@@ -88,7 +88,7 @@ try {
         'Zacatecas',
     ];
 
-    echo "Total de estados en código: " . count($estadosCodigo) . "\n\n";
+    echo 'Total de estados en código: '.count($estadosCodigo)."\n\n";
 
     foreach ($estadosCodigo as $estado) {
         echo "- $estado\n";
@@ -114,15 +114,15 @@ try {
     if (empty($soloEnDB) && empty($soloEnCodigo)) {
         echo "✅ PERFECTO: Los estados coinciden exactamente\n\n";
     } else {
-        if (!empty($soloEnDB)) {
+        if (! empty($soloEnDB)) {
             echo "⚠️  Estados en BD pero NO en código:\n";
             foreach ($soloEnDB as $estado) {
-                echo "   - $estado (código: " . $estadosDBArray[$estado] . ")\n";
+                echo "   - $estado (código: ".$estadosDBArray[$estado].")\n";
             }
             echo "\n";
         }
 
-        if (!empty($soloEnCodigo)) {
+        if (! empty($soloEnCodigo)) {
             echo "⚠️  Estados en código pero NO en BD:\n";
             foreach ($soloEnCodigo as $estado) {
                 echo "   - $estado\n";
@@ -151,7 +151,7 @@ try {
                 $variaciones[] = [
                     'bd' => $estadoDB,
                     'codigo' => $estadoCod,
-                    'similitud' => round($similarity, 2)
+                    'similitud' => round($similarity, 2),
                 ];
             }
         }
@@ -230,5 +230,5 @@ try {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
 } catch (\Exception $e) {
-    echo "\n❌ ERROR: " . $e->getMessage() . "\n\n";
+    echo "\n❌ ERROR: ".$e->getMessage()."\n\n";
 }

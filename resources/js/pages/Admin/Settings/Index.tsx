@@ -40,7 +40,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Administración', href: '/admin' },
-    { title: 'Configuración', href: '/admin/settings' },
+    { title: 'Configuración', href: '/admin/settings', icon: Settings },
 ];
 
 export default function Index({ systemInfo, stats }: Props) {
@@ -87,13 +87,7 @@ export default function Index({ systemInfo, stats }: Props) {
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Settings className="h-6 w-6 text-primary" />
-                        <h1 className="text-2xl font-bold">
-                            Configuración del Sistema
-                        </h1>
-                    </div>
+                <div className="flex items-center justify-end">
                     <div className="flex items-center gap-2">
                         <Link href="/admin/settings/logs">
                             <Button variant="outline">

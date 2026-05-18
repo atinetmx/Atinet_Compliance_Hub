@@ -2,9 +2,14 @@
 
 namespace App\Providers;
 
+use App\Listeners\ClearCnSessionOnLogout;
+use App\Models\User;
+use App\Observers\UserObserver;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -26,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureGates();
+
+        User::observe(UserObserver::class);
+
+        Event::listen(Logout::class, ClearCnSessionOnLogout::class);
     }
 
     /**

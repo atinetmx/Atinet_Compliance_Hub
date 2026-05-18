@@ -12,7 +12,6 @@ class BusquedasLegacyService
      *
      * @param  string  $legacyIdentifier  Identificador de notaría en sistema legacy (ej: "10Cuernavaca")
      * @param  array  $options  Opciones: limit, fuente, fecha_desde, fecha_hasta
-     * @return array
      */
     public function getBusquedasConsolidadas(string $legacyIdentifier, array $options = []): array
     {
@@ -183,7 +182,7 @@ class BusquedasLegacyService
                 'id' => $row->id,
                 'tipo_busqueda' => 'Lista Negra',
                 'termino_busqueda' => 'Consulta OFAC',
-                'nombre_completo' => 'Consulta ' . $row->tipoconsulta,
+                'nombre_completo' => 'Consulta '.$row->tipoconsulta,
                 'rfc' => null,
                 'resultado_nombre' => null,
                 'resultado_rfc' => null,
@@ -221,7 +220,7 @@ class BusquedasLegacyService
                 'id' => $row->id,
                 'tipo_busqueda' => 'Lista SAT',
                 'termino_busqueda' => 'Consulta SAT',
-                'nombre_completo' => 'Consulta ' . $row->tipoconsulta,
+                'nombre_completo' => 'Consulta '.$row->tipoconsulta,
                 'rfc' => null,
                 'resultado_nombre' => null,
                 'resultado_rfc' => null,

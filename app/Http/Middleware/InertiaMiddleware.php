@@ -2,10 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use Closure;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use Symfony\Component\HttpFoundation\Response;
 
 class InertiaMiddleware extends Middleware
 {
@@ -19,7 +17,7 @@ class InertiaMiddleware extends Middleware
     /**
      * Determines the current asset version.
      */
-    public function version(Request $request): string|null
+    public function version(Request $request): ?string
     {
         return parent::version($request);
     }
@@ -32,8 +30,9 @@ class InertiaMiddleware extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            // Share the API base URL with all Inertia components
-            'apiBaseUrl' => config('api.base_url'),
+            // Proxy path local: el frontend llama /cn-api/... y Laravel reenvía a C# internamente.
+            // Nunca exponer api.base_url al browser (hostname interno no resolvible).
+            'apiBaseUrl' => config('api.proxy_path', '/cn-api'),
         ]);
     }
 }

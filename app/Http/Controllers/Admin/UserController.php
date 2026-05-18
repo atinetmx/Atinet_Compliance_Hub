@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Notaria;
 use App\Models\User;
+use App\Services\ControlNotarialApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -100,8 +102,26 @@ class UserController extends Controller
             'email_verified_at' => now(),
         ]);
 
+        // Sincronizar con Control Notarial (C#)
+        $cnService = app(ControlNotarialApiService::class);
+        $cnId = $cnService->createUsuarioCN($user, $validated['password']);
+
+        if ($cnId) {
+            $user->update([
+                'cn_usuario_id' => $cnId,
+                'cn_password' => encrypt($validated['password']),
+            ]);
+        } else {
+            Log::warning('UserController::store: no se pudo crear usuario en C#', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+        }
+
+        $suffix = $cnId ? '' : ' (No se pudo sincronizar con Control Notarial)';
+
         return redirect()->route('admin.users.index')
-            ->with('success', 'Usuario creado exitosamente.');
+            ->with('success', "Usuario creado exitosamente.{$suffix}");
     }
 
     /**
@@ -168,9 +188,23 @@ class UserController extends Controller
         if (! empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
             $updateData['plain_password'] = $validated['password'];
+            $updateData['cn_password'] = encrypt($validated['password']);
         }
 
+        // Guardar la notaría anterior antes de actualizar
+        $notariaAnterior = $user->notaria_id;
+
         $user->update($updateData);
+
+        // Sincronizar con Control Notarial (C#)
+        if ($user->cn_usuario_id) {
+            $cnService = app(ControlNotarialApiService::class);
+            $cnService->updateUsuarioCN($user->cn_usuario_id, $validated['name'], $validated['email']);
+
+            if (! empty($validated['password'])) {
+                $cnService->resetPasswordCN($user->cn_usuario_id, $validated['password']);
+            }
+        }
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Usuario actualizado exitosamente.');
@@ -186,6 +220,18 @@ class UserController extends Controller
             return back()->withErrors(['error' => 'No se puede eliminar un Super Administrador.']);
         }
 
+        // Sincronizar eliminación con Control Notarial (C#) antes de borrar en Laravel
+        if ($user->cn_usuario_id) {
+            $cnService = app(ControlNotarialApiService::class);
+            if (! $cnService->deleteUsuarioCN($user->cn_usuario_id)) {
+                Log::warning('UserController::destroy: no se pudo eliminar usuario en C#', [
+                    'user_id' => $user->id,
+                    'cn_usuario_id' => $user->cn_usuario_id,
+                ]);
+            }
+        }
+
+        // Guardar notaria_id antes de eliminar (el Observer necesita el valor al dispararse)
         $user->delete();
 
         return redirect()->route('admin.users.index')

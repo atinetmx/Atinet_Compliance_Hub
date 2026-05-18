@@ -11,11 +11,11 @@ $notarias = DB::table('notarias')
     ->orderBy('numero_notaria')
     ->get();
 
-echo "Total de notarías: " . $notarias->count() . "\n\n";
+echo 'Total de notarías: '.$notarias->count()."\n\n";
 
 if ($notarias->count() > 0) {
     echo "Listado de notarías:\n";
-    echo str_repeat('-', 80) . "\n";
+    echo str_repeat('-', 80)."\n";
 
     foreach ($notarias as $notaria) {
         echo sprintf("ID: %-4d | Número: %-4s | %s\n",
@@ -25,7 +25,7 @@ if ($notarias->count() > 0) {
         );
     }
 
-    echo str_repeat('-', 80) . "\n";
+    echo str_repeat('-', 80)."\n";
 
     // Buscar si hay algo relacionado con "142" o "etla"
     echo "\nBuscando términos relacionados con '142' o 'etla':\n";

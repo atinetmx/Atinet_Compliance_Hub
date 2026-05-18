@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, LogsActivity, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -27,6 +29,9 @@ class User extends Authenticatable
         'notaria_id',
         'tipo_cuenta',
         'recoverable_password',
+        'cn_usuario_id',
+        'cn_rol_id',
+        'cn_password',
     ];
 
     /**
@@ -37,6 +42,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'recoverable_password',
+        'cn_password',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'remember_token',
@@ -64,6 +70,24 @@ class User extends Authenticatable
     public function busquedas(): HasMany
     {
         return $this->hasMany(Busqueda::class);
+    }
+
+    /**
+     * Configuración para el registro de actividad
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'tipo_cuenta', 'notaria_id'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('usuarios')
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
+                'created' => "Creó usuario: {$this->name} ({$this->tipo_cuenta})",
+                'updated' => "Actualizó usuario: {$this->name}",
+                'deleted' => "Eliminó usuario: {$this->name}",
+                default => "Modificó usuario: {$this->name}",
+            });
     }
 
     /**

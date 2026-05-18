@@ -1,29 +1,30 @@
 <?php
+
 /**
  * ============================================================================
  * CONECTOR REMOTO A BASES DE DATOS HOSTGATOR
  * ============================================================================
- * 
+ *
  * Script PHP standalone para conectarse a las bases de datos remotas
  * de Hostgator (OFAC, SAT, Aplicativos) sin necesidad de Laravel.
- * 
+ *
  * REQUISITOS:
  * - PHP 7.4+ con extensión PDO y pdo_mysql
  * - Acceso de red al servidor 162.144.6.1:3306
- * 
+ *
  * USO:
  * ```php
  * require_once 'remote_db_connector.php';
- * 
+ *
  * $connector = new RemoteDBConnector();
  * $results = $connector->queryOfac("SELECT * FROM SDN LIMIT 10");
  * print_r($results);
  * ```
- * 
+ *
  * @version 1.0
+ *
  * @date 2026-03-11
  */
-
 class RemoteDBConnector
 {
     /**
@@ -80,6 +81,7 @@ class RemoteDBConnector
     public function enableDebug(): self
     {
         $this->debug = true;
+
         return $this;
     }
 
@@ -89,20 +91,21 @@ class RemoteDBConnector
     public function disableDebug(): self
     {
         $this->debug = false;
+
         return $this;
     }
 
     /**
      * Obtener o crear conexión a una base de datos
-     * 
-     * @param string $database Nombre de la BD: 'ofac', 'sat', 'aplicativos', 'catalogos'
-     * @return PDO
+     *
+     * @param  string  $database  Nombre de la BD: 'ofac', 'sat', 'aplicativos', 'catalogos'
+     *
      * @throws Exception Si no puede conectar
      */
     public function getConnection(string $database): PDO
     {
-        if (!isset($this->config[$database])) {
-            throw new Exception("Base de datos '{$database}' no configurada. Opciones válidas: " . implode(', ', array_keys($this->config)));
+        if (! isset($this->config[$database])) {
+            throw new Exception("Base de datos '{$database}' no configurada. Opciones válidas: ".implode(', ', array_keys($this->config)));
         }
 
         // Reutilizar conexión si ya existe
@@ -142,9 +145,9 @@ class RemoteDBConnector
             return $pdo;
 
         } catch (PDOException $e) {
-            $error = "❌ Error conectando a {$database}: " . $e->getMessage();
+            $error = "❌ Error conectando a {$database}: ".$e->getMessage();
             if ($this->debug) {
-                echo $error . "\n";
+                echo $error."\n";
             }
             throw new Exception($error, 0, $e);
         }
@@ -184,10 +187,10 @@ class RemoteDBConnector
 
     /**
      * Ejecutar query genérica
-     * 
-     * @param string $database Nombre de la BD
-     * @param string $sql Query SQL (usar ? para parámetros)
-     * @param array $params Parámetros para la query
+     *
+     * @param  string  $database  Nombre de la BD
+     * @param  string  $sql  Query SQL (usar ? para parámetros)
+     * @param  array  $params  Parámetros para la query
      * @return array Resultados
      */
     public function query(string $database, string $sql, array $params = []): array
@@ -197,9 +200,9 @@ class RemoteDBConnector
 
             if ($this->debug) {
                 echo "\n📋 Query en {$database}:\n";
-                echo "   SQL: " . $sql . "\n";
-                if (!empty($params)) {
-                    echo "   Params: " . json_encode($params) . "\n";
+                echo '   SQL: '.$sql."\n";
+                if (! empty($params)) {
+                    echo '   Params: '.json_encode($params)."\n";
                 }
             }
 
@@ -208,15 +211,15 @@ class RemoteDBConnector
             $results = $stmt->fetchAll();
 
             if ($this->debug) {
-                echo "   ✅ Resultados: " . count($results) . " filas\n";
+                echo '   ✅ Resultados: '.count($results)." filas\n";
             }
 
             return $results;
 
         } catch (PDOException $e) {
-            $error = "❌ Error ejecutando query: " . $e->getMessage();
+            $error = '❌ Error ejecutando query: '.$e->getMessage();
             if ($this->debug) {
-                echo $error . "\n";
+                echo $error."\n";
             }
             throw new Exception($error, 0, $e);
         }
@@ -228,6 +231,7 @@ class RemoteDBConnector
     public function queryOne(string $database, string $sql, array $params = []): ?array
     {
         $results = $this->query($database, $sql, $params);
+
         return $results[0] ?? null;
     }
 
@@ -238,6 +242,7 @@ class RemoteDBConnector
     {
         $sql = "SELECT COUNT(*) as total FROM `{$table}` WHERE {$where}";
         $result = $this->queryOne($database, $sql, $params);
+
         return (int) ($result['total'] ?? 0);
     }
 
@@ -246,16 +251,16 @@ class RemoteDBConnector
      */
     public function getTables(string $database): array
     {
-        $sql = "SHOW TABLES";
+        $sql = 'SHOW TABLES';
         $results = $this->query($database, $sql);
-        
+
         $tables = [];
-        $tableKey = "Tables_in_" . $this->config[$database]['database'];
-        
+        $tableKey = 'Tables_in_'.$this->config[$database]['database'];
+
         foreach ($results as $row) {
             $tables[] = $row[$tableKey];
         }
-        
+
         return $tables;
     }
 
@@ -265,6 +270,7 @@ class RemoteDBConnector
     public function describeTable(string $database, string $table): array
     {
         $sql = "DESCRIBE `{$table}`";
+
         return $this->query($database, $sql);
     }
 
@@ -278,11 +284,11 @@ class RemoteDBConnector
         foreach (array_keys($this->config) as $database) {
             try {
                 $pdo = $this->getConnection($database);
-                
+
                 // Query simple para verificar conexión
-                $stmt = $pdo->query("SELECT 1 as test");
+                $stmt = $pdo->query('SELECT 1 as test');
                 $stmt->fetch();
-                
+
                 $results[$database] = [
                     'status' => 'OK',
                     'message' => 'Conectado exitosamente',
@@ -331,7 +337,7 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
     echo "╚════════════════════════════════════════════════════════════════╝\n\n";
 
     // Crear instancia
-    $connector = new RemoteDBConnector();
+    $connector = new RemoteDBConnector;
     $connector->enableDebug();
 
     // ========================================
@@ -346,11 +352,11 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
     foreach ($testResults as $database => $result) {
         $icon = $result['status'] === 'OK' ? '✅' : '❌';
         echo "{$icon} {$database}: {$result['message']}";
-        
+
         if (isset($result['server_version'])) {
             echo " (MySQL {$result['server_version']})";
         }
-        
+
         echo "\n";
     }
 
@@ -365,17 +371,17 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
         echo "📦 Tablas en OFAC:\n";
         $ofacTables = $connector->getTables('ofac');
         foreach ($ofacTables as $i => $table) {
-            echo "   " . ($i + 1) . ". {$table}\n";
+            echo '   '.($i + 1).". {$table}\n";
         }
 
         echo "\n📦 Tablas en SAT:\n";
         $satTables = $connector->getTables('sat');
         foreach ($satTables as $i => $table) {
-            echo "   " . ($i + 1) . ". {$table}\n";
+            echo '   '.($i + 1).". {$table}\n";
         }
 
     } catch (Exception $e) {
-        echo "❌ Error: " . $e->getMessage() . "\n";
+        echo '❌ Error: '.$e->getMessage()."\n";
     }
 
     // ========================================
@@ -387,16 +393,16 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
 
     try {
         $countSdn = $connector->count('ofac', 'SDN');
-        echo "📊 Total registros en OFAC.SDN: " . number_format($countSdn) . "\n";
+        echo '📊 Total registros en OFAC.SDN: '.number_format($countSdn)."\n";
 
         $count69B = $connector->count('sat', '69-B');
-        echo "📊 Total registros en SAT.69-B: " . number_format($count69B) . "\n";
+        echo '📊 Total registros en SAT.69-B: '.number_format($count69B)."\n";
 
         $countConsultas = $connector->count('ofac', 'consultas');
-        echo "📊 Total consultas OFAC: " . number_format($countConsultas) . "\n";
+        echo '📊 Total consultas OFAC: '.number_format($countConsultas)."\n";
 
     } catch (Exception $e) {
-        echo "❌ Error: " . $e->getMessage() . "\n";
+        echo '❌ Error: '.$e->getMessage()."\n";
     }
 
     // ========================================
@@ -409,12 +415,12 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
     try {
         // Buscar en SDN por nombre (ejemplo)
         $results = $connector->queryOfac(
-            "SELECT * FROM SDN LIMIT 5"
+            'SELECT * FROM SDN LIMIT 5'
         );
 
         echo "🔍 Primeros 5 registros de SDN:\n\n";
         foreach ($results as $i => $row) {
-            echo "   Registro " . ($i + 1) . ":\n";
+            echo '   Registro '.($i + 1).":\n";
             foreach ($row as $key => $value) {
                 echo "      {$key}: {$value}\n";
             }
@@ -422,7 +428,7 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
         }
 
     } catch (Exception $e) {
-        echo "❌ Error: " . $e->getMessage() . "\n";
+        echo '❌ Error: '.$e->getMessage()."\n";
     }
 
     // ========================================
@@ -438,13 +444,13 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
         $countSat = $connector->count('sat', 'consultas', 'proyecto = ?', ['10Cuernavaca']);
 
         echo "📊 Búsquedas legacy de 10Cuernavaca:\n";
-        echo "   OFAC: " . number_format($countOfac) . " consultas\n";
-        echo "   SAT: " . number_format($countSat) . " consultas\n";
-        echo "   TOTAL: " . number_format($countOfac + $countSat) . " búsquedas\n";
+        echo '   OFAC: '.number_format($countOfac)." consultas\n";
+        echo '   SAT: '.number_format($countSat)." consultas\n";
+        echo '   TOTAL: '.number_format($countOfac + $countSat)." búsquedas\n";
 
         // Última búsqueda
-        $ultimaOfac = $connector->queryOne('ofac', 
-            "SELECT * FROM consultas WHERE proyecto = ? ORDER BY fecha DESC LIMIT 1",
+        $ultimaOfac = $connector->queryOne('ofac',
+            'SELECT * FROM consultas WHERE proyecto = ? ORDER BY fecha DESC LIMIT 1',
             ['10Cuernavaca']
         );
 
@@ -455,7 +461,7 @@ if (basename(__FILE__) === basename($_SERVER['PHP_SELF'])) {
         }
 
     } catch (Exception $e) {
-        echo "❌ Error: " . $e->getMessage() . "\n";
+        echo '❌ Error: '.$e->getMessage()."\n";
     }
 
     echo "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";

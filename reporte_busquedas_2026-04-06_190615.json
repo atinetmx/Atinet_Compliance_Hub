@@ -1,0 +1,386 @@
+{
+    "fecha_generacion": "2026-04-06 19:06:15",
+    "resumen": {
+        "total_busquedas": 20894,
+        "total_notarias": 23,
+        "total_tipos": 2,
+        "busquedas_30_dias": 317,
+        "notarias_activas_30_dias": 12
+    },
+    "notarias": [
+        {
+            "notaria": "79oaxaca",
+            "total_busquedas": 6386,
+            "primera_busqueda": "2024-06-27 13:48:23",
+            "ultima_busqueda": "2026-03-14 11:42:08"
+        },
+        {
+            "notaria": "37Oaxaca",
+            "total_busquedas": 2729,
+            "primera_busqueda": "2024-12-02 11:01:00",
+            "ultima_busqueda": "2026-03-16 18:36:43"
+        },
+        {
+            "notaria": "180Puruandiro",
+            "total_busquedas": 2513,
+            "primera_busqueda": "2024-07-11 15:09:13",
+            "ultima_busqueda": "2026-03-16 13:55:59"
+        },
+        {
+            "notaria": "101Guadalajara",
+            "total_busquedas": 1807,
+            "primera_busqueda": "2024-07-11 16:38:07",
+            "ultima_busqueda": "2026-03-17 14:51:31"
+        },
+        {
+            "notaria": "101Oaxaca",
+            "total_busquedas": 1754,
+            "primera_busqueda": "2024-12-23 12:58:04",
+            "ultima_busqueda": "2026-03-12 12:36:32"
+        },
+        {
+            "notaria": "1nacajuca",
+            "total_busquedas": 1703,
+            "primera_busqueda": "2024-08-23 13:46:50",
+            "ultima_busqueda": "2026-03-05 12:52:20"
+        },
+        {
+            "notaria": "41Tampico",
+            "total_busquedas": 1050,
+            "primera_busqueda": "2024-07-10 16:35:30",
+            "ultima_busqueda": "2026-03-10 14:53:46"
+        },
+        {
+            "notaria": "3huimanguillo",
+            "total_busquedas": 825,
+            "primera_busqueda": "2025-08-14 16:21:54",
+            "ultima_busqueda": "2026-03-10 18:10:33"
+        },
+        {
+            "notaria": "108teotitlan",
+            "total_busquedas": 538,
+            "primera_busqueda": "2024-09-25 09:24:19",
+            "ultima_busqueda": "2026-02-16 19:54:26"
+        },
+        {
+            "notaria": "113huatulco",
+            "total_busquedas": 466,
+            "primera_busqueda": "2025-04-16 10:26:15",
+            "ultima_busqueda": "2026-03-17 15:10:03"
+        },
+        {
+            "notaria": "177ixtlahuaca",
+            "total_busquedas": 290,
+            "primera_busqueda": "2025-01-21 17:37:18",
+            "ultima_busqueda": "2026-03-10 14:48:23"
+        },
+        {
+            "notaria": "65riobravo",
+            "total_busquedas": 238,
+            "primera_busqueda": "2024-10-07 12:44:50",
+            "ultima_busqueda": "2026-02-25 15:28:26"
+        },
+        {
+            "notaria": "156tuxtla",
+            "total_busquedas": 198,
+            "primera_busqueda": "2025-03-20 10:29:39",
+            "ultima_busqueda": "2026-02-06 09:40:19"
+        },
+        {
+            "notaria": "84arteaga",
+            "total_busquedas": 166,
+            "primera_busqueda": "2025-09-22 17:50:50",
+            "ultima_busqueda": "2026-03-16 12:17:20"
+        },
+        {
+            "notaria": "atinet",
+            "total_busquedas": 84,
+            "primera_busqueda": "2024-05-23 11:28:44",
+            "ultima_busqueda": "2026-03-17 14:08:57"
+        },
+        {
+            "notaria": "15piedrasnegras",
+            "total_busquedas": 70,
+            "primera_busqueda": "2024-12-16 17:31:52",
+            "ultima_busqueda": "2026-03-05 16:46:47"
+        },
+        {
+            "notaria": "4Ixmiquilpan",
+            "total_busquedas": 43,
+            "primera_busqueda": "2026-02-23 13:29:42",
+            "ultima_busqueda": "2026-03-09 16:51:10"
+        },
+        {
+            "notaria": "1Tampico",
+            "total_busquedas": 18,
+            "primera_busqueda": "2024-06-06 21:33:06",
+            "ultima_busqueda": "2024-11-22 10:51:54"
+        },
+        {
+            "notaria": "7cordoba",
+            "total_busquedas": 5,
+            "primera_busqueda": "2024-06-06 19:58:04",
+            "ultima_busqueda": "2024-06-12 11:12:32"
+        },
+        {
+            "notaria": "30Aguascalientes",
+            "total_busquedas": 5,
+            "primera_busqueda": "2024-06-19 14:00:20",
+            "ultima_busqueda": "2024-06-19 15:20:26"
+        },
+        {
+            "notaria": "13Villahermosa",
+            "total_busquedas": 3,
+            "primera_busqueda": "2025-01-21 10:31:58",
+            "ultima_busqueda": "2025-01-21 10:32:27"
+        },
+        {
+            "notaria": "14villahermosa",
+            "total_busquedas": 2,
+            "primera_busqueda": "2024-11-20 12:11:23",
+            "ultima_busqueda": "2024-11-20 12:11:40"
+        },
+        {
+            "notaria": "99maravatio",
+            "total_busquedas": 1,
+            "primera_busqueda": "2024-06-26 15:50:12",
+            "ultima_busqueda": "2024-06-26 15:50:12"
+        }
+    ],
+    "tipos_busqueda": [
+        {
+            "tipo_busqueda": "Lista Negra",
+            "total": 12158,
+            "porcentaje": 58.19,
+            "notarias_usan": 22
+        },
+        {
+            "tipo_busqueda": "Lista SAT",
+            "total": 8736,
+            "porcentaje": 41.81,
+            "notarias_usan": 22
+        }
+    ],
+    "detalle": [
+        {
+            "notaria": "101Guadalajara",
+            "tipo_busqueda": "Lista Negra",
+            "total": 946
+        },
+        {
+            "notaria": "101Guadalajara",
+            "tipo_busqueda": "Lista SAT",
+            "total": 861
+        },
+        {
+            "notaria": "101Oaxaca",
+            "tipo_busqueda": "Lista Negra",
+            "total": 962
+        },
+        {
+            "notaria": "101Oaxaca",
+            "tipo_busqueda": "Lista SAT",
+            "total": 792
+        },
+        {
+            "notaria": "108teotitlan",
+            "tipo_busqueda": "Lista Negra",
+            "total": 273
+        },
+        {
+            "notaria": "108teotitlan",
+            "tipo_busqueda": "Lista SAT",
+            "total": 265
+        },
+        {
+            "notaria": "113huatulco",
+            "tipo_busqueda": "Lista Negra",
+            "total": 238
+        },
+        {
+            "notaria": "113huatulco",
+            "tipo_busqueda": "Lista SAT",
+            "total": 228
+        },
+        {
+            "notaria": "13Villahermosa",
+            "tipo_busqueda": "Lista SAT",
+            "total": 2
+        },
+        {
+            "notaria": "13Villahermosa",
+            "tipo_busqueda": "Lista Negra",
+            "total": 1
+        },
+        {
+            "notaria": "14villahermosa",
+            "tipo_busqueda": "Lista SAT",
+            "total": 1
+        },
+        {
+            "notaria": "14villahermosa",
+            "tipo_busqueda": "Lista Negra",
+            "total": 1
+        },
+        {
+            "notaria": "156tuxtla",
+            "tipo_busqueda": "Lista Negra",
+            "total": 131
+        },
+        {
+            "notaria": "156tuxtla",
+            "tipo_busqueda": "Lista SAT",
+            "total": 67
+        },
+        {
+            "notaria": "15piedrasnegras",
+            "tipo_busqueda": "Lista Negra",
+            "total": 40
+        },
+        {
+            "notaria": "15piedrasnegras",
+            "tipo_busqueda": "Lista SAT",
+            "total": 30
+        },
+        {
+            "notaria": "177ixtlahuaca",
+            "tipo_busqueda": "Lista Negra",
+            "total": 145
+        },
+        {
+            "notaria": "177ixtlahuaca",
+            "tipo_busqueda": "Lista SAT",
+            "total": 145
+        },
+        {
+            "notaria": "180Puruandiro",
+            "tipo_busqueda": "Lista Negra",
+            "total": 1696
+        },
+        {
+            "notaria": "180Puruandiro",
+            "tipo_busqueda": "Lista SAT",
+            "total": 817
+        },
+        {
+            "notaria": "1nacajuca",
+            "tipo_busqueda": "Lista Negra",
+            "total": 1182
+        },
+        {
+            "notaria": "1nacajuca",
+            "tipo_busqueda": "Lista SAT",
+            "total": 521
+        },
+        {
+            "notaria": "1Tampico",
+            "tipo_busqueda": "Lista Negra",
+            "total": 9
+        },
+        {
+            "notaria": "1Tampico",
+            "tipo_busqueda": "Lista SAT",
+            "total": 9
+        },
+        {
+            "notaria": "30Aguascalientes",
+            "tipo_busqueda": "Lista Negra",
+            "total": 5
+        },
+        {
+            "notaria": "37Oaxaca",
+            "tipo_busqueda": "Lista Negra",
+            "total": 1367
+        },
+        {
+            "notaria": "37Oaxaca",
+            "tipo_busqueda": "Lista SAT",
+            "total": 1362
+        },
+        {
+            "notaria": "3huimanguillo",
+            "tipo_busqueda": "Lista Negra",
+            "total": 416
+        },
+        {
+            "notaria": "3huimanguillo",
+            "tipo_busqueda": "Lista SAT",
+            "total": 409
+        },
+        {
+            "notaria": "41Tampico",
+            "tipo_busqueda": "Lista Negra",
+            "total": 550
+        },
+        {
+            "notaria": "41Tampico",
+            "tipo_busqueda": "Lista SAT",
+            "total": 500
+        },
+        {
+            "notaria": "4Ixmiquilpan",
+            "tipo_busqueda": "Lista Negra",
+            "total": 33
+        },
+        {
+            "notaria": "4Ixmiquilpan",
+            "tipo_busqueda": "Lista SAT",
+            "total": 10
+        },
+        {
+            "notaria": "65riobravo",
+            "tipo_busqueda": "Lista Negra",
+            "total": 121
+        },
+        {
+            "notaria": "65riobravo",
+            "tipo_busqueda": "Lista SAT",
+            "total": 117
+        },
+        {
+            "notaria": "79oaxaca",
+            "tipo_busqueda": "Lista Negra",
+            "total": 3898
+        },
+        {
+            "notaria": "79oaxaca",
+            "tipo_busqueda": "Lista SAT",
+            "total": 2488
+        },
+        {
+            "notaria": "7cordoba",
+            "tipo_busqueda": "Lista SAT",
+            "total": 3
+        },
+        {
+            "notaria": "7cordoba",
+            "tipo_busqueda": "Lista Negra",
+            "total": 2
+        },
+        {
+            "notaria": "84arteaga",
+            "tipo_busqueda": "Lista Negra",
+            "total": 85
+        },
+        {
+            "notaria": "84arteaga",
+            "tipo_busqueda": "Lista SAT",
+            "total": 81
+        },
+        {
+            "notaria": "99maravatio",
+            "tipo_busqueda": "Lista SAT",
+            "total": 1
+        },
+        {
+            "notaria": "atinet",
+            "tipo_busqueda": "Lista Negra",
+            "total": 57
+        },
+        {
+            "notaria": "atinet",
+            "tipo_busqueda": "Lista SAT",
+            "total": 27
+        }
+    ]
+}

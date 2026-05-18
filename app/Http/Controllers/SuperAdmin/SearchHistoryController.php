@@ -7,6 +7,7 @@ use App\Models\Busqueda;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class SearchHistoryController extends Controller
 {
@@ -15,6 +16,20 @@ class SearchHistoryController extends Controller
      * Listar búsquedas recientes del usuario/notaría
      */
     public function index(Request $request)
+    {
+        // Si es una petición AJAX, devolver JSON
+        if ($request->wantsJson() || $request->expectsJson()) {
+            return $this->getHistoryData($request);
+        }
+
+        // Si es una petición normal, devolver la vista Inertia
+        return Inertia::render('Admin/ListasNegras/History');
+    }
+
+    /**
+     * Obtener datos del historial (usado tanto para AJAX como para SSR)
+     */
+    private function getHistoryData(Request $request)
     {
         $user = Auth::user();
 

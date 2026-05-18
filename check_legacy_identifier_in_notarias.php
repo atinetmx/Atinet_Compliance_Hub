@@ -1,8 +1,8 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 echo "\n";
@@ -21,7 +21,7 @@ $notariasConLegacy = DB::table('notarias')
 echo "📊 ESTADÍSTICAS:\n";
 echo "─────────────────────────────────────────────────────────────────\n";
 echo "Total notarías en sistema nuevo: {$totalNotarias}\n";
-echo "Notarías con legacy_identifier: " . $notariasConLegacy->count() . "\n";
+echo 'Notarías con legacy_identifier: '.$notariasConLegacy->count()."\n";
 echo "\n";
 
 if ($notariasConLegacy->isEmpty()) {
