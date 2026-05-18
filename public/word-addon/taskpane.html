@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Inyector de Marcadores</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="taskpane.css" />
+</head>
+<body>
+    <div id="taskpane-container">
+        <div id="header">
+            <h1>Inyector de Marcadores</h1>
+            <p class="subtitle">Selecciona texto y reemplázalo con marcadores</p>
+        </div>
+
+        <div id="auth-section" style="display: none;">
+            <p class="warning">No estás autenticado. Por favor, inicia sesión en Atinet Compliance Hub.</p>
+            <button id="btn-login" class="btn btn-primary btn-full">Abrir Atinet</button>
+        </div>
+
+        <div id="main-section">
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Cargando marcadores...</p>
+            </div>
+
+            <div id="content" style="display: none;">
+                <!-- Selector de Formato -->
+                <div class="form-group">
+                    <label for="formato-select">Formato Actual:</label>
+                    <select id="formato-select" disabled>
+                        <option>Selecciona un formato...</option>
+                    </select>
+                    <small>Configure esto en Atinet Compliance Hub</small>
+                </div>
+
+                <!-- Input de búsqueda -->
+                <div class="form-group">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        placeholder="Buscar marcadores..." 
+                        class="search-box"
+                    />
+                </div>
+
+                <!-- Lista de marcadores -->
+                <div id="marcadores-list" class="marcadores-list">
+                    <p class="empty-state">No hay marcadores disponibles</p>
+                </div>
+
+                <!-- Info de selección -->
+                <div id="selection-info" class="selection-info" style="display: none;">
+                    <p>
+                        <strong>Texto seleccionado:</strong><br/>
+                        <span id="selected-text"></span>
+                    </p>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="button-group">
+                    <button id="btn-refresh" class="btn btn-secondary">Actualizar</button>
+                    <button id="btn-clear" class="btn btn-secondary">Limpiar</button>
+                </div>
+            </div>
+
+            <div id="error" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div id="footer">
+            <small>Atinet Compliance Hub © 2026</small>
+        </div>
+    </div>
+
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="taskpane.js"></script>
+</body>
+</html>

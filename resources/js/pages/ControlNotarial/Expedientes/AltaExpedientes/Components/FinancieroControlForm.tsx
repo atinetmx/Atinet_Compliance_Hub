@@ -284,6 +284,11 @@ export default function FinancieroControlForm({
     const [showPdfPresupuestoViewer, setShowPdfPresupuestoViewer] = useState(false);
     const [isLoadingPdfPresupuesto, setIsLoadingPdfPresupuesto] = useState(false);
 
+    // Estado para PDF de Orden de Caja
+    const [pdfUrlOrdenCaja, setPdfUrlOrdenCaja] = useState<string | null>(null);
+    const [showPdfOrdenCajaViewer, setShowPdfOrdenCajaViewer] = useState(false);
+    const [isLoadingPdfOrdenCaja, setIsLoadingPdfOrdenCaja] = useState(false);
+
     // Estado para Orden de Caja
     const [detallesOrdenCaja, setDetallesOrdenCaja] = useState<any>(null);
     const [cargandoOrdenCaja, setCargandoOrdenCaja] = useState(false);
@@ -341,6 +346,37 @@ export default function FinancieroControlForm({
         }
     };
 
+    // Función para generar y mostrar el PDF de Orden de Caja
+    const handleGenerarPdfOrdenCaja = async (ordenCajaId: number) => {
+        try {
+            setIsLoadingPdfOrdenCaja(true);
+            const { blob } = await api.getBlob(`/OrdenCaja/GenerarOrdenCaja?ordenCajaId=${ordenCajaId}`);
+
+            if (!blob) {
+                throw new Error('Error al obtener el PDF');
+            }
+
+            const url = URL.createObjectURL(blob);
+            setPdfUrlOrdenCaja(url);
+            setShowPdfOrdenCajaViewer(true);
+            addToast('Orden de caja generada correctamente', 'success');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error al generar la orden de caja';
+            addToast(message, 'error');
+            console.error('Error:', error);
+        } finally {
+            setIsLoadingPdfOrdenCaja(false);
+        }
+    };
+
+    const closePdfOrdenCajaViewer = () => {
+        setShowPdfOrdenCajaViewer(false);
+        if (pdfUrlOrdenCaja) {
+            URL.revokeObjectURL(pdfUrlOrdenCaja);
+            setPdfUrlOrdenCaja(null);
+        }
+    };
+
     // Función para cargar detalles de Orden de Caja
     const fetchDetallesOrdenCaja = async () => {
         if (!currentExpedienteId) return;
@@ -351,9 +387,12 @@ export default function FinancieroControlForm({
 
             if (response.operationStatus === 'Success') {
                 setDetallesOrdenCaja(response.dataResponse);
-                addToast('Detalles de orden de caja cargados', 'success');
+                addToast(response.message, 'success');
+            } else if (response.operationStatus === 'Information') {
+                setDetallesOrdenCaja(response.dataResponse);
+                addToast(response.message, 'warning');
             } else {
-                throw new Error(response.message || 'Error al obtener detalles');
+                throw new Error(response.message);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar orden de caja';
@@ -374,8 +413,12 @@ export default function FinancieroControlForm({
 
             if (response.operationStatus === 'Success') {
                 setOrdenesCaja(response.dataResponse || []);
+                addToast(response.message, 'success', 500);
+            } else if (response.operationStatus === 'Information') {
+                setOrdenesCaja(response.dataResponse || []);
+                addToast(response.message, 'warning');
             } else {
-                throw new Error(response.message || 'Error al obtener órdenes');
+                throw new Error(response.message);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar órdenes de caja';
@@ -397,8 +440,13 @@ export default function FinancieroControlForm({
             if (response.operationStatus === 'Success') {
                 setDetallesOrdenCaja(response.dataResponse || null);
                 setCargoTotal(0);
+                addToast(response.message, 'success', 500);
+            } else if (response.operationStatus === 'Information') {
+                setDetallesOrdenCaja(response.dataResponse || null);
+                setCargoTotal(0);
+                addToast(response.message, 'warning');
             } else {
-                throw new Error(response.message || 'Error al obtener detalles');
+                throw new Error(response.message);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar detalles de orden';
@@ -419,8 +467,12 @@ export default function FinancieroControlForm({
 
             if (response.operationStatus === 'Success') {
                 setDetallesFormularioCargo(response.dataResponse || null);
+                addToast(response.message, 'success');
+            } else if (response.operationStatus === 'Information') {
+                setDetallesFormularioCargo(response.dataResponse || null);
+                addToast(response.message, 'warning');
             } else {
-                throw new Error(response.message || 'Error al obtener detalles');
+                throw new Error(response.message);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar detalles del formulario';
@@ -455,8 +507,14 @@ export default function FinancieroControlForm({
                 setDetallesNuevaOrden(detallesResponse.dataResponse || null);
                 setImportesNuevaOrden({});
                 setFormaPagoSeleccionada(0);
+                addToast(detallesResponse.message, 'success');
+            } else if (detallesResponse.operationStatus === 'Information') {
+                setDetallesNuevaOrden(detallesResponse.dataResponse || null);
+                setImportesNuevaOrden({});
+                setFormaPagoSeleccionada(0);
+                addToast(detallesResponse.message, 'warning');
             } else {
-                throw new Error(detallesResponse.message || 'Error al obtener detalles');
+                throw new Error(detallesResponse.message);
             }
 
             if (formasPagoResponse.operationStatus === 'Success') {
@@ -465,8 +523,15 @@ export default function FinancieroControlForm({
                 if (formasPagoResponse.dataResponse?.length > 0) {
                     setFormaPagoSeleccionada(formasPagoResponse.dataResponse[0].id);
                 }
+                addToast(formasPagoResponse.message, 'success', 500);
+            } else if (formasPagoResponse.operationStatus === 'Information') {
+                setFormasPago(formasPagoResponse.dataResponse || []);
+                if (formasPagoResponse.dataResponse?.length > 0) {
+                    setFormaPagoSeleccionada(formasPagoResponse.dataResponse[0].id);
+                }
+                addToast(formasPagoResponse.message, 'warning');
             } else {
-                throw new Error(formasPagoResponse.message || 'Error al obtener formas de pago');
+                throw new Error(formasPagoResponse.message);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al cargar datos de nueva orden';
@@ -511,11 +576,12 @@ export default function FinancieroControlForm({
             setCargandoReciboDesdeOrdenActiva(true);
             const response = await api.get(`/OrdenCaja/GetDetallesOrdenCajaActiva?expedienteId=${currentExpedienteId}`);
 
-            if (response.operationStatus === 'Success' && response.dataResponse) {
-                const datos = response.dataResponse;
+            if (response.operationStatus === 'Success') {
+                if (response.dataResponse) {
+                    const datos = response.dataResponse;
 
-                // Extraer datos de HONORARIOS
-                const honorariosData = {
+                    // Extraer datos de HONORARIOS
+                    const honorariosData = {
                     concepto: 'HONORARIOS',
                     presupuesto: datos.honorarios?.presupuesto_Honorarios || 0,
                     total: datos.honorarios?.presupuesto_Honorarios || 0,
@@ -590,13 +656,91 @@ export default function FinancieroControlForm({
                     clienteId: datos.cliente?.id || null,
                     clienteNombre: datos.cliente?.nombre || '',
                     ordenActiva: true,
-                    formaPayId: datos.forma_Pago?.id || null
+                    formaPayId: datos.forma_Pago?.id || null,
+
+                    // Datos de expediente, notario y otros
+                    expediente: datos.expediente?.expediente || '',
+                    escritura: datos.expediente?.escritura || '',
+                    notario: datos.notario?.nombre || ''
                 } as any);
-                setMostrarFormularioRecibo(true);
-                setReciboDetalleSeleccionado(null);
-                addToast('Orden activa cargada correctamente', 'success');
+                    setMostrarFormularioRecibo(true);
+                    setReciboDetalleSeleccionado(null);
+                } else {
+                    addToast(response.message, 'success');
+                }
+            } else if (response.operationStatus === 'Information') {
+                if (response.dataResponse) {
+                    const datos = response.dataResponse;
+                    const honorariosData = {
+                        concepto: 'HONORARIOS',
+                        presupuesto: datos.honorarios?.presupuesto_Honorarios || 0,
+                        total: datos.honorarios?.presupuesto_Honorarios || 0,
+                        importeOrdenActual: datos.honorarios?.importe_Orden_Actual || 0,
+                        abono: datos.honorarios?.abono_Completo_Honorarios || 0,
+                        saldo: datos.honorarios?.abono_Pendiente_Honorarios || 0
+                    };
+                    const ivaData = {
+                        concepto: 'IVA',
+                        presupuesto: datos.honorarios?.presupuesto_IVA || 0,
+                        total: datos.honorarios?.presupuesto_IVA || 0,
+                        importeOrdenActual: datos.honorarios?.importe_Orden_Actual_IVA || 0,
+                        abono: datos.honorarios?.abono_Completo_IVA || 0,
+                        saldo: datos.honorarios?.abono_Pendiente_IVA || 0
+                    };
+                    const gastosData = {
+                        concepto: 'GASTOS NOTARIALES',
+                        presupuesto: datos.gastos_Notariales?.total_Presupuesto || 0,
+                        total: datos.gastos_Notariales?.total_Presupuesto || 0,
+                        importeOrdenActual: datos.gastos_Notariales?.importe_Orden_Actual || 0,
+                        abono: datos.gastos_Notariales?.abono_Completo || 0,
+                        saldo: datos.gastos_Notariales?.abono_Pendiente || 0
+                    };
+                    const impuestosDetalles = datos.impuestos_Derechos?.lista?.map((item: any) => ({
+                        concepto: item.descripcion || 'Impuesto/Derecho',
+                        presupuesto: item.importe || 0,
+                        total: item.importe || 0,
+                        importeOrdenActual: item.importe_Orden_Actual || 0,
+                        abono: item.abono_Completo || 0,
+                        saldo: item.abono_Pendiente || 0
+                    })) || [];
+                    const totalHonorarios = (honorariosData.importeOrdenActual || 0) + (ivaData.importeOrdenActual || 0);
+                    const totalImpuestosDerechos = impuestosDetalles.reduce((sum: number, item: any) => sum + (item.importeOrdenActual || 0), 0);
+                    const totalGastos = gastosData.importeOrdenActual || 0;
+                    const granTotal = totalHonorarios + totalImpuestosDerechos + totalGastos;
+                    setReciboData({
+                        desglose: {
+                            honorarios: datos.desglose?.honorarios || 0,
+                            iva: datos.desglose?.iva || 0,
+                            total_Honorarios_IVA: datos.desglose?.total_Honorarios_IVA || 0,
+                            gastos_Notariales: datos.desglose?.gastos_Notariales || 0,
+                            impuestos_Derechos: datos.desglose?.impuestos_Derechos || 0,
+                            total_Orden: datos.desglose?.total_Orden || 0
+                        },
+                        honorariosData: honorariosData,
+                        ivaData: ivaData,
+                        gastosData: gastosData,
+                        impuestosDerechosDetalle: impuestosDetalles,
+                        totalHonorarios: totalHonorarios,
+                        totalGastos: totalGastos,
+                        totalImpuestosDerechos: totalImpuestosDerechos,
+                        granTotal: granTotal,
+                        concepto: '',
+                        formaPago: datos.forma_Pago?.nombre || '',
+                        observaciones: '',
+                        clienteId: datos.cliente?.id || null,
+                        clienteNombre: datos.cliente?.nombre || '',
+                        ordenActiva: true,
+                        formaPayId: datos.forma_Pago?.id || null,
+                        expediente: datos.expediente?.expediente || '',
+                        escritura: datos.expediente?.escritura || '',
+                        notario: datos.notario?.nombre || ''
+                    } as any);
+                    setMostrarFormularioRecibo(true);
+                    setReciboDetalleSeleccionado(null);
+                }
+                addToast(response.message, 'warning');
             } else {
-                addToast(response.message || 'No hay órdenes de caja activas', 'warning');
+                throw new Error(response.message);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error al obtener la orden activa';
@@ -1920,38 +2064,44 @@ export default function FinancieroControlForm({
                                                             ${(tramite?.abono_Pendiente || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </td>
                                                         <td className="px-4 py-3 text-right">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="number"
-                                                                placeholder="0.00"
-                                                                step="0.01"
-                                                                min="0"
-                                                                max={tramite.abono_Pendiente}
-                                                                value={importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`] || ''}
-                                                                onChange={(e) => {
-                                                                    const valor = parseFloat(e.target.value) || 0;
-                                                                    const maximo = tramite.abono_Pendiente || 0;
-                                                                    setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: Math.min(valor, maximo) });
-                                                                }}
-                                                                onFocus={() => {
-                                                                    if (!importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`]) {
-                                                                        const valorAuto = tramite.abono_Pendiente > 0 ? tramite.abono_Pendiente : tramite.importe;
-                                                                        setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: valorAuto });
-                                                                    }
-                                                                }}
-                                                                className="flex-1 px-2 py-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400 text-right font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm cursor-pointer"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: 0 })}
-                                                                className="p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 transition-colors"
-                                                                title="Limpiar"
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                            {tramite.importe === tramite.abono_Completo ? (
+                                                                <div className="text-center text-sm text-gray-500 italic">
+                                                                    Completamente pagado
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        placeholder="0.00"
+                                                                        step="0.01"
+                                                                        min="0"
+                                                                        max={tramite.abono_Pendiente}
+                                                                        value={importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`] || ''}
+                                                                        onChange={(e) => {
+                                                                            const valor = parseFloat(e.target.value) || 0;
+                                                                            const maximo = tramite.abono_Pendiente || 0;
+                                                                            setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: Math.min(valor, maximo) });
+                                                                        }}
+                                                                        onFocus={() => {
+                                                                            if (!importesNuevaOrden[`tramite_${tramite.impuestos_Derechos_Id}`]) {
+                                                                                const valorAuto = tramite.abono_Pendiente > 0 ? tramite.abono_Pendiente : tramite.importe;
+                                                                                setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: valorAuto });
+                                                                            }
+                                                                        }}
+                                                                        className="flex-1 px-2 py-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400 text-right font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm cursor-pointer"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setImportesNuevaOrden({ ...importesNuevaOrden, [`tramite_${tramite.impuestos_Derechos_Id}`]: 0 })}
+                                                                        className="p-1 hover:bg-red-100 rounded text-red-600 hover:text-red-700 transition-colors"
+                                                                        title="Limpiar"
+                                                                    >
+                                                                        <X className="h-4 w-4" />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
                                                 ))
                                             ) : (
                                                 <tr>
@@ -2021,7 +2171,18 @@ export default function FinancieroControlForm({
                                         const response = await api.post(`/OrdenCaja/CreateOrdenCajaXExpediente`, payload);
 
                                         if (response.operationStatus === 'Success') {
-                                            addToast('Orden de caja creada correctamente', 'success');
+                                            // Extraer el ID de la orden del dataResponse
+                                            const dataResponse = response.dataResponse;
+                                            const ordenIdMatch = dataResponse && typeof dataResponse === 'string' ? dataResponse.match(/\d+/) : null;
+                                            const ordenCajaId = ordenIdMatch ? parseInt(ordenIdMatch[0], 10) : null;
+
+                                            if (ordenCajaId) {
+                                                // Esperar un poco para que la orden esté lista en la DB
+                                                setTimeout(async () => {
+                                                    await handleGenerarPdfOrdenCaja(ordenCajaId);
+                                                }, 500);
+                                            }
+
                                             setMostrarFormularioNuevaOrden(false);
                                             setDetallesNuevaOrden(null);
                                             setImportesNuevaOrden({});
@@ -2186,7 +2347,7 @@ export default function FinancieroControlForm({
                                 <Input
                                     type="text"
                                     readOnly
-                                    value={reciboDetalleSeleccionado?.expediente || formData.expediente}
+                                    value={reciboDetalleSeleccionado?.expediente || (reciboData as any).expediente || formData.expediente}
                                     className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                 />
                             </div>
@@ -2195,7 +2356,7 @@ export default function FinancieroControlForm({
                                 <Input
                                     type="text"
                                     readOnly
-                                    value={reciboDetalleSeleccionado?.escritura_Numero || '-'}
+                                    value={reciboDetalleSeleccionado?.escritura_Numero || (reciboData as any).escritura || '-'}
                                     className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                     placeholder="-"
                                 />
@@ -2217,7 +2378,7 @@ export default function FinancieroControlForm({
                                 <Input
                                     type="text"
                                     readOnly
-                                    value={reciboDetalleSeleccionado?.notario || formData.notario}
+                                    value={reciboDetalleSeleccionado?.notario || (reciboData as any).notario || formData.notario}
                                     className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                     placeholder="-"
                                 />
@@ -2261,7 +2422,7 @@ export default function FinancieroControlForm({
                                     <Input
                                         type="text"
                                         readOnly
-                                        value={reciboDetalleSeleccionado?.nombre || (reciboData as any)?.nombre || ''}
+                                        value={reciboDetalleSeleccionado?.nombre || (reciboData as any)?.clienteNombre || ''}
                                         className="text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                                     />
                                 ) : (
@@ -2372,6 +2533,17 @@ export default function FinancieroControlForm({
                                                     <td className="px-3 py-2 text-right">${((reciboData as any).ivaData?.abono || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                     <td className="px-3 py-2 text-right text-green-600 font-medium">${((reciboData as any).ivaData?.saldo || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                     <td className="px-3 py-2 text-right font-semibold text-blue-600">${((reciboData as any).ivaData?.importeOrdenActual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            )}
+
+                                            {/* TOTAL HONORARIOS + IVA */}
+                                            {(reciboData as any).honorariosData && (reciboData as any).ivaData && (
+                                                <tr className="border-t bg-amber-100 dark:bg-amber-900/30 font-semibold">
+                                                    <td className="px-3 py-2 text-amber-700 dark:text-amber-300">TOTAL</td>
+                                                    <td className="px-3 py-2 text-right text-amber-700 dark:text-amber-300"></td>
+                                                    <td className="px-3 py-2 text-right text-amber-700 dark:text-amber-300"></td>
+                                                    <td className="px-3 py-2 text-right text-amber-700 dark:text-amber-300"></td>
+                                                    <td className="px-3 py-2 text-right font-bold text-amber-700 dark:text-amber-300">${(((reciboData as any).honorariosData?.importeOrdenActual || 0) + ((reciboData as any).ivaData?.importeOrdenActual || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                 </tr>
                                             )}
 
@@ -2524,7 +2696,7 @@ export default function FinancieroControlForm({
                                             });
                                         }}
                                     >
-                                        Cancelar
+                                        Cerrar
                                     </Button>
                                     <Button className="bg-green-600 hover:bg-green-700 text-sm" onClick={handleGuardarRecibo}>
                                         Generar Recibo
@@ -2953,6 +3125,15 @@ export default function FinancieroControlForm({
                 pdfUrl={pdfUrlPresupuesto || ''}
                 title="Recibo del Presupuesto"
                 fileName="Recibo_Presupuesto.pdf"
+            />
+
+            {/* VISOR DE PDF PARA ÓRDENES DE CAJA GENERADAS */}
+            <PDFViewerModal
+                isOpen={showPdfOrdenCajaViewer}
+                onClose={closePdfOrdenCajaViewer}
+                pdfUrl={pdfUrlOrdenCaja || ''}
+                title="Orden de Caja"
+                fileName="Orden_Caja.pdf"
             />
         </Tabs>
     );

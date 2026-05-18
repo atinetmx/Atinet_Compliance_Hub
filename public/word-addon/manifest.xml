@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:type="TaskPaneApp">
+  <Id>12345678-1234-1234-1234-123456789012</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Atinet Compliance Hub - Formatos Ilimitados</ProviderName>
+  <DefaultLocale>es-ES</DefaultLocale>
+  <DisplayName DefaultValue="Inyector de Marcadores"/>
+  <Description DefaultValue="Reemplaza texto seleccionado con marcadores dinámicos desde Atinet Compliance Hub"/>
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation resid="taskpane"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <Resources>
+    <bt:Images>
+      <bt:Image id="icon16" DefaultValue="http://localhost:8000/word-addon/assets/icon-16.png"/>
+      <bt:Image id="icon32" DefaultValue="http://localhost:8000/word-addon/assets/icon-32.png"/>
+      <bt:Image id="icon80" DefaultValue="http://localhost:8000/word-addon/assets/icon-80.png"/>
+    </bt:Images>
+    <bt:Urls>
+      <bt:Url id="taskpane" DefaultValue="http://localhost:8000/word-addon/taskpane.html"/>
+    </bt:Urls>
+    <bt:ShortStrings>
+      <bt:String id="groupLabel" DefaultValue="Atinet"/>
+    </bt:ShortStrings>
+    <bt:LongStrings>
+      <bt:String id="groupTitle" DefaultValue="Herramientas de Atinet"/>
+    </bt:LongStrings>
+  </Resources>
+</OfficeApp>

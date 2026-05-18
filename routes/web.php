@@ -178,6 +178,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('presupuestos', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestos'])->name('presupuestos');
         Route::get('configuracion', [\App\Http\Controllers\ControlNotarialController::class, 'configuracion'])->name('configuracion');
         Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion-notaria');
+        Route::get('configuracion/formatos-ilimitados', [\App\Http\Controllers\ControlNotarialController::class, 'formatosIlimitados'])->name('configuracion-formatos-ilimitados');
         Route::get('clientes', [\App\Http\Controllers\ControlNotarialController::class, 'clientes'])->name('clientes');
         Route::get('configuracion-operaciones', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionOperaciones'])->name('configuracion-operaciones');
         Route::get('configuraciones-tarifarias', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionesTarifarias'])->name('configuraciones-tarifarias');

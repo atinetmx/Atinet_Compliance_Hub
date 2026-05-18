@@ -2,13 +2,25 @@ import React from 'react';
 import { CheckCircle, AlertCircle, Info, XCircle, X } from 'lucide-react';
 import { useToast, Toast } from '@/contexts/ToastContext';
 
-const ToastItem: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onClose }) => {
+const ToastItem: React.FC<{ toast: Toast; removeToast: (id: string) => void }> = ({ toast, removeToast }) => {
+    const removeToastRef = React.useRef(removeToast);
+
+    React.useEffect(() => {
+        removeToastRef.current = removeToast;
+    }, [removeToast]);
+
     React.useEffect(() => {
         if (!toast.duration || toast.duration <= 0) return;
 
-        const timer = setTimeout(onClose, toast.duration);
+        const timer = setTimeout(() => removeToastRef.current(toast.id), toast.duration);
         return () => clearTimeout(timer);
-    }, [toast.id, toast.duration, onClose]);
+    }, [toast.id, toast.duration]);
+
+    const handleClose = React.useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removeToastRef.current(toast.id);
+    }, [toast.id]);
 
     const styles: Record<string, { bg: string; border: string; icon: React.ReactNode; text: string }> = {
         success: {
@@ -49,9 +61,10 @@ const ToastItem: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onC
                 <p className={`text-sm font-medium ${style.text}`}>{toast.message}</p>
             </div>
             <button
-                onClick={onClose}
+                onClick={handleClose}
                 className={`shrink-0 ml-2 inline-flex ${style.text} hover:opacity-75 transition-opacity`}
                 aria-label="Cerrar notificación"
+                type="button"
             >
                 <X className="size-5" />
             </button>
@@ -66,7 +79,7 @@ export const ToastContainer: React.FC = () => {
         <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 max-w-sm pointer-events-auto">
             {toasts.map((toast) => (
                 <div key={toast.id} className="pointer-events-auto">
-                    <ToastItem toast={toast} onClose={() => removeToast(toast.id)} />
+                    <ToastItem toast={toast} removeToast={removeToast} />
                 </div>
             ))}
         </div>

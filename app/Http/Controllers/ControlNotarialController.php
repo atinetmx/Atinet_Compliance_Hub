@@ -160,6 +160,14 @@ class ControlNotarialController extends Controller
     }
 
     /**
+     * Display formatos ilimitados module within configuración
+     */
+    public function formatosIlimitados(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/FormatosIlimitados/Index');
+    }
+
+    /**
      * Display recibos module
      */
     public function recibos(): Response
