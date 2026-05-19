@@ -1,10 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
-<<<<<<< HEAD
 import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Receipt, Settings, LogOut, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-=======
-import { Calendar, CheckCircle2, Clock, FileText, FolderOpen, Settings } from 'lucide-react';
->>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
 
 import AppLayout from '@/layouts/app-layout';
 import { useAuthGuard } from '@/hooks/useAuthGuard';

@@ -461,11 +461,8 @@ export default function PresupuestoPrevioIndex() {
 
             // ✅ Verificar si el token expiró
             if (response?.isUnauthorized) {
-<<<<<<< HEAD
                 setLoginModalOpen(true);
                 setTodosPresupuestos([]);
-=======
->>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
                 setResultados([]);
                 return;
             }
