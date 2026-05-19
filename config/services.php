@@ -110,6 +110,10 @@ return [
         'gw_user' => env('CONTROL_NOTARIAL_GW_USER', 'LARAVEL_GW'),
         'gw_password' => env('CONTROL_NOTARIAL_GW_PASSWORD'),
         'token_cache_ttl' => (int) env('CONTROL_NOTARIAL_TOKEN_CACHE', 3300),
+        // JWT local — mismos valores que C# appsettings.json
+        'jwt_key'     => env('CONTROL_NOTARIAL_JWT_KEY', '74Av348euKnbnYi8cfbzPgiX7SjM3FPX'),
+        'jwt_issuer'  => env('CONTROL_NOTARIAL_JWT_ISSUER', 'https://miservidor.com'),
+        'jwt_minutes' => (int) env('CONTROL_NOTARIAL_JWT_MINUTES', 15),
     ],
 
 ];

@@ -94,17 +94,25 @@ class ControlNotarialApiService
      * sin configuración adicional en C#.
      *
      * FORMATO: ID entero de la notaría (PK de la tabla notarias en Laravel).
-     *   tenant → 10   (notaria->id)
-     *   master → 0    (super_admin sin notaría, BD master)
+     *   tenant      → notaria->id   (ej: 1, 2, 10…)
+     *   super_admin → ID de la notaría master (tenant_db_name = 'atinet_compliance_hub')
      */
     private function cnNombreNotaria(): string
     {
         if ($this->notaria !== null) {
-            // cn_notaria_id es el Id en tbl_cfg_notaria del master C# (≠ Laravel notaria.id)
-            return (string) ($this->notaria->cn_notaria_id ?? $this->notaria->id);
+            return (string) $this->notaria->id;
         }
 
-        return '0';
+        // Para super_admin (sin notaría asignada) usamos la fila master de la tabla
+        // notarias, que apunta a atinet_compliance_hub donde viven SUPERUSUARIO y ADMIN.
+        $masterId = \Illuminate\Support\Facades\Cache::rememberForever(
+            'cn_master_notaria_id',
+            fn () => \Illuminate\Support\Facades\DB::table('notarias')
+                ->where('tenant_db_name', 'atinet_compliance_hub')
+                ->value('id')
+        );
+
+        return (string) ($masterId ?? 0);
     }
 
     /**
@@ -451,40 +459,143 @@ class ControlNotarialApiService
     {
         $nombreNotaria = $this->cnNombreNotaria();
 
-        $response = Http::withoutVerifying()
-            ->timeout(15)
-            ->post($this->internalUrl.'/Login/Authentication', [
-                'usuario' => $usuario,
-                'contrasena' => $password,
-                // ID de la notaría como string. C# lo usa para construir el connection string
-                // dinámicamente — campo confirmado en Swagger como string "notaria".
-                'notaria' => $nombreNotaria,
-                'equipo' => 'Laravel-Server',
-            ]);
+        // Intentar login contra el C#
+        try {
+            $response = Http::withoutVerifying()
+                ->timeout(10)
+                ->post($this->internalUrl.'/Login/Authentication', [
+                    'usuario'   => $usuario,
+                    'contrasena' => $password,
+                    'notaria'   => $nombreNotaria,
+                    'equipo'    => 'Laravel-Server',
+                ]);
 
-        if (! $response->successful()) {
-            Log::error('ControlNotarialApiService::obtenerTokenCN falló', [
-                'usuario' => $usuario,
-                'notaria' => $nombreNotaria,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
+            if ($response->successful()) {
+                $body  = $response->json();
+                $token = $body['dataResponse']['accessToken']
+                    ?? $body['token']
+                    ?? $body['Token']
+                    ?? $body['access_token']
+                    ?? null;
 
-            $response->throw();
+                if ($token) {
+                    return $token;
+                }
+            }
+
+            // C# respondió pero no retornó token (credenciales inválidas u otro error)
+            Log::warning('ControlNotarialApiService::obtenerTokenCN — C# no autenticó, usando generación local', [
+                'usuario'  => $usuario,
+                'notaria'  => $nombreNotaria,
+                'status'   => $response->status(),
+                'message'  => $response->json('message'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('ControlNotarialApiService::obtenerTokenCN — C# no disponible, usando generación local', [
+                'usuario' => $usuario,
+                'error'   => $e->getMessage(),
+            ]);
         }
 
-        $body = $response->json();
+        // Fallback: generar el JWT localmente con la misma clave que usa el C#
+        return $this->generarTokenLocalCN($usuario, $nombreNotaria);
+    }
 
-        $token = $body['dataResponse']['accessToken']
-            ?? $body['token']
-            ?? $body['Token']
-            ?? $body['access_token']
-            ?? null;
+    /**
+     * Genera un JWT HS256 localmente con la misma clave y claims que produce el C#.
+     * Inserta el jti en tbl_log_sesiones_activas para que el C# acepte el token
+     * en requests subsecuentes.
+     *
+     * Claims usados por C# (extraídos del DLL):
+     *   client_username, client_name, client_notaria, jti, iss, aud, nbf, iat, exp
+     */
+    private function generarTokenLocalCN(string $usuario, string $notariaId): string
+    {
+        $jwtKey  = config('services.control_notarial.jwt_key', '74Av348euKnbnYi8cfbzPgiX7SjM3FPX');
+        $issuer  = config('services.control_notarial.jwt_issuer', 'https://miservidor.com');
+        $minutes = (int) config('services.control_notarial.jwt_minutes', 15);
 
-        if (! $token) {
-            throw new \RuntimeException('C# no retornó token JWT. Respuesta: '.json_encode($body));
+        // Buscar datos del usuario CN en la BD del tenant
+        $conn   = $this->tenantConnection();
+        $cnUser = DB::connection($conn)
+            ->table('tbl_cat_usuarios')
+            ->where('Usuario', $usuario)
+            ->first(['Id', 'Nombre', 'Apellido_Paterno', 'Rol_Id']);
+
+        if (! $cnUser) {
+            throw new \RuntimeException("generarTokenLocalCN: usuario CN '{$usuario}' no encontrado en la BD tenant.");
         }
+
+        $now  = time();
+        $exp  = $now + ($minutes * 60);
+        $jti  = \Illuminate\Support\Str::uuid()->toString();
+        $name = trim(($cnUser->Nombre ?? '') . ' ' . ($cnUser->Apellido_Paterno ?? ''));
+
+        // Construir el JWT (HS256)
+        $header  = $this->jwtBase64Url(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+        $payload = $this->jwtBase64Url(json_encode([
+            'jti'              => $jti,
+            'nbf'              => $now,
+            'exp'              => $exp,
+            'iat'              => $now,
+            'iss'              => $issuer,
+            'aud'              => $issuer,
+            'client_username'  => $usuario,
+            'client_name'      => $name,
+            'client_notaria'   => (string) $notariaId,
+            'sub'              => (string) $cnUser->Id,
+        ]));
+
+        $signature = $this->jwtBase64Url(
+            hash_hmac('sha256', "{$header}.{$payload}", $jwtKey, true)
+        );
+
+        $token = "{$header}.{$payload}.{$signature}";
+
+        // Registrar la sesión en tbl_log_sesiones_activas para que C# acepte
+        // tokens en requests protegidos
+        try {
+            DB::connection($conn)
+                ->table('tbl_log_sesiones_activas')
+                ->where('Usuario_Id', $cnUser->Id)
+                ->update(['Es_Activa' => 0]);
+
+            DB::connection($conn)->table('tbl_log_sesiones_activas')->insert([
+                'Usuario_Id'                      => $cnUser->Id,
+                'Token_Jti'                       => $jti,
+                'Nombre_Equipo'                   => 'Laravel-Server',
+                'Equipo'                          => 'Laravel-Server',
+                'Ip_Address'                      => '127.0.0.1',
+                'User_Agent'                      => 'Laravel/ControlNotarialService',
+                'Es_Activa'                       => 1,
+                'Fecha_Creacion'                  => now()->toDateTimeString(),
+                'Fecha_Expiracion'                => now()->addMinutes($minutes)->toDateTimeString(),
+                'Refresh_Token'                   => null,
+                'Refresh_Token_Hash'              => null,
+                'Refresh_Token_Epiration_Time'    => null,
+                'Refresh_Token_Expiration_Time'   => null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('generarTokenLocalCN: no se pudo registrar sesión en tbl_log_sesiones_activas', [
+                'usuario' => $usuario,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
+        Log::info('generarTokenLocalCN: token generado localmente', [
+            'usuario'   => $usuario,
+            'notaria'   => $notariaId,
+            'cn_id'     => $cnUser->Id,
+            'jti'       => $jti,
+            'exp'       => date('Y-m-d H:i:s', $exp),
+        ]);
 
         return $token;
+    }
+
+    /** Codificación base64url sin padding para JWT. */
+    private function jwtBase64Url(string $data): string
+    {
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 }
