@@ -166,6 +166,37 @@ class ControlNotarialController extends Controller
     }
 
     /**
+<<<<<<< HEAD
+     * Display formatos ilimitados module within configuración
+     */
+    public function formatosIlimitados(): Response
+    {
+        return Inertia::render('ControlNotarial/Configuracion/FormatosIlimitados/Index');
+    }
+
+    /**
+     * Display recibos module
+     */
+    public function recibos(): Response
+    {
+        return Inertia::render('ControlNotarial/Recibos/Index');
+    }
+
+    /**
+     * Display recibos expediente module
+     */
+    public function recibosExpediente(): Response
+    {
+        return Inertia::render('ControlNotarial/Recibos/Expediente/Index');
+    }
+
+    /**
+     * Display reportes del sistema module
+     */
+    public function reportes(): Response
+    {
+        return Inertia::render('ControlNotarial/Reportes/Index');
+=======
      * Auto-login gateway: obtiene JWT de C# para el usuario autenticado en Laravel.
      * El frontend lo llama al entrar a cualquier módulo CN, y cada ~10 min como heartbeat.
      *
@@ -305,5 +336,6 @@ class ControlNotarialController extends Controller
                 'error' => $e->getMessage() ?: 'Error interno al obtener token CN.',
             ], 502);
         }
+>>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
     }
 }

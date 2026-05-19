@@ -214,12 +214,18 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('presupuestos', [\App\Http\Controllers\ControlNotarialController::class, 'presupuestos'])->name('presupuestos');
         Route::get('configuracion', [\App\Http\Controllers\ControlNotarialController::class, 'configuracion'])->name('configuracion');
         Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion-notaria');
+        Route::get('configuracion/formatos-ilimitados', [\App\Http\Controllers\ControlNotarialController::class, 'formatosIlimitados'])->name('configuracion-formatos-ilimitados');
         Route::get('clientes', [\App\Http\Controllers\ControlNotarialController::class, 'clientes'])->name('clientes');
         Route::get('configuracion-operaciones', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionOperaciones'])->name('configuracion-operaciones');
         Route::get('configuraciones-tarifarias', [\App\Http\Controllers\ControlNotarialController::class, 'configuracionesTarifarias'])->name('configuraciones-tarifarias');
         Route::get('usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'usuarios'])->name('usuarios');
         Route::get('alta-catalogos', [\App\Http\Controllers\ControlNotarialController::class, 'altaCatalogos'])->name('alta-catalogos');
         Route::get('reporte-usuarios', [\App\Http\Controllers\ControlNotarialController::class, 'reporteUsuarios'])->name('reporte-usuarios');
+<<<<<<< HEAD
+        Route::get('recibos', [\App\Http\Controllers\ControlNotarialController::class, 'recibos'])->name('recibos');
+        Route::get('recibos/expediente', [\App\Http\Controllers\ControlNotarialController::class, 'recibosExpediente'])->name('recibos-expediente');
+        Route::get('reportes', [\App\Http\Controllers\ControlNotarialController::class, 'reportes'])->name('reportes');
+=======
         Route::get('configuracion/notaria', [\App\Http\Controllers\ControlNotarialController::class, 'notaria'])->name('configuracion.notaria');
     });
 
@@ -257,6 +263,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('acta', [\App\Http\Controllers\Admin\OCRController::class, 'processActa'])->name('acta');
         Route::post('sat-qr', [\App\Http\Controllers\Admin\OCRController::class, 'processSATQR'])->name('sat-qr');
         Route::post('qr', [\App\Http\Controllers\Admin\OCRController::class, 'processQR'])->name('qr');
+>>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
     });
 
     // === CATÁLOGOS SEPOMEX (Estados, Municipios, Códigos Postales) ===

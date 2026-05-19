@@ -6,6 +6,7 @@ import {
     Tags,
     BarChart3,
     Settings,
+    FileText,
 } from 'lucide-react';
 
 import AppLayout from '@/layouts/app-layout';
@@ -173,6 +174,25 @@ export default function ControlNotarialConfiguracionIndex() {
                                     </h3>
                                     <p className="text-xs sm:text-sm text-teal-700 dark:text-teal-300 line-clamp-2 mt-1">
                                         Administra las tarifas y servicios
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+
+                    {/* Formatos Ilimitados */}
+                    <Link href="/admin/control-notarial/configuracion/formatos-ilimitados" prefetch>
+                        <div className="group flex h-full min-h-40 cursor-pointer flex-col justify-between rounded-xl border border-cyan-200 bg-linear-to-br from-cyan-50 to-cyan-100 p-4 sm:p-6 hover:shadow-lg hover:border-cyan-400 dark:border-cyan-800 dark:from-cyan-950/50 dark:to-cyan-900/30 transition-all duration-200">
+                            <div className="flex items-start gap-3">
+                                <div className="rounded-lg bg-cyan-500 p-2 sm:p-3 text-white shadow-md group-hover:bg-cyan-600 transition-colors shrink-0">
+                                    <FileText className="size-6 sm:size-8" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-base sm:text-xl font-semibold text-cyan-900 dark:text-cyan-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-200 line-clamp-2">
+                                        Formatos Ilimitados
+                                    </h3>
+                                    <p className="text-xs sm:text-sm text-cyan-700 dark:text-cyan-300 line-clamp-2 mt-1">
+                                        Crea y gestiona plantillas de formatos para exportar
                                     </p>
                                 </div>
                             </div>

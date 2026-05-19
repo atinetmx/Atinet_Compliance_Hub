@@ -215,6 +215,8 @@ interface ExpedienteFormData {
     firmarTodos: string;
     noPaso: boolean;
     nopasoMotivo: string;
+    operacion_Indices: string;
+    clientes?: any[];
 }
 
 // Componente de Label para campos requeridos
@@ -282,6 +284,8 @@ export default function ExpedientesIndex() {
         firmarTodos: '',
         noPaso: false,
         nopasoMotivo: '',
+        operacion_Indices: '',
+        clientes: [],
     });
 
     // --- Estado Combobox Operaciones ---
@@ -352,6 +356,8 @@ export default function ExpedientesIndex() {
         fechaImpresion: false,
         firmarTodos: false,
     });
+
+    const [operacionesIndices, setOperacionesIndices] = useState('');
 
     // --- Estado Usuarios y Dropdowns ---
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -2266,7 +2272,7 @@ export default function ExpedientesIndex() {
         setIsSearching(true);
         setSearchError(null);
         try {
-            let endpoint = '/Expediente/GetExpediente';
+            let endpoint = '/Expediente/GetExpedientes';
             if (filtroValue) {
                 endpoint += `?filtro=${encodeURIComponent(filtroValue)}`;
             }
@@ -2510,7 +2516,14 @@ export default function ExpedientesIndex() {
                 fechaRevision: expediente.fecha_Revision ? expediente.fecha_Revision.split('T')[0] : '',
                 fechaImpresion: expediente.fecha_Impresion ? expediente.fecha_Impresion.split('T')[0] : '',
                 firmarTodos: expediente.fecha_Firma_Todos ? expediente.fecha_Firma_Todos.split('T')[0] : '',
+                noPaso: expediente.no_Paso || false,
+                nopasoMotivo: expediente.no_Paso_Motivo || '',
+                operacion_Indices: expediente.operacion_Indices || '',
+                clientes: fullData.clientes || [],
             }));
+
+            // Actualizar el estado del operacionesIndices también
+            setOperacionesIndices(expediente.operacion_Indices || '');
 
             // Guardar el valor original del número de escritura para comparación posterior
             setNumeroEscrituraOriginal(expediente.escritura_Numero?.toString() || '');
@@ -2675,6 +2688,7 @@ export default function ExpedientesIndex() {
                 fecha_Revision: formData.fechaRevision || null,
                 fecha_Impresion: formData.fechaImpresion || null,
                 fecha_Firma_Todos: formData.firmarTodos || null,
+                operacion_Indices: formData.operacion_Indices || '',
                 motivo: formData.motivoCancelacion || 'string'
             };
 
@@ -2773,6 +2787,7 @@ export default function ExpedientesIndex() {
                         estatus: '',
                         motivoCancelacion: '',
                         ultima_etapa: '',
+                        operacion_Indices: '',
                         financiamiento_con: false,
                         financiamiento_monto: 0,
                         tipoEscritura: '',
@@ -3139,7 +3154,7 @@ export default function ExpedientesIndex() {
     };
 
     // Buscar en Listas Negras (SAT/OFAC)
-    const buscarEnListasNegras = async (nombre: string) => {
+    const buscarEnListasNegras = async (nombre: string, clienteId?: number) => {
         if (!nombre.trim()) return;
 
         setListasNegrasLoading(true);
@@ -3168,6 +3183,30 @@ export default function ExpedientesIndex() {
                 ];
                 setListasNegrasResults(allResults);
                 setShowListasNegrasModal(true);
+
+                // Si hay un archivo para descargar, descárgalo
+                if (data.data.archivo_url) {
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = data.data.archivo_url;
+                    downloadLink.download = `busqueda_listas_${nombre}_${new Date().getTime()}.pdf`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                }
+
+                // Si se proporcionó clienteId y tenemos expedienteId, ejecutar API
+                if (clienteId && currentExpedienteId) {
+                    try {
+                        const updateResponse = await api.get(
+                            `/Expediente/UpdateClienteExpedienteListasSNO?expedienteId=${currentExpedienteId}&clienteId=${clienteId}`
+                        );
+                        if (updateResponse?.success !== false) {
+                            addToast('Búsqueda registrada en el expediente', 'success');
+                        }
+                    } catch (updateError) {
+                        console.error('Error actualizando expediente con búsqueda:', updateError);
+                    }
+                }
             } else {
                 setListasNegrasError(data.message || 'Error en la búsqueda');
                 setShowListasNegrasModal(true);
@@ -3587,6 +3626,9 @@ export default function ExpedientesIndex() {
                                         expedienteEsVulnerable={expedienteEsVulnerable}
                                         cargandoAsignarFolios={cargandoAsignarFolios}
                                         handleAsignarFolios={handleAsignarFolios}
+                                        operacionesIndices={operacionesIndices}
+                                        setOperacionesIndices={setOperacionesIndices}
+                                        addToast={addToast}
                                     />
                                 </TabsContent>
                                 )}

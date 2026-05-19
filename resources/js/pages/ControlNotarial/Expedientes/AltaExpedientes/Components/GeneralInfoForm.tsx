@@ -88,7 +88,7 @@ interface GeneralInfoFormProps {
     handleEliminarCompareciente: (id: string) => void;
     listasNegrasLoading: boolean;
     setComparecienteParaBuscar: (value: string) => void;
-    buscarEnListasNegras: (nombre: string) => void;
+    buscarEnListasNegras: (nombre: string, clienteId?: number) => void;
     handleSaveExpediente: () => Promise<void>;
     handleCancelEdit: () => void;
     lastSavedTime: string | null;
@@ -108,6 +108,9 @@ interface GeneralInfoFormProps {
     expedienteEsVulnerable?: boolean;
     cargandoAsignarFolios?: boolean;
     handleAsignarFolios?: () => Promise<void>;
+    addToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info', duration?: number) => void;
+    operacionesIndices: string;
+    setOperacionesIndices: (value: string) => void;
 }
 
 const RequiredLabel = ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) => (
@@ -629,6 +632,53 @@ export default function GeneralInfoForm(props: GeneralInfoFormProps) {
                     </div>
                 </div>
 
+                {/* APARTADO OPERACION INDICES */}
+                <div className="border-2 border-amber-200 rounded-lg p-5 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-amber-600 text-white p-3 rounded-lg">
+                            <Plus className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-lg font-bold text-gray-900">Operación Índices</h4>
+                    </div>
+                    <div className="space-y-4">
+                        <Button
+                            onClick={() => {
+                                if (props.formData.operaciones.length > 0) {
+                                    const operacionesText = props.formData.operaciones.join(', ');
+                                    props.setOperacionesIndices(operacionesText);
+                                    props.setFormData(prev => ({
+                                        ...prev,
+                                        operacion_Indices: operacionesText
+                                    }));
+                                    if (props.addToast) {
+                                        props.addToast('Operaciones copiadas al textbox', 'success');
+                                    }
+                                } else {
+                                    if (props.addToast) {
+                                        props.addToast('No hay operaciones para copiar', 'warning');
+                                    }
+                                }
+                            }}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold w-full"
+                        >
+                            📋 COPIAR DESCRIPCION DE OPERACION
+                        </Button>
+                        <textarea
+                            placeholder="Las operaciones aparecerán aquí al hacer clic en el botón..."
+                            value={props.operacionesIndices}
+                            onChange={(e) => {
+                                props.setOperacionesIndices(e.target.value);
+                                props.setFormData(prev => ({
+                                    ...prev,
+                                    operacion_Indices: e.target.value
+                                }));
+                            }}
+                            rows={4}
+                            className="w-full px-3 py-2 border rounded-md bg-white dark:bg-white border-input focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        />
+                    </div>
+                </div>
+
                 {/* APARTADO NO PASO */}
                 <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-950/20">
                     <h4 className="font-semibold text-sm mb-4 text-red-900 dark:text-red-100">Estado de Paso</h4>
@@ -760,7 +810,7 @@ export default function GeneralInfoForm(props: GeneralInfoFormProps) {
                                                     className="text-sm font-medium gap-2"
                                                     onClick={() => {
                                                         props.setComparecienteParaBuscar(fila.nombreCompareciente);
-                                                        props.buscarEnListasNegras(fila.nombreCompareciente);
+                                                        props.buscarEnListasNegras(fila.nombreCompareciente, fila.cliente_Id);
                                                     }}
                                                     disabled={props.listasNegrasLoading}
                                                 >

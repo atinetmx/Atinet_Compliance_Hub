@@ -1,5 +1,9 @@
 import { Link, usePage } from '@inertiajs/react';
+<<<<<<< HEAD
+import { BookOpen, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, Settings, FileText, DollarSign, Users, Receipt } from 'lucide-react';
+=======
 import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, QrCode, ScanSearch } from 'lucide-react';
+>>>>>>> 13871b557fa28d21f06ecd5282f8a13780480d1f
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -121,6 +125,10 @@ export function AppSidebar() {
                               ],
                           },
                           {
+                              title: 'Recibos',
+                              href: '/admin/control-notarial/recibos',
+                          },
+                          {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               items: [
@@ -230,6 +238,11 @@ export function AppSidebar() {
                                       icon: DollarSign,
                                   },
                               ],
+                          },
+                          {
+                              title: 'Recibos',
+                              href: '/admin/control-notarial/recibos',
+                              icon: Receipt,
                           },
                           {
                               title: 'Configuración',

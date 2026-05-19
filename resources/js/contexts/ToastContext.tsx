@@ -17,22 +17,31 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+const getDefaultDuration = (type: ToastType): number => {
+    switch (type) {
+        case 'success':
+            return 2000; // 2 segundos
+        case 'warning':
+            return 3000; // 3 segundos
+        case 'error':
+            return 10000; // 10 segundos
+        case 'info':
+        default:
+            return 3000; // 3 segundos
+    }
+};
+
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const addToast = useCallback((message: string, type: ToastType, duration = 5000) => {
-        const id = Date.now().toString();
-        setToasts((prev) => [...prev, { id, message, type, duration }]);
-
-        if (duration > 0) {
-            setTimeout(() => {
-                removeToast(id);
-            }, duration);
-        }
-    }, []);
-
     const removeToast = useCallback((id: string) => {
         setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, []);
+
+    const addToast = useCallback((message: string, type: ToastType, duration?: number) => {
+        const finalDuration = duration !== undefined ? duration : getDefaultDuration(type);
+        const id = Date.now().toString();
+        setToasts((prev) => [...prev, { id, message, type, duration: finalDuration }]);
     }, []);
 
     return (
