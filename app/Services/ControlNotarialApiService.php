@@ -457,17 +457,21 @@ class ControlNotarialApiService
 
     private function obtenerTokenCN(string $usuario, string $password): string
     {
-        $nombreNotaria = $this->cnNombreNotaria();
+        // Obtener IP del cliente
+        $clientIp = request()->ip() ?? 'unknown';
+
+        // Usar notaria_id si existe contexto tenant, sino enviar string vacío
+        $notariaId = $this->notaria?->id ? (string) $this->notaria->id : '';
 
         // Intentar login contra el C#
         try {
             $response = Http::withoutVerifying()
-                ->timeout(10)
+                ->timeout(15)
                 ->post($this->internalUrl.'/Login/Authentication', [
                     'usuario' => $usuario,
                     'contrasena' => $password,
-                    'notaria' => $nombreNotaria,
-                    'equipo' => 'Laravel-Server',
+                    'notaria' => $notariaId,
+                    'equipo' => $clientIp,
                 ]);
 
             if ($response->successful()) {
@@ -486,7 +490,7 @@ class ControlNotarialApiService
             // C# respondió pero no retornó token (credenciales inválidas u otro error)
             Log::warning('ControlNotarialApiService::obtenerTokenCN — C# no autenticó, usando generación local', [
                 'usuario' => $usuario,
-                'notaria' => $nombreNotaria,
+                'notaria' => $notariaId,
                 'status' => $response->status(),
                 'message' => $response->json('message'),
             ]);
@@ -498,7 +502,7 @@ class ControlNotarialApiService
         }
 
         // Fallback: generar el JWT localmente con la misma clave que usa el C#
-        return $this->generarTokenLocalCN($usuario, $nombreNotaria);
+        return $this->generarTokenLocalCN($usuario, $notariaId);
     }
 
     /**

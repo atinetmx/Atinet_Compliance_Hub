@@ -51,6 +51,7 @@ class CnProxyController extends Controller
         if ($notaria) {
             $headers['X-Cn-Tenant'] = $notaria->cnIdentifier();
             $headers['X-Cn-Database'] = $notaria->tenantDatabaseName();
+            $headers['tenantDb'] = $notaria->tenantDatabaseName();
         }
 
         try {
