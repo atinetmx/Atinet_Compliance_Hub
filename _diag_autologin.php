@@ -65,15 +65,24 @@ echo "tbl_log_sesiones_activas: ".($sesion ? "EXISTE (Id={$sesion->Id})" : "SIN 
 
 // 7. Si hay JWT, hacer una llamada de prueba a C#
 if ($jwt) {
-    echo "Probando GET /Notaria/GetNotaria con el JWT...\n";
+    // Decodificar JWT
+    $parts = explode('.', $jwt);
+    $pl = json_decode(base64_decode(str_pad(strtr($parts[1], '-_', '+/'), 4 - (strlen($parts[1]) % 4 ?: 4) + strlen($parts[1]), '=')), true);
+    echo "JWT claims: ".json_encode($pl)."\n\n";
+
     $internalUrl = rtrim(config('services.control_notarial.internal_url', 'http://192.168.1.1:5000/api'), '/');
-    $response = Http::withToken($jwt)->withoutVerifying()->timeout(10)->get($internalUrl.'/Notaria/GetNotaria');
-    echo "Status: ".$response->status()."\n";
-    if ($response->status() === 401) {
-        echo "=> C# dice 401 con el JWT recién obtenido.\n";
-        echo "   Respuesta: ".$response->body()."\n";
-    } else {
-        echo "=> OK, C# acepta el JWT.\n";
+    $testEps = ['/Notaria/GetNotaria', '/Catalogos/GetRoles', '/User/GetUsuarios', '/User/GetUsuarioById?usuarioId=9'];
+    foreach ($testEps as $ep) {
+        $r = Http::withToken($jwt)->withoutVerifying()->timeout(10)->get($internalUrl.$ep);
+        $wwwAuth = $r->header('WWW-Authenticate');
+        echo "GET {$ep}: HTTP {$r->status()}";
+        if ($wwwAuth) {
+            echo " | WWW-Auth: {$wwwAuth}";
+        }
+        if ($r->status() >= 400) {
+            echo " | body: ".substr($r->body(), 0, 100);
+        }
+        echo "\n";
     }
 }
 

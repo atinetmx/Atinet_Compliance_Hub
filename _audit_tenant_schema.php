@@ -1,5 +1,32 @@
 <?php
 
+$p = new PDO('mysql:host=localhost;port=3307;dbname=atinet_compliance_hub', 'atinet_app', 'Atinet2026#Secure');
+
+echo "=== COLUMNS of users table ===\n";
+$cols = $p->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_ASSOC);
+foreach ($cols as $c) {
+    echo "  {$c['Field']} ({$c['Type']}) null={$c['Null']} default={$c['Default']}\n";
+}
+
+echo "\n=== ALL users (full) ===\n";
+$users = $p->query('SELECT id, name, email, notaria_id, tipo_cuenta, cn_usuario_id, cn_rol_id FROM users ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+foreach ($users as $u) {
+    echo "  [{$u['id']}] {$u['email']} tipo_cuenta={$u['tipo_cuenta']} notaria_id={$u['notaria_id']} cn_usuario_id={$u['cn_usuario_id']}\n";
+}
+
+echo "\n=== tbl_cat_roles ===\n";
+$roles = $p->query('SELECT * FROM tbl_cat_roles ORDER BY Id')->fetchAll(PDO::FETCH_ASSOC);
+foreach ($roles as $r) {
+    print_r($r);
+}
+
+echo "\n=== tbl_cat_usuarios FULL ===\n";
+$cnus = $p->query('SELECT Id, Usuario, Nombre, Numero_Notaria, Tipo, Rol_Id, Activo FROM tbl_cat_usuarios ORDER BY Id')->fetchAll(PDO::FETCH_ASSOC);
+foreach ($cnus as $u) {
+    echo "  Id={$u['Id']} Usuario={$u['Usuario']} Numero_Notaria={$u['Numero_Notaria']} Rol_Id={$u['Rol_Id']} Tipo={$u['Tipo']}\n";
+}
+// placeholder - replaced
+
 require_once __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();

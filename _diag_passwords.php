@@ -1,6 +1,8 @@
-<?php // v2
-require __DIR__ . '/vendor/autoload.php';
-$app = require_once __DIR__ . '/bootstrap/app.php';
+<?php
+
+// v2 — diagnóstico hash ADMIN vs SUPERUSUARIO // v2
+require __DIR__.'/vendor/autoload.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,7 @@ foreach ($failing as $u) {
     $cn = DB::table('tbl_cat_usuarios')->where('Id', $u->cn_usuario_id)->first(['Usuario', 'Contrasena']);
     if (! $cn) {
         echo "users.id={$u->id} cn_id={$u->cn_usuario_id} NO CN RECORD\n";
+
         continue;
     }
 

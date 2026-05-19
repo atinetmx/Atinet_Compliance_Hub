@@ -80,10 +80,10 @@ class CnProxyController extends Controller
             // Loguear respuestas de error de C# para diagnóstico
             if ($response->status() >= 400) {
                 Log::warning('CnProxy respuesta de error desde C#', [
-                    'url'    => $targetUrl,
+                    'url' => $targetUrl,
                     'method' => strtoupper($method),
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'body' => $response->body(),
                 ]);
             }
 

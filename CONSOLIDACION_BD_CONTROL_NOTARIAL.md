@@ -160,4 +160,146 @@ El API C# en `C:\SCN` fue actualizado exitosamente para apuntar a `atinet_compli
 
 ---
 
-*Documento generado automáticamente por el asistente IA durante la sesión de trabajo del servidor.*
+## Flujo de Login C# — Análisis Completo (Validado 14/05/2026)
+
+> Esta sección documenta el comportamiento **confirmado en producción** del endpoint `POST /api/Login/Authentication`.
+
+### Request
+
+```json
+POST http://192.168.1.1:5000/api/Login/Authentication
+Content-Type: application/json
+
+{
+  "notaria":   "11",      // notarias.id (PK de Laravel) — NO es numero_notaria
+  "usuario":   "ADMIN",   // tbl_cat_usuarios.Usuario  (case-sensitive)
+  "contrasena":"ADMIN",   // contraseña en texto plano — C# compara contra BCrypt
+  "equipo":    "string"   // nombre del equipo / origen de la llamada
+}
+```
+
+> ⚠️ **Crítico**: el campo `notaria` es el **`id`** de la tabla `notarias` (PK), **no** el `numero_notaria`.  
+> Ejemplo: notaría "Atinet Master" → `notarias.id = 11` → se envía `"notaria": "11"`.
+
+---
+
+### Resolución de BD tenant (cómo C# encuentra al usuario)
+
+```
+notaria = "11"
+  → SELECT tenant_db_name FROM notarias WHERE id = 11
+  → tenant_db_name = "atinet_compliance_hub"
+  → C# se conecta a esa BD via MasterConnection / TenantBaseConnection
+  → SELECT * FROM tbl_cat_usuarios
+      WHERE Usuario = 'ADMIN'
+      AND Numero_Notaria = (SELECT numero_notaria FROM notarias WHERE id = 11)
+      -- numero_notaria de notarias.id=11 es 1
+      -- tbl_cat_usuarios.Numero_Notaria = 1 ← coincide con ADMIN
+  → Verifica BCrypt(contrasena) vs tbl_cat_usuarios.Contrasena
+```
+
+---
+
+### Hash de contraseñas
+
+| Campo | Valor |
+|---|---|
+| Tabla | `tbl_cat_usuarios.Contrasena` |
+| Algoritmo | BCrypt |
+| Prefijo | `$2a$` (variante C# — **no** `$2y$` de PHP) |
+| Cost factor | `12` |
+| Longitud | 60 caracteres |
+| Ejemplo | `$2a$12$OV4LXgpX4Sc/1ERO2sKmx./HnzLFP2vZaTuYPsO0eJ0WjP.PkTSce` |
+
+> ⚠️ PHP por defecto genera `$2y$`. Para que C# acepte hashes generados por PHP, se debe reemplazar el prefijo `$2y$` → `$2a$` antes de guardarlo en la BD.
+
+---
+
+### Response exitosa (HTTP 200)
+
+```json
+{
+  "operationStatus": "Success",
+  "message": "El usuario inicio sesion.",
+  "dataResponse": {
+    "user": "ADMIN",
+    "accessToken": "<JWE token>",
+    "refreshToken": "<base64>",
+    "modulos": { "modulo_id": [1] }
+  }
+}
+```
+
+---
+
+### JWT — Algoritmo y Claims
+
+El `accessToken` usa **JWE con algoritmo `A256CBC-HS512`** (token cifrado, no solo firmado).
+
+Claims decodificados:
+
+| Claim | Descripción | Ejemplo |
+|---|---|---|
+| `jti` | ID único de sesión — se almacena en `tbl_log_sesiones_activas.Token_Jti` | `bfa46da2-...` |
+| `client_id` | `tbl_cat_usuarios.Id` | `"1"` |
+| `client_username` | `tbl_cat_usuarios.Usuario` | `"ADMIN"` |
+| `client_name` | Nombre completo del usuario | `"Super Administrador Atinet NAS NAS"` |
+| `client_Ip` | IP o equipo enviado en el request | `"string"` |
+| `client_notaria` | `notarias.tenant_db_name` de la notaría del login | `"atinet_compliance_hub"` |
+| `exp` | Unix timestamp de expiración (15 min) | `1778857500` |
+| `iss` / `aud` | Configurado en `appsettings.json` → `Jwt.Issuer` / `Jwt.Audience` | `"https://miservidor.com"` |
+
+---
+
+### Efecto en BD tras login exitoso
+
+1. `tbl_cat_usuarios.Sesion_Iniciada` → se pone en `1`
+2. Se inserta un registro en `tbl_log_sesiones_activas`:
+
+| Columna | Valor |
+|---|---|
+| `Usuario_Id` | `tbl_cat_usuarios.Id` |
+| `Token_Jti` | claim `jti` del JWT |
+| `Nombre_Equipo` | campo `equipo` del request |
+| `Es_Activa` | `1` |
+| `Fecha_Creacion` | timestamp actual |
+| `Fecha_Expiracion` | now + 15 min |
+
+> ⚠️ Si `Sesion_Iniciada = 1` ya está activo, C# **bloquea el login** ("Ya hay sesión activa"). Para forzar re-login hay que hacer `UPDATE tbl_cat_usuarios SET Sesion_Iniciada = 0 WHERE Id = ?` y `DELETE FROM tbl_log_sesiones_activas WHERE Usuario_Id = ?`.
+
+---
+
+### appsettings.json — Estado correcto en producción
+
+```json
+{
+  "ConnectionStrings": {
+    "mySqlConnectionRelease": "Server=localhost;Database=atinet_compliance_hub;User=atinet_app;Password=Atinet2026#Secure;Port=3307;",
+    "MasterConnection":       "Server=localhost;Database=atinet_compliance_hub;User=atinet_app;Password=Atinet2026#Secure;Port=3307;",
+    "TenantBaseConnection":   "Server=localhost;Database=IGNORAR;User=atinet_app;Password=Atinet2026#Secure;Port=3307;"
+  },
+  "Jwt": {
+    "Issuer":             "https://miservidor.com",
+    "Audience":           "https://miservidor.com",
+    "Key":                "74Av348euKnbnYi8cfbzPgiX7SjM3FPX",
+    "AccessTokenMinutes": 15
+  }
+}
+```
+
+> `TenantBaseConnection` tiene `Database=IGNORAR` porque C# construye el connection string dinámicamente usando `notarias.tenant_db_name` en cada request.  
+> Los campos `sqlConnectionRelease` / `sqlConnectionDebug` son del SQL Server legacy de Alex — **no se usan** en producción MySQL.
+
+---
+
+### Errores comunes y su causa
+
+| Error HTTP 500 | Causa | Solución |
+|---|---|---|
+| `Table 'bd_sistemacontrolnotarial_principal.notarias' doesn't exist` | `MasterConnection` apunta a BD equivocada | Cambiar a `atinet_compliance_hub` y reiniciar IIS |
+| `Column 'Usuario_Id' cannot be null` | C# no encontró al usuario en `tbl_cat_usuarios` (usuario incorrecto, notaria.id incorrecto, o `Numero_Notaria` no coincide) | Verificar que `notaria` = `notarias.id` correcto y que el usuario existe con `Numero_Notaria` = `notarias.numero_notaria` de esa fila |
+| `Ya hay una sesión activa` | `Sesion_Iniciada = 1` en la BD | Resetear sesión: `UPDATE tbl_cat_usuarios SET Sesion_Iniciada=0 WHERE Id=?` + borrar `tbl_log_sesiones_activas` |
+
+---
+
+*Sección agregada 14/05/2026 — validada con login exitoso en Swagger.*
