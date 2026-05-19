@@ -221,12 +221,12 @@ class UserObserver
      *     y C# lo gestiona de forma independiente.
      *   - NO se toca Sesion_Iniciada: resetearlo en cada update mataría sesiones activas.
      *   - Contrasena SOLO se actualiza si el password del usuario Laravel cambió en este
-     *     evento; y cuando se actualiza se convierte a formato $2b$ (BCrypt.Net) para
+     *     evento; y cuando se actualiza se convierte a formato $2a$ (BCrypt.Net) para
      *     mantener compatibilidad con la API C#.
      *
      * En CREATE:
      *   - Se fija Usuario desde el prefijo del email (único momento).
-     *   - Contrasena se genera en formato $2b$ desde el hash inicial de Laravel.
+     *   - Contrasena se genera en formato $2a$ desde el hash inicial de Laravel.
      */
     protected function sincronizarEnCN(User $user): void
     {
@@ -248,8 +248,8 @@ class UserObserver
 
                 // Solo sincronizar contraseña si cambió en este evento
                 if ($user->wasChanged('password')) {
-                    // Convertir $2y$ (PHP/Argon2) a $2b$ (BCrypt.Net de C#)
-                    $datos['Contrasena'] = str_replace('$2y$', '$2b$', $user->password);
+                    // Convertir $2y$ (PHP/Argon2) a $2a$ (BCrypt.Net de C#)
+                    $datos['Contrasena'] = str_replace('$2y$', '$2a$', $user->password);
                 }
 
                 DB::connection($conn)
@@ -278,7 +278,7 @@ class UserObserver
                     }
                 }
 
-                // Fallback: INSERT directo con conversión de hash $2y$ → $2b$
+                // Fallback: INSERT directo con conversión de hash $2y$ → $2a$
                 if ($cnId === null) {
                     $usuario = strtoupper(explode('@', $user->email)[0]);
 
@@ -286,7 +286,7 @@ class UserObserver
                         'Nombre' => $user->name,
                         'Correo' => $user->email,
                         'Usuario' => $usuario,
-                        'Contrasena' => str_replace('$2y$', '$2b$', $user->password),
+                        'Contrasena' => str_replace('$2y$', '$2a$', $user->password),
                         'Rol_Id' => $rolId,
                         'Numero_Notaria' => $numeroNotaria,
                         'Activo' => 1,
@@ -342,7 +342,7 @@ class UserObserver
                 ];
 
                 if ($user->wasChanged('password')) {
-                    $datos['Contrasena'] = str_replace('$2y$', '$2b$', $user->password);
+                    $datos['Contrasena'] = str_replace('$2y$', '$2a$', $user->password);
                 }
 
                 DB::connection('mysql')
@@ -358,7 +358,7 @@ class UserObserver
                     'Nombre' => $user->name,
                     'Correo' => $user->email,
                     'Usuario' => $usuario,
-                    'Contrasena' => str_replace('$2y$', '$2b$', $user->password),
+                    'Contrasena' => str_replace('$2y$', '$2a$', $user->password),
                     'Rol_Id' => $rolId,
                     'Numero_Notaria' => $numeroNotaria,
                     'Activo' => 1,

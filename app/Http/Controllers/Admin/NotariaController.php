@@ -901,10 +901,12 @@ class NotariaController extends Controller
             $gwMaster = DB::table('tbl_cat_usuarios')->where('Usuario', config('services.control_notarial.gw_user', 'LARAVEL_GW'))->first();
 
             if ($gwMaster) {
+                // Id=1 es CRÍTICO: el sistema C# hardcodea Usuario_Id=1 en sus log entries.
+                // Si Id=1 no existe en la BD del tenant, las inserciones del C# generan FK error.
                 $sql = "INSERT INTO `{$databaseName}`.`tbl_cat_usuarios`
-                        (`Nombre`, `Correo`, `Usuario`, `Contrasena`, `Rol_Id`, `Numero_Notaria`,
+                        (`Id`, `Nombre`, `Correo`, `Usuario`, `Contrasena`, `Rol_Id`, `Numero_Notaria`,
                          `Activo`, `Sesion_Iniciada`, `Fecha_Creacion`)
-                        SELECT ?, ?, ?, ?, ?, ?, 1, 0, NOW()
+                        SELECT 1, ?, ?, ?, ?, ?, ?, 1, 0, NOW()
                         WHERE NOT EXISTS (
                             SELECT 1 FROM `{$databaseName}`.`tbl_cat_usuarios`
                             WHERE `Usuario` = ?
