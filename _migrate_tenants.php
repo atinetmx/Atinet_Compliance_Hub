@@ -8,6 +8,9 @@ $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
 $tenants = [
     'atinet_edomex_notaria_10',
     'atinet_edomex_notaria_11',
+    'atinet_edomex_notaria_60',
+    'atinet_edomex_notaria_100',
+    'atinet_edomex_notaria_101',
     'atinet_mor_notaria_10',
     'atinet_oax_notaria_113',
 ];
