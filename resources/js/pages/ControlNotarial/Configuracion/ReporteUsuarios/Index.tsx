@@ -1,6 +1,7 @@
 ﻿import { Head } from '@inertiajs/react';
 import { BarChart3, Download, Filter, MapPin, Loader2 } from 'lucide-react';
-import React, { useState, useEffect } from 'react';import { useApi } from '@/services/api';
+import React, { useState, useEffect } from 'react';
+import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
 

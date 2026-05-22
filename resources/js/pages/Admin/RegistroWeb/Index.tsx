@@ -642,7 +642,8 @@ function RegistroWebDevView({ notaria, stats }: Props) {
             padre_nombre: 'padre_nombre',
             madre_nombre: 'madre_nombre',
             no_identificacion: 'no_identificacion',
-            vigiencia_de_ine: 'vigiencia_de_ine',
+            vigencia: 'vigencia',
+            vigiencia_de_ine: 'vigencia',
             regimen_fiscal: 'regimen_fiscal',
         };
 

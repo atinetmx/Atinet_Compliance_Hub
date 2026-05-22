@@ -230,6 +230,80 @@ class CatalogosController extends Controller
     }
 
     /**
+     * Obtener descripción de un Régimen Fiscal por código
+     *
+     * Equivalente a: utilerias_appliweb/api/catalogos/regimen-fiscal.php
+     * BD: atinet65_catalogos.catregimenfiscal
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getRegimenFiscal(Request $request)
+    {
+        $codigo = $request->query('codigo') ?? $request->input('codigo');
+
+        try {
+            // Sin código: devolver listado completo
+            if (empty($codigo)) {
+                $lista = Cache::remember('catalogos:regimen_fiscal', 86400, function () {
+                    return DB::connection('catalogos')
+                        ->table('catregimenfiscal')
+                        ->select('codigo', 'descripcion')
+                        ->orderBy('codigo')
+                        ->get()
+                        ->map(fn ($r) => [
+                            'codigo' => (string) $r->codigo,
+                            'descripcion' => $r->descripcion,
+                        ]);
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $lista,
+                    'total' => $lista->count(),
+                ]);
+            }
+
+            // Validar formato: 2-3 dígitos
+            $codigo = trim($codigo);
+            if (! preg_match('/^\d{2,3}$/', $codigo)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Código de régimen fiscal inválido',
+                ], 400);
+            }
+
+            $cacheKey = 'catalogos:regimen_fiscal:'.$codigo;
+            $regimen = Cache::remember($cacheKey, 86400, function () use ($codigo) {
+                return DB::connection('catalogos')
+                    ->table('catregimenfiscal')
+                    ->where('codigo', $codigo)
+                    ->first();
+            });
+
+            if (! $regimen) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Régimen fiscal no encontrado',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'codigo' => (string) $regimen->codigo,
+                    'descripcion' => $regimen->descripcion,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener régimen fiscal',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Estadísticas generales de los catálogos
      *
      * @return \Illuminate\Http\JsonResponse

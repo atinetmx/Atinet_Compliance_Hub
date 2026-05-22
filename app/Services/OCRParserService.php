@@ -51,12 +51,23 @@ class OCRParserService
             $parsed['dia'] = $this->normalizeDate($parsed['dia']);
         }
 
-        // Normalizar vigencia
-        if (isset($parsed['vigiencia_de_ine']) && ! empty($parsed['vigiencia_de_ine'])) {
-            // Si solo es año (4 dígitos), convertir a fecha YYYY-12-31
-            if (preg_match('/^\d{4}$/', $parsed['vigiencia_de_ine'])) {
-                $parsed['vigiencia_de_ine'] = $parsed['vigiencia_de_ine'].'-12-31';
+        // Normalizar vigencia (corregir typo vigiencia_de_ine → vigencia)
+        // Aceptar cualquiera de los dos por compatibilidad hacia atrás
+        $vigenciaRaw = $parsed['vigencia'] ?? $parsed['vigiencia_de_ine'] ?? null;
+        if (! empty($vigenciaRaw)) {
+            // Normalizar: si viene solo el año (4 dígitos) dejarlo como está
+            // Si viene YYYY-MM-DD extraer solo el año
+            if (preg_match('/^(\d{4})-\d{2}-\d{2}$/', $vigenciaRaw, $m)) {
+                $vigenciaRaw = $m[1];
             }
+            $parsed['vigencia'] = $vigenciaRaw;
+        }
+        // Limpiar el campo con typo si existía
+        unset($parsed['vigiencia_de_ine']);
+
+        // Normalizar genero a H/M (igual que PHP legacy)
+        if (isset($parsed['genero']) && ! empty($parsed['genero'])) {
+            $parsed['genero'] = $this->normalizeGenero($parsed['genero']);
         }
 
         // Generar RFC desde CURP si no existe (solo personas físicas)
@@ -97,6 +108,11 @@ class OCRParserService
             $parsed['dia'] = $parsed['dia'] ?? $curpData['fecha_nacimiento'];
             $parsed['genero'] = $parsed['genero'] ?? $curpData['genero'];
             $parsed['estado_nac'] = $parsed['estado_nac'] ?? $curpData['estado_nacimiento'];
+        }
+
+        // Normalizar genero a H/M (igual que PHP legacy)
+        if (isset($parsed['genero']) && ! empty($parsed['genero'])) {
+            $parsed['genero'] = $this->normalizeGenero($parsed['genero']);
         }
 
         // Normalizar fecha de nacimiento
@@ -141,9 +157,19 @@ class OCRParserService
             }
         }
 
+        // Normalizar genero a H/M (igual que PHP legacy)
+        if (isset($parsed['genero']) && ! empty($parsed['genero'])) {
+            $parsed['genero'] = $this->normalizeGenero($parsed['genero']);
+        }
+
         // Normalizar fecha de nacimiento
         if (isset($parsed['dia']) && ! empty($parsed['dia'])) {
             $parsed['dia'] = $this->normalizeDate($parsed['dia']);
+        }
+
+        // Normalizar fecha de registro (puede diferir de la de nacimiento)
+        if (isset($parsed['fecha_registro']) && ! empty($parsed['fecha_registro'])) {
+            $parsed['fecha_registro'] = $this->normalizeDate($parsed['fecha_registro']);
         }
 
         // Establecer valores por defecto
@@ -211,6 +237,30 @@ class OCRParserService
         }
 
         return $rfc;
+    }
+
+    /**
+     * Normalizar género a H/M (igual que en el sistema PHP legacy)
+     *
+     * Acepta: H, HOMBRE, MASCULINO, MALE, M, MUJER, FEMENINO, FEMALE
+     *
+     * @param  string  $genero  Género en cualquier formato
+     * @return string "H" o "M"
+     */
+    protected function normalizeGenero(string $genero): string
+    {
+        $g = mb_strtoupper(trim($genero), 'UTF-8');
+
+        if (in_array($g, ['H', 'HOMBRE', 'MASCULINO', 'MALE', 'MASC'])) {
+            return 'H';
+        }
+
+        if (in_array($g, ['M', 'MUJER', 'FEMENINO', 'FEMALE', 'FEM'])) {
+            return 'M';
+        }
+
+        // Si viene directo "H" o "M" del CURP (posición 10)
+        return $g === 'H' ? 'H' : 'M';
     }
 
     /**

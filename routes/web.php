@@ -270,6 +270,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('municipios', [\App\Http\Controllers\Api\CatalogosController::class, 'getMunicipios'])->name('municipios');
         Route::get('buscar-cp', [\App\Http\Controllers\Api\CatalogosController::class, 'buscarCodigoPostal'])->name('buscar-cp');
         Route::get('colonias', [\App\Http\Controllers\Api\CatalogosController::class, 'getColonias'])->name('colonias');
+        Route::get('regimen-fiscal', [\App\Http\Controllers\Api\CatalogosController::class, 'getRegimenFiscal'])->name('regimen-fiscal');
         Route::get('estadisticas', [\App\Http\Controllers\Api\CatalogosController::class, 'getEstadisticas'])->name('estadisticas');
     });
 

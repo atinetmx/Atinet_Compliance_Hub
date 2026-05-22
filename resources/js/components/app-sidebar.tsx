@@ -125,6 +125,10 @@ export function AppSidebar() {
                               href: '/admin/control-notarial/recibos',
                           },
                           {
+                              title: 'Reportes',
+                              href: '/admin/control-notarial/reportes',
+                          },
+                          {
                               title: 'Configuración',
                               href: '/admin/control-notarial/configuracion',
                               items: [

@@ -27,13 +27,24 @@ class GeminiVisionService
 
     protected int $timeout;
 
+    /** @var string[] Modelos a intentar en orden (fallback si hay 429/503) */
+    protected array $models;
+
     public function __construct()
     {
         $this->apiKey = config('services.gemini.api_key', '');
-        $this->model = config('services.gemini.model', 'gemini-2.5-pro');
-        $this->endpoint = config('services.gemini.endpoint', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent');
         $this->temperature = config('services.gemini.temperature', 0.1);
         $this->timeout = config('services.gemini.timeout', 60);
+
+        // Modelos con fallback (igual que el sistema PHP legacy)
+        $this->models = [
+            'gemini-2.5-flash',   // Principal: más rápido y estable
+            'gemini-2.5-pro',     // Fallback: más potente
+        ];
+
+        // Para compatibilidad con código que usa $this->model / $this->endpoint
+        $this->model = $this->models[0];
+        $this->endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/'.$this->models[0].':generateContent';
 
         if (empty($this->apiKey) && ! app()->environment('testing')) {
             throw new Exception('Gemini API key not configured. Set GEMINI_API_KEY in .env');
@@ -140,42 +151,57 @@ class GeminiVisionService
                 ],
             ];
 
-            // Llamar a Gemini Vision API
-            $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                ])
-                ->post($this->endpoint.'?key='.$this->apiKey, $requestData);
+            // Intentar con cada modelo en orden (fallback igual que PHP legacy)
+            $lastError = null;
+            foreach ($this->models as $model) {
+                $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/'.$model.':generateContent';
 
-            // Procesar respuesta
-            $geminiResponse = $response->json();
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders(['Content-Type' => 'application/json'])
+                    ->post($endpoint.'?key='.$this->apiKey, $requestData);
 
-            // Manejar errores de Gemini
-            if (isset($geminiResponse['error'])) {
-                $this->handleGeminiError($geminiResponse['error']);
-            }
+                $geminiResponse = $response->json();
 
-            if (! $response->successful()) {
-                throw new Exception('Error al conectar con Gemini Vision API: '.$response->status());
-            }
+                // 429 / 503 → intentar siguiente modelo
+                if (in_array($response->status(), [429, 503])) {
+                    $lastError = $geminiResponse['error']['message'] ?? 'Servicio saturado ('.$response->status().')';
+                    usleep(300000); // 300ms
 
-            // Extraer JSON de la respuesta
-            if (isset($geminiResponse['candidates'][0]['content']['parts'][0]['text'])) {
-                $jsonText = $geminiResponse['candidates'][0]['content']['parts'][0]['text'];
-                $structuredData = json_decode($jsonText, true);
-
-                if (json_last_error() === JSON_ERROR_NONE && is_array($structuredData)) {
-                    return $structuredData;
+                    continue;
                 }
 
-                // Log para debug si el JSON no es válido
-                Log::warning('Invalid JSON from Gemini Vision', [
-                    'json_error' => json_last_error_msg(),
-                    'response_text' => substr($jsonText, 0, 500),
-                ]);
+                if (isset($geminiResponse['error'])) {
+                    $this->handleGeminiError($geminiResponse['error']);
+                }
+
+                if (! $response->successful()) {
+                    throw new Exception('Error al conectar con Gemini Vision API: '.$response->status());
+                }
+
+                if (isset($geminiResponse['candidates'][0]['content']['parts'][0]['text'])) {
+                    $jsonText = $geminiResponse['candidates'][0]['content']['parts'][0]['text'];
+                    // Limpiar markdown si Gemini lo agrega
+                    $jsonText = preg_replace('/^```json\s*/m', '', $jsonText);
+                    $jsonText = preg_replace('/^```\s*/m', '', $jsonText);
+                    $jsonText = trim($jsonText);
+
+                    $structuredData = json_decode($jsonText, true);
+
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($structuredData)) {
+                        return $structuredData;
+                    }
+
+                    Log::warning('Invalid JSON from Gemini Vision', [
+                        'model' => $model,
+                        'json_error' => json_last_error_msg(),
+                        'response_text' => substr($jsonText, 0, 500),
+                    ]);
+                }
+
+                throw new Exception('No se pudo procesar la respuesta de Gemini Vision API');
             }
 
-            throw new Exception('No se pudo procesar la respuesta de Gemini Vision API');
+            throw new Exception('Todos los modelos Gemini fallaron: '.($lastError ?? 'Error desconocido'));
         } catch (Exception $e) {
             Log::error('Error analyzing image with Gemini Vision', [
                 'error' => $e->getMessage(),
@@ -261,42 +287,50 @@ Extrae y estructura los siguientes datos en formato JSON con estas claves exacta
 - curp: CURP completo (18 caracteres alfanuméricos)
 - no_identificacion: número de credencial (13 dígitos)
 - clave_elector: clave de elector (18 caracteres alfanuméricos, opcional)
-- vigiencia_de_ine: vigencia de la credencial (formato: "YYYY" o "YYYY-MM-DD")
+- vigencia: año de vigencia de la credencial (solo 4 dígitos, ej: "2027"). NO confundir con la fecha de nacimiento
 - dia: fecha de nacimiento (formato: "YYYY-MM-DD")
-- genero: "HOMBRE" o "MUJER"
+- genero: "H" para Hombre o "M" para Mujer (UN solo carácter)
 - calle: nombre completo de la calle/vialidad (MAYÚSCULAS)
 - no_exterior: número exterior (puede ser número o alfanumérico como "15-A")
-- no_interior: número interior o depto (opcional, vacío si no existe)
+- no_interior: número interior o depto (vacío si no existe)
 - colonia: colonia o asentamiento (MAYÚSCULAS)
 - municipio: municipio o delegación (MAYÚSCULAS)
-- estado: estado (abreviatura de 2-3 letras, ej: "CDMX", "JAL", "NL")
+- estado: nombre completo del estado (MAYÚSCULAS, ej: "JALISCO", "CIUDAD DE MEXICO")
 - cp: código postal (5 dígitos como número)
 
 REGLAS IMPORTANTES:
 1. Todos los textos deben estar en MAYÚSCULAS
 2. Si un campo no es visible o legible, devuelve una cadena vacía ""
 3. La dirección está en la parte inferior de la credencial
-4. El CURP está en la parte trasera (reverso), si no lo ves devuelve ""
+4. El CURP está en el reverso; si estás analizando el frontal devuelve ""
 5. Asegúrate de que el no_identificacion tenga 13 dígitos
-6. La vigencia aparece abajo como "VIGENCIA XXXX"
-7. Devuelve SOLO el JSON, sin texto adicional
+6. "vigencia" es el AÑO de vencimiento de la credencial (4 dígitos, ej: "2027"), NO la fecha de nacimiento
+7. Devuelve SOLO el JSON puro, sin texto adicional ni bloques ```json
 PROMPT;
         }
 
         // side === 'back'
         return <<<'PROMPT'
-Analiza esta imagen de la CREDENCIAL PARA VOTAR (INE) mexicana - LADO REVERSO.
+Analiza esta imagen de la cara REVERSO/TRASERA de una Credencial para Votar (INE/IFE) mexicana.
+
+IMPORTANTE: Este lado contiene el código MRZ (Machine Readable Zone) en la parte inferior.
+El código MRZ son 3 líneas de texto con caracteres especiales (<< y números/letras). Ejemplo:
+  IDMEX1490660998<<0668075350190
+  8804215H2612317MEX<01<<23337<5
+  VALDEZ<RODRIGUEZ<<DANIEL<IVAN<
 
 Extrae y estructura los siguientes datos en formato JSON con estas claves exactas:
 
-- curp: CURP completo (18 caracteres alfanuméricos, visible en el código de barras o texto)
-- rfc: RFC si está visible (12-13 caracteres, opcional, puede estar vacío)
-- clave_elector: clave de elector si es visible (18 caracteres alfanuméricos)
+- idm: número que aparece inmediatamente después de "IDMEX" en la primera línea del MRZ (generalmente 10 dígitos)
+- ocr_code: las 3 líneas completas del MRZ tal como aparecen, separadas por saltos de línea \n (incluye todos los caracteres << y <)
+- vigencia: año de vigencia si aparece visible (4 dígitos), vacío si no se ve
+- clave_elector: CLAVE DE ELECTOR de 18 caracteres alfanuméricos si aparece (solo en versiones anteriores de INE, cerca del código de barras o QR). Vacío si no existe.
 
-REGLAS IMPORTANTES:
-1. El CURP suele estar en un código de barras con texto debajo
-2. Si un campo no es visible, devuelve una cadena vacía ""
-3. Devuelve SOLO el JSON, sin texto adicional
+REGLAS CRÍTICAS:
+1. Devuelve SOLO el JSON puro, sin texto adicional, sin bloques ```json
+2. idm: extrae SOLO el número que viene después de "IDMEX" en la primera línea del MRZ
+3. ocr_code: copia las 3 líneas completas del MRZ incluyendo todos los caracteres especiales << y <
+4. Si un campo no es visible, usa cadena vacía ""
 PROMPT;
     }
 
@@ -317,7 +351,7 @@ Extrae y estructura los siguientes datos en formato JSON con estas claves exacta
 - apellidopat: apellido paterno (MAYÚSCULAS)
 - apellidomat: apellido materno (MAYÚSCULAS)
 - dia: fecha de nacimiento (formato: "YYYY-MM-DD", ej: "1985-03-15")
-- genero: "HOMBRE" o "MUJER"
+- genero: "H" para Hombre o "M" para Mujer (UN solo carácter)
 - estado_nac: estado de nacimiento (nombre completo, MAYÚSCULAS, ej: "JALISCO")
 - paisnac: país de nacimiento (generalmente "MEXICO" en MAYÚSCULAS)
 - nacionalidad: nacionalidad (generalmente "MEXICANA" en MAYÚSCULAS)
@@ -326,8 +360,8 @@ REGLAS IMPORTANTES:
 1. El formato del CURP es: 4 letras (apellidos+nombre) + 6 dígitos (fecha nacimiento AAMMDD) + 1 letra (sexo) + 2 letras (estado) + 3 consonantes + 1 dígito verificador
 2. Todos los textos deben estar en MAYÚSCULAS
 3. Si un campo no es visible o legible, devuelve una cadena vacía ""
-4. La fecha debe extraerse del CURP (posiciones 5-10: AAMMDD) y convertirse a formato YYYY-MM-DD
-5. Devuelve SOLO el JSON, sin texto adicional
+4. La fecha debe ser YYYY-MM-DD (extráela del CURP si no aparece explícita)
+5. Devuelve SOLO el JSON puro, sin texto adicional ni bloques ```json
 PROMPT;
     }
 
@@ -347,26 +381,28 @@ Extrae y estructura los siguientes datos en formato JSON con estas claves exacta
 - apellidopat: apellido paterno (MAYÚSCULAS)
 - apellidomat: apellido materno (MAYÚSCULAS)
 - dia: fecha de nacimiento (formato: "YYYY-MM-DD")
-- genero: "HOMBRE" o "MUJER"
+- genero: "H" para Hombre/Masculino o "M" para Mujer/Femenino (UN solo carácter)
 - ciudad_nac: ciudad de nacimiento (MAYÚSCULAS)
 - municipio_nac: municipio de nacimiento (MAYÚSCULAS)
 - estado_nac: estado de nacimiento (MAYÚSCULAS)
 - paisnac: país de nacimiento (generalmente "MEXICO")
 - nacionalidad: nacionalidad (generalmente "MEXICANA")
-- padre_nombre: nombre completo del padre (MAYÚSCULAS, opcional si no aparece)
-- madre_nombre: nombre completo de la madre (MAYÚSCULAS, opcional si no aparece)
-- curp: CURP si está visible en el documeto (18 caracteres, opcional)
-- no_acta: número de acta (opcional)
-- libro: libro (opcional)
-- foja: foja (opcional)
+- padre_nombre: nombre completo del padre (MAYÚSCULAS, vacío si no aparece)
+- madre_nombre: nombre completo de la madre (MAYÚSCULAS, vacío si no aparece)
+- curp: CURP si está visible en el documento (18 caracteres, vacío si no está)
+- num_acta: número del acta (vacío si no aparece)
+- folio_acta: folio o clave digital del acta (ej: CMDX20210123A1234BC, vacío si no aparece)
+- oficialía: número o nombre de la oficialía/juzgado del registro civil (vacío si no aparece)
+- fecha_registro: fecha en que se registró el nacimiento en formato YYYY-MM-DD si aparece y es diferente a la fecha de nacimiento (null si no aparece)
 
 REGLAS IMPORTANTES:
 1. Todos los textos deben estar en MAYÚSCULAS
-2. Si un campo no es visible o legible, devuelve una cadena vacía ""
+2. Si un campo no es visible o legible, devuelve cadena vacía ""
 3. Los nombres de padres aparecen en secciones específicas del acta
 4. El formato de fecha debe ser YYYY-MM-DD
-5. Busca el CURP en el código de barras o en una sección específica
-6. Devuelve SOLO el JSON, sin texto adicional
+5. Busca el CURP en el código de barras o en una sección específica del acta
+6. Devuelve SOLO el JSON puro, sin texto adicional ni bloques ```json
+7. En actas antiguas puede faltar CURP y folio_acta; en actas digitales nuevas puede faltar oficialía
 PROMPT;
     }
 }
