@@ -538,6 +538,7 @@ export default function ExpedientesIndex() {
         pais: '',
         estado: '',
         municipio: '',
+        ciudad: '',
         colonia: '',
         cp: '',
         // Antecedentes
@@ -1451,18 +1452,27 @@ export default function ExpedientesIndex() {
             }
             const data = response?.dataResponse;
             if (data) {
+                console.log('[Inmueble] GetTipoInmueble data[0] (todos campos):', JSON.stringify(data[0]));
+                console.log('[Inmueble] Total registros GetTipoInmueble:', data.length);
                 setTiposInmuebles(data);
 
                 // Filtrar por categoría
-                const factura = data.filter((item: any) => item.categoria === 'FACTURA');
-                const inmueble = data.filter((item: any) => item.categoria === 'INMUEBLE');
-                const declaranot = data.filter((item: any) => item.categoria === 'DECLARANOT');
+                const factura = data.filter((item: any) => (item.Categoria || item.categoria) === 'FACTURA');
+                const inmueble = data.filter((item: any) => (item.Categoria || item.categoria) === 'INMUEBLE');
+                const declaranot = data.filter((item: any) => (item.Categoria || item.categoria) === 'DECLARANOT');
 
-                setTiposFactura(factura.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
-                setTiposInmuebleFiltrados(inmueble.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
-                setTiposDeclaranot(declaranot.map((item: any) => ({ id: item.id, descripcion: item.descripcion })));
+                const mappedFactura = factura.map((item: any) => ({ id: item.Id ?? item.id, descripcion: item.Descripcion || item.descripcion }));
+                const mappedInmueble = inmueble.map((item: any) => ({ id: item.Id ?? item.id, descripcion: item.Descripcion || item.descripcion }));
+                const mappedDeclaranot = declaranot.map((item: any) => ({ id: item.Id ?? item.id, descripcion: item.Descripcion || item.descripcion }));
 
-                console.log('Tipos de Inmuebles cargados:', { factura, inmueble, declaranot });
+                setTiposFactura(mappedFactura);
+                setTiposInmuebleFiltrados(mappedInmueble);
+                setTiposDeclaranot(mappedDeclaranot);
+
+                console.log('[Inmueble] IDs FACTURA:', mappedFactura.map((i: any) => i.id));
+                console.log('[Inmueble] IDs INMUEBLE:', mappedInmueble.map((i: any) => i.id));
+                console.log('[Inmueble] IDs DECLARANOT:', mappedDeclaranot.map((i: any) => i.id));
+                console.log('[Inmueble] Categorias unicas en data:', [...new Set(data.map((i: any) => i.categoria || i.Categoria))]);
             }
         } catch (error) {
             console.error('Error cargando tipos de inmuebles:', error);
@@ -1514,6 +1524,7 @@ export default function ExpedientesIndex() {
                     pais: domicilioData.pais || '',
                     estado: domicilioData.estado || '',
                     municipio: domicilioData.municipio || '',
+                    ciudad: domicilioData.ciudad || '',
                     colonia: domicilioData.colonia || '',
                     cp: domicilioData.codigo_Postal || '',
                     // Antecedentes
@@ -1586,8 +1597,9 @@ export default function ExpedientesIndex() {
                 clave_Catastral: formInmueble.claveCatastral,
                 superficie_Terreno: parseFloat(formInmueble.superficieTerreno) || 0,
                 superficie_Construccion: parseFloat(formInmueble.superficieConstruida) || 0,
-                cuenta_Agua: parseFloat(formInmueble.ctaAgua) || 0,
-                cuenta_Predial: parseFloat(formInmueble.ctaPredial) || 0,
+                cuenta_Agua: formInmueble.ctaAgua,
+                cuenta_Predial: formInmueble.ctaPredial,
+                ciudad: formInmueble.ciudad,
                 fecha_Registro: formInmueble.fechaRegistro ? new Date(formInmueble.fechaRegistro).toISOString() : new Date().toISOString(),
                 folio_Real: formInmueble.folioReal,
                 inscripcion: formInmueble.inscripcion,
@@ -1610,9 +1622,11 @@ export default function ExpedientesIndex() {
                 (payload as any).expediente_Id = currentExpedienteId;
             }
 
+            console.log('[Inmueble] payload:', JSON.stringify(payload));
             const data = isEditing
                 ? await api.put(endpoint, payload)
                 : await api.post(endpoint, payload);
+            console.log('[Inmueble] respuesta:', JSON.stringify(data));
 
             await handleControlNotarialResponse(data, {
                 onError: (msg) => addToast(msg, 'error'),
@@ -1649,6 +1663,7 @@ export default function ExpedientesIndex() {
                 pais: '',
                 estado: '',
                 municipio: '',
+                ciudad: '',
                 colonia: '',
                 cp: '',
                 inscripcion: '',
@@ -2394,6 +2409,7 @@ export default function ExpedientesIndex() {
             firmarTodos: '',
             noPaso: false,
             nopasoMotivo: '',
+            operacion_Indices: '',
         });
 
         // Limpiar búsquedas de formulario
@@ -2807,8 +2823,6 @@ export default function ExpedientesIndex() {
                         noPaso: false,
                         nopasoMotivo: '',
                     };
-
-                    // Batch de updates para evitar render issues
                     setFormData(nuevoFormData);
                     setNotarioId(null);
                     setResponsableId(null);

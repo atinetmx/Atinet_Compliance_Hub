@@ -544,6 +544,7 @@ class ControlNotarialApiService
         // Construir el JWT (HS256)
         $header = $this->jwtBase64Url(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $payload = $this->jwtBase64Url(json_encode([
+            'id' => (string) $cnUser->Id,
             'jti' => $jti,
             'nbf' => $now,
             'exp' => $exp,

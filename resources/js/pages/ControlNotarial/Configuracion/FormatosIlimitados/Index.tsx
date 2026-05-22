@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
-import LoginModal from '@/components/Modals/LoginModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -57,9 +56,6 @@ const tiposFormatoDisponibles = [
 
 // Componente interno que usa los hooks dentro del contexto de AppLayout
 function FormatosIlimitadosContent() {
-    // --- Estado Autenticación ---
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
-
     // --- Estado pestaña Búsqueda ---
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<FormatoBusqueda[]>([]);
@@ -89,12 +85,7 @@ function FormatosIlimitadosContent() {
     const api = useApi();
 
     // Validar autenticación al montar
-    useAuthGuard({
-        onUnauthorized: () => {
-            setLoginModalOpen(true);
-            addToast('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
-        },
-    });
+    useAuthGuard();
 
     // Cargar formatos al montar (sin marcadores)
     useEffect(() => {
@@ -122,7 +113,6 @@ function FormatosIlimitadosContent() {
                     const response = await api.get('/Marcadores/GetMarcadores');
                     const data = await handleControlNotarialResponse(response, {
                         onError: (msg) => console.error('Error cargando marcadores:', msg),
-                        onUnauthorized: () => setLoginModalOpen(true),
                     });
                     if (data && Array.isArray(data)) {
                         setMarcadores(data);
@@ -142,7 +132,6 @@ function FormatosIlimitadosContent() {
             const response = await api.get('/Marcadores/GetMarcadores');
             const data = await handleControlNotarialResponse(response, {
                 onError: (msg) => console.error('Error cargando marcadores:', msg),
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (data && Array.isArray(data)) {
@@ -187,7 +176,6 @@ function FormatosIlimitadosContent() {
             const response = await api.get(endpoint);
             const data = await handleControlNotarialResponse(response, {
                 onError: (msg) => setSearchError(msg || 'No se pudieron cargar los formatos'),
-                onUnauthorized: () => setLoginModalOpen(true),
             });
 
             if (!data) return;
@@ -233,9 +221,7 @@ function FormatosIlimitadosContent() {
         try {
             // Llamar a la API para obtener los datos completos del formato
             const response = await api.get(`/FormatosIlimitados/GetFormatById?formatoId=${formato.id}`);
-            const data = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
-            });
+            const data = await handleControlNotarialResponse(response, {});
 
             if (!data) return;
 
@@ -333,12 +319,10 @@ function FormatosIlimitadosContent() {
 
             // Log completo de la respuesta
             console.log('Response completo:', response);
-            console.log('Response status:', response.status);
-            console.log('Response data:', response.data);
+            console.log('Response status:', response.statusCode);
+            console.log('Response data:', response.dataResponse);
 
-            const result = await handleControlNotarialResponse(response, {
-                onUnauthorized: () => setLoginModalOpen(true),
-            });
+            const result = await handleControlNotarialResponse(response, {});
 
             console.log('Resultado procesado:', result);
 
@@ -360,7 +344,7 @@ function FormatosIlimitadosContent() {
                 fetchFormatos('');
             } else {
                 // Si result es null/false, mostrar la respuesta del servidor
-                const errorMsg = response?.data?.message || 'Error al guardar el formato';
+                const errorMsg = response?.message || 'Error al guardar el formato';
                 console.error('Error en respuesta:', errorMsg);
                 addToast(errorMsg, 'error');
             }
@@ -842,7 +826,6 @@ export default function ControlNotarialFormatosIlimitados() {
     return (
         <>
             <Head title="Formatos Ilimitados - Control Notarial" />
-            <LoginModal open={false} onOpenChange={() => {}} />
 
             <AppLayout breadcrumbs={[
                 { title: 'Dashboard', href: '/dashboard' },

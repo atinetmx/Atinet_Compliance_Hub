@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useApi } from '@/services/api';
-import { handleControlNotarialResponse } from '@/helpers/controlNotarialResponse';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 import type { BreadcrumbItem } from '@/types';
 
 interface Expediente {
@@ -49,28 +49,33 @@ export default function RecibosExpedienteIndex() {
     ];
 
     const api = useApi();
+    useAuthGuard();
 
     const [filtro, setFiltro] = useState('');
     const [resultados, setResultados] = useState<BusquedaResultado[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // Función para obtener expedientes
     const fetchExpedientes = async (filtroValue: string = '') => {
         setIsSearching(true);
         setSearchError(null);
         try {
-
             const response = await api.get('/Expediente/GetExpedientes');
 
-                const data = response?.dataResponse;
-                if (response?.success !== false && data) {
-                    setResultados(data);
-                } else {
-                    setSearchError(response?.message || 'No se pudieron cargar los expedientes.');
-                    setResultados([]);
-                }
+            // useAuthGuard maneja el toast en caso de 401
+            if (response?.isUnauthorized) {
+                setResultados([]);
+                return;
+            }
+
+            const data = response?.dataResponse;
+            if (response?.success !== false && data) {
+                setResultados(data);
+            } else {
+                setSearchError(response?.message || 'No se pudieron cargar los expedientes.');
+                setResultados([]);
+            }
 
         } catch (error) {
             console.error('Error buscando expedientes:', error);

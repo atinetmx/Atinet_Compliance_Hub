@@ -2,14 +2,12 @@ import { Head } from '@inertiajs/react';
 import { BarChart3, Loader2, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useApi } from '@/services/api';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useToast } from '@/contexts/ToastContext';
 
 import AppLayout from '@/layouts/app-layout';
 import PDFViewerModal from '@/pages/ControlNotarial/Modals/PDFViewerModal';
-
-interface BreadcrumbItem {
-    title: string;
-    href?: string;
-}
+import type { BreadcrumbItem } from '@/types';
 
 interface Notario {
     id: number;
@@ -42,11 +40,8 @@ export default function ReportesIndex() {
     const [showPdfViewer, setShowPdfViewer] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const api = useApi();
-
-    // Simple notification function (will use toast when context is available)
-    const addToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info', duration = 5000) => {
-        console.log(`[${type.toUpperCase()}] ${message}`);
-    };
+    const { addToast } = useToast();
+    const { isReady } = useAuthGuard();
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -59,6 +54,7 @@ export default function ReportesIndex() {
         },
         {
             title: 'Reportes del Sistema',
+            href: '/admin/control-notarial/reportes',
         },
     ];
 
@@ -81,11 +77,12 @@ export default function ReportesIndex() {
 
     // Cargar notarios y operaciones cuando se selecciona el reporte "expedientes"
     useEffect(() => {
+        if (!isReady) return;
         if (selectedReport === 'expedientes') {
             fetchNotarios();
             fetchOperaciones();
         }
-    }, [selectedReport]);
+    }, [isReady, selectedReport]);
 
     const fetchNotarios = async () => {
         setCargandoNotarios(true);
@@ -143,9 +140,8 @@ export default function ReportesIndex() {
                 `/Expediente/GenerateReporteExpedientes?${params.toString()}`
             );
 
-            // Verificar si hay error de autorización
+            // Verificar si hay error de autorización — useAuthGuard maneja el toast
             if (response?.isUnauthorized) {
-                addToast('No autorizado para generar el reporte', 'error');
                 return;
             }
 

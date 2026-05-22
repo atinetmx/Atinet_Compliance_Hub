@@ -459,9 +459,8 @@ export default function PresupuestoPrevioIndex() {
             // Traer TODOS los datos sin filtrar
             const response = await api.get('/Presupuestos/GetPresupuestosPrevios');
 
-            // ✅ Verificar si el token expiró
+            // ✅ Verificar si el token expiró — useAuthGuard maneja el toast
             if (response?.isUnauthorized) {
-                setLoginModalOpen(true);
                 setTodosPresupuestos([]);
                 setResultados([]);
                 return;

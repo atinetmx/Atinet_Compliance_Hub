@@ -46,6 +46,7 @@ interface FormInmuebleData {
     pais: string;
     estado: string;
     municipio: string;
+    ciudad: string;
     colonia: string;
     cp: string;
     inscripcion: string;
@@ -146,6 +147,7 @@ export default function InmueblesForm({
                             pais: '',
                             estado: '',
                             municipio: '',
+                            ciudad: '',
                             colonia: '',
                             cp: '',
                             inscripcion: '',
@@ -398,7 +400,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Cta Agua</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Número de cuenta agua..."
                                         value={formInmueble.ctaAgua}
                                         onChange={(e) => setFormInmueble({...formInmueble, ctaAgua: e.target.value})}
@@ -408,7 +410,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Cta Predial</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Número de cuenta predial..."
                                         value={formInmueble.ctaPredial}
                                         onChange={(e) => setFormInmueble({...formInmueble, ctaPredial: e.target.value})}
@@ -489,7 +491,7 @@ export default function InmueblesForm({
                             </div>
 
                             {/* Row 3: Ubicación */}
-                            <div className="grid grid-cols-4 gap-4 mb-6">
+                            <div className="grid grid-cols-5 gap-4 mb-6">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">País</label>
                                     <Input
@@ -517,6 +519,16 @@ export default function InmueblesForm({
                                         placeholder="Municipio..."
                                         value={formInmueble.municipio}
                                         onChange={(e) => setFormInmueble({...formInmueble, municipio: e.target.value})}
+                                        className="w-full text-sm bg-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Ciudad</label>
+                                    <Input
+                                        type="text"
+                                        placeholder="Ciudad..."
+                                        value={formInmueble.ciudad}
+                                        onChange={(e) => setFormInmueble({...formInmueble, ciudad: e.target.value})}
                                         className="w-full text-sm bg-white"
                                     />
                                 </div>
@@ -604,7 +616,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Folio Inicial</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Folio inicial..."
                                         value={formInmueble.folioInicial}
                                         onChange={(e) => setFormInmueble({...formInmueble, folioInicial: e.target.value})}
@@ -614,7 +626,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Folio Final</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Folio final..."
                                         value={formInmueble.folioFinal}
                                         onChange={(e) => setFormInmueble({...formInmueble, folioFinal: e.target.value})}
@@ -624,7 +636,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Folio Electrónico</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Folio electrónico..."
                                         value={formInmueble.folioElectronico}
                                         onChange={(e) => setFormInmueble({...formInmueble, folioElectronico: e.target.value})}
@@ -638,7 +650,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Partida</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Partida..."
                                         value={formInmueble.partida}
                                         onChange={(e) => setFormInmueble({...formInmueble, partida: e.target.value})}
@@ -648,7 +660,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Volumen</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Volumen..."
                                         value={formInmueble.volumen}
                                         onChange={(e) => setFormInmueble({...formInmueble, volumen: e.target.value})}
@@ -658,7 +670,7 @@ export default function InmueblesForm({
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Sección</label>
                                     <Input
-                                        type="number"
+                                        type="text"
                                         placeholder="Sección..."
                                         value={formInmueble.seccion}
                                         onChange={(e) => setFormInmueble({...formInmueble, seccion: e.target.value})}

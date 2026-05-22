@@ -1,8 +1,103 @@
 # Guía de Publicación — Acceso Externo al Sistema Atinet Compliance Hub
 
-**Fecha**: 9 de marzo de 2026  
-**Estado**: Pendiente de implementar  
-**Objetivo**: Que las notarías y clientes de Atinet accedan al sistema desde internet mediante `https://compliance.atinet.com.mx`
+**Fecha**: 9 de marzo de 2026 — **Actualizada**: 22 de mayo de 2026  
+**Estado**: ✅ En producción  
+**Objetivo**: Que las notarías y clientes de Atinet accedan al sistema desde internet mediante `https://atinet.com.mx/compliance_hub`
+
+---
+
+## Sistema actual en producción
+
+> **NOTA**: El dominio `compliance.atinet.com.mx` **no pudo configurarse** porque `atinet.com.mx` no pudo agregarse a Cloudflare. Se implementó una solución alternativa con **quick tunnels de Cloudflare sin dominio**, operativa desde marzo de 2026.
+
+### Arquitectura real
+
+```
+Notaría (navegador)
+        ↓  https://atinet.com.mx/compliance_hub
+   Hostgator (PHP index.php)
+        ↓  lee compliance_tunnel.tunnel_url de MySQL (< 60 min)
+        ↓  redirige 302 a la URL dinámica del tunnel
+   Cloudflare Quick Tunnel  (*.trycloudflare.com — cambia cada ~1 hora)
+        ↓  túnel cifrado
+   C:\cloudflared\cloudflared.exe (proceso en el servidor)
+        ↓  http://localhost:8080
+   IIS → Laravel → Base de datos
+```
+
+### Rutas y archivos clave
+
+| Componente | Ruta |
+|------------|------|
+| Ejecutable cloudflared (quick tunnel) | `C:\cloudflared\cloudflared.exe` |
+| Script de arranque del tunnel | `C:\cloudflared\start-tunnel.ps1` |
+| Script monitor/heartbeat | `C:\cloudflared\monitor-tunnel-url.ps1` |
+| Script publicación inicial | `C:\cloudflared\publish-tunnel-url.ps1` |
+| Log del proceso cloudflared | `C:\cloudflared\tunnel-temp.log` |
+| Log del monitor | `C:\cloudflared\monitor-url.log` |
+| Script verificación URL en Hostgator | `C:\cloudflared\check_url.php` |
+| Redirección en Hostgator | `public_html/compliance_hub/index.php` |
+| Tabla MySQL Hostgator | `atinet65_aplicativos.compliance_tunnel` (id=1) |
+
+### Windows Service separado
+
+Existe también un Windows Service llamado `Cloudflared` que usa `--token` (named tunnel). Este servicio es **independiente** del quick tunnel y no interfiere con él. Ambos coexisten.
+
+| Servicio | Tipo | URL | Propósito |
+|---------|------|-----|-----------|
+| Windows Service `Cloudflared` | Named tunnel con `--token` | no relevante externamente | Reservado/legado |
+| `CloudflaredTunnel-Atinet` (Task Scheduler) | Quick tunnel con `--url` | `*.trycloudflare.com` | Acceso externo real |
+
+### Task Scheduler — tareas configuradas
+
+| Nombre tarea | Trigger | Script | Función |
+|-------------|---------|--------|---------|
+| `CloudflaredTunnel-Atinet` | Al inicio del sistema + **30 s de delay** | `C:\cloudflared\start-tunnel.ps1` | Inicia el quick tunnel, mata instancias previas, publica URL inicial |
+| `MonitorTunnelUrl-Atinet` | Cada 5 minutos | `C:\cloudflared\monitor-tunnel-url.ps1` | Lee URL del log, actualiza Hostgator si cambió, envía heartbeat |
+| `LaravelScheduler-Atinet` | Cada minuto | `php artisan schedule:run` | Tareas programadas de Laravel |
+
+> ⚠️ El delay de **30 segundos** en `CloudflaredTunnel-Atinet` es crítico. Sin él, el quick tunnel arranca casi simultáneamente con el Windows Service `Cloudflared` y puede ser interrumpido antes de obtener la URL. Configurado el 22/05/2026.
+
+### Flujo de actualización de URL
+
+1. **Boot del servidor** → Task Scheduler ejecuta `start-tunnel.ps1` (con 30 s de delay)
+2. `start-tunnel.ps1` mata cualquier instancia previa de cloudflared, limpia `tunnel-temp.log`, inicia el proceso y llama a `publish-tunnel-url.ps1`
+3. `publish-tunnel-url.ps1` espera hasta 30 s a que aparezca la URL en `tunnel-temp.log` y la escribe en `atinet65_aplicativos.compliance_tunnel`
+4. **Cada 5 min** → `monitor-tunnel-url.ps1` lee la URL actual del log y:
+   - Si cambió: actualiza `tunnel_url` + `updated_at` en Hostgator
+   - Si no cambió: actualiza solo `updated_at` (heartbeat) para evitar que `index.php` la marque como vencida (> 60 min)
+5. **Notaría visita** `atinet.com.mx/compliance_hub` → `index.php` lee la URL de MySQL → redirige si `updated_at` < 60 min → usuario llega al sistema
+
+### Verificar estado actual
+
+```powershell
+# Ver URL activa en Hostgator
+php C:\cloudflared\check_url.php
+
+# Ver si el proceso cloudflared corre
+Get-Process cloudflared -ErrorAction SilentlyContinue | Select-Object Id, StartTime, CPU
+
+# Ver últimas entradas del monitor
+Get-Content C:\cloudflared\monitor-url.log -Tail 20
+
+# Ver URL en el log del tunnel
+Select-String -Path C:\cloudflared\tunnel-temp.log -Pattern "trycloudflare"
+```
+
+### Solución de problemas
+
+| Síntoma | Causa probable | Solución |
+|---------|---------------|----------|
+| "No se encontró URL en el log del tunnel" en monitor.log | cloudflared no inició correctamente | Ejecutar `C:\cloudflared\start-tunnel.ps1` como Administrador |
+| La URL en Hostgator tiene más de 60 minutos | `monitor-tunnel-url.ps1` no corre (Task Scheduler) | Verificar tarea `MonitorTunnelUrl-Atinet` en Task Scheduler |
+| El tunnel arranca pero URL nunca aparece en log | Condición de carrera en boot (Windows Service interfiere) | El delay de 30 s en `CloudflaredTunnel-Atinet` resuelve esto |
+| `index.php` en Hostgator muestra error | URL vencida o tabla vacía | Correr `publish-tunnel-url.ps1` manualmente |
+
+---
+
+## Plan original (no implementado)
+
+El plan original era usar `compliance.atinet.com.mx` con Cloudflare named tunnel, pero no fue posible porque `atinet.com.mx` no pudo agregarse a Cloudflare (el dominio no pudo ser transferido o los nameservers no podían cambiarse). Se documentan los pasos originales abajo como referencia para cuando sea posible migrar.
 
 ---
 

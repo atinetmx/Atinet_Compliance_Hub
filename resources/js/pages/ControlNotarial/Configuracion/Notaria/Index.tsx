@@ -244,8 +244,11 @@ export default function ControlNotarialConfiguracionIndex() {
             const data = response?.dataResponse;
             if (response?.success !== false && data) {
                 setEstatusFoliosCreacion(data);
+            } else if (!data && response?.operationStatus === 'Information') {
+                // No hay folios creados aún — estado válido, no es un error
+                setEstatusFoliosCreacion(null);
             } else {
-                setErrorFoliosCreacion('Error al cargar folios de creación');
+                setErrorFoliosCreacion(response?.message || 'Error al cargar folios de creación');
             }
         } catch (error) {
             console.error('Error cargando folios de creación:', error);
@@ -256,11 +259,6 @@ export default function ControlNotarialConfiguracionIndex() {
     };
 
     const handleGenerarFolios = async () => {
-        if (!estatusFoliosCreacion) {
-            addToast('Error: No hay datos de folios', 'error');
-            return;
-        }
-
         setCargandoGenerarFolios(true);
         try {
             const response = await api.post('/Folios/CreateFolios', {});
@@ -480,10 +478,10 @@ export default function ControlNotarialConfiguracionIndex() {
 
     // Cargar automáticamente folios de creación cuando se entra a la pestaña
     useEffect(() => {
-        if (activeTab === 'folios' && activeSubTabFolios === 'creacion') {
+        if (isReady && activeTab === 'folios' && activeSubTabFolios === 'creacion') {
             handleCargarFoliosCreacion();
         }
-    }, [activeTab, activeSubTabFolios]);
+    }, [isReady, activeTab, activeSubTabFolios]);
 
     const handleSave = async () => {
         try {
@@ -1614,10 +1612,44 @@ export default function ControlNotarialConfiguracionIndex() {
                                         <div className="border-2 border-red-200 rounded-lg p-6 bg-red-50">
                                             <p className="text-red-800">{errorFoliosCreacion}</p>
                                         </div>
-                                    ) : estatusFoliosCreacion ? (
+                                    ) : (
                                         <div className="space-y-6">
-                                            {/* Primera fila: 4 campos */}
-                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                            {/* Botón principal de Generar Folios */}
+                                            <div className="border-2 border-violet-200 rounded-lg p-6 bg-gradient-to-br from-violet-50 to-white shadow-sm">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="bg-violet-600 text-white p-3 rounded-lg">
+                                                        <File className="h-5 w-5" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-lg font-bold text-gray-900">Creación de Folios</h3>
+                                                        <p className="text-sm text-gray-500">
+                                                            {estatusFoliosCreacion
+                                                                ? `Tomo ${estatusFoliosCreacion.tomo} — ${estatusFoliosCreacion.disponibles} folio(s) disponible(s)`
+                                                                : 'No existen folios para el volumen actual'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    size="lg"
+                                                    onClick={handleGenerarFolios}
+                                                    disabled={cargandoGenerarFolios || (estatusFoliosCreacion !== null && (estatusFoliosCreacion?.disponibles ?? 0) > 0)}
+                                                    className="bg-violet-600 hover:bg-violet-700 text-white font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title={(estatusFoliosCreacion?.disponibles ?? 0) > 0 ? 'No se puede generar cuando hay folios disponibles' : 'Generar nuevos folios'}
+                                                >
+                                                    {cargandoGenerarFolios ? (
+                                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                                    ) : (
+                                                        <Plus className="h-5 w-5 mr-2" />
+                                                    )}
+                                                    Generar Folios
+                                                </Button>
+                                            </div>
+
+                                            {/* Estadísticas — solo si ya hay folios */}
+                                            {estatusFoliosCreacion && (
+                                                <>
+                                                    {/* Primera fila: 4 campos */}
+                                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                                                 <div>
                                                     <RequiredLabel htmlFor="vol_inicial_creacion">Volumen Inicial</RequiredLabel>
                                                     <Input
@@ -1704,26 +1736,10 @@ export default function ControlNotarialConfiguracionIndex() {
                                                 </div>
                                             </div>
 
-                                            {/* Botón de Generar Folios */}
-                                            <div className="flex justify-end mb-4">
-                                                <Button
-                                                    size="lg"
-                                                    variant="outline"
-                                                    onClick={handleGenerarFolios}
-                                                    disabled={cargandoGenerarFolios || !estatusFoliosCreacion || (estatusFoliosCreacion?.disponibles ?? 0) > 0}
-                                                    className="border-2 border-violet-400 text-violet-700 hover:bg-violet-50 font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    title={(estatusFoliosCreacion?.disponibles ?? 0) > 0 ? "No se puede generar cuando hay folios disponibles" : "Generar nuevos folios"}
-                                                >
-                                                    {cargandoGenerarFolios ? (
-                                                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                                    ) : (
-                                                        <Plus className="h-5 w-5 mr-2" />
-                                                    )}
-                                                    Generar Folios
-                                                </Button>
-                                            </div>
+                                                </>
+                                            )}
                                         </div>
-                                    ) : null}
+                                    )}
                                 </TabsContent>
                             </Tabs>
                         </TabsContent>
