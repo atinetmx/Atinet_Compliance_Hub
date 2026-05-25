@@ -29,6 +29,102 @@ class SuperAdminSearchController extends Controller
     ) {}
 
     /**
+     * Búsqueda de múltiples personas físicas en listas OFAC + SAT (BATCH)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchPersonaFisicaBatch(Request $request)
+    {
+        $request->validate([
+            'nombres' => 'required|array|min:1|max:50',
+            'nombres.*' => 'required|string|min:3|max:255',
+        ]);
+
+        $nombres = array_map('trim', $request->nombres);
+        $user = Auth::user();
+
+        try {
+            $batchResults = [];
+            $totalResultados = 0;
+
+            foreach ($nombres as $nombre) {
+                // Búsqueda en OFAC
+                $resultadosOfac = OfacNombres::searchPersonaFisica($nombre);
+
+                // Búsqueda en SAT
+                $resultadosSat = Sat69B::searchNombre($nombre);
+
+                $ofacCount = $resultadosOfac->count();
+                $satCount = $resultadosSat->count();
+                $totalCount = $ofacCount + $satCount;
+                $totalResultados += $totalCount;
+
+                $batchResults[] = [
+                    'searched_name' => $nombre,
+                    'ofac_count' => $ofacCount,
+                    'sat_count' => $satCount,
+                    'total_count' => $totalCount,
+                    'ofac_results' => $resultadosOfac->map(function ($item) use ($nombre) {
+                        return [
+                            'name' => $item->NombreOriginal,
+                            'nombre_limpio' => $item->nombre_limpio,
+                            'type' => $item->type ?? 'N/A',
+                            'similarity' => $this->calculateMatch($item->nombre_limpio, $nombre),
+                            'searched_name' => $nombre,
+                        ];
+                    })->toArray(),
+                    'sat_results' => $resultadosSat->map(function ($item) use ($nombre) {
+                        return [
+                            'name' => $item->NombreOriginal,
+                            'nombre_limpio' => $item->nombre_limpio,
+                            'rfc' => $item->RFC,
+                            'situacion' => $item->Situacion ?? 'No especificada',
+                            'similarity' => $this->calculateMatch($item->nombre_limpio, $nombre),
+                            'searched_name' => $nombre,
+                        ];
+                    })->toArray(),
+                ];
+            }
+
+            // Registrar uso del servicio
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_OFAC',
+                    user: $user,
+                    quantity: count($nombres),
+                    metadata: [
+                        'tipo' => 'persona_fisica_batch',
+                        'total_busquedas' => count($nombres),
+                        'total_resultados' => $totalResultados,
+                    ]
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'tipo_busqueda' => 'Persona Física Batch (OFAC + SAT)',
+                    'batch_results' => $batchResults,
+                    'searched_names' => $nombres,
+                    'total_resultados' => $totalResultados,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en searchPersonaFisicaBatch', [
+                'mensaje' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error en búsqueda múltiple de personas físicas: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Búsqueda de persona física en listas OFAC + SAT
      * Implementa algoritmo exacto del sistema legacy con búsqueda extendida
      *
@@ -437,6 +533,198 @@ class SuperAdminSearchController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error en búsqueda combinada: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Búsqueda de múltiples personas morales en listas OFAC + SAT (BATCH)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchPersonaMoralBatch(Request $request)
+    {
+        $request->validate([
+            'razones_sociales' => 'required|array|min:1|max:50',
+            'razones_sociales.*' => 'required|string|min:3|max:255',
+        ]);
+
+        $razones = array_map('trim', $request->razones_sociales);
+        $user = Auth::user();
+
+        try {
+            $batchResults = [];
+            $totalResultados = 0;
+
+            foreach ($razones as $razon) {
+                // Búsqueda en OFAC
+                $resultadosOfac = OfacNombres::searchPersonaMoral($razon);
+
+                // Búsqueda en SAT
+                $resultadosSat = Sat69B::searchNombre($razon);
+
+                $ofacCount = $resultadosOfac->count();
+                $satCount = $resultadosSat->count();
+                $totalCount = $ofacCount + $satCount;
+                $totalResultados += $totalCount;
+
+                $batchResults[] = [
+                    'searched_name' => $razon,
+                    'ofac_count' => $ofacCount,
+                    'sat_count' => $satCount,
+                    'total_count' => $totalCount,
+                    'ofac_results' => $resultadosOfac->map(function ($item) use ($razon) {
+                        return [
+                            'name' => $item->NombreOriginal,
+                            'nombre_limpio' => $item->nombre_limpio,
+                            'type' => $item->type ?? 'N/A',
+                            'similarity' => $this->calculateMatch($item->nombre_limpio, $razon),
+                            'searched_name' => $razon,
+                        ];
+                    })->toArray(),
+                    'sat_results' => $resultadosSat->map(function ($item) use ($razon) {
+                        return [
+                            'name' => $item->NombreOriginal,
+                            'nombre_limpio' => $item->nombre_limpio,
+                            'rfc' => $item->RFC,
+                            'situacion' => $item->Situacion ?? 'No especificada',
+                            'similarity' => $this->calculateMatch($item->nombre_limpio, $razon),
+                            'searched_name' => $razon,
+                        ];
+                    })->toArray(),
+                ];
+            }
+
+            // Registrar uso del servicio
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_OFAC',
+                    user: $user,
+                    quantity: count($razones),
+                    metadata: [
+                        'tipo' => 'persona_moral_batch',
+                        'total_busquedas' => count($razones),
+                        'total_resultados' => $totalResultados,
+                    ]
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'tipo_busqueda' => 'Persona Moral Batch (OFAC + SAT)',
+                    'batch_results' => $batchResults,
+                    'searched_names' => $razones,
+                    'total_resultados' => $totalResultados,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en searchPersonaMoralBatch', [
+                'mensaje' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error en búsqueda múltiple de personas morales: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Búsqueda de múltiples RFCs en lista SAT (BATCH)
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function searchRfcBatch(Request $request)
+    {
+        $request->validate([
+            'rfcs' => 'required|array|min:1|max:50',
+            'rfcs.*' => 'required|string|min:12|max:13|alpha_num',
+        ]);
+
+        $rfcs = array_map(function ($rfc) {
+            return strtoupper(trim($rfc));
+        }, $request->rfcs);
+
+        $user = Auth::user();
+
+        try {
+            // Validar cada RFC
+            foreach ($rfcs as $rfc) {
+                if (! Sat69B::isValidRfc($rfc)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => "RFC '{$rfc}' debe tener 12 o 13 caracteres alfanuméricos",
+                    ], 422);
+                }
+            }
+
+            $batchResults = [];
+            $totalResultados = 0;
+
+            foreach ($rfcs as $rfc) {
+                // Búsqueda en SAT
+                $resultadosSat = Sat69B::searchRfc($rfc);
+
+                $satCount = $resultadosSat->count();
+                $totalResultados += $satCount;
+
+                $batchResults[] = [
+                    'searched_name' => $rfc,
+                    'ofac_count' => 0, // RFC solo busca en SAT
+                    'sat_count' => $satCount,
+                    'total_count' => $satCount,
+                    'ofac_results' => [],
+                    'sat_results' => $resultadosSat->map(function ($item) {
+                        return [
+                            'name' => $item->NombreOriginal,
+                            'nombre_limpio' => $item->nombre_limpio,
+                            'rfc' => $item->RFC,
+                            'situacion' => $item->Situacion ?? 'No especificada',
+                            'similarity' => 100, // Coincidencia exacta por RFC
+                            'searched_name' => $item->RFC,
+                        ];
+                    })->toArray(),
+                ];
+            }
+
+            // Registrar uso del servicio
+            $notaria = $user->notaria;
+            if ($notaria) {
+                $this->usageRecorder->record(
+                    notaria: $notaria,
+                    service: 'BLACKLIST_SAT',
+                    user: $user,
+                    quantity: count($rfcs),
+                    metadata: [
+                        'tipo' => 'rfc_batch',
+                        'total_busquedas' => count($rfcs),
+                        'total_resultados' => $totalResultados,
+                    ]
+                );
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'tipo_busqueda' => 'RFC Batch (SAT)',
+                    'batch_results' => $batchResults,
+                    'searched_names' => $rfcs,
+                    'total_resultados' => $totalResultados,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en searchRfcBatch', [
+                'mensaje' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error en búsqueda múltiple de RFCs: '.$e->getMessage(),
             ], 500);
         }
     }

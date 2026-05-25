@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock, FileSpreadsheet, Shield } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, AlertCircle, Search, User, Building2, FileText, XCircle, Download, BarChart3, TrendingUp, Calendar, Clock, FileSpreadsheet, Shield, ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -7,8 +7,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { RequiredLabel } from '@/components/ui/label';
+import { MultiInput } from '@/components/ui/multi-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
@@ -29,6 +31,16 @@ interface SearchResult {
     tipo_coincidencia?: string;
     url_pdf?: string;
     details?: Record<string, unknown>;
+    searched_name?: string; // Nombre que se buscó (para búsquedas múltiples)
+}
+
+interface BatchSearchResult {
+    searched_name: string;
+    ofac_count: number;
+    sat_count: number;
+    total_count: number;
+    ofac_results: SearchResult[];
+    sat_results: SearchResult[];
 }
 
 interface SearchResponse {
@@ -46,6 +58,9 @@ interface SearchResponse {
         termino_busqueda: string;
         termino_nombre?: string;
         termino_rfc?: string;
+        // Para búsquedas batch
+        batch_results?: BatchSearchResult[];
+        searched_names?: string[];
     };
 }
 
@@ -65,24 +80,26 @@ export default function ListasNegrasSearch() {
     const [activeTab, setActiveTab] = useState('persona-fisica');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<SearchResult[]>([]);
+    const [batchResults, setBatchResults] = useState<BatchSearchResult[]>([]);
+    const [isBatchSearch, setIsBatchSearch] = useState(false);
     const [totalResults, setTotalResults] = useState(0);
     const [lastSearch, setLastSearch] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [historyRefresh, setHistoryRefresh] = useState(0);
 
-    // Formulario para búsqueda de persona física
+    // Formulario para búsqueda de persona física (ahora soporta múltiples)
     const [personaFisicaForm, setPersonaFisicaForm] = useState({
-        nombre: '',
+        nombres: [] as string[],
     });
 
-    // Formulario para búsqueda de persona moral
+    // Formulario para búsqueda de persona moral (ahora soporta múltiples)
     const [personaMoralForm, setPersonaMoralForm] = useState({
-        razon_social: '',
+        razones_sociales: [] as string[],
     });
 
-    // Formulario para búsqueda por RFC
+    // Formulario para búsqueda por RFC (ahora soporta múltiples)
     const [rfcForm, setRfcForm] = useState({
-        rfc: '',
+        rfcs: [] as string[],
     });
 
     // Formulario para búsqueda combinada
@@ -143,35 +160,51 @@ export default function ListasNegrasSearch() {
 
     const handlePersonaFisicaSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!personaFisicaForm.nombre.trim()) return;
+        if (personaFisicaForm.nombres.length === 0) return;
 
         setLoading(true);
         setError(null);
         setResults([]);
+        setBatchResults([]);
+
+        // Determinar si es búsqueda individual o batch
+        const isBatch = personaFisicaForm.nombres.length > 1;
+        setIsBatchSearch(isBatch);
 
         try {
-            const response = await fetch('/admin/search/persona-fisica', {
+            const endpoint = isBatch ? '/admin/search/persona-fisica/batch' : '/admin/search/persona-fisica';
+            const body = isBatch
+                ? { nombres: personaFisicaForm.nombres }
+                : { nombre: personaFisicaForm.nombres[0] };
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({
-                    nombre: personaFisicaForm.nombre,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data: SearchResponse = await response.json();
 
             if (data.success && data.data) {
-                const allResults = [
-                    ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
-                    ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
-                ];
-                setResults(allResults);
-                setTotalResults(data.data.total_resultados);
-                setLastSearch(data.data.termino_busqueda);
+                if (isBatch && data.data.batch_results) {
+                    // Búsqueda múltiple
+                    setBatchResults(data.data.batch_results);
+                    setTotalResults(data.data.total_resultados);
+                    setLastSearch(`${data.data.searched_names?.length || 0} personas`);
+                } else {
+                    // Búsqueda individual
+                    const allResults = [
+                        ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
+                        ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
+                    ];
+                    setResults(allResults);
+                    setTotalResults(data.data.total_resultados);
+                    setLastSearch(data.data.termino_busqueda);
+                }
                 setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
@@ -185,35 +218,48 @@ export default function ListasNegrasSearch() {
 
     const handlePersonaMoralSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!personaMoralForm.razon_social.trim()) return;
+        if (personaMoralForm.razones_sociales.length === 0) return;
 
         setLoading(true);
         setError(null);
         setResults([]);
+        setBatchResults([]);
+
+        const isBatch = personaMoralForm.razones_sociales.length > 1;
+        setIsBatchSearch(isBatch);
 
         try {
-            const response = await fetch('/admin/search/persona-moral', {
+            const endpoint = isBatch ? '/admin/search/persona-moral/batch' : '/admin/search/persona-moral';
+            const body = isBatch
+                ? { razones_sociales: personaMoralForm.razones_sociales }
+                : { razon_social: personaMoralForm.razones_sociales[0] };
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({
-                    razon_social: personaMoralForm.razon_social,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data: SearchResponse = await response.json();
 
             if (data.success && data.data) {
-                const allResults = [
-                    ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
-                    ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
-                ];
-                setResults(allResults);
-                setTotalResults(data.data.total_resultados);
-                setLastSearch(data.data.termino_busqueda);
+                if (isBatch && data.data.batch_results) {
+                    setBatchResults(data.data.batch_results);
+                    setTotalResults(data.data.total_resultados);
+                    setLastSearch(`${data.data.searched_names?.length || 0} empresas`);
+                } else {
+                    const allResults = [
+                        ...(data.data.ofac_resultados || []).map((r: SearchResult) => ({ ...r, source: 'OFAC' as const })),
+                        ...(data.data.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const })),
+                    ];
+                    setResults(allResults);
+                    setTotalResults(data.data.total_resultados);
+                    setLastSearch(data.data.termino_busqueda);
+                }
                 setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
@@ -227,41 +273,55 @@ export default function ListasNegrasSearch() {
 
     const handleRfcSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!rfcForm.rfc.trim()) return;
+        if (rfcForm.rfcs.length === 0) return;
 
-        // Validar RFC (asumimos que es persona moral por defecto, pero podría ser física también)
-        // Para RFC solo, validamos ambos formatos
-        const rfcClean = rfcForm.rfc.trim().toUpperCase();
-        const isValidLength = rfcClean.length === 12 || rfcClean.length === 13;
-        if (!isValidLength) {
-            setError('RFC debe tener 12 caracteres (persona física) o 13 caracteres (persona moral)');
-            return;
+        // Validar RFCs
+        for (const rfc of rfcForm.rfcs) {
+            const rfcClean = rfc.trim().toUpperCase();
+            const isValidLength = rfcClean.length === 12 || rfcClean.length === 13;
+            if (!isValidLength) {
+                setError(`RFC "${rfc}" debe tener 12 caracteres (persona física) o 13 caracteres (persona moral)`);
+                return;
+            }
         }
 
         setLoading(true);
         setError(null);
         setResults([]);
+        setBatchResults([]);
+
+        const isBatch = rfcForm.rfcs.length > 1;
+        setIsBatchSearch(isBatch);
 
         try {
-            const response = await fetch('/admin/search/rfc', {
+            const endpoint = isBatch ? '/admin/search/rfc/batch' : '/admin/search/rfc';
+            const body = isBatch
+                ? { rfcs: rfcForm.rfcs }
+                : { rfc: rfcForm.rfcs[0] };
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({
-                    rfc: rfcForm.rfc,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data: SearchResponse = await response.json();
 
             if (data.success) {
-                const satResults = (data.data?.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const }));
-                setResults(satResults);
-                setTotalResults(data.data?.total_resultados || 0);
-                setLastSearch(data.data?.termino_busqueda || '');
+                if (isBatch && data.data?.batch_results) {
+                    setBatchResults(data.data.batch_results);
+                    setTotalResults(data.data.total_resultados);
+                    setLastSearch(`${data.data.searched_names?.length || 0} RFCs`);
+                } else {
+                    const satResults = (data.data?.sat_resultados || []).map((r: SearchResult) => ({ ...r, source: 'SAT' as const }));
+                    setResults(satResults);
+                    setTotalResults(data.data?.total_resultados || 0);
+                    setLastSearch(data.data?.termino_busqueda || '');
+                }
                 setHistoryRefresh(prev => prev + 1);
             } else {
                 setError(data.message || 'Error en la búsqueda');
@@ -315,27 +375,6 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
             setValidationErrors(prev => ({ ...prev, combinedRfc: error }));
         } else {
             setValidationErrors(prev => ({ ...prev, combinedRfc: undefined }));
-        }
-    };
-
-    const handleRfcOnlyChange = (value: string) => {
-        const upperValue = value.toUpperCase();
-        setRfcForm({ rfc: upperValue });
-
-        // Validar en tiempo real para RFC solo
-        if (upperValue.trim()) {
-            const rfcClean = upperValue.trim();
-            const isValidLength = rfcClean.length === 12 || rfcClean.length === 13;
-            if (!isValidLength && rfcClean.length > 0) {
-                setValidationErrors(prev => ({
-                    ...prev,
-                    rfcOnly: 'RFC debe tener 12 caracteres (persona física) o 13 caracteres (persona moral)'
-                }));
-            } else {
-                setValidationErrors(prev => ({ ...prev, rfcOnly: undefined }));
-            }
-        } else {
-            setValidationErrors(prev => ({ ...prev, rfcOnly: undefined }));
         }
     };
 
@@ -473,6 +512,246 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
         });
 
         return Object.values(grouped);
+    };
+
+    const renderBatchResults = () => {
+        if (batchResults.length === 0) return null;
+
+        // Generar URL de PDF para un resultado OFAC individual en batch
+        const generateBatchOfacPdfUrl = (searchedName: string, result: SearchResult) => {
+            const params = new URLSearchParams({
+                nombre: searchedName,
+                rfc: '',
+                resultados: JSON.stringify([{
+                    name: result.name || result.nombre_limpio,
+                    nombre_limpio: result.nombre_limpio,
+                    similarity: result.similarity || result.coincidencia,
+                    tipo_coincidencia: result.tipo_coincidencia,
+                    publicacion_ofac: result.publicacion_ofac,
+                }]),
+            });
+            return `/admin/pdf/ofac?${params.toString()}`;
+        };
+
+        // Generar URL de PDF para un resultado SAT individual en batch
+        const generateBatchSatPdfUrl = (searchedName: string, result: SearchResult) => {
+            const params = new URLSearchParams({
+                nombre: searchedName,
+                rfc: '',
+                resultados: JSON.stringify([{
+                    name: result.name || result.nombre_limpio,
+                    nombre_limpio: result.nombre_limpio,
+                    rfc: result.rfc,
+                    similarity: result.similarity || result.coincidencia,
+                    situacion: result.situacion,
+                    tipo_coincidencia: result.tipo_coincidencia,
+                    publicacion_sat: result.publicacion_sat,
+                }]),
+            });
+            return `/admin/pdf/sat?${params.toString()}`;
+        };
+
+        // Exportar resultados de una búsqueda batch específica a Excel
+        const handleExportBatchItem = async (batchResult: BatchSearchResult) => {
+            try {
+                const searchTypeLabel = activeTab === 'persona-fisica' ? 'Persona Física' : activeTab === 'persona-moral' ? 'Persona Moral' : 'RFC';
+                const payload = {
+                    ofacResults: batchResult.ofac_results.map(r => ({
+                        nombre_original: r.name || r.nombre_limpio,
+                        nombre_limpio: r.nombre_limpio,
+                        coincidencia: r.similarity || r.coincidencia,
+                        fuente: 'OFAC',
+                    })),
+                    satResults: batchResult.sat_results.map(r => ({
+                        nombre_original: r.name || r.nombre_limpio,
+                        nombre_limpio: r.nombre_limpio,
+                        rfc: r.rfc,
+                        situacion: r.situacion,
+                        publicacion_sat: r.publicacion_sat,
+                        publicacion_dof: null,
+                        coincidencia: r.similarity || r.coincidencia,
+                        fuente: 'SAT',
+                    })),
+                    searchTerm: batchResult.searched_name,
+                    searchType: `Búsqueda ${searchTypeLabel}`,
+                };
+
+                const response = await fetch('/admin/export/combined', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) throw new Error('Error al exportar resultados');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `busqueda_${batchResult.searched_name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error al exportar:', error);
+                alert('Error al generar el archivo Excel. Por favor intente nuevamente.');
+            }
+        };
+
+        return (
+            <div className="space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            Resultados de Búsqueda Múltiple
+                            <Badge variant="outline">
+                                {totalResults} resultado{totalResults !== 1 ? 's' : ''} en {batchResults.length} búsqueda{batchResults.length !== 1 ? 's' : ''}
+                            </Badge>
+                        </CardTitle>
+                        <CardDescription>
+                            Se buscaron {batchResults.length} nombre{batchResults.length !== 1 ? 's' : ''}. Haz clic en cada nombre para expandir/contraer los resultados.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+
+                {batchResults.map((batchResult, index) => (
+                    <Collapsible key={index} defaultOpen={index === 0}>
+                        <Card className="border-l-4 border-l-blue-500">
+                            <CollapsibleTrigger className="w-full">
+                                <CardHeader className="pb-3 hover:bg-accent/50 transition-colors cursor-pointer">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1 text-left">
+                                            <CardTitle className="text-lg flex items-center gap-2">
+                                                <User className="h-5 w-5" />
+                                                {batchResult.searched_name}
+                                                <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                                            </CardTitle>
+                                            <CardDescription className="mt-1 flex gap-4">
+                                                <span className="flex items-center gap-1">
+                                                    <AlertTriangle className="h-3 w-3 text-red-600" />
+                                                    OFAC: {batchResult.ofac_count}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <FileText className="h-3 w-3 text-blue-600" />
+                                                    SAT: {batchResult.sat_count}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    Total: {batchResult.total_count}
+                                                </span>
+                                            </CardDescription>
+                                        </div>
+                                        <div className="flex gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+                                            {batchResult.total_count > 0 && (
+                                                <Button
+                                                    onClick={() => handleExportBatchItem(batchResult)}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950 whitespace-nowrap"
+                                                >
+                                                    <FileSpreadsheet className="h-3 w-3 mr-1" />
+                                                    Exportar Excel
+                                                </Button>
+                                            )}
+                                            {batchResult.total_count === 0 ? (
+                                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                    Sin coincidencias
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="destructive">
+                                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                                    {batchResult.total_count} coincidencia{batchResult.total_count !== 1 ? 's' : ''}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <CardContent className="pt-0">
+                                    <div className="space-y-4">
+                                        {/* Resultados OFAC */}
+                                        {batchResult.ofac_results.length > 0 && (
+                                            <div>
+                                                <h4 className="font-semibold text-sm text-red-700 dark:text-red-400 mb-2 flex items-center gap-2">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    Lista OFAC ({batchResult.ofac_results.length})
+                                                </h4>
+                                                <div className="space-y-2">
+                                                    {batchResult.ofac_results.map((result, idx) => (
+                                                        <div key={`ofac-${idx}`} className="border border-red-200 dark:border-red-800 rounded p-3 bg-red-50/50 dark:bg-red-950/20">
+                                                            <div className="flex items-start justify-between gap-4">
+                                                                <div className="flex-1">
+                                                                    <p className="font-medium text-sm">{result.nombre_limpio || result.name}</p>
+                                                                    <p className="text-xs text-muted-foreground mt-0.5">{result.type}</p>
+                                                                </div>
+                                                                <div className="flex gap-2 items-start">
+                                                                    {getSimilarityBadge(result.similarity, result.coincidencia)}
+                                                                    <Button asChild variant="destructive" size="sm">
+                                                                        <a href={generateBatchOfacPdfUrl(batchResult.searched_name, result)} target="_blank" rel="noopener noreferrer">
+                                                                            <Download className="h-3 w-3 mr-1" />
+                                                                            PDF
+                                                                        </a>
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Resultados SAT */}
+                                        {batchResult.sat_results.length > 0 && (
+                                            <div>
+                                                <h4 className="font-semibold text-sm text-blue-700 dark:text-blue-400 mb-2 flex items-center gap-2">
+                                                    <FileText className="h-4 w-4" />
+                                                    Lista SAT ({batchResult.sat_results.length})
+                                                </h4>
+                                                <div className="space-y-2">
+                                                    {batchResult.sat_results.map((result, idx) => (
+                                                        <div key={`sat-${idx}`} className="border border-blue-200 dark:border-blue-800 rounded p-3 bg-blue-50/50 dark:bg-blue-950/20">
+                                                            <div className="flex items-start justify-between gap-4">
+                                                                <div className="flex-1">
+                                                                    <p className="font-medium text-sm">{result.nombre_limpio || result.name}</p>
+                                                                    <p className="text-xs text-muted-foreground mt-0.5">RFC: {result.rfc}</p>
+                                                                </div>
+                                                                <div className="flex gap-2 items-start flex-wrap">
+                                                                    {getSimilarityBadge(result.similarity, result.coincidencia)}
+                                                                    {getSituacionBadge(result.situacion)}
+                                                                    <Button asChild variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                                                        <a href={generateBatchSatPdfUrl(batchResult.searched_name, result)} target="_blank" rel="noopener noreferrer">
+                                                                            <Download className="h-3 w-3 mr-1" />
+                                                                            PDF
+                                                                        </a>
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Sin resultados */}
+                                        {batchResult.total_count === 0 && (
+                                            <div className="text-center py-4 text-muted-foreground">
+                                                <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                                                <p className="text-sm">Sin coincidencias en OFAC ni SAT</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </CollapsibleContent>
+                        </Card>
+                    </Collapsible>
+                ))}
+            </div>
+        );
     };
 
     const renderAdvancedResults = () => {
@@ -1169,17 +1448,17 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="persona-fisica" className="mt-4">
                                 <form onSubmit={handlePersonaFisicaSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <RequiredLabel htmlFor="nombre-fisica">Nombre completo</RequiredLabel>
-                                        <Input
-                                            id="nombre-fisica"
+                                        <RequiredLabel htmlFor="nombres-fisica">Nombre completo (uno o varios)</RequiredLabel>
+                                        <MultiInput
+                                            values={personaFisicaForm.nombres}
+                                            onChange={(nombres) => setPersonaFisicaForm({ nombres })}
                                             placeholder="Ej: Juan Pérez García"
-                                            value={personaFisicaForm.nombre}
-                                            onChange={(e) => setPersonaFisicaForm({ nombre: e.target.value })}
-                                            required
+                                            maxItems={50}
+                                            disabled={loading}
                                         />
                                     </div>
-                                    <Button type="submit" disabled={loading} className="w-full">
-                                        {loading ? 'Buscando...' : 'Buscar en OFAC + SAT'}
+                                    <Button type="submit" disabled={loading || personaFisicaForm.nombres.length === 0} className="w-full">
+                                        {loading ? 'Buscando...' : `Buscar en OFAC + SAT ${personaFisicaForm.nombres.length > 1 ? `(${personaFisicaForm.nombres.length} personas)` : ''}`}
                                     </Button>
                                 </form>
                             </TabsContent>
@@ -1187,17 +1466,17 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="persona-moral" className="mt-4">
                                 <form onSubmit={handlePersonaMoralSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <RequiredLabel htmlFor="razon-social">Razón social / Denominación</RequiredLabel>
-                                        <Input
-                                            id="razon-social"
+                                        <RequiredLabel htmlFor="razon-social">Razón social / Denominación (una o varias)</RequiredLabel>
+                                        <MultiInput
+                                            values={personaMoralForm.razones_sociales}
+                                            onChange={(razones_sociales) => setPersonaMoralForm({ razones_sociales })}
                                             placeholder="Ej: EMPRESA DEMO SA DE CV"
-                                            value={personaMoralForm.razon_social}
-                                            onChange={(e) => setPersonaMoralForm({ razon_social: e.target.value })}
-                                            required
+                                            maxItems={50}
+                                            disabled={loading}
                                         />
                                     </div>
-                                    <Button type="submit" disabled={loading} className="w-full">
-                                        {loading ? 'Buscando...' : 'Buscar en OFAC + SAT'}
+                                    <Button type="submit" disabled={loading || personaMoralForm.razones_sociales.length === 0} className="w-full">
+                                        {loading ? 'Buscando...' : `Buscar en OFAC + SAT ${personaMoralForm.razones_sociales.length > 1 ? `(${personaMoralForm.razones_sociales.length} empresas)` : ''}`}
                                     </Button>
                                 </form>
                             </TabsContent>
@@ -1205,22 +1484,17 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                             <TabsContent value="rfc" className="mt-4">
                                 <form onSubmit={handleRfcSearch} className="space-y-4">
                                     <div className="space-y-2">
-                                        <RequiredLabel htmlFor="rfc">RFC</RequiredLabel>
-                                        <Input
-                                            id="rfc"
+                                        <RequiredLabel htmlFor="rfc">RFC (uno o varios)</RequiredLabel>
+                                        <MultiInput
+                                            values={rfcForm.rfcs}
+                                            onChange={(rfcs) => setRfcForm({ rfcs })}
                                             placeholder="Ej: XAXX010101000"
-                                            value={rfcForm.rfc}
-                                            onChange={(e) => handleRfcOnlyChange(e.target.value)}
-                                            maxLength={13}
-                                            required
-                                            className={validationErrors.rfcOnly ? 'border-red-500' : ''}
+                                            maxItems={50}
+                                            disabled={loading}
                                         />
-                                        {validationErrors.rfcOnly && (
-                                            <p className="text-sm text-red-500">{validationErrors.rfcOnly}</p>
-                                        )}
                                     </div>
-                                    <Button type="submit" disabled={loading || !!validationErrors.rfcOnly} className="w-full">
-                                        {loading ? 'Buscando...' : 'Buscar en SAT'}
+                                    <Button type="submit" disabled={loading || rfcForm.rfcs.length === 0} className="w-full">
+                                        {loading ? 'Buscando...' : `Buscar en SAT ${rfcForm.rfcs.length > 1 ? `(${rfcForm.rfcs.length} RFCs)` : ''}`}
                                     </Button>
                                 </form>
                             </TabsContent>
@@ -1286,9 +1560,13 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                 )}
 
                 {/* ── Resultados ── */}
-                {(results.length > 0 || (!loading && lastSearch)) && (
+                {(results.length > 0 || batchResults.length > 0 || (!loading && lastSearch)) && (
                     <div>
-                        {results.length > 0 && (
+                        {/* Resultados Batch (múltiples nombres) */}
+                        {isBatchSearch && batchResults.length > 0 && renderBatchResults()}
+
+                        {/* Resultados individuales */}
+                        {!isBatchSearch && results.length > 0 && (
                             <div className="mb-4">
                                 <Card>
                                     <CardHeader>
@@ -1305,7 +1583,7 @@ const validateRFC = (rfc: string, tipoPersona: 'fisica' | 'moral'): string | und
                                 </Card>
                             </div>
                         )}
-                        {renderAdvancedResults()}
+                        {!isBatchSearch && renderAdvancedResults()}
                     </div>
                 )}
             </div>
