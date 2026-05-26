@@ -112,7 +112,7 @@ class StoreRegistroRequest extends FormRequest
         $rules = array_merge($rules, [
             'alias' => 'nullable|string|max:100',
             'dia' => 'nullable|date|before_or_equal:today',
-            'genero' => 'nullable|in:H,M,Hombre,Mujer',
+            'genero' => 'nullable|in:H,M',
             'paisnac' => 'nullable|string|max:50',
             'nacionalidad' => 'nullable|string|max:50',
             'estado_nac' => 'nullable|string|max:50',
@@ -140,7 +140,7 @@ class StoreRegistroRequest extends FormRequest
             'no_interior' => 'nullable|string|max:100',
             'manzana' => 'nullable|string|max:100',
             'lote' => 'nullable|string|max:100',
-            'cp' => 'nullable|integer|digits:5',
+            'cp' => 'nullable|string|regex:/^\d{5}$/',
             'colonia' => 'nullable|string|max:100',
             'municipio' => 'nullable|string|max:100',
             'estado' => 'nullable|string|max:100',
@@ -155,7 +155,7 @@ class StoreRegistroRequest extends FormRequest
             'no_interior_fiscal' => 'nullable|string|max:100',
             'manzana_fiscal' => 'nullable|string|max:100',
             'lote_fiscal' => 'nullable|string|max:100',
-            'cp_fiscal' => 'nullable|integer|digits:5',
+            'cp_fiscal' => 'nullable|string|regex:/^\d{5}$/',
             'colonia_fiscal' => 'nullable|string|max:100',
             'municipio_fiscal' => 'nullable|string|max:100',
             'estado_fiscal' => 'nullable|string|max:100',
@@ -170,7 +170,7 @@ class StoreRegistroRequest extends FormRequest
             'no_interior_notificaciones' => 'nullable|string|max:100',
             'manzana_notificaciones' => 'nullable|string|max:100',
             'lote_notificaciones' => 'nullable|string|max:100',
-            'cp_notificaciones' => 'nullable|integer|digits:5',
+            'cp_notificaciones' => 'nullable|string|regex:/^\d{5}$/',
             'colonia_notificaciones' => 'nullable|string|max:100',
             'municipio_notificaciones' => 'nullable|string|max:100',
             'estado_notificaciones' => 'nullable|string|max:100',
@@ -233,6 +233,9 @@ class StoreRegistroRequest extends FormRequest
     public function messages(): array
     {
         return [
+            // Mensajes notaria
+            'notaria.required' => 'La notaría es obligatoria',
+
             // Mensajes persona
             'persona.required' => 'Debe especificar el tipo de persona (física o moral)',
             'persona.in' => 'El tipo de persona debe ser física o moral',
@@ -273,12 +276,9 @@ class StoreRegistroRequest extends FormRequest
             'edo_civil.in' => 'El estado civil debe ser: Soltero(a), Casado(a), Divorciado(a), Viudo(a) o Unión Libre',
 
             // Mensajes CP
-            'cp.integer' => 'El código postal debe ser numérico',
-            'cp.digits' => 'El código postal debe tener 5 dígitos',
-            'cp_fiscal.integer' => 'El código postal fiscal debe ser numérico',
-            'cp_fiscal.digits' => 'El código postal fiscal debe tener 5 dígitos',
-            'cp_notificaciones.integer' => 'El código postal de notificaciones debe ser numérico',
-            'cp_notificaciones.digits' => 'El código postal de notificaciones debe tener 5 dígitos',
+            'cp.regex' => 'El código postal debe tener exactamente 5 dígitos',
+            'cp_fiscal.regex' => 'El código postal fiscal debe tener exactamente 5 dígitos',
+            'cp_notificaciones.regex' => 'El código postal de notificaciones debe tener exactamente 5 dígitos',
 
             // Mensajes teléfonos
             'telefono_movil.max' => 'El teléfono móvil no puede exceder 20 caracteres',

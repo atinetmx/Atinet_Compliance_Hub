@@ -27,7 +27,15 @@ import { MissingFieldsModal } from '@/components/Admin/RegistroWeb/MissingFields
 import { DocumentSelectorModal } from '@/components/Admin/RegistroWeb/DocumentSelectorModal';
 import { procesarDatosQR, type ParsedQRData } from '@/utils/qr-parser';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
 import { AtinetLoader } from '@/components/ui/AtinetLoader';
+import CodigoPostalInput from '@/components/Admin/CodigoPostalInput';
 import {
     verificarCamposFaltantes,
     getSuggestedDocuments,
@@ -40,6 +48,7 @@ interface Props {
     notaria: string | null;
     is_super_admin: boolean;
     registro_web_url: string | null;
+    flash?: { success?: string; error?: string };
     stats: {
         total_nuevos: number;
         total_legacy: number;
@@ -115,7 +124,7 @@ const inputClass =
 const selectClass =
     'w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500';
 
-function RegistroWebDevView({ notaria, stats }: Props) {
+function RegistroWebDevView({ notaria, stats, flash }: Props) {
     const [activeTab, setActiveTab] = useState<PersonaType>('fisica');
     const [personTypeLockedByQR, setPersonTypeLockedByQR] = useState(false); // Bloquear cambio de tipo cuando viene del QR
     const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
@@ -150,6 +159,31 @@ function RegistroWebDevView({ notaria, stats }: Props) {
         missingGroups: [],
     });
 
+    const [showVistaPrevia, setShowVistaPrevia] = useState(false);
+
+    // Diálogo de confirmación para flujo SAT (promise-based para usarlo en async)
+    const [satConfirmDialog, setSatConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        body: string;
+        confirmText?: string;
+        cancelText?: string;
+        resolve: ((value: boolean) => void) | null;
+    }>({ isOpen: false, title: '', body: '', resolve: null });
+
+    const askSatConfirm = (title: string, body: string, confirmText?: string, cancelText?: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            setSatConfirmDialog({ isOpen: true, title, body, confirmText, cancelText, resolve });
+        });
+    };
+
+    const resolveSatConfirm = (value: boolean) => {
+        setSatConfirmDialog(prev => {
+            prev.resolve?.(value);
+            return { isOpen: false, title: '', body: '', resolve: null };
+        });
+    };
+
     const [docSelectorModal, setDocSelectorModal] = useState<{
         isOpen: boolean;
         suggestedDocs: DocumentType[];
@@ -158,7 +192,7 @@ function RegistroWebDevView({ notaria, stats }: Props) {
         suggestedDocs: [],
     });
 
-    const { data, setData, post, processing, reset } = useForm({
+    const { data, setData, post, processing, reset, errors } = useForm({
         persona: 'fisica' as PersonaType,
         notaria: notaria || '',
         alias: '',
@@ -256,6 +290,61 @@ function RegistroWebDevView({ notaria, stats }: Props) {
         post('/admin/registro-web');
     };
 
+    // Estado modal "Datos incompletos" (validación client-side igual al legacy)
+    const [datosIncompletosModal, setDatosIncompletosModal] = useState<{
+        isOpen: boolean;
+        errores: string[];
+    }>({ isOpen: false, errores: [] });
+
+    // Validación client-side replicando validar() del legacy form-manager.js
+    const validarFormulario = (): string[] => {
+        const errores: string[] = [];
+
+        if (!data.notaria) errores.push('La notaría es obligatoria');
+        if (!data.rfc || data.rfc.length < 12) errores.push('El RFC es obligatorio (mínimo 12 caracteres)');
+        if (data.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo)) {
+            errores.push('El formato del correo electrónico no es válido');
+        }
+
+        if (activeTab === 'fisica') {
+            if (!data.curp || data.curp.length !== 18) errores.push('El CURP debe tener 18 caracteres');
+            if (!data.nombre) errores.push('El nombre es obligatorio');
+            if (!data.apellidopat) errores.push('El apellido paterno es obligatorio');
+            if (!data.dia) errores.push('La fecha de nacimiento es obligatoria');
+            if (!data.genero) errores.push('El género es obligatorio');
+        }
+
+        if (activeTab === 'moral') {
+            if (!data.nombre) errores.push('La razón social es obligatoria');
+        }
+
+        return errores;
+    };
+
+    // Abrir Vista Previa solo si pasa validación client-side
+    const handleAbrirVistaPrevia = () => {
+        const errores = validarFormulario();
+        if (errores.length > 0) {
+            setDatosIncompletosModal({ isOpen: true, errores });
+            return;
+        }
+        setShowVistaPrevia(true);
+    };
+
+    // Mostrar toast de éxito/error al volver del redirect post-guardado
+    useEffect(() => {
+        if (flash?.success) toast.success(`✅ ${flash.success}`);
+        if (flash?.error) toast.error(`❌ ${flash.error}`);
+    }, [flash]);
+
+    // Mostrar errores de validación del servidor
+    useEffect(() => {
+        const errList = Object.values(errors);
+        if (errList.length > 0) {
+            errList.forEach((msg) => toast.error(`❌ ${msg}`));
+        }
+    }, [errors]);
+
     const handleClear = () => {
         reset();
         setData('paisnac', 'MEXICO');
@@ -277,6 +366,22 @@ function RegistroWebDevView({ notaria, stats }: Props) {
             // No bloqueante - el loader funcionará con carga on-demand
         });
     }, []); // Solo una vez al montar
+
+    // 🏛️ AUTO-COMPLETAR RÉGIMEN FISCAL: cuando se recibe un código SAT (2-3 dígitos), resolver descripción
+    useEffect(() => {
+        const codigo = data.regimen_fiscal?.trim();
+        if (!codigo || !/^\d{2,3}$/.test(codigo)) return;
+
+        fetch(`/admin/catalogos/regimen-fiscal?codigo=${codigo}`)
+            .then((r) => r.json())
+            .then((result) => {
+                if (result.success && result.data?.descripcion) {
+                    setData('regimen_fiscal', result.data.descripcion);
+                }
+            })
+            .catch(() => {}); // silencioso — el campo queda editable
+    }, [data.regimen_fiscal]);
+
     const handleScanQR = () => setQrScannerOpen(true);
     const handleManualEntry = () => alert('Captura Manual - Disponible');
 
@@ -354,8 +459,31 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                     // Verificar si tiene campos incompletos
                     const missingGroups = verificarCamposFaltantes(searchResult.data);
 
-                    // Auto-completar con SAT si hay campos faltantes y URL disponible
+                    // Preguntar si completar con SAT cuando hay campos faltantes
                     if (missingGroups.length > 0 && parsedData.urlSAT) {
+                        const nombre = `${searchResult.data.nombre || ''} ${searchResult.data.apellidopat || ''}`.trim() || searchResult.data.rfc || 'la persona';
+                        const confirmar = await askSatConfirm(
+                            '¿Completar con SAT?',
+                            `Se encontró a ${nombre} en la base de datos, pero faltan algunos campos (${missingGroups.map(g => g.name).join(', ')}).\n\n¿Deseas completar la información consultando la constancia fiscal del SAT?`
+                        );
+
+                        if (!confirmar) {
+                            // Usuario dijo No → usar solo datos de BD
+                            await closeLoaderWithMinDelay(loaderInstance, startTime);
+                            setMissingFieldsModal({
+                                isOpen: true,
+                                title: '✅ Encontrado en Base de Datos',
+                                personData: {
+                                    nombre: `${searchResult.data.nombre || ''} ${searchResult.data.apellidopat || ''} ${searchResult.data.apellidomat || ''}`.trim(),
+                                    rfc: searchResult.data.rfc || '',
+                                    curp: searchResult.data.curp || '',
+                                },
+                                missingGroups,
+                            });
+                            toast.success(`✅ Datos encontrados en ${searchResult.source === 'nuevo' ? 'sistema nuevo' : 'sistema legacy'}`);
+                            return;
+                        }
+
                         loaderInstance = await AtinetLoader.showCompletando();
 
                         try {
@@ -444,6 +572,40 @@ function RegistroWebDevView({ notaria, stats }: Props) {
 
             // 3. Consultar SAT si no está en BD o no hay RFC
             if (parsedData.urlSAT) {
+                // Cargar datos básicos primero (los que se extrajeron sin IA)
+                const basicFields = Object.keys(parsedData).filter(k => !k.startsWith('_')).length;
+                if (basicFields > 0) {
+                    cargarDatosQR(parsedData);
+                }
+
+                // Preguntar si procesar con IA (como en el legacy)
+                const nombreBasico = `${parsedData.nombre || ''} ${parsedData.apellidopat || ''}`.trim();
+                const rfcBasico = parsedData.rfc || '';
+                const descripcion = rfcBasico
+                    ? `RFC ${rfcBasico}${nombreBasico ? ` (${nombreBasico})` : ''} no se encontró en la base de datos.`
+                    : 'No se encontró en la base de datos.';
+
+                const confirmarIA = await askSatConfirm(
+                    '¿Procesar con Inteligencia Artificial?',
+                    `${descripcion}\n\nSe cargaron los datos básicos de la constancia fiscal. ¿Deseas procesarla con IA para extraer información adicional como domicilio, régimen fiscal y más campos?`
+                );
+
+                if (!confirmarIA) {
+                    // Usar solo datos básicos ya cargados
+                    const missingGroupsBasic = verificarCamposFaltantes(parsedData);
+                    setMissingFieldsModal({
+                        isOpen: true,
+                        title: '✅ Datos básicos cargados',
+                        personData: {
+                            nombre: nombreBasico,
+                            rfc: rfcBasico,
+                            curp: parsedData.curp || '',
+                        },
+                        missingGroups: missingGroupsBasic,
+                    });
+                    return;
+                }
+
                 loaderInstance = await AtinetLoader.showSAT();
 
                 const satResponse = await fetch(PROCESS_SAT_QR_URL, {
@@ -642,8 +804,8 @@ function RegistroWebDevView({ notaria, stats }: Props) {
             padre_nombre: 'padre_nombre',
             madre_nombre: 'madre_nombre',
             no_identificacion: 'no_identificacion',
-            vigencia: 'vigencia',
-            vigiencia_de_ine: 'vigencia',
+            vigencia: 'vigiencia_de_ine',
+            vigiencia_de_ine: 'vigiencia_de_ine',
             regimen_fiscal: 'regimen_fiscal',
         };
 
@@ -704,7 +866,11 @@ function RegistroWebDevView({ notaria, stats }: Props) {
         if (datos.curp) updates.curp = datos.curp;
         if (datos.rfc) updates.rfc = datos.rfc;
         if (datos.dia) updates.dia = datos.dia;
-        if (datos.genero) updates.genero = datos.genero;
+        if (datos.genero) {
+            // Normalizar a H/M independientemente de lo que venga del SAT/OCR
+            const g = datos.genero.toString().toUpperCase();
+            updates.genero = (g === 'H' || g === 'HOMBRE' || g === 'MASCULINO' || g === 'M_HOMBRE') ? 'H' : 'M';
+        }
         if (datos.estado_nac) updates.estado_nac = datos.estado_nac;
         if (datos.municipio_nac) updates.municipio_nac = datos.municipio_nac;
         if (datos.paisnac) updates.paisnac = datos.paisnac;
@@ -720,7 +886,9 @@ function RegistroWebDevView({ notaria, stats }: Props) {
         if (datos.cp_fiscal) updates.cp_fiscal = String(datos.cp_fiscal);
         if (datos.municipio_fiscal) updates.municipio_fiscal = datos.municipio_fiscal;
         if (datos.estado_fiscal) updates.estado_fiscal = datos.estado_fiscal;
+        if (datos.pais_fiscal) updates.pais_fiscal = datos.pais_fiscal;
         if (datos.correo) updates.correo = datos.correo;
+        if (datos.regimen_fiscal) updates.regimen_fiscal = String(datos.regimen_fiscal);
 
         // Actualizar formulario con todos los datos
         Object.entries(updates).forEach(([key, value]) => {
@@ -896,9 +1064,8 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                             onChange={(e) => setData('genero', e.target.value)}
                                         >
                                             <option value="">Seleccione...</option>
-                                            <option value="Masculino">Masculino</option>
-                                            <option value="Femenino">Femenino</option>
-                                            <option value="No binario">No binario</option>
+                                            <option value="H">Hombre</option>
+                                            <option value="M">Mujer</option>
                                         </select>
                                     </Field>
                                     <Field label="País de Nacimiento">
@@ -992,16 +1159,29 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                         <input className={inputClass} value={data.lote} onChange={(e) => setData('lote', e.target.value)} />
                                     </Field>
                                     <Field label="Código Postal">
-                                        <input className={inputClass} maxLength={5} value={data.cp} onChange={(e) => setData('cp', e.target.value)} />
+                                        <CodigoPostalInput
+                                            label=""
+                                            value={data.cp}
+                                            onChange={(v) => setData('cp', v)}
+                                            coloniaValue={data.colonia}
+                                            onColoniaChange={(v) => setData('colonia', v)}
+                                            onAutoComplete={(cpData) => {
+                                                setData('estado', cpData.estado);
+                                                setData('municipio', cpData.municipio);
+                                                if (cpData.ciudad) setData('ciudad', cpData.ciudad);
+                                                if (cpData.colonia) setData('colonia', cpData.colonia);
+                                            }}
+                                            showColoniaSelector={false}
+                                        />
                                     </Field>
                                     <Field label="Colonia">
-                                        <input className={inputClass} value={data.colonia} onChange={(e) => setData('colonia', e.target.value)} />
+                                        <input className={inputClass} value={data.colonia} onChange={(e) => setData('colonia', e.target.value)} placeholder="Auto-completa con el CP" />
                                     </Field>
                                     <Field label="Municipio">
-                                        <input className={inputClass} value={data.municipio} onChange={(e) => setData('municipio', e.target.value)} />
+                                        <input className={inputClass} value={data.municipio} onChange={(e) => setData('municipio', e.target.value)} placeholder="Auto-completa con el CP" />
                                     </Field>
                                     <Field label="Estado">
-                                        <input className={inputClass} value={data.estado} onChange={(e) => setData('estado', e.target.value)} />
+                                        <input className={inputClass} value={data.estado} onChange={(e) => setData('estado', e.target.value)} placeholder="Auto-completa con el CP" />
                                     </Field>
                                     <Field label="Ciudad">
                                         <input className={inputClass} value={data.ciudad} onChange={(e) => setData('ciudad', e.target.value)} />
@@ -1014,7 +1194,23 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                     <button
                                         type="button"
                                         className="flex items-center gap-2 rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700"
-                                        onClick={() => {
+                                        onClick={async () => {
+                                            const camposLlenos = [
+                                                data.calle && 'Calle',
+                                                data.cp && 'CP',
+                                                data.colonia && 'Colonia',
+                                                data.municipio && 'Municipio',
+                                                data.estado && 'Estado',
+                                            ].filter(Boolean) as string[];
+                                            if (camposLlenos.length === 0) {
+                                                await askSatConfirm('Dirección vacía', 'El domicilio particular no tiene datos para copiar.');
+                                                return;
+                                            }
+                                            const destinoTieneDatos = !!(data.calle_fiscal || data.cp_fiscal || data.colonia_fiscal || data.municipio_fiscal || data.estado_fiscal);
+                                            let body = `Se copiarán los siguientes campos al domicilio fiscal:\n\n${camposLlenos.map(c => `✓ ${c}`).join('\n')}`;
+                                            if (destinoTieneDatos) body += '\n\n⚠️ El domicilio fiscal ya tiene datos que serán sobrescritos.';
+                                            const ok = await askSatConfirm('¿Copiar dirección?', body, 'Sí, copiar', 'Cancelar');
+                                            if (!ok) return;
                                             setData('calle_fiscal', data.calle);
                                             setData('no_exterior_fiscal', data.no_exterior);
                                             setData('no_interior_fiscal', data.no_interior);
@@ -1026,6 +1222,7 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                             setData('estado_fiscal', data.estado);
                                             setData('ciudad_fiscal', data.ciudad);
                                             setData('pais_fiscal', data.pais);
+                                            toast.success('✅ Dirección particular copiada al domicilio fiscal');
                                         }}
                                     >
                                         📋 Copiar dirección al Domicilio Fiscal
@@ -1051,16 +1248,29 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                         <input className={inputClass} value={data.lote_fiscal} onChange={(e) => setData('lote_fiscal', e.target.value)} />
                                     </Field>
                                     <Field label="Código Postal">
-                                        <input className={inputClass} maxLength={5} value={data.cp_fiscal} onChange={(e) => setData('cp_fiscal', e.target.value)} />
+                                        <CodigoPostalInput
+                                            label=""
+                                            value={data.cp_fiscal}
+                                            onChange={(v) => setData('cp_fiscal', v)}
+                                            coloniaValue={data.colonia_fiscal}
+                                            onColoniaChange={(v) => setData('colonia_fiscal', v)}
+                                            onAutoComplete={(cpData) => {
+                                                setData('estado_fiscal', cpData.estado);
+                                                setData('municipio_fiscal', cpData.municipio);
+                                                if (cpData.ciudad) setData('ciudad_fiscal', cpData.ciudad);
+                                                if (cpData.colonia) setData('colonia_fiscal', cpData.colonia);
+                                            }}
+                                            showColoniaSelector={false}
+                                        />
                                     </Field>
                                     <Field label="Colonia">
-                                        <input className={inputClass} value={data.colonia_fiscal} onChange={(e) => setData('colonia_fiscal', e.target.value)} />
+                                        <input className={inputClass} value={data.colonia_fiscal} onChange={(e) => setData('colonia_fiscal', e.target.value)} placeholder="Auto-completa con el CP" />
                                     </Field>
                                     <Field label="Municipio">
-                                        <input className={inputClass} value={data.municipio_fiscal} onChange={(e) => setData('municipio_fiscal', e.target.value)} />
+                                        <input className={inputClass} value={data.municipio_fiscal} onChange={(e) => setData('municipio_fiscal', e.target.value)} placeholder="Auto-completa con el CP" />
                                     </Field>
                                     <Field label="Estado">
-                                        <input className={inputClass} value={data.estado_fiscal} onChange={(e) => setData('estado_fiscal', e.target.value)} />
+                                        <input className={inputClass} value={data.estado_fiscal} onChange={(e) => setData('estado_fiscal', e.target.value)} placeholder="Auto-completa con el CP" />
                                     </Field>
                                     <Field label="Ciudad">
                                         <input className={inputClass} value={data.ciudad_fiscal} onChange={(e) => setData('ciudad_fiscal', e.target.value)} />
@@ -1073,7 +1283,23 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                     <button
                                         type="button"
                                         className="flex items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
-                                        onClick={() => {
+                                        onClick={async () => {
+                                            const camposLlenos = [
+                                                data.calle_fiscal && 'Calle',
+                                                data.cp_fiscal && 'CP',
+                                                data.colonia_fiscal && 'Colonia',
+                                                data.municipio_fiscal && 'Municipio',
+                                                data.estado_fiscal && 'Estado',
+                                            ].filter(Boolean) as string[];
+                                            if (camposLlenos.length === 0) {
+                                                await askSatConfirm('Dirección vacía', 'El domicilio fiscal no tiene datos para copiar.');
+                                                return;
+                                            }
+                                            const destinoTieneDatos = !!(data.calle || data.cp || data.colonia || data.municipio || data.estado);
+                                            let body = `Se copiarán los siguientes campos al domicilio particular:\n\n${camposLlenos.map(c => `✓ ${c}`).join('\n')}`;
+                                            if (destinoTieneDatos) body += '\n\n⚠️ El domicilio particular ya tiene datos que serán sobrescritos.';
+                                            const ok = await askSatConfirm('¿Copiar dirección?', body, 'Sí, copiar', 'Cancelar');
+                                            if (!ok) return;
                                             setData('calle', data.calle_fiscal);
                                             setData('no_exterior', data.no_exterior_fiscal);
                                             setData('no_interior', data.no_interior_fiscal);
@@ -1085,6 +1311,7 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                             setData('estado', data.estado_fiscal);
                                             setData('ciudad', data.ciudad_fiscal);
                                             setData('pais', data.pais_fiscal);
+                                            toast.success('✅ Dirección fiscal copiada al domicilio particular');
                                         }}
                                     >
                                         📋 Copiar dirección al Domicilio Particular
@@ -1133,7 +1360,17 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                                         <input className={inputClass} value={data.autoridad_emisora_usuario} onChange={(e) => setData('autoridad_emisora_usuario', e.target.value)} />
                                     </Field>
                                     <Field label="Régimen Fiscal">
-                                        <input className={inputClass} value={data.regimen_fiscal} onChange={(e) => setData('regimen_fiscal', e.target.value)} />
+                                        <div className="relative">
+                                            <input
+                                                className={inputClass}
+                                                value={data.regimen_fiscal}
+                                                onChange={(e) => setData('regimen_fiscal', e.target.value)}
+                                                placeholder="Se auto-completa desde SAT"
+                                            />
+                                            {data.regimen_fiscal && !/^\d{2,3}$/.test(data.regimen_fiscal.trim()) && (
+                                                <span className="absolute inset-y-0 right-2 flex items-center text-green-500 text-xs pointer-events-none">✓</span>
+                                            )}
+                                        </div>
                                     </Field>
                                     <Field label="Servicios Médicos">
                                         <input className={inputClass} value={data.servicios_medicos} onChange={(e) => setData('servicios_medicos', e.target.value)} />
@@ -1289,14 +1526,14 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                     type="button"
                     className="flex flex-1 items-center justify-center gap-2 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
                     style={{ backgroundColor: '#0284c7' }}
-                    onClick={() => alert('Vista Previa - Pendiente')}
+                    onClick={handleAbrirVistaPrevia}
                 >
                     <Eye className="h-4 w-4" />
                     Vista Previa
                 </button>
                 <button
                     type="button"
-                    onClick={handleSubmit}
+                    onClick={handleAbrirVistaPrevia}
                     disabled={processing}
                     className="flex flex-1 items-center justify-center gap-2 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                     style={{ backgroundColor: '#16a34a' }}
@@ -1305,6 +1542,126 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                     {processing ? 'Guardando...' : 'Guardar Registro'}
                 </button>
             </div>
+
+            {/* Modal Vista Previa */}
+            <Dialog open={showVistaPrevia} onOpenChange={setShowVistaPrevia}>
+                <DialogContent className="max-w-[800px] sm:max-w-[800px]">
+                    {/* Cabecera estilo SweetAlert2 info */}
+                    <div className="flex flex-col items-center pt-4 pb-2">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-sky-400 text-sky-400 mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+                            </svg>
+                        </div>
+                        <DialogTitle className="text-xl font-bold text-gray-800">Vista Previa de Datos</DialogTitle>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto space-y-4 text-sm px-1">
+                        {/* Tipo de persona */}
+                        <div className="rounded border-l-4 border-blue-600 bg-blue-50 p-3 font-semibold text-blue-900">
+                            {data.persona === 'fisica' ? '👤 Persona Física' : '🏢 Persona Moral'}
+                        </div>
+
+                        {/* Datos Generales */}
+                        <div className="border-l-4 border-gray-300 pl-3">
+                            <h3 className="mb-2 font-bold text-gray-800">🪪 Datos Generales</h3>
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {data.notaria && <div><strong>Notaría:</strong> {data.notaria}</div>}
+                                {data.alias && <div><strong>Alias:</strong> {data.alias}</div>}
+                                {data.persona === 'fisica' ? (
+                                    <>
+                                        {data.curp && <div><strong>CURP:</strong> {data.curp}</div>}
+                                        {data.rfc && <div><strong>RFC:</strong> {data.rfc}</div>}
+                                        {data.nombre && <div className="col-span-2"><strong>Nombre:</strong> {data.nombre} {data.apellidopat} {data.apellidomat}</div>}
+                                        {data.dia && <div><strong>Nacimiento:</strong> {data.dia}</div>}
+                                        {data.genero && <div><strong>Género:</strong> {data.genero === 'H' ? 'Hombre' : 'Mujer'}</div>}
+                                        {data.paisnac && <div><strong>País nac.:</strong> {data.paisnac}</div>}
+                                        {data.nacionalidad && <div><strong>Nacionalidad:</strong> {data.nacionalidad}</div>}
+                                        {data.ocupacion && <div><strong>Ocupación:</strong> {data.ocupacion}</div>}
+                                        {data.edo_civil && <div><strong>Estado Civil:</strong> {data.edo_civil}</div>}
+                                        {data.regimen_fiscal && <div className="col-span-2"><strong>Régimen Fiscal:</strong> {data.regimen_fiscal}</div>}
+                                    </>
+                                ) : (
+                                    <>
+                                        {data.rfc && <div><strong>RFC:</strong> {data.rfc}</div>}
+                                        {data.nombre && <div className="col-span-2"><strong>Razón Social:</strong> {data.nombre}</div>}
+                                        {data.regimen_fiscal && <div className="col-span-2"><strong>Régimen Fiscal:</strong> {data.regimen_fiscal}</div>}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Domicilio Particular */}
+                        {(data.calle || data.cp) && (
+                            <div className="border-l-4 border-green-400 pl-3">
+                                <h3 className="mb-2 font-bold text-gray-800">🏠 Domicilio Particular</h3>
+                                <div className="space-y-0.5">
+                                    {data.calle && <div><strong>Calle:</strong> {data.calle} {data.no_exterior} {data.no_interior}</div>}
+                                    {data.colonia && <div><strong>Colonia:</strong> {data.colonia}</div>}
+                                    {(data.municipio || data.estado) && <div><strong>Municipio/Estado:</strong> {data.municipio}, {data.estado}</div>}
+                                    {data.cp && <div><strong>CP:</strong> {data.cp}</div>}
+                                    {data.pais && <div><strong>País:</strong> {data.pais}</div>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Domicilio Fiscal */}
+                        {(data.calle_fiscal || data.cp_fiscal) && (
+                            <div className="border-l-4 border-purple-400 pl-3">
+                                <h3 className="mb-2 font-bold text-gray-800">🏢 Domicilio Fiscal</h3>
+                                <div className="space-y-0.5">
+                                    {data.calle_fiscal && <div><strong>Calle:</strong> {data.calle_fiscal} {data.no_exterior_fiscal} {data.no_interior_fiscal}</div>}
+                                    {data.colonia_fiscal && <div><strong>Colonia:</strong> {data.colonia_fiscal}</div>}
+                                    {(data.municipio_fiscal || data.estado_fiscal) && <div><strong>Municipio/Estado:</strong> {data.municipio_fiscal}, {data.estado_fiscal}</div>}
+                                    {data.cp_fiscal && <div><strong>CP:</strong> {data.cp_fiscal}</div>}
+                                    {data.pais_fiscal && <div><strong>País:</strong> {data.pais_fiscal}</div>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Contacto */}
+                        <div className="border-l-4 border-yellow-400 pl-3">
+                            <h3 className="mb-2 font-bold text-gray-800">📋 Contacto</h3>
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {data.telefono && <div><strong>Tel. Casa:</strong> {data.telefono}</div>}
+                                {data.telefono_movil && <div><strong>Tel. Móvil:</strong> {data.telefono_movil}</div>}
+                                {data.telefono_oficina && <div><strong>Tel. Oficina:</strong> {data.telefono_oficina}</div>}
+                                {data.correo && <div className="col-span-2"><strong>Email:</strong> {data.correo}</div>}
+                                {data.documento && <div><strong>Identificación:</strong> {data.documento}</div>}
+                                {data.no_identificacion && <div><strong>No. ID:</strong> {data.no_identificacion}</div>}
+                            </div>
+                        </div>
+
+                        {/* Testamento */}
+                        {(data.herederos || data.albacea_sustituto) && (
+                            <div className="border-l-4 border-orange-400 pl-3">
+                                <h3 className="mb-2 font-bold text-gray-800">📜 Testamento</h3>
+                                <div className="space-y-0.5">
+                                    {data.herederos && <div><strong>Herederos:</strong> {data.herederos.substring(0, 120)}{data.herederos.length > 120 ? '...' : ''}</div>}
+                                    {data.albacea_sustituto && <div><strong>Albacea:</strong> {data.albacea_sustituto}</div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="mt-4 flex justify-center gap-3 pb-2">
+                        <button
+                            type="button"
+                            disabled={processing}
+                            onClick={() => { setShowVistaPrevia(false); post('/admin/registro-web'); }}
+                            className="min-w-28 rounded px-6 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                            style={{ backgroundColor: '#16a34a' }}
+                        >
+                            {processing ? 'Guardando...' : 'Guardar'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowVistaPrevia(false)}
+                            className="min-w-28 rounded border border-gray-300 px-6 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                            Cancelar
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Scanner QR Modal */}
             <ScannerQR
@@ -1382,6 +1739,78 @@ function RegistroWebDevView({ notaria, stats }: Props) {
                 suggestedDocs={docSelectorModal.suggestedDocs}
                 onSelectDocument={handleSelectDocument}
             />
+
+            {/* SAT Confirm Dialog - ¿Completar con SAT? / ¿Procesar con IA? */}
+            <Dialog open={satConfirmDialog.isOpen} onOpenChange={(open) => { if (!open) resolveSatConfirm(false); }}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <span className="flex size-7 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900">
+                                <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </span>
+                            {satConfirmDialog.title}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        {satConfirmDialog.body.split('\n\n').map((paragraph, i) => (
+                            <p key={i} className="mb-3 text-sm text-muted-foreground last:mb-0">{paragraph}</p>
+                        ))}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <button
+                            type="button"
+                            onClick={() => resolveSatConfirm(false)}
+                            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+                        >
+                            {satConfirmDialog.cancelText ?? 'No, continuar sin IA'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => resolveSatConfirm(true)}
+                            className="inline-flex h-9 items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow hover:bg-blue-700"
+                        >
+                            {satConfirmDialog.confirmText ?? 'Sí, procesar'}
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Datos Incompletos Modal - Validación client-side igual al legacy */}
+            <Dialog open={datosIncompletosModal.isOpen} onOpenChange={(open) => { if (!open) setDatosIncompletosModal({ isOpen: false, errores: [] }); }}>
+                <DialogContent className="sm:max-w-[460px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <span className="flex size-7 items-center justify-center rounded-full bg-red-100">
+                                <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                </svg>
+                            </span>
+                            Datos incompletos
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <ul className="space-y-1.5">
+                            {datosIncompletosModal.errores.map((err, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                    <span className="mt-0.5 text-red-500 shrink-0">✗</span>
+                                    {err}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <DialogFooter>
+                        <button
+                            type="button"
+                            onClick={() => setDatosIncompletosModal({ isOpen: false, errores: [] })}
+                            className="inline-flex h-9 items-center justify-center rounded-md bg-red-600 px-6 text-sm font-medium text-white shadow hover:bg-red-700"
+                        >
+                            Entendido
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

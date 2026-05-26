@@ -37,6 +37,7 @@ interface CodigoPostalInputProps {
     onAutoComplete?: (data: {
         estado: string;
         municipio: string;
+        ciudad?: string | null;
         colonia?: string;
     }) => void;
     error?: string;
@@ -90,6 +91,7 @@ export default function CodigoPostalInput({
                     onAutoComplete({
                         estado: data.estado,
                         municipio: data.municipio,
+                        ciudad: data.ciudad,
                         colonia:
                             data.colonias.length === 1
                                 ? data.colonias[0].nombre
@@ -158,9 +160,9 @@ export default function CodigoPostalInput({
                         id="codigo_postal"
                         value={value}
                         onChange={handleInputChange}
-                        placeholder="44100"
+                        placeholder="ej. 01234"
                         maxLength={5}
-                        className={error ? 'border-red-500 pr-10' : 'pr-10'}
+                        className={error ? 'border-red-500 pr-10 placeholder:text-gray-400' : 'pr-10 placeholder:text-gray-400'}
                     />
                     {/* Indicador de estado */}
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">

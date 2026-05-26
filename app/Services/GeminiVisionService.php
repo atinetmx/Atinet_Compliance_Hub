@@ -156,7 +156,8 @@ class GeminiVisionService
             foreach ($this->models as $model) {
                 $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/'.$model.':generateContent';
 
-                $response = Http::timeout($this->timeout)
+                $response = Http::withOptions(['verify' => false])
+                    ->timeout($this->timeout)
                     ->withHeaders(['Content-Type' => 'application/json'])
                     ->post($endpoint.'?key='.$this->apiKey, $requestData);
 
@@ -300,12 +301,13 @@ Extrae y estructura los siguientes datos en formato JSON con estas claves exacta
 
 REGLAS IMPORTANTES:
 1. Todos los textos deben estar en MAYÚSCULAS
-2. Si un campo no es visible o legible, devuelve una cadena vacía ""
+2. Si un campo no es visible o legible, devuelve cadena vacía "" (o null para opcionales)
 3. La dirección está en la parte inferior de la credencial
-4. El CURP está en el reverso; si estás analizando el frontal devuelve ""
+4. El CURP puede aparecer en el anverso (modelos antiguos) o en el reverso (modelos recientes) — extráelo si es visible
 5. Asegúrate de que el no_identificacion tenga 13 dígitos
 6. "vigencia" es el AÑO de vencimiento de la credencial (4 dígitos, ej: "2027"), NO la fecha de nacimiento
 7. Devuelve SOLO el JSON puro, sin texto adicional ni bloques ```json
+8. Fecha de nacimiento puede aparecer como DD/MM/AAAA o "01 ENE 1990". Meses: ENE=01, FEB=02, MAR=03, ABR=04, MAY=05, JUN=06, JUL=07, AGO=08, SEP=09, OCT=10, NOV=11, DIC=12
 PROMPT;
         }
 
@@ -353,14 +355,16 @@ Extrae y estructura los siguientes datos en formato JSON con estas claves exacta
 - dia: fecha de nacimiento (formato: "YYYY-MM-DD", ej: "1985-03-15")
 - genero: "H" para Hombre o "M" para Mujer (UN solo carácter)
 - estado_nac: estado de nacimiento (nombre completo, MAYÚSCULAS, ej: "JALISCO")
+- municipio_nac: municipio o alcaldía de nacimiento (MAYÚSCULAS)
+- ciudad_nac: ciudad de nacimiento si aparece diferente al municipio, si no null
 - paisnac: país de nacimiento (generalmente "MEXICO" en MAYÚSCULAS)
 - nacionalidad: nacionalidad (generalmente "MEXICANA" en MAYÚSCULAS)
 
 REGLAS IMPORTANTES:
-1. El formato del CURP es: 4 letras (apellidos+nombre) + 6 dígitos (fecha nacimiento AAMMDD) + 1 letra (sexo) + 2 letras (estado) + 3 consonantes + 1 dígito verificador
+1. El formato del CURP es: 4 letras (apellidos+nombre) + 6 dígitos (fecha nacimiento AAMMDD) + 1 letra (sexo H/M) + 2 letras (estado) + 3 consonantes + 1 alfanumérico + 1 dígito verificador (total 18 caracteres)
 2. Todos los textos deben estar en MAYÚSCULAS
-3. Si un campo no es visible o legible, devuelve una cadena vacía ""
-4. La fecha debe ser YYYY-MM-DD (extráela del CURP si no aparece explícita)
+3. Si un campo no es visible o legible, devuelve null para campos opcionales o cadena vacía "" para campos principales (nombre, curp, dia)
+4. La fecha debe ser YYYY-MM-DD (extráela del CURP si no aparece explícita: posiciones 5-10 del CURP = AAMMDD)
 5. Devuelve SOLO el JSON puro, sin texto adicional ni bloques ```json
 PROMPT;
     }
