@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreRegistroRequest;
 use App\Models\LegacyRegistro;
+use App\Models\Notaria;
 use App\Models\RegistroPersona;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -77,6 +79,10 @@ class RegistroWebController extends Controller
                 'total_nuevos' => RegistroPersona::when($notaria, fn ($q) => $q->where('notaria', $notaria))->count(),
                 'total_legacy' => LegacyRegistro::when($notaria, fn ($q) => $q->where('notaria', $notaria))->count(),
             ],
+            'flash' => [
+                'success' => session('success'),
+                'error' => session('error'),
+            ],
         ]);
     }
 
@@ -89,7 +95,7 @@ class RegistroWebController extends Controller
      * - Validación diferenciada según tipo de persona
      * - 85 campos completos
      */
-    public function store(StoreRegistroRequest $request): JsonResponse
+    public function store(StoreRegistroRequest $request): JsonResponse|RedirectResponse
     {
         // Los datos ya están validados por StoreRegistroRequest
         $validated = $request->validated();
@@ -143,6 +149,12 @@ class RegistroWebController extends Controller
             ]);
         }
 
+        // Inertia requests esperan un redirect; llamadas API directas esperan JSON
+        if ($request->header('X-Inertia')) {
+            return redirect()->route('registro-web.index')
+                ->with('success', "Registro #{$registro->id} {$accion} correctamente");
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Registro #{$registro->id} {$accion} correctamente",
@@ -174,15 +186,16 @@ class RegistroWebController extends Controller
             }
         }
 
-        // Convertir códigos postales a entero (si vienen)
-        if (isset($data['cp']) && ! empty($data['cp'])) {
-            $data['cp'] = (int) $data['cp'];
+        // Normalizar códigos postales: preservar ceros iniciales como string de 5 dígitos
+        foreach (['cp', 'cp_fiscal', 'cp_notificaciones'] as $cpField) {
+            if (isset($data[$cpField]) && $data[$cpField] !== '' && $data[$cpField] !== null) {
+                $data[$cpField] = str_pad(preg_replace('/\D/', '', (string) $data[$cpField]), 5, '0', STR_PAD_LEFT);
+            }
         }
-        if (isset($data['cp_fiscal']) && ! empty($data['cp_fiscal'])) {
-            $data['cp_fiscal'] = (int) $data['cp_fiscal'];
-        }
-        if (isset($data['cp_notificaciones']) && ! empty($data['cp_notificaciones'])) {
-            $data['cp_notificaciones'] = (int) $data['cp_notificaciones'];
+
+        // Normalizar vigencia INE: si viene solo el año (4 dígitos), convertir a último día del año
+        if (isset($data['vigiencia_de_ine']) && preg_match('/^\d{4}$/', (string) $data['vigiencia_de_ine'])) {
+            $data['vigiencia_de_ine'] = $data['vigiencia_de_ine'].'-12-31';
         }
 
         // Convertir num_doc_identificacion a entero si viene
@@ -264,7 +277,19 @@ class RegistroWebController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $registro = RegistroPersona::findOrFail($id);
-        $registro->delete();
+
+        // Guardar datos para el log antes de eliminar
+        $info = [
+            'id' => $registro->id,
+            'nombre' => trim(($registro->nombre ?? '').' '.($registro->apellidopat ?? '').' '.($registro->apellidomat ?? '')),
+            'curp' => $registro->curp,
+            'rfc' => $registro->rfc,
+            'deleted_by' => Auth::id(),
+        ];
+
+        $registro->delete(); // soft delete
+
+        Log::warning('Registro de persona eliminado por super_admin', $info);
 
         return response()->json([
             'success' => true,
@@ -381,6 +406,66 @@ class RegistroWebController extends Controller
             'found' => false,
             'message' => 'No se encontró ningún registro con ese RFC',
             'rfc_buscado' => $rfc,
+        ]);
+    }
+
+    /**
+     * Listado de registros con filtros y paginación.
+     * Super admin: puede ver todos y filtrar por notaría.
+     * Otros: solo ven su notaría.
+     */
+    public function listado(Request $request): Response
+    {
+        $user = Auth::user();
+        $isSuperAdmin = $user->tipo_cuenta === 'super_admin';
+        $userNotaria = $user->notaria_code ?? optional($user->notaria)->legacy_identifier ?? null;
+
+        // Filtros recibidos
+        $filtroNotaria = $request->query('notaria');
+        $filtroNombre = $request->query('nombre');
+        $filtroFechaDesde = $request->query('fecha_desde');
+        $filtroFechaHasta = $request->query('fecha_hasta');
+
+        $query = RegistroPersona::query()
+            ->select([
+                'id', 'notaria', 'persona', 'nombre', 'apellidopat', 'apellidomat',
+                'curp', 'rfc', 'dia_registro', 'created_at',
+            ])
+            ->when(! $isSuperAdmin, fn ($q) => $q->where('notaria', $userNotaria))
+            ->when($isSuperAdmin && $filtroNotaria, fn ($q) => $q->where('notaria', $filtroNotaria))
+            ->when($filtroNombre, function ($q) use ($filtroNombre) {
+                $term = '%'.strtoupper(trim($filtroNombre)).'%';
+                $q->where(function ($inner) use ($term, $filtroNombre) {
+                    $inner->whereRaw("UPPER(CONCAT(nombre, ' ', apellidopat, ' ', IFNULL(apellidomat,''))) LIKE ?", [$term])
+                        ->orWhere('curp', 'like', strtoupper($filtroNombre).'%')
+                        ->orWhere('rfc', 'like', strtoupper($filtroNombre).'%');
+                });
+            })
+            ->when($filtroFechaDesde, fn ($q) => $q->whereDate('dia_registro', '>=', $filtroFechaDesde))
+            ->when($filtroFechaHasta, fn ($q) => $q->whereDate('dia_registro', '<=', $filtroFechaHasta))
+            ->latest('dia_registro');
+
+        $registros = $query->paginate(20)->withQueryString();
+
+        // Lista de notarías para el filtro (solo super_admin)
+        $notarias = $isSuperAdmin
+            ? Notaria::query()
+                ->select('id', 'nombre', 'numero_notaria', 'legacy_identifier')
+                ->orderBy('numero_notaria')
+                ->get()
+            : collect();
+
+        return Inertia::render('Admin/RegistroWeb/Listado', [
+            'registros' => $registros,
+            'notarias' => $notarias,
+            'can_delete' => $isSuperAdmin,
+            'is_super_admin' => $isSuperAdmin,
+            'filters' => [
+                'notaria' => $filtroNotaria,
+                'nombre' => $filtroNombre,
+                'fecha_desde' => $filtroFechaDesde,
+                'fecha_hasta' => $filtroFechaHasta,
+            ],
         ]);
     }
 }

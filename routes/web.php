@@ -232,11 +232,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::prefix('registro-web')->name('registro-web.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\RegistroWebController::class, 'index'])->name('index');
         Route::post('/', [\App\Http\Controllers\Admin\RegistroWebController::class, 'store'])->name('store');
+        Route::get('listado', [\App\Http\Controllers\Admin\RegistroWebController::class, 'listado'])->name('listado');
         Route::get('search-curp', [\App\Http\Controllers\Admin\RegistroWebController::class, 'searchCurp'])->name('search-curp');
         Route::get('search-rfc', [\App\Http\Controllers\Admin\RegistroWebController::class, 'searchRfc'])->name('search-rfc');
         Route::get('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'show'])->name('show');
         Route::put('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'update'])->name('update');
-        Route::delete('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'destroy'])->name('destroy');
+
+        // Solo super_admin puede eliminar registros de personas
+        Route::middleware('ensure.super.admin')->group(function () {
+            Route::delete('{registro}', [\App\Http\Controllers\Admin\RegistroWebController::class, 'destroy'])->name('destroy');
+        });
     });
 
     // === MÓDULO ESCÁNER INTELIGENTE DE DOCUMENTOS ===

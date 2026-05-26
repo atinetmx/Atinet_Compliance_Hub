@@ -244,7 +244,8 @@ class OpenAIDocumentAnalyzer
                     'attempt' => $attempt,
                 ]);
 
-                $response = Http::timeout($this->timeout)
+                $response = Http::withOptions(['verify' => false])
+                    ->timeout($this->timeout)
                     ->withHeaders([
                         'Authorization' => "Bearer {$this->apiKey}",
                         'Content-Type' => 'application/json',
@@ -416,5 +417,270 @@ class OpenAIDocumentAnalyzer
             '  "confianza": 0.95'."\n".
             "}\n\n".
             'Si algún campo no está disponible, usa null.';
+    }
+
+    /**
+     * Analizar testamento notarial a partir de texto ya extraído.
+     *
+     * Equvalente al API legacy extract-testamento-ai.php.
+     * A diferencia de los métodos Vision, no requiere imagen: recibe texto plano.
+     *
+     * @param  string  $texto  Texto extraído del testamento
+     */
+    public function analyzeTestamento(string $texto): array
+    {
+        $this->assertApiKeyConfigured();
+
+        $prompt = $this->buildTestamentoPrompt($texto);
+
+        return $this->callOpenAIText($prompt);
+    }
+
+    /**
+     * Construir prompt para testamento notarial mexicano.
+     * Incluye 4 casos reales de referencia para máxima precisión.
+     */
+    protected function buildTestamentoPrompt(string $texto): string
+    {
+        return <<<PROMPT
+Eres un extractor especializado en análisis de testamentos notariales mexicanos.
+
+Tu tarea es analizar el texto completo del testamento y extraer ÚNICAMENTE los nombres propios de las personas mencionadas en cada rol.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 REGLAS CRÍTICAS DE EXTRACCIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. SOLO NOMBRES PROPIOS - Sin frases ni descripciones
+2. Si un campo está vacío, ausente, o anonimizado ("XXXXXXXXXXXXXXX"), devuelve "" o []
+3. CURP: Extraer solo si tiene exactamente 18 caracteres alfanuméricos válidos
+4. Apellidos compartidos: Dividir nombres individuales y combinar con apellido compartido
+
+⚠️ TEXTOS PROHIBIDOS - NUNCA incluyas:
+- Frases: "quienes viven", "todos apellidos", "del menor", "su disposición", "la fecha cuenta"
+- Verbos: "nombro", "designo", "instituyo", "manifiesta", "compareció", "procreó"
+- Placeholders: "()", "XXXXXXXXX", "XXXXXXXXXXXXXXX"
+- Descriptores: "fallecido", "finado", "finada", "quien vive"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 IDENTIFICACIÓN POR CONTEXTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TESTADOR:
+- Patrón: "compareció el/la señor/señora [NOMBRE]"
+- Patrón: "otorga ante MI, el/la señor/señora [NOMBRE]"
+
+PADRES:
+- Patrón: "hijo de [PADRE] y [MADRE]"
+- Patrón: "hijo del matrimonio formado por [PADRE] y [MADRE]"
+
+HIJOS:
+- Patrón 1: "procreó a [NOMBRES] todos apellidos [APELLIDO]" → DIVIDIR
+- Patrón 2: "procreó 1 hijo de nombre [NOMBRE]"
+- Patrón 3: "no ha procreado hijo alguno" → []
+- ⚠️ Si anonimizado ("XXXXXXXXXXXXXXX") → []
+
+TUTOR TESTAMENTARIO:
+- ⚠️ CRÍTICO: "tutor del menor X a Y" → Y es el tutor (X es el tutelado)
+- Patrón: "designa como Tutor [del menor X] a [NOMBRE_TUTOR]"
+- Extraer DESPUÉS de "al señor", "a la señora", NO "del menor"
+
+HEREDEROS:
+- Principales: Primera mención sin "para el caso de", "para el evento"
+- Sustitutos: Después de "para el caso de que", "para el evento de que"
+
+ALBACEAS:
+- Patrón: "nombra albacea a [NOMBRE]"
+- ⚠️ NO extraer "su disposición testamentaria"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ CASOS REALES ANALIZADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CASO REAL 1: Testamento con apellidos compartidos (Coahuila)
+
+Texto original:
+"compareció la señora ANGÉLICA MATA ALDERETE... procreó a KRISTIAN DANIEL, JONATHAN EDUARDO, SOPHIA MAYLENE y YOAV ISAAC todos de apellidos LÓPEZ MATA, quienes viven... designo como Tutor del menor YOAV ISAAC LÓPEZ MATA, al señor CARLOS EDUARDO LÓPEZ MARTINEZ"
+
+Extracción correcta:
+{"testador":{"nombre":"ANGÉLICA MATA ALDERETE"},"familia":{"hijos":["KRISTIAN DANIEL LÓPEZ MATA","JONATHAN EDUARDO LÓPEZ MATA","SOPHIA MAYLENE LÓPEZ MATA","YOAV ISAAC LÓPEZ MATA"]},"tutores":{"principal":"CARLOS EDUARDO LÓPEZ MARTINEZ"}}
+
+Errores a evitar:
+- hijos: ["KRISTIAN DANIEL, JONATHAN... todos apellidos LÓPEZ MATA, quienes viven"]
+- tutor: "YOAV ISAAC LÓPEZ MATA" (este es el tutelado, NO el tutor)
+
+CASO REAL 2: Heredera universal con CURP válido (Guanajuato - León)
+
+Texto original:
+"otorga ante MI, el señor DANIEL GUZMAN CENTENO... hijo del matrimonio formado por los señores LUIS GUZMAN y ROSA CENTENO... instituye como Única y Universal heredera... a su hija la señora DANIELA MARGARITA GUZMAN AMBRIZ... designar como Albacea... a su hija la señora DANIELA MARGARITA GUZMAN AMBRIZ... CURP: GUCD500605HJCZNN05... casado"
+
+Extracción correcta:
+{"testador":{"nombre":"DANIEL GUZMAN CENTENO","curp":"GUCD500605HJCZNN05","estado_civil":"casado"},"familia":{"padre":"LUIS GUZMAN","madre":"ROSA CENTENO","conyuge":"","hijos":["DANIELA MARGARITA GUZMAN AMBRIZ"]},"herederos":{"principales":["DANIELA MARGARITA GUZMAN AMBRIZ"]},"albaceas":{"principal":"DANIELA MARGARITA GUZMAN AMBRIZ"}}
+
+Errores a evitar:
+- Incluir "su hija la señora" en el nombre
+- Extraer conyuge del estado civil "casado" (no menciona nombre)
+
+CASO REAL 3: Herederos con sustitutos anonimizados (Guanajuato - Salvatierra)
+
+Texto original:
+"compareció la Señora XXXXXXXXXXXXXXX... procreó 1 un hijo de nombre XXXXXXXXXXXXXXX... designa HEREDERA... Para el evento, de que la heredera... no pudiese heredar; designa sustituta heredera... Tutor Testamentario al señor XXXXXXXXXXXXXXX... nombra albacea testamentaria a XXXXXXXXXXXXXXX"
+
+Extracción correcta:
+{"testador":{"nombre":""},"familia":{"hijos":[]},"herederos":{"principales":[],"sustitutos":[]},"tutores":{"principal":""},"albaceas":{"principal":""}}
+
+Errores a evitar:
+- Extraer "XXXXXXXXXXXXXXX" como nombre
+- Incluir frases como "Para el evento" en herederos
+
+CASO REAL 4: Patrón "todos apellidos" simplificado
+
+Texto: "hijos JUAN, PEDRO, MARÍA todos apellidos GARCÍA"
+Correcto: ["JUAN GARCÍA", "PEDRO GARCÍA", "MARÍA GARCÍA"]
+Incorrecto: ["JUAN, PEDRO, MARÍA todos apellidos GARCÍA"]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 FORMATO DE RESPUESTA (JSON)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "testador": {
+    "nombre": "NOMBRE APELLIDO_PAT APELLIDO_MAT",
+    "curp": "18_CHARS_O_VACIO",
+    "estado_civil": "soltero|casado|viudo|divorciado"
+  },
+  "familia": {
+    "padre": "NOMBRE_COMPLETO",
+    "madre": "NOMBRE_COMPLETO",
+    "conyuge": "NOMBRE_COMPLETO_O_VACIO",
+    "hijos": ["HIJO1_NOMBRE_APELLIDOS", "HIJO2_NOMBRE_APELLIDOS"]
+  },
+  "herederos": {
+    "principales": ["HEREDERO1", "HEREDERO2"],
+    "sustitutos": ["SUSTITUTO1", "SUSTITUTO2"]
+  },
+  "tutores": {
+    "principal": "TUTOR_PRINCIPAL",
+    "sustituto": "TUTOR_SUSTITUTO"
+  },
+  "albaceas": {
+    "principal": "ALBACEA_PRINCIPAL",
+    "sustituto": "ALBACEA_SUSTITUTO"
+  },
+  "metadatos": {
+    "escritura": "",
+    "volumen": "",
+    "libro": "",
+    "fecha": "",
+    "notario": "",
+    "notaria_numero": ""
+  }
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 TEXTO DEL TESTAMENTO A ANALIZAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{$texto}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Analiza el texto y extrae SOLO nombres propios limpios basándote en los casos reales mostrados arriba.
+PROMPT;
+    }
+
+    /**
+     * Llamar a OpenAI API enviando solo texto (sin Vision).
+     * Usado para análisis de testamentos donde el texto ya fue extraído.
+     *
+     * Modelo usado: gpt-4o-mini (más económico, suficiente para texto)
+     */
+    protected function callOpenAIText(string $prompt): array
+    {
+        $this->assertApiKeyConfigured();
+
+        $maxRetries = 3;
+        $baseDelay = 2;
+
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $payload = [
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => 'Eres un extractor especializado de nombres propios en documentos notariales mexicanos. SOLO devuelves nombres limpios de personas SIN texto descriptivo. Formato: JSON válido únicamente, sin markdown, sin explicaciones.',
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt,
+                        ],
+                    ],
+                    'temperature' => 0.1,
+                    'max_tokens' => 2500,
+                    'response_format' => ['type' => 'json_object'],
+                ];
+
+                Log::info('OpenAI Testamento Analysis Request', [
+                    'model' => 'gpt-4o-mini',
+                    'attempt' => $attempt,
+                ]);
+
+                $response = Http::withOptions(['verify' => false])
+                    ->timeout($this->timeout)
+                    ->withHeaders([
+                        'Authorization' => "Bearer {$this->apiKey}",
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post($this->endpoint, $payload);
+
+                if ($response->failed()) {
+                    $statusCode = $response->status();
+                    $errorBody = $response->json();
+                    $isRateLimit = $statusCode === 429;
+
+                    Log::warning('OpenAI Testamento request failed', [
+                        'attempt' => $attempt,
+                        'status' => $statusCode,
+                        'error' => $errorBody,
+                    ]);
+
+                    if ($isRateLimit && $attempt < $maxRetries) {
+                        sleep($baseDelay * $attempt);
+
+                        continue;
+                    }
+
+                    throw new Exception('OpenAI API error '.$statusCode.': '.($errorBody['error']['message'] ?? $response->body()));
+                }
+
+                $result = $response->json();
+                $content = $result['choices'][0]['message']['content'] ?? null;
+
+                if (! $content) {
+                    throw new Exception('Respuesta vacía de OpenAI');
+                }
+
+                $datos = json_decode($content, true);
+
+                if (! is_array($datos)) {
+                    throw new Exception('JSON inválido en respuesta de OpenAI: '.$content);
+                }
+
+                Log::info('OpenAI Testamento Analysis OK', [
+                    'tokens' => $result['usage']['total_tokens'] ?? 0,
+                ]);
+
+                return $datos;
+
+            } catch (Exception $e) {
+                if ($attempt === $maxRetries) {
+                    throw $e;
+                }
+                sleep($baseDelay * $attempt);
+            }
+        }
+
+        throw new Exception('OpenAI no respondió después de '.$maxRetries.' intentos');
     }
 }

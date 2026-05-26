@@ -32,10 +32,12 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
             setShowCamera(false);
             setStatus('idle');
             setErrorMessage(null);
-            // NO resetear lastScannedQRRef - mantiene memoria del último QR escaneado
-            // para evitar reprocesar el mismo QR si la cámara muestra el frame anterior
-            isProcessingRef.current = false; // Reset flag de procesamiento
-            cameraStartTimeRef.current = 0; // Reset timestamp
+            isProcessingRef.current = false;
+            cameraStartTimeRef.current = 0;
+        } else {
+            // Al ABRIR: limpiar memoria del QR anterior para que cada sesión
+            // comience limpia. El warm-up de 2s protege contra el frame residual.
+            lastScannedQRRef.current = null;
         }
     }, [isOpen]);
 
@@ -99,10 +101,9 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                     cameraConfig,
                     config,
                     async (decodedText) => {
-                        // Warm-up: ignorar frames iniciales (800ms) para evitar procesar frame anterior capturado
+                        // Warm-up: ignorar primeros 2s para descartar frame residual de sesión anterior
                         const timeSinceStart = Date.now() - cameraStartTimeRef.current;
-                        if (timeSinceStart < 800) {
-                            console.log('⏳ Ignorando frame inicial (warm-up)...');
+                        if (timeSinceStart < 2000) {
                             return;
                         }
 
@@ -127,10 +128,9 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                     devices[0].id,
                     config,
                     async (decodedText) => {
-                        // Warm-up: ignorar frames iniciales (800ms)
+                        // Warm-up: ignorar primeros 2s para descartar frame residual de sesión anterior
                         const timeSinceStart = Date.now() - cameraStartTimeRef.current;
-                        if (timeSinceStart < 800) {
-                            console.log('⏳ Ignorando frame inicial (warm-up)...');
+                        if (timeSinceStart < 2000) {
                             return;
                         }
 
@@ -278,6 +278,9 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                     </DialogDescription>
                 </DialogHeader>
 
+                {/* Div oculto requerido por html5-qrcode para escaneo de archivos - SIEMPRE en DOM */}
+                <div id="qr-reader-file" className="hidden" />
+
                 <div className="space-y-4">{/* Panel de elección */}
                     {!showCamera && (
                         <div className="space-y-4">
@@ -336,9 +339,6 @@ export function ScannerQR({ isOpen, onClose, onQRDetected }: ScannerQRProps) {
                                 id="qr-reader"
                                 className="border rounded-lg overflow-hidden"
                             />
-
-                            {/* Scanner oculto para archivos */}
-                            <div id="qr-reader-file" className="hidden" />
 
                             {/* Botones de acción */}
                             <div className="flex gap-2">

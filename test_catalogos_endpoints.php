@@ -192,6 +192,131 @@ try {
 echo "\n";
 
 // ============================================================
+// 6. TEST: GET /admin/catalogos/regimen-fiscal?codigo=605
+// ============================================================
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "TEST 6: Buscar régimen fiscal por código (605)\n";
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "Endpoint: GET /admin/catalogos/regimen-fiscal?codigo=605\n\n";
+
+try {
+    $request = Request::create('/admin/catalogos/regimen-fiscal', 'GET', ['codigo' => '605']);
+    $response = $controller->getRegimenFiscal($request);
+    $data = json_decode($response->getContent(), true);
+
+    if ($data['success'] && !empty($data['data']['descripcion'])) {
+        echo "✅ PASÓ: Régimen fiscal encontrado\n";
+        echo sprintf("   Código: %s\n", $data['data']['codigo']);
+        echo sprintf("   Descripción: %s\n", $data['data']['descripcion']);
+        $testsPassed++;
+    } else {
+        echo "❌ FALLÓ: No se encontró descripción para código 605\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
+        $testsFailed++;
+    }
+} catch (\Exception $e) {
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
+    $testsFailed++;
+}
+
+echo "\n";
+
+// ============================================================
+// 7. TEST: GET /admin/catalogos/regimen-fiscal?codigo=612
+// ============================================================
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "TEST 7: Buscar régimen fiscal por código (612 - Personas Físicas)\n";
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "Endpoint: GET /admin/catalogos/regimen-fiscal?codigo=612\n\n";
+
+try {
+    $request = Request::create('/admin/catalogos/regimen-fiscal', 'GET', ['codigo' => '612']);
+    $response = $controller->getRegimenFiscal($request);
+    $data = json_decode($response->getContent(), true);
+
+    if ($data['success'] && !empty($data['data']['descripcion'])) {
+        echo "✅ PASÓ: Régimen fiscal encontrado\n";
+        echo sprintf("   Código: %s\n", $data['data']['codigo']);
+        echo sprintf("   Descripción: %s\n", $data['data']['descripcion']);
+        $testsPassed++;
+    } else {
+        echo "❌ FALLÓ: No se encontró descripción para código 612\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
+        $testsFailed++;
+    }
+} catch (\Exception $e) {
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
+    $testsFailed++;
+}
+
+echo "\n";
+
+// ============================================================
+// 8. TEST: GET /admin/catalogos/regimen-fiscal (lista completa)
+// ============================================================
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "TEST 8: Obtener lista completa de regímenes fiscales\n";
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "Endpoint: GET /admin/catalogos/regimen-fiscal\n\n";
+
+try {
+    $request = Request::create('/admin/catalogos/regimen-fiscal', 'GET');
+    $response = $controller->getRegimenFiscal($request);
+    $data = json_decode($response->getContent(), true);
+
+    if ($data['success'] && is_array($data['data']) && count($data['data']) > 0) {
+        echo sprintf("✅ PASÓ: Se obtuvieron %d regímenes fiscales\n", count($data['data']));
+        echo "Ejemplos:\n";
+        foreach (array_slice($data['data'], 0, 4) as $rf) {
+            echo sprintf("   - [%s] %s\n", $rf['codigo'], $rf['descripcion']);
+        }
+        $testsPassed++;
+    } else {
+        echo "❌ FALLÓ: Lista vacía o respuesta inesperada\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
+        $testsFailed++;
+    }
+} catch (\Exception $e) {
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
+    $testsFailed++;
+}
+
+echo "\n";
+
+// ============================================================
+// 9. TEST: Código inválido (no numérico)
+// ============================================================
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "TEST 9: Código régimen fiscal inválido (debe rechazarse)\n";
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+echo "Endpoint: GET /admin/catalogos/regimen-fiscal?codigo=ABC\n\n";
+
+try {
+    $request = Request::create('/admin/catalogos/regimen-fiscal', 'GET', ['codigo' => 'ABC']);
+    $response = $controller->getRegimenFiscal($request);
+    $statusCode = $response->getStatusCode();
+    $data = json_decode($response->getContent(), true);
+
+    if ($statusCode === 422 || (isset($data['success']) && $data['success'] === false)) {
+        echo "✅ PASÓ: Código inválido correctamente rechazado (HTTP {$statusCode})\n";
+        $testsPassed++;
+    } else {
+        echo "❌ FALLÓ: Debería rechazar código no numérico, recibió HTTP {$statusCode}\n";
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
+        $testsFailed++;
+    }
+} catch (\Exception $e) {
+    echo '❌ FALLÓ: '.$e->getMessage()."\n";
+    $testsFailed++;
+}
+
+echo "\n";
+
+// ============================================================
 // RESUMEN
 // ============================================================
 

@@ -206,6 +206,7 @@ class EscanerInteligenteController extends Controller
                 'escritura' => $this->analyzer->analyzeEscritura($documento->ruta_original),
                 'contrato' => $this->analyzer->analyzeContrato($documento->ruta_original),
                 'poder' => $this->analyzer->analyzePoder($documento->ruta_original),
+                'testamento' => $this->analyzer->analyzeTestamento($this->obtenerTextoDocumento($documento)),
                 default => $this->analyzer->analyzeDocument($documento->ruta_original, $documento->tipo_documento),
             };
 
@@ -436,6 +437,59 @@ class EscanerInteligenteController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Obtener el texto extraído de un documento.
+     *
+     * Prioridad: archivo de texto ya generado (ruta_texto) → extracción inline del original.
+     * Usado por analyzeTestamento(), que recibe texto plano en lugar de imagen.
+     */
+    protected function obtenerTextoDocumento(DocumentoEscaneado $documento): string
+    {
+        // Si ya se extrajo el texto, usarlo directamente
+        if ($documento->ruta_texto && Storage::disk('private')->exists($documento->ruta_texto)) {
+            return Storage::disk('private')->get($documento->ruta_texto) ?? '';
+        }
+
+        // Extraer texto al vuelo del documento original
+        $ruta = $documento->ruta_original;
+
+        if (! $ruta || ! Storage::disk('private')->exists($ruta)) {
+            return '';
+        }
+
+        $rutaAbsoluta = Storage::disk('private')->path($ruta);
+        $extension = strtolower(pathinfo($ruta, PATHINFO_EXTENSION));
+
+        if ($extension === 'pdf') {
+            try {
+                $parser = new \Smalot\PdfParser\Parser;
+                $pdf = $parser->parseFile($rutaAbsoluta);
+
+                return $pdf->getText();
+            } catch (\Exception $e) {
+                Log::warning('Error extrayendo texto del PDF para testamento', ['error' => $e->getMessage()]);
+            }
+        } elseif (in_array($extension, ['docx', 'doc', 'odt'])) {
+            try {
+                $phpWord = \PhpOffice\PhpWord\IOFactory::load($rutaAbsoluta);
+                $texto = '';
+                foreach ($phpWord->getSections() as $section) {
+                    foreach ($section->getElements() as $element) {
+                        if (method_exists($element, 'getText')) {
+                            $texto .= $element->getText().' ';
+                        }
+                    }
+                }
+
+                return trim($texto);
+            } catch (\Exception $e) {
+                Log::warning('Error extrayendo texto del Word para testamento', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return '';
     }
 
     /**
