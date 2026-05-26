@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Calendar, Filter, Search, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Calendar, FileDown, FileSpreadsheet, Filter, Search, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
@@ -194,6 +194,16 @@ export default function ServiceUsage({
         router.get(ReportsController.serviceUsage.url(), { period: 'month' });
     };
 
+    const handleExport = () => {
+        // Redirigir a la vista previa en lugar de descargar directamente
+        router.post('/admin/reports/preview', {
+            type: 'usage',
+            period: selectedPeriod,
+            notaria_id: selectedNotaria !== 'all' ? selectedNotaria : undefined,
+            service_code: selectedService !== 'all' ? selectedService : undefined,
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Uso de Servicios" />
@@ -201,18 +211,29 @@ export default function ServiceUsage({
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                     {/* Header */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
                                 Historial detallado de consumo de servicios por notaría
                             </p>
                         </div>
-                        <Link href={ReportsController.index.url()}>
-                            <Button variant="outline">
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver a Reportes
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleExport}
+                                className="gap-2"
+                            >
+                                <FileSpreadsheet className="h-4 w-4" />
+                                Ver Previa / Exportar
                             </Button>
-                        </Link>
+                            <Link href={ReportsController.index.url()}>
+                                <Button variant="outline" size="sm">
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Volver
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
 
                     {/* Filtros */}

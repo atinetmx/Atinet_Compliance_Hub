@@ -13,6 +13,14 @@ import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -156,12 +164,67 @@ export default function Index({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Gestión de Usuarios" />
 
-            <div className="space-y-4">
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                {/* Header con botones de acción */}
+                <div className="mb-6 flex items-center justify-end gap-2">
+                    <Link href="/admin/users/reports">
+                        <Button variant="outline">Ver Reportes</Button>
+                    </Link>
+                    <Link href="/admin/users/create">
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Nuevo Usuario
+                        </Button>
+                    </Link>
+                </div>
 
+                {/* Stats Cards */}
+                <div className="mb-6 grid auto-rows-min gap-4 md:grid-cols-4">
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Total Usuarios
+                            </p>
+                            <p className="text-2xl font-bold">
+                                {users.total}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Verificados
+                            </p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {users.data.filter((u) => u.email_verified_at).length}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Pendientes
+                            </p>
+                            <p className="text-2xl font-bold text-orange-600">
+                                {users.data.filter((u) => !u.email_verified_at).length}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Super Admins
+                            </p>
+                            <p className="text-2xl font-bold text-red-600">
+                                {users.data.filter((u) => u.tipo_cuenta === 'super_admin').length}
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-                {/* Filters */}
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
+                {/* Search and Filters */}
+                <div className="mb-4 rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
+                    <div className="mb-4 flex items-center gap-4">
                         <div className="relative flex-1">
                             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
@@ -181,18 +244,6 @@ export default function Index({
                             <Filter className="mr-2 h-4 w-4" />
                             Filtros
                         </Button>
-                        {/* Header con botones de acción */}
-                        <div className="flex items-center justify-end gap-2">
-                            <Link href="/admin/users/reports">
-                                <Button variant="outline">Ver Reportes</Button>
-                            </Link>
-                            <Link href="/admin/users/create">
-                                <Button>
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Nuevo Usuario
-                                </Button>
-                            </Link>
-                        </div>
                         {(filters.search ||
                             filters.tipo_cuenta ||
                             filters.notaria_id) && (
@@ -207,7 +258,7 @@ export default function Index({
                     </div>
 
                     {showFilters && (
-                        <div className="grid grid-cols-1 gap-4 rounded-lg border bg-muted/50 p-4 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
                                 <label className="mb-2 block text-sm font-medium">
                                     Tipo de Cuenta
@@ -257,134 +308,136 @@ export default function Index({
                 </div>
 
                 {/* Users Table */}
-                <div className="rounded-md border">
-                    <table className="w-full">
-                        <thead className="border-b bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium">
-                                    Usuario
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium">
-                                    Email
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium">
-                                    Tipo de Cuenta
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium">
-                                    Notaría
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium">
-                                    Estado
-                                </th>
-                                <th className="px-4 py-3 text-center font-medium">
+                <div className="rounded-xl border border-sidebar-border/70 bg-background">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Usuario</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Tipo de Cuenta</TableHead>
+                                <TableHead>Notaría</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead className="text-right">
                                     Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.data.map((user) => (
-                                <tr
-                                    key={user.id}
-                                    className="border-b hover:bg-muted/30"
-                                >
-                                    <td className="px-4 py-3">
-                                        <div>
-                                            <div className="font-medium">
-                                                {user.name}
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                ID: {user.id}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm">
-                                        {user.email}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Badge
-                                            className={getTipoCuentaBadgeColor(
-                                                user.tipo_cuenta,
-                                            )}
-                                        >
-                                            {tiposCuenta[user.tipo_cuenta]}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {user.notaria ? (
-                                            <div className="flex items-center gap-2">
-                                                <Building2 className="h-4 w-4 text-muted-foreground" />
-                                                <div>
-                                                    <div className="text-sm font-medium">
-                                                        {
-                                                            user.notaria
-                                                                .numero_notaria
-                                                        }
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {user.notaria.nombre}
-                                                    </div>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {users.data.length > 0 ? (
+                                users.data.map((user) => (
+                                    <TableRow key={user.id}>
+                                        <TableCell>
+                                            <div>
+                                                <div className="font-medium">
+                                                    {user.name}
+                                                </div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    ID: {user.id}
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                Sin asignar
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Badge
-                                            variant={
-                                                user.email_verified_at
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            }
-                                        >
-                                            {user.email_verified_at
-                                                ? 'Verificado'
-                                                : 'Pendiente'}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                            <Link
-                                                href={`/admin/users/${user.id}`}
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                            {user.email}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                className={getTipoCuentaBadgeColor(
+                                                    user.tipo_cuenta,
+                                                )}
                                             >
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
-                                            <Link
-                                                href={`/admin/users/${user.id}/edit`}
-                                            >
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
-                                            {user.tipo_cuenta !==
-                                                'super_admin' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-red-600 hover:text-red-700"
-                                                    onClick={() =>
-                                                        handleDelete(user)
-                                                    }
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {tiposCuenta[user.tipo_cuenta]}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {user.notaria ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                                                    <div>
+                                                        <div className="text-sm font-medium">
+                                                            {
+                                                                user.notaria
+                                                                    .numero_notaria
+                                                            }
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {user.notaria.nombre}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    Sin asignar
+                                                </span>
                                             )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={
+                                                    user.email_verified_at
+                                                        ? 'default'
+                                                        : 'secondary'
+                                                }
+                                            >
+                                                {user.email_verified_at
+                                                    ? 'Verificado'
+                                                    : 'Pendiente'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Link
+                                                    href={`/admin/users/${user.id}`}
+                                                >
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </Link>
+                                                <Link
+                                                    href={`/admin/users/${user.id}/edit`}
+                                                >
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                </Link>
+                                                {user.tipo_cuenta !==
+                                                    'super_admin' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-red-600 hover:text-red-700"
+                                                        onClick={() =>
+                                                            handleDelete(user)
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={6}
+                                        className="h-24 text-center"
+                                    >
+                                        <p className="text-muted-foreground">
+                                            {data.search || data.tipo_cuenta || data.notaria_id
+                                                ? 'No se encontraron usuarios que coincidan con los filtros.'
+                                                : 'No hay usuarios registrados.'}
+                                        </p>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
                 </div>
 
                 {/* Pagination */}

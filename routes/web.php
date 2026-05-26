@@ -161,6 +161,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usage-trends', [\App\Http\Controllers\Admin\ReportsController::class, 'usageTrends'])->name('usage-trends');
         Route::get('top-services', [\App\Http\Controllers\Admin\ReportsController::class, 'topServices'])->name('top-services');
         Route::get('near-limit', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasNearLimit'])->name('near-limit');
+        Route::post('preview', [\App\Http\Controllers\Admin\ReportsController::class, 'preview'])->name('preview');
         Route::post('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
     });
 
