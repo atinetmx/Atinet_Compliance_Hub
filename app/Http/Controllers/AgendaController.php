@@ -127,8 +127,8 @@ class AgendaController extends Controller
         ])->values()->all(); // Convertir a array plano
 
         // === 2. ACTIVIDADES LEGACY (atinet65_aplicativos.log) ===
-        // Super admins sin notaría asignada se mapean a 'atinet' legacy
-        if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
+        // Super admins se mapean a 'atinet' legacy (tienen notaria_id=11)
+        if ($user->tipo_cuenta === 'super_admin') {
             $legacySlug = 'atinet';
         } else {
             // Obtenemos el slug legacy de la notaría del usuario

@@ -16,6 +16,10 @@ interface Props {
 }
 
 export default function Create({ notarias, tiposCuenta }: Props) {
+    // Buscar ATINET MASTER
+    const atinetMaster = notarias.find(n => n.id === 11);
+    const atinetMasterId = atinetMaster ? String(atinetMaster.id) : '';
+
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         email: '',
@@ -24,6 +28,14 @@ export default function Create({ notarias, tiposCuenta }: Props) {
         password: '',
         password_confirmation: '',
     });
+
+    // Auto-asignar ATINET MASTER cuando se selecciona super_admin
+    const handleTipoCuentaChange = (tipoCuenta: string) => {
+        setData('tipo_cuenta', tipoCuenta);
+        if (tipoCuenta === 'super_admin' && atinetMasterId) {
+            setData('notaria_id', atinetMasterId);
+        }
+    };
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -114,7 +126,7 @@ export default function Create({ notarias, tiposCuenta }: Props) {
                             <select
                                 value={data.tipo_cuenta}
                                 onChange={(e) =>
-                                    setData('tipo_cuenta', e.target.value)
+                                    handleTipoCuentaChange(e.target.value)
                                 }
                                 className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
                                 required
@@ -137,7 +149,7 @@ export default function Create({ notarias, tiposCuenta }: Props) {
                         {/* Notaría */}
                         <div>
                             <label className="mb-2 block text-sm font-medium">
-                                Notaría Asignada
+                                Notaría Asignada <span className="text-red-600">*</span>
                             </label>
                             <select
                                 value={data.notaria_id}
@@ -145,8 +157,10 @@ export default function Create({ notarias, tiposCuenta }: Props) {
                                     setData('notaria_id', e.target.value)
                                 }
                                 className="w-full rounded-lg border px-4 py-2 focus:ring-2 focus:ring-primary focus:outline-none"
+                                required
+                                disabled={data.tipo_cuenta === 'super_admin'}
                             >
-                                <option value="">Sin asignar (Super Admin o Invitado)</option>
+                                <option value="">Seleccione una notaría</option>
                                 {notarias.map((notaria) => (
                                     <option key={notaria.id} value={notaria.id}>
                                         {notaria.numero_notaria} -{' '}
@@ -159,9 +173,11 @@ export default function Create({ notarias, tiposCuenta }: Props) {
                                     {errors.notaria_id}
                                 </p>
                             )}
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Los usuarios de tipo Admin Notaría y Usuario Notaría requieren una notaría asignada
-                            </p>
+                            {data.tipo_cuenta === 'super_admin' && (
+                                <p className="mt-1 text-sm text-blue-600">
+                                    ℹ️ Los Super Administradores se asignan automáticamente a ATINET MASTER
+                                </p>
+                            )}
                         </div>
 
                         {/* Contraseña */}

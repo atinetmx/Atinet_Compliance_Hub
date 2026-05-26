@@ -89,8 +89,14 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'tipo_cuenta' => 'required|in:super_admin,admin_notaria,usuario_notaria,invitado',
-            'notaria_id' => 'nullable|exists:notarias,id',
+            'notaria_id' => 'required|exists:notarias,id',
         ]);
+
+        // Si es super_admin, forzar ATINET MASTER (id=11)
+        $notariaId = $validated['notaria_id'];
+        if ($validated['tipo_cuenta'] === 'super_admin') {
+            $notariaId = 11; // ATINET MASTER
+        }
 
         $user = User::create([
             'name' => $validated['name'],
@@ -98,7 +104,7 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
             'plain_password' => $validated['password'],
             'tipo_cuenta' => $validated['tipo_cuenta'],
-            'notaria_id' => $validated['notaria_id'],
+            'notaria_id' => $notariaId,
             'email_verified_at' => now(),
         ]);
 
@@ -174,15 +180,21 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'tipo_cuenta' => 'required|in:super_admin,admin_notaria,usuario_notaria,invitado',
-            'notaria_id' => 'nullable|exists:notarias,id',
+            'notaria_id' => 'required|exists:notarias,id',
             'password' => 'nullable|string|min:8|confirmed',
         ]);
+
+        // Si es super_admin, forzar ATINET MASTER (id=11)
+        $notariaId = $validated['notaria_id'];
+        if ($validated['tipo_cuenta'] === 'super_admin') {
+            $notariaId = 11; // ATINET MASTER
+        }
 
         $updateData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'tipo_cuenta' => $validated['tipo_cuenta'],
-            'notaria_id' => $validated['notaria_id'],
+            'notaria_id' => $notariaId,
         ];
 
         if (! empty($validated['password'])) {
