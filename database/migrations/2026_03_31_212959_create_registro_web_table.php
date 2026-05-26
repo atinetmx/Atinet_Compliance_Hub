@@ -52,7 +52,7 @@ return new class extends Migration
             $table->string('no_interior', 100);
             $table->string('manzana', 100);
             $table->string('lote', 100);
-            $table->integer('cp');
+            $table->string('cp', 5)->default('');
             $table->string('colonia', 100);
             $table->string('municipio', 100);
             $table->string('estado', 100);
@@ -65,7 +65,7 @@ return new class extends Migration
             $table->string('no_interior_fiscal', 100);
             $table->string('manzana_fiscal', 100);
             $table->string('lote_fiscal', 100);
-            $table->integer('cp_fiscal');
+            $table->string('cp_fiscal', 5)->default('');
             $table->string('colonia_fiscal', 100);
             $table->string('municipio_fiscal', 100);
             $table->string('estado_fiscal', 100);

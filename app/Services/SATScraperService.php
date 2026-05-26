@@ -28,15 +28,10 @@ class SATScraperService
 
     public function __construct()
     {
-        $this->geminiApiKey = config('services.gemini.api_key', '');
-        $this->geminiEndpoint = config('services.gemini.endpoint', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent');
-        $this->temperature = config('services.gemini.temperature', 0.1);
-        $this->timeout = config('services.gemini.timeout', 60);
-
-        // Solo validar API key si no estamos en modo testing con mocks
-        if (empty($this->geminiApiKey) && ! app()->environment('testing')) {
-            throw new Exception('Gemini API key not configured');
-        }
+        $this->geminiApiKey = config('services.gemini.api_key') ?? '';
+        $this->geminiEndpoint = config('services.gemini.endpoint') ?? 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent';
+        $this->temperature = (float) (config('services.gemini.temperature') ?? 0.1);
+        $this->timeout = (int) (config('services.gemini.timeout') ?? 60);
     }
 
     /**
@@ -54,7 +49,7 @@ class SATScraperService
             throw new Exception('La URL no corresponde a una constancia del SAT');
         }
 
-        // Paso 1: Extraer datos crudos del HTML del SAT
+        // Paso 1: Obtener HTML del SAT
         $html = $this->fetchSATHTML($qrUrl);
         $rawData = $this->extractDataFromHTML($html);
 
@@ -62,8 +57,13 @@ class SATScraperService
             throw new Exception('No se encontraron datos en la constancia fiscal');
         }
 
-        // Paso 2: Procesar con Gemini para estructurar
-        $structuredData = $this->structureWithGemini($rawData);
+        // Paso 2: Estructurar datos — Gemini si hay key, parser directo si no
+        if (! empty($this->geminiApiKey)) {
+            $structuredData = $this->structureWithGemini($rawData);
+        } else {
+            Log::info('Gemini key no configurada, usando parser directo de HTML del SAT');
+            $structuredData = $this->structureDirectlyFromHTML($html, $rawData);
+        }
 
         // Validar datos mínimos
         if (empty($structuredData['rfc'])) {
@@ -76,6 +76,24 @@ class SATScraperService
             unset($structuredData['persona']);
         } elseif (isset($structuredData['Persona'])) {
             $structuredData['Persona'] = strtoupper($structuredData['Persona']);
+        }
+
+        // Fallback: derivar Persona del RFC si Gemini no lo determinó o es inválido
+        // RFC Moral:  12 chars (3 letras + 6 dígitos + 3 homoclave), 4to char es dígito
+        // RFC Física: 13 chars (4 letras + 6 dígitos + 3 homoclave), 4to char es letra
+        if (! isset($structuredData['Persona']) || ! in_array($structuredData['Persona'], ['FISICA', 'MORAL'])) {
+            $rfc = $structuredData['rfc'] ?? '';
+            $structuredData['Persona'] = (strlen($rfc) >= 4 && ! is_numeric($rfc[3])) ? 'FISICA' : 'MORAL';
+        }
+
+        // Normalizar cp_fiscal: siempre string de 5 dígitos con ceros iniciales
+        if (! empty($structuredData['cp_fiscal'])) {
+            $structuredData['cp_fiscal'] = str_pad(
+                preg_replace('/\D/', '', (string) $structuredData['cp_fiscal']),
+                5,
+                '0',
+                STR_PAD_LEFT
+            );
         }
 
         return $structuredData;
@@ -96,8 +114,10 @@ class SATScraperService
     {
         try {
             // Usar Http facade para permitir testing con mocks
+            // verify=false: siat.sat.gob.mx usa certificados intermedios no incluidos en el bundle
+            // del servidor Windows. La URL ya fue validada como proveniente de un QR del SAT.
             $response = Http::withOptions([
-                'verify' => true,
+                'verify' => false,
                 'curl' => [
                     CURLOPT_SSL_CIPHER_LIST => 'DEFAULT@SECLEVEL=1', // PHP 8.1+ / OpenSSL 3
                 ],
@@ -201,6 +221,10 @@ class SATScraperService
      */
     protected function structureWithGemini(array $rawData): array
     {
+        if (empty($this->geminiApiKey)) {
+            throw new Exception('Gemini API key not configured');
+        }
+
         $maxRetries = 3;
         $baseDelay = 1; // segundo
 
@@ -229,7 +253,8 @@ class SATScraperService
                 Log::info('Llamando a Gemini API', ['attempt' => $attempt, 'max_retries' => $maxRetries]);
 
                 // Llamar a Gemini API
-                $response = Http::timeout($this->timeout)
+                $response = Http::withOptions(['verify' => false])
+                    ->timeout($this->timeout)
                     ->withHeaders([
                         'Content-Type' => 'application/json',
                     ])
@@ -320,6 +345,165 @@ class SATScraperService
     }
 
     /**
+     * Parser directo del HTML del SAT sin IA.
+     *
+     * El HTML de siat.sat.gob.mx tiene estructura de tabla consistente:
+     * filas con celda-etiqueta y celda-valor adyacentes.
+     *
+     * @param  string  $html  HTML completo de la constancia
+     * @param  array  $rawData  Valores ya extraídos (fallback de texto plano)
+     * @return array Datos estructurados con las mismas claves que usa Gemini
+     */
+    protected function structureDirectlyFromHTML(string $html, array $rawData): array
+    {
+        $dom = new DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        libxml_clear_errors();
+        $xpath = new DOMXPath($dom);
+
+        // Construir mapa etiqueta => valor a partir de pares de <td>
+        $map = [];
+        $rows = $xpath->query('//tr');
+        foreach ($rows as $row) {
+            $cells = $xpath->query('td', $row);
+            if ($cells->length >= 2) {
+                $label = mb_strtolower(trim(preg_replace('/[:\s]+$/', '', $cells->item(0)->nodeValue)));
+                $value = trim($cells->item(1)->nodeValue);
+                if ($label !== '' && $value !== '') {
+                    $map[$label] = $value;
+                }
+            }
+        }
+
+        // Texto plano para búsquedas con regex
+        $fullText = implode(' ', $rawData);
+
+        // Helper: buscar valor en el mapa con varias claves posibles
+        $get = function (array $keys) use ($map): string {
+            foreach ($keys as $key) {
+                foreach ($map as $label => $value) {
+                    if (str_contains($label, $key)) {
+                        return $value;
+                    }
+                }
+            }
+
+            return '';
+        };
+
+        // RFC — también intentar regex en texto plano
+        $rfc = $get(['rfc']);
+        if (empty($rfc)) {
+            preg_match('/\b([A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3})\b/', $fullText, $m);
+            $rfc = $m[1] ?? '';
+        }
+
+        // CURP
+        $curp = $get(['curp']);
+        if (empty($curp)) {
+            preg_match('/\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]{2})\b/', $fullText, $m);
+            $curp = $m[1] ?? '';
+        }
+
+        // Persona: física si tiene CURP (13 chars RFC), moral si no
+        $persona = '';
+        if (! empty($curp)) {
+            $persona = 'FISICA';
+        } elseif (! empty($rfc)) {
+            $persona = strlen($rfc) === 12 ? 'MORAL' : 'FISICA';
+        }
+
+        // Nombre y apellidos
+        $nombreCompleto = $get(['nombre', 'denominaci', 'razón social', 'razon social']);
+        $apellidoPat = $get(['apellido paterno', 'primer apellido']);
+        $apellidoMat = $get(['apellido materno', 'segundo apellido']);
+        $nombre = $get(['nombre(s)', 'nombres']);
+
+        // Si solo hay nombre completo y es persona física, intentar separar
+        if ($persona === 'FISICA' && ! empty($nombreCompleto) && empty($apellidoPat)) {
+            $partes = preg_split('/\s+/', trim($nombreCompleto));
+            if (count($partes) >= 3) {
+                $apellidoPat = $partes[0];
+                $apellidoMat = $partes[1];
+                $nombre = implode(' ', array_slice($partes, 2));
+            } elseif (count($partes) === 2) {
+                $apellidoPat = $partes[0];
+                $nombre = $partes[1];
+            } else {
+                $nombre = $nombreCompleto;
+            }
+        }
+
+        // Fecha de nacimiento / constitución
+        $fecha = $get(['fecha de nacimiento', 'fecha nacimiento', 'fecha de constitución', 'fecha constitucion']);
+        if (! empty($fecha)) {
+            // Normalizar a YYYY-MM-DD
+            if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})/', $fecha, $m)) {
+                $fecha = "{$m[3]}-{$m[2]}-{$m[1]}";
+            } elseif (preg_match('/(\d{4})-(\d{2})-(\d{2})/', $fecha, $m)) {
+                $fecha = $m[0];
+            }
+        }
+
+        // Régimen fiscal — buscar código numérico
+        $regimenRaw = $get(['régimen', 'regimen']);
+        preg_match('/\b(6\d{2})\b/', $regimenRaw ?: $fullText, $rm);
+        $regimenCodigo = $rm[1] ?? '';
+
+        // Domicilio fiscal
+        $calle = $get(['vialidad', 'calle', 'tipo vialidad']);
+        $noExt = $get(['número exterior', 'numero exterior', 'no. exterior', 'no exterior']);
+        $noInt = $get(['número interior', 'numero interior', 'no. interior', 'no interior']);
+        $colonia = $get(['colonia', 'asentamiento']);
+        $municipio = $get(['municipio', 'delegación', 'delegacion', 'alcaldía']);
+        $estado = $get(['entidad federativa', 'estado']);
+        $cpRaw = $get(['código postal', 'codigo postal', 'cp']);
+        $correo = $get(['correo electrónico', 'correo electronico', 'e-mail', 'email']);
+
+        // Normalizar CP a 5 dígitos
+        $cp = str_pad(preg_replace('/\D/', '', $cpRaw), 5, '0', STR_PAD_LEFT);
+        if (strlen($cp) > 5) {
+            $cp = substr($cp, -5);
+        }
+
+        // Género por CURP (posición 10: H/M)
+        $genero = '';
+        if (! empty($curp) && strlen($curp) >= 11) {
+            $genero = strtoupper($curp[10]) === 'H' ? 'H' : 'M';
+        }
+
+        $result = [
+            'Persona' => $persona,
+            'genero' => $genero,
+            'nombre' => $persona === 'MORAL' ? $nombreCompleto : $nombre,
+            'apellidopat' => $persona === 'MORAL' ? '' : $apellidoPat,
+            'apellidomat' => $persona === 'MORAL' ? '' : $apellidoMat,
+            'rfc' => $rfc,
+            'curp' => $curp,
+            'dia' => $fecha,
+            'correo' => $correo,
+            'regimen_fiscal' => $regimenCodigo,
+            'calle_fiscal' => $calle,
+            'no_exterior_fiscal' => $noExt,
+            'no_interior_fiscal' => $noInt,
+            'colonia_fiscal' => $colonia,
+            'cp_fiscal' => $cp,
+            'municipio_fiscal' => $municipio,
+            'estado_fiscal' => $estado,
+            'pais_fiscal' => 'MEXICO',
+        ];
+
+        Log::info('SAT parseado directamente (sin Gemini)', [
+            'rfc' => $rfc,
+            'curp' => $curp,
+            'campos' => count(array_filter($result)),
+        ]);
+
+        return $result;
+    }
+
+    /**
      * Construir prompt para Gemini
      *
      * Prompt copiado exactamente del sistema PHP original.
@@ -333,7 +517,7 @@ class SATScraperService
 Extrae y estructura los siguientes datos de una constancia fiscal del SAT en formato JSON con estas claves exactas (todas en minúsculas):
 
 - Persona: 'FISICA' o 'MORAL' (según si tiene CURP o no)
-- genero: 'HOMBRE' o 'MUJER' (solo si es persona física)
+- genero: 'H' o 'M' (solo si es persona física, H=Hombre, M=Mujer según notación CURP)
 - nombre: nombre completo (en personas morales) o nombre de pila (en personas físicas)
 - apellidopat: apellido paterno (solo personas físicas, vacío en morales)
 - apellidomat: apellido materno (solo personas físicas, vacío en morales)
@@ -346,7 +530,7 @@ Extrae y estructura los siguientes datos de una constancia fiscal del SAT en for
 - no_exterior_fiscal: número exterior
 - no_interior_fiscal: número interior (vacío si no existe)
 - colonia_fiscal: colonia
-- cp_fiscal: código postal (como número)
+- cp_fiscal: código postal como string de exactamente 5 dígitos con ceros iniciales si aplica (ej: "01000", "06600")
 - municipio_fiscal: municipio o delegación
 - estado_fiscal: estado
 - pais_fiscal: país (generalmente 'MEXICO')
@@ -355,8 +539,8 @@ IMPORTANTE:
 - Si es persona moral, los apellidos van vacíos
 - El régimen fiscal solo el código numérico
 - La fecha en formato YYYY-MM-DD
-- CP como número entero
-- Si un dato no existe, usar cadena vacía "" o 0 para números
+- cp_fiscal SIEMPRE como string de 5 dígitos, con ceros a la izquierda si es necesario (NUNCA como entero)
+- Si un dato no existe, usar cadena vacía ""
 
 Datos a procesar: {$fullText}
 PROMPT;

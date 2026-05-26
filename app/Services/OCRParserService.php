@@ -31,14 +31,54 @@ class OCRParserService
             $parsed['curp'] = $this->normalizeCURP($parsed['curp']);
         }
 
+        // Derivar datos del CURP (más confiable que OCR para fecha y género)
+        if (! empty($parsed['curp']) && strlen($parsed['curp']) === 18) {
+            $curp = $parsed['curp'];
+
+            // 1. Género desde posición 10 del CURP (H/M)
+            $genFromCurp = strtoupper($curp[10]);
+            if (in_array($genFromCurp, ['H', 'M'])) {
+                $parsed['genero'] = $genFromCurp;
+            }
+
+            // 2. Validar orden de apellidos usando la primera letra del CURP
+            // Si la inicial del apellido paterno no coincide con el CURP[0], están invertidos
+            if (! empty($parsed['apellidopat']) && ! empty($parsed['apellidomat'])) {
+                $inicialCurp = $curp[0];
+                $inicialPaterno = strtoupper($parsed['apellidopat'][0] ?? '');
+                $inicialMaterno = strtoupper($parsed['apellidomat'][0] ?? '');
+
+                if ($inicialPaterno !== $inicialCurp && $inicialMaterno === $inicialCurp) {
+                    // OCR invirtió los apellidos — corregir
+                    [$parsed['apellidopat'], $parsed['apellidomat']] = [$parsed['apellidomat'], $parsed['apellidopat']];
+                }
+            }
+
+            // 3. Fecha de nacimiento desde CURP si falta o es inválida
+            $yy = substr($curp, 4, 2);
+            $mm = substr($curp, 6, 2);
+            $dd = substr($curp, 8, 2);
+            $yyInt = (int) $yy;
+            $currentYear = (int) date('Y');
+            // Si 2000+yy tendría al menos 18 años hoy → siglo XXI, sino → siglo XX
+            $year = ((2000 + $yyInt + 18) <= $currentYear) ? '20'.$yy : '19'.$yy;
+            $fechaFromCurp = "{$year}-{$mm}-{$dd}";
+
+            $diaActual = $parsed['dia'] ?? '';
+            if (empty($diaActual) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $diaActual)) {
+                $parsed['dia'] = $fechaFromCurp;
+            }
+        }
+
         // Validar y normalizar RFC (si existe)
         if (! empty($parsed['rfc'])) {
             $parsed['rfc'] = $this->normalizeRFC($parsed['rfc']);
         }
 
-        // Normalizar CP a entero
+        // Normalizar CP a string de 5 dígitos (preservar ceros iniciales, ej: 01000 CDMX)
         if (isset($parsed['cp']) && ! empty($parsed['cp'])) {
-            $parsed['cp'] = (int) preg_replace('/\D/', '', $parsed['cp']);
+            $cpDigits = preg_replace('/\D/', '', $parsed['cp']);
+            $parsed['cp'] = str_pad($cpDigits, 5, '0', STR_PAD_LEFT);
         }
 
         // Normalizar número de identificación (13 dígitos)
@@ -280,13 +320,38 @@ class OCRParserService
             return $date;
         }
 
-        // Intentar parsear fecha
+        // Formato DD/MM/YYYY
+        if (preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $date, $m)) {
+            return "{$m[3]}-{$m[2]}-{$m[1]}";
+        }
+
+        // Formato compacto YYYYMMDD
+        if (preg_match('/^(\d{8})$/', $date)) {
+            return substr($date, 0, 4).'-'.substr($date, 4, 2).'-'.substr($date, 6, 2);
+        }
+
+        // Formato "01 ENE 1990" o "1 ENERO 1990" (meses en español — común en INE)
+        $meses = [
+            'ENE' => '01', 'FEB' => '02', 'MAR' => '03', 'ABR' => '04',
+            'MAY' => '05', 'JUN' => '06', 'JUL' => '07', 'AGO' => '08',
+            'SEP' => '09', 'OCT' => '10', 'NOV' => '11', 'DIC' => '12',
+            'ENERO' => '01', 'FEBRERO' => '02', 'MARZO' => '03', 'ABRIL' => '04',
+            'MAYO' => '05', 'JUNIO' => '06', 'JULIO' => '07', 'AGOSTO' => '08',
+            'SEPTIEMBRE' => '09', 'OCTUBRE' => '10', 'NOVIEMBRE' => '11', 'DICIEMBRE' => '12',
+        ];
+        if (preg_match('/^(\d{1,2})\s+([A-ZÁÉÍÓÚÜ]+)\s+(\d{4})$/i', $date, $m)) {
+            $mesNum = $meses[strtoupper($m[2])] ?? null;
+            if ($mesNum) {
+                return "{$m[3]}-{$mesNum}-".str_pad($m[1], 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        // Intentar parsear con DateTime como último recurso
         try {
             $parsedDate = new \DateTime($date);
 
             return $parsedDate->format('Y-m-d');
         } catch (\Exception $e) {
-            // Si falla, retornar original
             return $date;
         }
     }

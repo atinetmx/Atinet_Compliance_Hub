@@ -168,8 +168,8 @@ class RegistroPersona extends Model
         'dia_registro' => 'date',
         'vigiencia_de_ine' => 'date',
         'envio_de_correo' => 'boolean',
-        'cp' => 'integer',
-        'cp_fiscal' => 'integer',
+        'cp' => 'string',
+        'cp_fiscal' => 'string',
         'num_doc_identificacion' => 'integer',
     ];
 

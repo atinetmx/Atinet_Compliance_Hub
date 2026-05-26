@@ -95,6 +95,16 @@ export function AppSidebar() {
                       title: 'Registro Web',
                       href: '/admin/registro-web',
                       icon: QrCode,
+                      items: [
+                          {
+                              title: 'Registro',
+                              href: '/admin/registro-web',
+                          },
+                          {
+                              title: 'Listado',
+                              href: '/admin/registro-web/listado',
+                          },
+                      ],
                   },
                   {
                       title: 'Escáner Inteligente',
@@ -203,6 +213,16 @@ export function AppSidebar() {
                       title: 'Registro Web',
                       href: '/admin/registro-web',
                       icon: QrCode,
+                      items: [
+                          {
+                              title: 'Registro',
+                              href: '/admin/registro-web',
+                          },
+                          {
+                              title: 'Listado',
+                              href: '/admin/registro-web/listado',
+                          },
+                      ],
                   },
               ]
             : []),

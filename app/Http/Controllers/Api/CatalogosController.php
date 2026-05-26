@@ -121,10 +121,10 @@ class CatalogosController extends Controller
 
             $resultado = Cache::remember($cacheKey, 86400, function () use ($cp) {
                 // Buscar todas las colonias/asentamientos para este CP
+                // Se compara como string para preservar ceros iniciales (ej: 01000 → CDMX)
                 $registros = DB::connection('catalogos')
                     ->table('cat_cp')
-                    ->where('d_codigo', (int) $cp)
-                    ->orWhere('d_CP', (int) $cp)
+                    ->where('d_codigo', $cp)
                     ->get();
 
                 if ($registros->isEmpty()) {
@@ -247,12 +247,12 @@ class CatalogosController extends Controller
                 $lista = Cache::remember('catalogos:regimen_fiscal', 86400, function () {
                     return DB::connection('catalogos')
                         ->table('catregimenfiscal')
-                        ->select('codigo', 'descripcion')
-                        ->orderBy('codigo')
+                        ->select('Clave', 'Descripcion')
+                        ->orderBy('Clave')
                         ->get()
                         ->map(fn ($r) => [
-                            'codigo' => (string) $r->codigo,
-                            'descripcion' => $r->descripcion,
+                            'codigo' => (string) $r->Clave,
+                            'descripcion' => $r->Descripcion,
                         ]);
                 });
 
@@ -276,7 +276,7 @@ class CatalogosController extends Controller
             $regimen = Cache::remember($cacheKey, 86400, function () use ($codigo) {
                 return DB::connection('catalogos')
                     ->table('catregimenfiscal')
-                    ->where('codigo', $codigo)
+                    ->where('Clave', $codigo)
                     ->first();
             });
 
@@ -290,8 +290,8 @@ class CatalogosController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'codigo' => (string) $regimen->codigo,
-                    'descripcion' => $regimen->descripcion,
+                    'codigo' => (string) $regimen->Clave,
+                    'descripcion' => $regimen->Descripcion,
                 ],
             ]);
         } catch (\Exception $e) {
