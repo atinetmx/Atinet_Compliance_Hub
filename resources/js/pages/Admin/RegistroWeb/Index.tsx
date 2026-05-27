@@ -32,6 +32,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
 import { AtinetLoader } from '@/components/ui/AtinetLoader';
@@ -46,6 +47,8 @@ import {
 interface Props {
     historial: unknown[];
     notaria: string | null;
+    notaria_nombre: string | null;
+    has_notaria: boolean;
     is_super_admin: boolean;
     registro_web_url: string | null;
     flash?: { success?: string; error?: string };
@@ -124,7 +127,7 @@ const inputClass =
 const selectClass =
     'w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500';
 
-function RegistroWebDevView({ notaria, stats, flash }: Props) {
+function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash }: Props) {
     const [activeTab, setActiveTab] = useState<PersonaType>('fisica');
     const [personTypeLockedByQR, setPersonTypeLockedByQR] = useState(false); // Bloquear cambio de tipo cuando viene del QR
     const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
@@ -168,12 +171,13 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
         body: string;
         confirmText?: string;
         cancelText?: string;
+        variant?: 'question' | 'warning';
         resolve: ((value: boolean) => void) | null;
     }>({ isOpen: false, title: '', body: '', resolve: null });
 
-    const askSatConfirm = (title: string, body: string, confirmText?: string, cancelText?: string): Promise<boolean> => {
+    const askSatConfirm = (title: string, body: string, confirmText?: string, cancelText?: string, variant?: 'question' | 'warning'): Promise<boolean> => {
         return new Promise((resolve) => {
-            setSatConfirmDialog({ isOpen: true, title, body, confirmText, cancelText, resolve });
+            setSatConfirmDialog({ isOpen: true, title, body, confirmText, cancelText, variant: variant ?? 'question', resolve });
         });
     };
 
@@ -194,7 +198,7 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
 
     const { data, setData, post, processing, reset, errors } = useForm({
         persona: 'fisica' as PersonaType,
-        notaria: notaria || '',
+        notaria: notaria_nombre || notaria || '',
         alias: '',
         curp: '',
         rfc: '',
@@ -287,7 +291,29 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/admin/registro-web');
+        console.group('📤 [RegistroWeb] Enviando formulario');
+        console.log('📋 Datos del formulario:', { ...data });
+        console.log('🔑 Campos clave:', {
+            rfc: data.rfc,
+            curp: data.curp,
+            notaria: data.notaria,
+            sabe_escribir: data.sabe_escribir,
+            sabe_leer: data.sabe_leer,
+            persona: data.persona,
+        });
+        console.groupEnd();
+        post('/admin/registro-web', {
+            onError: (errors) => {
+                console.error('❌ [RegistroWeb] Errores de validación:', errors);
+                const mensajes = Object.values(errors).flat() as string[];
+                if (mensajes.length > 0) {
+                    setDatosIncompletosModal({ isOpen: true, errores: mensajes });
+                }
+            },
+            onSuccess: () => {
+                console.log('✅ [RegistroWeb] Guardado exitosamente');
+            },
+        });
     };
 
     // Estado modal "Datos incompletos" (validación client-side igual al legacy)
@@ -977,9 +1003,12 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
                                 <FieldGroup>
                                     <Field label="Notaria" required>
                                         <input
-                                            className={inputClass}
+                                            className={has_notaria ? `${inputClass} cursor-not-allowed bg-gray-100 text-gray-500` : inputClass}
                                             value={data.notaria}
-                                            onChange={(e) => setData('notaria', e.target.value)}
+                                            readOnly={has_notaria}
+                                            tabIndex={has_notaria ? -1 : undefined}
+                                            title={has_notaria ? 'Este campo se asigna automáticamente según tu notaría' : undefined}
+                                            onChange={has_notaria ? undefined : (e) => setData('notaria', e.target.value)}
                                         />
                                     </Field>
                                     <Field label="Alias">
@@ -1209,7 +1238,7 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
                                             const destinoTieneDatos = !!(data.calle_fiscal || data.cp_fiscal || data.colonia_fiscal || data.municipio_fiscal || data.estado_fiscal);
                                             let body = `Se copiarán los siguientes campos al domicilio fiscal:\n\n${camposLlenos.map(c => `✓ ${c}`).join('\n')}`;
                                             if (destinoTieneDatos) body += '\n\n⚠️ El domicilio fiscal ya tiene datos que serán sobrescritos.';
-                                            const ok = await askSatConfirm('¿Copiar dirección?', body, 'Sí, copiar', 'Cancelar');
+                                            const ok = await askSatConfirm('¿Copiar dirección?', body, 'Sí, copiar', 'Cancelar', 'warning');
                                             if (!ok) return;
                                             setData('calle_fiscal', data.calle);
                                             setData('no_exterior_fiscal', data.no_exterior);
@@ -1298,7 +1327,7 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
                                             const destinoTieneDatos = !!(data.calle || data.cp || data.colonia || data.municipio || data.estado);
                                             let body = `Se copiarán los siguientes campos al domicilio particular:\n\n${camposLlenos.map(c => `✓ ${c}`).join('\n')}`;
                                             if (destinoTieneDatos) body += '\n\n⚠️ El domicilio particular ya tiene datos que serán sobrescritos.';
-                                            const ok = await askSatConfirm('¿Copiar dirección?', body, 'Sí, copiar', 'Cancelar');
+                                            const ok = await askSatConfirm('¿Copiar dirección?', body, 'Sí, copiar', 'Cancelar', 'warning');
                                             if (!ok) return;
                                             setData('calle', data.calle_fiscal);
                                             setData('no_exterior', data.no_exterior_fiscal);
@@ -1546,6 +1575,9 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
             {/* Modal Vista Previa */}
             <Dialog open={showVistaPrevia} onOpenChange={setShowVistaPrevia}>
                 <DialogContent className="max-w-[800px] sm:max-w-[800px]">
+                    <DialogDescription className="sr-only">
+                        Revisa la vista previa de los datos capturados antes de guardar el registro.
+                    </DialogDescription>
                     {/* Cabecera estilo SweetAlert2 info */}
                     <div className="flex flex-col items-center pt-4 pb-2">
                         <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-sky-400 text-sky-400 mb-3">
@@ -1646,7 +1678,22 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
                         <button
                             type="button"
                             disabled={processing}
-                            onClick={() => { setShowVistaPrevia(false); post('/admin/registro-web'); }}
+                            onClick={() => {
+                                setShowVistaPrevia(false);
+                                console.group('📤 [RegistroWeb] Guardando desde Vista Previa');
+                                console.log('📋 Datos:', { ...data });
+                                console.groupEnd();
+                                post('/admin/registro-web', {
+                                    onError: (errors) => {
+                                        console.error('❌ [RegistroWeb] Errores:', errors);
+                                        const mensajes = Object.values(errors).flat() as string[];
+                                        if (mensajes.length > 0) {
+                                            setDatosIncompletosModal({ isOpen: true, errores: mensajes });
+                                        }
+                                    },
+                                    onSuccess: () => console.log('✅ [RegistroWeb] Guardado exitosamente'),
+                                });
+                            }}
                             className="min-w-28 rounded px-6 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
                             style={{ backgroundColor: '#16a34a' }}
                         >
@@ -1742,73 +1789,117 @@ function RegistroWebDevView({ notaria, stats, flash }: Props) {
 
             {/* SAT Confirm Dialog - ¿Completar con SAT? / ¿Procesar con IA? */}
             <Dialog open={satConfirmDialog.isOpen} onOpenChange={(open) => { if (!open) resolveSatConfirm(false); }}>
-                <DialogContent className="sm:max-w-[480px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <span className="flex size-7 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900">
-                                <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </span>
-                            {satConfirmDialog.title}
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="py-2">
-                        {satConfirmDialog.body.split('\n\n').map((paragraph, i) => (
-                            <p key={i} className="mb-3 text-sm text-muted-foreground last:mb-0">{paragraph}</p>
-                        ))}
+                <DialogContent className="sm:max-w-[420px] text-center [&>button]:hidden">
+                    <DialogTitle className="sr-only">Confirmación de acción</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Confirma si deseas continuar con la acción sugerida para los datos escaneados.
+                    </DialogDescription>
+                    <div className="flex flex-col items-center gap-4 px-4 pt-4 pb-2">
+                        {/* Icono circular — naranja warning o azul question */}
+                        {satConfirmDialog.variant === 'warning' ? (
+                            <div className="flex size-24 items-center justify-center rounded-full border-4 border-amber-400">
+                                <span className="text-5xl font-bold text-amber-400">!</span>
+                            </div>
+                        ) : (
+                            <div className="flex size-24 items-center justify-center rounded-full border-4 border-blue-400">
+                                <span className="text-5xl font-bold text-blue-400">?</span>
+                            </div>
+                        )}
+
+                        {/* Título */}
+                        <h2 className="text-2xl font-semibold text-gray-800">{satConfirmDialog.title}</h2>
+
+                        {/* Cuerpo: párrafos separados por \n\n, líneas por \n */}
+                        <div className="space-y-3 text-gray-600 text-sm">
+                            {satConfirmDialog.body.split('\n\n').map((paragraph, i) => {
+                                const isWarning = paragraph.startsWith('⚠️');
+                                const lines = paragraph.split('\n');
+                                return (
+                                    <div key={i} className={isWarning ? 'font-semibold text-red-500' : ''}>
+                                        {lines.map((line, j) => (
+                                            <p key={j}>{line}</p>
+                                        ))}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Botones: warning → confirmar (rojo) izq, cancelar der; question → cancelar izq, confirmar (índigo) der */}
+                        <div className="flex gap-3 mt-2">
+                            {satConfirmDialog.variant === 'warning' ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveSatConfirm(true)}
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-red-500 px-6 text-sm font-medium text-white shadow hover:bg-red-600 focus:outline-none"
+                                    >
+                                        {satConfirmDialog.confirmText ?? 'Sí'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveSatConfirm(false)}
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-gray-500 px-6 text-sm font-medium text-white hover:bg-gray-600 focus:outline-none"
+                                    >
+                                        {satConfirmDialog.cancelText ?? 'Cancelar'}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveSatConfirm(false)}
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-gray-200 px-6 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none"
+                                    >
+                                        {satConfirmDialog.cancelText ?? 'No, continuar sin IA'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => resolveSatConfirm(true)}
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-indigo-500 px-6 text-sm font-medium text-white shadow hover:bg-indigo-600 focus:outline-none"
+                                    >
+                                        {satConfirmDialog.confirmText ?? 'Sí, procesar'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
-                    <DialogFooter className="gap-2">
-                        <button
-                            type="button"
-                            onClick={() => resolveSatConfirm(false)}
-                            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
-                        >
-                            {satConfirmDialog.cancelText ?? 'No, continuar sin IA'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => resolveSatConfirm(true)}
-                            className="inline-flex h-9 items-center justify-center rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow hover:bg-blue-700"
-                        >
-                            {satConfirmDialog.confirmText ?? 'Sí, procesar'}
-                        </button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Datos Incompletos Modal - Validación client-side igual al legacy */}
+            {/* Datos Incompletos Modal - Estilo SweetAlert2 igual al legacy PHP */}
             <Dialog open={datosIncompletosModal.isOpen} onOpenChange={(open) => { if (!open) setDatosIncompletosModal({ isOpen: false, errores: [] }); }}>
-                <DialogContent className="sm:max-w-[460px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-red-600">
-                            <span className="flex size-7 items-center justify-center rounded-full bg-red-100">
-                                <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                                </svg>
-                            </span>
-                            Datos incompletos
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="py-2">
-                        <ul className="space-y-1.5">
+                <DialogContent className="sm:max-w-[400px] text-center [&>button]:hidden">
+                    <DialogTitle className="sr-only">Datos incompletos</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        El formulario tiene errores o campos faltantes que deben corregirse antes de guardar.
+                    </DialogDescription>
+                    <div className="flex flex-col items-center gap-4 px-4 pt-4 pb-2">
+                        {/* Icono circular grande estilo SweetAlert2 */}
+                        <div className="flex size-24 items-center justify-center rounded-full border-4 border-red-400">
+                            <svg className="size-12 text-red-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+
+                        {/* Título */}
+                        <h2 className="text-2xl font-semibold text-gray-800">Datos incompletos</h2>
+
+                        {/* Lista de errores — uno por línea, centrado */}
+                        <div className="space-y-1 text-gray-600 text-sm">
                             {datosIncompletosModal.errores.map((err, i) => (
-                                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                                    <span className="mt-0.5 text-red-500 shrink-0">✗</span>
-                                    {err}
-                                </li>
+                                <p key={i}>{err}</p>
                             ))}
-                        </ul>
-                    </div>
-                    <DialogFooter>
+                        </div>
+
+                        {/* Botón OK estilo SweetAlert2 */}
                         <button
                             type="button"
                             onClick={() => setDatosIncompletosModal({ isOpen: false, errores: [] })}
-                            className="inline-flex h-9 items-center justify-center rounded-md bg-red-600 px-6 text-sm font-medium text-white shadow hover:bg-red-700"
+                            className="mt-2 inline-flex h-10 items-center justify-center rounded-md bg-indigo-500 px-10 text-sm font-medium text-white shadow hover:bg-indigo-600 focus:outline-none"
                         >
-                            Entendido
+                            OK
                         </button>
-                    </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
         </AppLayout>

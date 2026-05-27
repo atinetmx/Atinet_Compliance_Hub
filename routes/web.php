@@ -345,6 +345,30 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         // Eliminar una búsqueda del historial
         Route::delete('{busqueda}', [\App\Http\Controllers\SuperAdmin\SearchHistoryController::class, 'destroy'])->name('destroy');
     });
+
+    // === LISTAS PEP Y LISTAS DE INTERÉS ===
+    // Módulo de consulta al proveedor PrevencionDeLavado.com (MBA Systems)
+    // Paquete contratado: 600 búsquedas
+    // TODO: Implementar controlador cuando se entregue la API del proveedor
+
+    // Página de búsqueda interactiva
+    Route::get('listas-pep', function () {
+        return Inertia::render('Admin/ListasPEP/Search');
+    })->name('listas-pep');
+
+    // Página de historial de consultas
+    Route::get('listas-pep/historial', function () {
+        return Inertia::render('Admin/ListasPEP/History');
+    })->name('listas-pep.historial');
+
+    // TODO: Descomentar estas rutas cuando se implemente el controlador ListasPEPController
+    // Route::prefix('listas-pep')->name('listas-pep.')->middleware(['subscription', 'service:LISTAS_PEP'])->group(function () {
+    //     Route::post('buscar', [\App\Http\Controllers\Admin\ListasPEPController::class, 'buscar'])->name('buscar');
+    //     Route::get('historial/data', [\App\Http\Controllers\Admin\ListasPEPController::class, 'historial'])->name('historial.data');
+    //     Route::post('certificado/con-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencias'])->name('certificado.con-coincidencias');
+    //     Route::post('certificado/sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])->name('certificado.sin-coincidencias');
+    //     Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])->name('listados');
+    // });
 });
 
 // Rutas para admin_notaria - Gestión de usuarios de su notaría

@@ -70,9 +70,19 @@ class RegistroWebController extends Controller
             ? 'https://notariosatinet.com.mx/'.$notaria.'/'
             : null;
 
+        // Nombre visible de la notaría para mostrar en el campo (con fallback a nombre)
+        $notariaNombre = $notaria
+            ?? optional($user->notaria)->nombre
+            ?? null;
+
+        // Si el usuario tiene notaría asignada (sea por code, legacy_identifier o relación)
+        $hasNotaria = ! empty($notariaNombre);
+
         return Inertia::render('Admin/RegistroWeb/Index', [
             'historial' => $historial,
             'notaria' => $notaria,
+            'notaria_nombre' => $notariaNombre,
+            'has_notaria' => $hasNotaria,
             'is_super_admin' => $isSuperAdmin,
             'registro_web_url' => $registroWebUrl,
             'stats' => [
@@ -125,6 +135,25 @@ class RegistroWebController extends Controller
         $validated['pais_fiscal'] = $validated['pais_fiscal'] ?? 'MEXICO';
         $validated['paisnac'] = $validated['paisnac'] ?? 'MEXICO';
         $validated['nacionalidad'] = $validated['nacionalidad'] ?? 'MEXICANA';
+        $validated['sabe_escribir'] = $validated['sabe_escribir'] ?? 'Si';
+        $validated['sabe_leer'] = $validated['sabe_leer'] ?? 'Si';
+        // Columnas NOT NULL en BD que pueden llegar vacías
+        $validated['cp'] = $validated['cp'] ?? '';
+        $validated['cp_fiscal'] = $validated['cp_fiscal'] ?? '';
+        $validated['padre_nombre'] = $validated['padre_nombre'] ?? '';
+        $validated['madre_nombre'] = $validated['madre_nombre'] ?? '';
+        $validated['albacea_sustituto'] = $validated['albacea_sustituto'] ?? '';
+        $validated['tutor_tutriz'] = $validated['tutor_tutriz'] ?? '';
+        $validated['tutor_sustituto'] = $validated['tutor_sustituto'] ?? '';
+
+        Log::debug('RegistroWeb store() - datos normalizados', [
+            'rfc' => $validated['rfc'] ?? null,
+            'curp' => $validated['curp'] ?? null,
+            'notaria' => $validated['notaria'] ?? null,
+            'sabe_escribir' => $validated['sabe_escribir'],
+            'sabe_leer' => $validated['sabe_leer'],
+            'keys' => array_keys($validated),
+        ]);
 
         // INSERT o UPDATE según detección de duplicados
         if ($existente) {
@@ -151,7 +180,7 @@ class RegistroWebController extends Controller
 
         // Inertia requests esperan un redirect; llamadas API directas esperan JSON
         if ($request->header('X-Inertia')) {
-            return redirect()->route('registro-web.index')
+            return redirect()->route('admin.registro-web.index')
                 ->with('success', "Registro #{$registro->id} {$accion} correctamente");
         }
 
