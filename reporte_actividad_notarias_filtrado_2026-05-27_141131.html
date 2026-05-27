@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reporte de Actividad de Notarías — atinet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #f4f6fb;
+      line-height: 1.7;
+    }
+
+    #print-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: #0f3460;
+      color: #fff;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    #print-bar span { font-size: 14px; font-weight: 600; }
+    #print-bar button {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 8px 22px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #print-bar button:hover { background: #c73652; }
+
+    .wrapper {
+      max-width: 1200px;
+      margin: 70px auto 40px;
+      padding: 0 16px;
+    }
+
+    /* PORTADA */
+    .cover {
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 60%, #1a1a2e 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 44px 48px 36px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: -50px; right: -50px;
+      width: 200px; height: 200px;
+      background: rgba(233,69,96,0.12);
+      border-radius: 50%;
+    }
+    .cover .badge {
+      display: inline-block;
+      background: #e94560;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+    }
+    .cover h1 { font-size: 28px; font-weight: 800; line-height: 1.2; margin-bottom: 6px; }
+    .cover h1 span { color: #e94560; }
+    .cover .subtitle { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 22px; }
+    .cover .meta {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      border-top: 1px solid rgba(255,255,255,0.15);
+      padding-top: 16px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+    }
+    .cover .meta strong { color: #fff; }
+
+    /* STATS CARDS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border-left: 4px solid #e94560;
+    }
+    .stat-card .label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+    .stat-card .value {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0f3460;
+    }
+    .stat-card .sub {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    .stat-card.web { border-left-color: #3b82f6; }
+    .stat-card.escritorio { border-left-color: #8b5cf6; }
+
+    /* SECTION */
+    .section {
+      background: #fff;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .section-header {
+      background: #0f3460;
+      color: #fff;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .section-header .icon { margin-right: 8px; }
+
+    .section-body { padding: 24px; }
+
+    /* TABLA */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 12.5px;
+    }
+    thead tr { background: #f1f5f9; }
+    thead th {
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+    }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr.destacada { background: #fef3c7; font-weight: 600; }
+    tbody tr.destacada td:first-child::before {
+      content: '🎯 ';
+      margin-right: 4px;
+    }
+
+    .badge-web {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .badge-escritorio {
+      display: inline-block;
+      background: #ede9fe;
+      color: #5b21b6;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    @media print {
+      body { background: #fff; }
+      #print-bar { display: none !important; }
+      .wrapper { margin-top: 0; max-width: 100%; padding: 0; }
+      .section { box-shadow: none; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+      .cover { border-radius: 0; }
+      .stats-grid { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="print-bar">
+  <span>📊 atinet — Reporte de Actividad de Notarías</span>
+  <button onclick="window.print()">⬇ Exportar a PDF</button>
+</div>
+
+<div class="wrapper">
+
+  <!-- PORTADA -->
+  <div class="cover">
+    <div class="badge">Reporte de Actividad</div>
+    <h1>Actividad de Notarías<br><span>Todas las Fuentes de Datos</span></h1>
+    <div class="subtitle">Análisis consolidado de búsquedas WEB y ESCRITORIO</div>
+    <div class="meta">
+      <div><strong>Fecha:</strong> 27 de May de 2026, 14:11:31</div>
+      <div><strong>Filtro:</strong> 14villahermosa%</div>
+      <div><strong>Total Notarías:</strong> 162</div>
+    </div>
+  </div>
+
+  <!-- ESTADÍSTICAS GENERALES -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total Actividad</div>
+      <div class="value">531,227</div>
+      <div class="sub">registros consolidados</div>
+    </div>
+    <div class="stat-card web">
+      <div class="label">🌐 Búsquedas WEB</div>
+      <div class="value">26,610</div>
+      <div class="sub">5% del total</div>
+    </div>
+    <div class="stat-card escritorio">
+      <div class="label">💻 Búsquedas ESCRITORIO</div>
+      <div class="value">504,617</div>
+      <div class="sub">95% del total</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Notarías Únicas</div>
+      <div class="value">162</div>
+      <div class="sub">en todas las fuentes</div>
+    </div>
+  </div>
+
+    <!-- NOTARÍAS FILTRADAS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">🎯</span> Notarías Filtradas (1)
+    </div>
+    <div class="section-body">
+            <div style="background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 16px; margin-bottom: 16px;">
+        <h3 style="font-size: 16px; color: #92400e; margin-bottom: 10px;">🎯 14villahermosa</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 10px; color: #78350f; font-weight: 700; text-transform: uppercase;">Total</div>
+            <div style="font-size: 18px; font-weight: 800; color: #92400e;">2,908</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; color: #78350f; font-weight: 700; text-transform: uppercase;">WEB</div>
+            <div style="font-size: 18px; font-weight: 800; color: #1e40af;">2</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; color: #78350f; font-weight: 700; text-transform: uppercase;">ESCRITORIO</div>
+            <div style="font-size: 18px; font-weight: 800; color: #5b21b6;">2,906</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; color: #78350f; font-weight: 700; text-transform: uppercase;">Fuentes</div>
+            <div style="font-size: 18px; font-weight: 800; color: #92400e;">4</div>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #78350f; margin-top: 8px;">
+          <strong>Primera actividad:</strong> 2022-02-21 13:16:25 &nbsp;|&nbsp;
+          <strong>Última actividad:</strong> 2026-05-19 17:51:41        </div>
+        <div style="margin-top: 12px;">
+          <div style="font-size: 10px; color: #78350f; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Detalle por fuente:</div>
+                    <div style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+            <span style="font-weight: 700;">🌐 aplicativos.busquedas</span>:
+            2 registros
+            (2024-11-20 → 2024-11-20)
+          </div>
+                    <div style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+            <span style="font-weight: 700;">💻 listasofac.consultas</span>:
+            685 registros
+            (2024-12-30 → 2026-05-19)
+          </div>
+                    <div style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+            <span style="font-weight: 700;">💻 listassat.consultas</span>:
+            1,786 registros
+            (2024-12-30 → 2026-05-19)
+          </div>
+                    <div style="font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.05);">
+            <span style="font-weight: 700;">💻 listasnegras.consultas</span>:
+            435 registros
+            (2022-02-21 → 2024-10-07)
+          </div>
+                  </div>
+      </div>
+          </div>
+  </div>
+  
+  <!-- TODAS LAS NOTARÍAS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">📋</span> Todas las Notarías (Top 50)
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Notaría</th>
+            <th style="text-align: right;">Total</th>
+            <th style="text-align: right;">WEB</th>
+            <th style="text-align: right;">ESCRITORIO</th>
+            <th style="text-align: center;">Fuentes</th>
+            <th>Primera</th>
+            <th>Última</th>
+          </tr>
+        </thead>
+        <tbody>
+                    <tr class="">
+            <td>10Cuernavaca</td>
+            <td style="text-align: right; font-weight: 700;">61,269</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">61,269</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>9Acambaro</td>
+            <td style="text-align: right; font-weight: 700;">48,490</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">48,490</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>312reynosa</td>
+            <td style="text-align: right; font-weight: 700;">36,817</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">36,817</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-03-23</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>60Quintanaroo</td>
+            <td style="text-align: right; font-weight: 700;">28,722</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">28,722</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>114Oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">24,419</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">24,419</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-04-27</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>90oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">20,571</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">20,571</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>12Acapulco</td>
+            <td style="text-align: right; font-weight: 700;">15,286</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">15,286</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-03-03</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>7y27Villahermosa</td>
+            <td style="text-align: right; font-weight: 700;">13,488</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">13,488</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>2iguala</td>
+            <td style="text-align: right; font-weight: 700;">12,166</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">12,166</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-06-24</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>58tultitlan</td>
+            <td style="text-align: right; font-weight: 700;">12,110</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">12,110</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-14</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>10colima</td>
+            <td style="text-align: right; font-weight: 700;">11,358</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">11,358</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-11-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>29nezahualcoyotl</td>
+            <td style="text-align: right; font-weight: 700;">10,912</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">10,912</td>
+            <td style="text-align: center;">2</td>
+            <td>2023-12-05</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>75Quintanaroo</td>
+            <td style="text-align: right; font-weight: 700;">10,630</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">10,630</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>91Oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">9,104</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">9,104</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>79Cancun</td>
+            <td style="text-align: right; font-weight: 700;">9,028</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">9,028</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-03-02</td>
+            <td>2026-03-18</td>
+          </tr>
+                    <tr class="">
+            <td>6tuxtla</td>
+            <td style="text-align: right; font-weight: 700;">8,352</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">8,352</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-03-21</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>79oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">8,301</td>
+            <td style="text-align: right;">8,301</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: center;">1</td>
+            <td>2024-06-27</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>11Tijuana</td>
+            <td style="text-align: right; font-weight: 700;">8,020</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">8,020</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>1nacajuca</td>
+            <td style="text-align: right; font-weight: 700;">7,461</td>
+            <td style="text-align: right;">1,818</td>
+            <td style="text-align: right;">5,643</td>
+            <td style="text-align: center;">2</td>
+            <td>2022-02-10</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>207Sinaloa</td>
+            <td style="text-align: right; font-weight: 700;">7,126</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">7,126</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-25</td>
+            <td>2025-06-26</td>
+          </tr>
+                    <tr class="">
+            <td>12Tijuana</td>
+            <td style="text-align: right; font-weight: 700;">6,970</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">6,970</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>18cordoba</td>
+            <td style="text-align: right; font-weight: 700;">6,955</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">6,955</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>60ecatepec</td>
+            <td style="text-align: right; font-weight: 700;">6,885</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">6,885</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-06-06</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>16chetumal</td>
+            <td style="text-align: right; font-weight: 700;">6,642</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">6,642</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-06-19</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>71Monterrey</td>
+            <td style="text-align: right; font-weight: 700;">6,336</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">6,336</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-11</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>13Villahermosa</td>
+            <td style="text-align: right; font-weight: 700;">5,701</td>
+            <td style="text-align: right;">5</td>
+            <td style="text-align: right;">5,696</td>
+            <td style="text-align: center;">4</td>
+            <td>2022-03-24</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>21BajaCaliforniaSur</td>
+            <td style="text-align: right; font-weight: 700;">5,501</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">5,501</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-07-31</td>
+            <td>2026-05-25</td>
+          </tr>
+                    <tr class="">
+            <td>116Oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">5,007</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">5,007</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-18</td>
+            <td>2026-05-12</td>
+          </tr>
+                    <tr class="">
+            <td>103Sonora</td>
+            <td style="text-align: right; font-weight: 700;">4,692</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">4,692</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-07-07</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>44monclova</td>
+            <td style="text-align: right; font-weight: 700;">4,537</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">4,537</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-09-19</td>
+            <td>2026-05-25</td>
+          </tr>
+                    <tr class="">
+            <td>89EstadoMexico</td>
+            <td style="text-align: right; font-weight: 700;">4,368</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">4,368</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-17</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>11huellapan</td>
+            <td style="text-align: right; font-weight: 700;">3,882</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">3,882</td>
+            <td style="text-align: center;">2</td>
+            <td>2023-12-18</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>37Oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">3,788</td>
+            <td style="text-align: right;">3,788</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: center;">1</td>
+            <td>2024-12-02</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>14colima</td>
+            <td style="text-align: right; font-weight: 700;">3,668</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">3,668</td>
+            <td style="text-align: center;">1</td>
+            <td>2022-02-10</td>
+            <td>2025-02-11</td>
+          </tr>
+                    <tr class="">
+            <td>2Sayula</td>
+            <td style="text-align: right; font-weight: 700;">3,633</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">3,633</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2025-12-16</td>
+          </tr>
+                    <tr class="">
+            <td>99maravatio</td>
+            <td style="text-align: right; font-weight: 700;">3,272</td>
+            <td style="text-align: right;">1</td>
+            <td style="text-align: right;">3,271</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-06-26</td>
+            <td>2025-09-03</td>
+          </tr>
+                    <tr class="">
+            <td>22Villahermosa</td>
+            <td style="text-align: right; font-weight: 700;">3,113</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">3,113</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-15</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>01Libres</td>
+            <td style="text-align: right; font-weight: 700;">3,029</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">3,029</td>
+            <td style="text-align: center;">1</td>
+            <td>2022-02-10</td>
+            <td>2026-03-04</td>
+          </tr>
+                    <tr class="">
+            <td>180Puruandiro</td>
+            <td style="text-align: right; font-weight: 700;">2,952</td>
+            <td style="text-align: right;">2,952</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: center;">1</td>
+            <td>2024-07-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="destacada">
+            <td>14villahermosa</td>
+            <td style="text-align: right; font-weight: 700;">2,908</td>
+            <td style="text-align: right;">2</td>
+            <td style="text-align: right;">2,906</td>
+            <td style="text-align: center;">4</td>
+            <td>2022-02-21</td>
+            <td>2026-05-19</td>
+          </tr>
+                    <tr class="">
+            <td>3Durango</td>
+            <td style="text-align: right; font-weight: 700;">2,761</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,761</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-01-29</td>
+          </tr>
+                    <tr class="">
+            <td>81Torreon</td>
+            <td style="text-align: right; font-weight: 700;">2,754</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,754</td>
+            <td style="text-align: center;">2</td>
+            <td>2025-01-16</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>157ecatepec</td>
+            <td style="text-align: right; font-weight: 700;">2,735</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,735</td>
+            <td style="text-align: center;">2</td>
+            <td>2025-11-11</td>
+            <td>2026-05-26</td>
+          </tr>
+                    <tr class="">
+            <td>1Teapa</td>
+            <td style="text-align: right; font-weight: 700;">2,729</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,729</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-10</td>
+            <td>2026-05-25</td>
+          </tr>
+                    <tr class="">
+            <td>33Monterrey</td>
+            <td style="text-align: right; font-weight: 700;">2,694</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,694</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-02-14</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>101Oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">2,634</td>
+            <td style="text-align: right;">2,290</td>
+            <td style="text-align: right;">344</td>
+            <td style="text-align: center;">4</td>
+            <td>2023-01-30</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>10Durango</td>
+            <td style="text-align: right; font-weight: 700;">2,385</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,385</td>
+            <td style="text-align: center;">3</td>
+            <td>2023-08-02</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>117sonora</td>
+            <td style="text-align: right; font-weight: 700;">2,382</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,382</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-12-05</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>126ticul</td>
+            <td style="text-align: right; font-weight: 700;">2,285</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,285</td>
+            <td style="text-align: center;">2</td>
+            <td>2024-04-11</td>
+            <td>2026-05-27</td>
+          </tr>
+                    <tr class="">
+            <td>68Oaxaca</td>
+            <td style="text-align: right; font-weight: 700;">2,268</td>
+            <td style="text-align: right;">0</td>
+            <td style="text-align: right;">2,268</td>
+            <td style="text-align: center;">3</td>
+            <td>2022-03-07</td>
+            <td>2026-05-25</td>
+          </tr>
+                  </tbody>
+      </table>
+            <div style="text-align: center; padding: 12px; color: #6b7280; font-size: 11px;">
+        Mostrando las primeras 50 notarías. Total: 162      </div>
+          </div>
+  </div>
+
+  <!-- RESUMEN POR FUENTE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">📊</span> Resumen por Fuente de Datos
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Fuente</th>
+            <th>Tipo</th>
+            <th style="text-align: right;">Total Registros</th>
+            <th style="text-align: right;">Notarías/Proyectos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>aplicativos.busquedas</td>
+            <td><span class="badge-web">WEB</span></td>
+            <td style="text-align: right; font-weight: 700;">26,610</td>
+            <td style="text-align: right;">25</td>
+          </tr>
+          <tr>
+            <td>aplicativos.busquedas_escritorio</td>
+            <td><span class="badge-escritorio">ESCRITORIO</span></td>
+            <td style="text-align: right; font-weight: 700;">9,801</td>
+            <td style="text-align: right;">6</td>
+          </tr>
+          <tr>
+            <td>listasofac.consultas</td>
+            <td><span class="badge-escritorio">ESCRITORIO</span></td>
+            <td style="text-align: right; font-weight: 700;">159,825</td>
+            <td style="text-align: right;">111</td>
+          </tr>
+          <tr>
+            <td>listassat.consultas</td>
+            <td><span class="badge-escritorio">ESCRITORIO</span></td>
+            <td style="text-align: right; font-weight: 700;">241,619</td>
+            <td style="text-align: right;">111</td>
+          </tr>
+                    <tr>
+            <td>listasnegras.consultas</td>
+            <td><span class="badge-escritorio">ESCRITORIO LEGACY</span></td>
+            <td style="text-align: right; font-weight: 700;">93,372</td>
+            <td style="text-align: right;">92</td>
+          </tr>
+                  </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="text-align:center; padding: 24px 0 8px; color: #9ca3af; font-size: 11px; border-top: 1px solid #e2e8f0; margin-top: 8px;">
+    atinet — Reporte de Actividad de Notarías &nbsp;·&nbsp; Generado: 27 de May de 2026, 14:11:31 &nbsp;·&nbsp;
+    Las notarías resaltadas con <span style="background:#fef3c7;padding:1px 6px;border-radius:3px;">🎯</span> coinciden con el filtro aplicado
+  </div>
+
+</div>
+
+<script>
+  document.title = "Reporte Actividad Notarías — " + new Date().toLocaleDateString('es-MX');
+</script>
+</body>
+</html>

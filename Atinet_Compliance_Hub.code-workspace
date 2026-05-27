@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../../../xampp/htdocs/notariosatinet.com.mx"
+		},
+		{
+			"path": "../Sistema Atinet-"
+		}
+	],
+	"settings": {
+		"intelephense.environment.phpVersion": "8.2.12",
+		"intelephense.files.associations": [
+			"*.php",
+			"*.phtml"
+		],
+		"intelephense.diagnostics.undefinedMethods": false,
+		"intelephense.diagnostics.undefinedFunctions": false,
+		"php.suggest.basic": false
+	}
+}

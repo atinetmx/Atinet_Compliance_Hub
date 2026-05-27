@@ -500,6 +500,49 @@ class ReportsController extends Controller
         };
     }
 
+    /**
+     * Vista previa del reporte antes de exportar
+     */
+    public function preview(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:usage,notarias,services',
+            'period' => 'required|in:week,month,year',
+            'notaria_id' => 'nullable|exists:notarias,id',
+            'service_code' => 'nullable|string',
+        ]);
+
+        $type = $request->input('type');
+        $period = $request->input('period');
+        $notariaId = $request->input('notaria_id');
+        $serviceCode = $request->input('service_code');
+
+        $data = match ($type) {
+            'usage' => $this->getUsageDataForPreview($period, $notariaId, $serviceCode),
+            'notarias' => $this->getNotariasData($period),
+            'services' => $this->getServicesData($period),
+        };
+
+        $periodLabel = match ($period) {
+            'week' => 'Esta Semana',
+            'month' => 'Este Mes',
+            'year' => 'Este Año',
+            default => 'Período Personalizado',
+        };
+
+        return Inertia::render('Admin/Reports/Preview', [
+            'reportType' => $type,
+            'data' => $data,
+            'period' => $period,
+            'periodLabel' => $periodLabel,
+            'notariaId' => $notariaId,
+            'notariaName' => $notariaId ? Notaria::find($notariaId)?->nombre : null,
+            'serviceCode' => $serviceCode,
+            'totalRecords' => count($data),
+            'generatedAt' => now()->format('d/m/Y H:i'),
+        ]);
+    }
+
     // ========== MÉTODOS PRIVADOS ==========
 
     /**
@@ -752,6 +795,34 @@ class ReportsController extends Controller
                 'user_name' => $usage->user->name,
                 'quantity' => $usage->quantity,
                 'cost' => $usage->cost,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Obtener datos de uso para vista previa (incluye filtro por servicio)
+     */
+    protected function getUsageDataForPreview(string $period, ?int $notariaId = null, ?string $serviceCode = null): array
+    {
+        $query = ServiceUsage::with(['notaria:id,nombre', 'service:id,name,code', 'user:id,name'])
+            ->when($period === 'month', fn ($q) => $q->whereMonth('consumed_at', now()->month)->whereYear('consumed_at', now()->year))
+            ->when($period === 'week', fn ($q) => $q->whereBetween('consumed_at', [now()->startOfWeek(), now()->endOfWeek()]))
+            ->when($period === 'year', fn ($q) => $q->whereYear('consumed_at', now()->year))
+            ->when($notariaId, fn ($q) => $q->where('notaria_id', $notariaId))
+            ->when($serviceCode, function ($q) use ($serviceCode) {
+                $q->whereHas('service', fn ($sq) => $sq->where('code', $serviceCode));
+            })
+            ->orderBy('consumed_at', 'desc')
+            ->get();
+
+        return $query->map(function ($usage) {
+            return [
+                'consumed_at' => $usage->consumed_at->format('d/m/Y H:i:s'),
+                'notaria_nombre' => $usage->notaria->nombre,
+                'service_name' => $usage->service->name,
+                'user_name' => $usage->user->name,
+                'quantity' => $usage->quantity,
+                'cost' => number_format($usage->cost, 2, '.', ''),
             ];
         })->toArray();
     }

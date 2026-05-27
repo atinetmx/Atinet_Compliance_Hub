@@ -161,6 +161,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('usage-trends', [\App\Http\Controllers\Admin\ReportsController::class, 'usageTrends'])->name('usage-trends');
         Route::get('top-services', [\App\Http\Controllers\Admin\ReportsController::class, 'topServices'])->name('top-services');
         Route::get('near-limit', [\App\Http\Controllers\Admin\ReportsController::class, 'notariasNearLimit'])->name('near-limit');
+        Route::post('preview', [\App\Http\Controllers\Admin\ReportsController::class, 'preview'])->name('preview');
         Route::post('export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
     });
 
@@ -291,7 +292,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // API endpoints para búsquedas (protegidas por validación de suscripción y límites de servicio)
     Route::prefix('search')->name('search.')->middleware(['subscription'])->group(function () {
-        // Búsquedas que usan OFAC como servicio principal (también pueden incluir SAT)
+        // Búsquedas individuales que usan OFAC como servicio principal (también pueden incluir SAT)
         Route::post('persona-fisica', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaFisica'])
             ->middleware('service:BLACKLIST_OFAC')
             ->name('persona-fisica');
@@ -306,6 +307,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('rfc', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfc'])
             ->middleware('service:BLACKLIST_SAT')
             ->name('rfc');
+
+        // Búsquedas batch (múltiples nombres/RFCs)
+        Route::post('persona-fisica/batch', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaFisicaBatch'])
+            ->middleware('service:BLACKLIST_OFAC')
+            ->name('persona-fisica-batch');
+        Route::post('persona-moral/batch', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchPersonaMoralBatch'])
+            ->middleware('service:BLACKLIST_OFAC')
+            ->name('persona-moral-batch');
+        Route::post('rfc/batch', [\App\Http\Controllers\SuperAdmin\SuperAdminSearchController::class, 'searchRfcBatch'])
+            ->middleware('service:BLACKLIST_SAT')
+            ->name('rfc-batch');
     });
 
     // Generación de PDFs para resultados de búsqueda

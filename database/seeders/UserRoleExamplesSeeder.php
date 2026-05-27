@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Notaria;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -10,9 +11,10 @@ use Illuminate\Support\Facades\Hash;
 /**
  * Seeder para crear datos iniciales del sistema:
  * - Planes disponibles
+ * - Notaría ATINET MASTER (para super admins)
  * - Super Admin (único usuario inicial)
  *
- * Las notarías serán creadas por el Super Admin desde la interfaz
+ * Las demás notarías serán creadas por el Super Admin desde la interfaz
  */
 class UserRoleExamplesSeeder extends Seeder
 {
@@ -24,14 +26,18 @@ class UserRoleExamplesSeeder extends Seeder
         // ✅ 1. CREAR PLANES DISPONIBLES
         $this->createPlans();
 
-        // ✅ 2. CREAR SUPER ADMIN (único usuario inicial)
+        // ✅ 2. CREAR NOTARÍA ATINET MASTER (para super admins)
+        $this->createAtinetMaster();
+
+        // ✅ 3. CREAR SUPER ADMIN (único usuario inicial)
         $this->createSuperAdmin();
 
         $this->command->info('✅ Sistema inicializado:');
         $this->command->info('   - 3 planes creados');
+        $this->command->info('   - Notaría ATINET MASTER creada');
         $this->command->info('   - Super Admin: admin@atinet.mx / password123');
         $this->command->info('');
-        $this->command->warn('⚠️  Las notarías deben ser creadas desde el panel de Super Admin');
+        $this->command->warn('⚠️  Las demás notarías deben ser creadas desde el panel de Super Admin');
     }
 
     /**
@@ -106,6 +112,24 @@ class UserRoleExamplesSeeder extends Seeder
     }
 
     /**
+     * Crear la notaría ATINET MASTER para los super admins
+     */
+    private function createAtinetMaster(): void
+    {
+        Notaria::firstOrCreate([
+            'id' => 11,
+        ], [
+            'nombre' => 'ATINET MASTER',
+            'numero_notaria' => '1',
+            'estado' => 'Nacional',
+            'ciudad' => 'Sistema Central',
+            'activo' => true,
+            'tenant_db_name' => 'atinet_cn_master',
+            'cn_notaria_id' => 1,
+        ]);
+    }
+
+    /**
      * Crear el Super Admin inicial
      */
     private function createSuperAdmin(): void
@@ -117,7 +141,7 @@ class UserRoleExamplesSeeder extends Seeder
             'password' => Hash::make('password123'),
             'email_verified_at' => now(),
             'tipo_cuenta' => 'super_admin',
-            'notaria_id' => null, // Super admin no pertenece a ninguna notaría
+            'notaria_id' => 11, // ATINET MASTER - necesario para acceder a Control Notarial
         ]);
     }
 }

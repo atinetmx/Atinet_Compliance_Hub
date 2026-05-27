@@ -16,7 +16,7 @@ class SyncAgendaFromLegacy extends Command
 
     /**
      * Mapeo de notarías legacy → notaria_id en sistema nuevo.
-     * NULL = eventos de Atinet (super_admins).
+     * 'atinet' → notaria_id=11 (ATINET MASTER, para super_admins).
      * Agregar aquí nuevas notarías conforme se den de alta.
      */
     protected function buildNotariasMap(): array
@@ -26,8 +26,8 @@ class SyncAgendaFromLegacy extends Command
             ->pluck('id', 'legacy_identifier')
             ->toArray();
 
-        // Atinet siempre mapeada a NULL (sin notaria asignada, visible para super_admins)
-        $mapped['atinet'] = null;
+        // Atinet siempre mapeada a ATINET MASTER (id=11) para compatibilidad con Control Notarial
+        $mapped['atinet'] = 11;
 
         return $mapped;
     }

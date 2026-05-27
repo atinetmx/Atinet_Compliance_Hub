@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToNotaria;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\LogOptions;
@@ -9,6 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class AgendaEvent extends Model
 {
+    use BelongsToNotaria;
     use LogsActivity;
 
     protected $table = 'agenda_events';
@@ -90,9 +92,13 @@ class AgendaEvent extends Model
                     ->orWhere(function ($q2) use ($user) {
                         $q2->whereNull('user_id');
 
-                        // Super admin: eventos legacy de 'atinet'
-                        if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
-                            $q2->where('legacy_notaria', 'atinet');
+                        // Super admin: eventos legacy de 'atinet' (notaria_id=11 o NULL)
+                        if ($user->tipo_cuenta === 'super_admin') {
+                            $q2->where(function ($q3) {
+                                $q3->where('legacy_notaria', 'atinet')
+                                   ->orWhere('notaria_id', 11)
+                                   ->orWhereNull('notaria_id');
+                            });
                         }
                         // Usuarios de notaría: eventos legacy de su notaría
                         elseif ($user->notaria_id) {
@@ -113,9 +119,13 @@ class AgendaEvent extends Model
                 ->orWhere(function ($q2) use ($user) {
                     $q2->whereNull('user_id');
 
-                    // Super admin: eventos legacy de 'atinet'
-                    if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
-                        $q2->where('legacy_notaria', 'atinet');
+                    // Super admin: eventos legacy de 'atinet' (notaria_id=11 o NULL)
+                    if ($user->tipo_cuenta === 'super_admin') {
+                        $q2->where(function ($q3) {
+                            $q3->where('legacy_notaria', 'atinet')
+                               ->orWhere('notaria_id', 11)
+                               ->orWhereNull('notaria_id');
+                        });
                     }
                     // Usuarios de notaría: eventos legacy de su notaría
                     elseif ($user->notaria_id) {
@@ -132,12 +142,15 @@ class AgendaEvent extends Model
                 });
             }
 
-            // Super admin: también ve eventos de otros super admins
-            if ($user->tipo_cuenta === 'super_admin' && ! $user->notaria_id) {
+            // Super admin: también ve eventos de otros super admins (notaria_id=11)
+            if ($user->tipo_cuenta === 'super_admin') {
                 $q->orWhere(function ($q3) use ($user) {
                     $q3->whereNotNull('user_id')
                         ->where('user_id', '!=', $user->id)
-                        ->whereNull('notaria_id');
+                        ->where(function ($q4) {
+                            $q4->where('notaria_id', 11)
+                               ->orWhereNull('notaria_id');
+                        });
                 });
             }
         });

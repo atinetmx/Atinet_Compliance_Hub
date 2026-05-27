@@ -63,12 +63,12 @@ class UsageReportExport implements FromArray, WithColumnWidths, WithEvents, With
     public function columnWidths(): array
     {
         return [
-            'A' => 20, // Fecha y Hora
-            'B' => 35, // Notaría
-            'C' => 30, // Servicio
-            'D' => 30, // Usuario
-            'E' => 12, // Cantidad
-            'F' => 12, // Costo
+            'A' => 25, // Fecha y Hora
+            'B' => 45, // Notaría
+            'C' => 40, // Servicio
+            'D' => 35, // Usuario
+            'E' => 15, // Cantidad
+            'F' => 15, // Costo
         ];
     }
 
@@ -80,11 +80,12 @@ class UsageReportExport implements FromArray, WithColumnWidths, WithEvents, With
     public function styles(Worksheet $sheet)
     {
         return [
+            // Estilo para encabezados de columna (fila 7)
             7 => [
                 'font' => [
                     'bold' => true,
                     'color' => ['rgb' => 'FFFFFF'],
-                    'size' => 12,
+                    'size' => 11,
                 ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
@@ -93,6 +94,13 @@ class UsageReportExport implements FromArray, WithColumnWidths, WithEvents, With
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                     'vertical' => Alignment::VERTICAL_CENTER,
+                    'wrapText' => true,
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '0055AA'],
+                    ],
                 ],
             ],
         ];
@@ -111,41 +119,46 @@ class UsageReportExport implements FromArray, WithColumnWidths, WithEvents, With
                     $drawing->setName('Atinet Logo');
                     $drawing->setDescription('Logo Atinet Compliance Hub');
                     $drawing->setPath($logoPath);
-                    $drawing->setHeight(80);
+                    $drawing->setHeight(60);
                     $drawing->setCoordinates('A1');
                     $drawing->setOffsetX(10);
-                    $drawing->setOffsetY(5);
+                    $drawing->setOffsetY(10);
                     $drawing->setWorksheet($sheet);
                 }
 
-                // Ajustar altura de la fila del logo
+                // Ajustar altura de las primeras filas
                 $sheet->getRowDimension(1)->setRowHeight(60);
+                $sheet->getRowDimension(2)->setRowHeight(30);
+                $sheet->getRowDimension(3)->setRowHeight(10); // Espacio
+                $sheet->getRowDimension(4)->setRowHeight(25);
+                $sheet->getRowDimension(5)->setRowHeight(25);
+                $sheet->getRowDimension(6)->setRowHeight(10); // Espacio antes de encabezados
 
                 // Título del reporte
-                $sheet->mergeCells('C1:F1');
-                $sheet->setCellValue('C1', 'REPORTE DE USO DETALLADO');
-                $sheet->getStyle('C1')->applyFromArray([
+                $sheet->mergeCells('B1:F1');
+                $sheet->setCellValue('B1', 'REPORTE DE USO DETALLADO');
+                $sheet->getStyle('B1')->applyFromArray([
                     'font' => [
                         'bold' => true,
-                        'size' => 16,
+                        'size' => 18,
                         'color' => ['rgb' => '0066CC'],
                     ],
                     'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'horizontal' => Alignment::HORIZONTAL_LEFT,
                         'vertical' => Alignment::VERTICAL_CENTER,
                     ],
                 ]);
 
                 // Subtítulo
-                $sheet->mergeCells('C2:F2');
-                $sheet->setCellValue('C2', 'Atinet Compliance Hub');
-                $sheet->getStyle('C2')->applyFromArray([
+                $sheet->mergeCells('B2:F2');
+                $sheet->setCellValue('B2', 'Atinet Compliance Hub');
+                $sheet->getStyle('B2')->applyFromArray([
                     'font' => [
-                        'size' => 12,
+                        'size' => 11,
                         'color' => ['rgb' => '666666'],
                     ],
                     'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'horizontal' => Alignment::HORIZONTAL_LEFT,
                         'vertical' => Alignment::VERTICAL_CENTER,
                     ],
                 ]);
@@ -159,86 +172,112 @@ class UsageReportExport implements FromArray, WithColumnWidths, WithEvents, With
                 };
 
                 $sheet->setCellValue('A4', 'Período:');
+                $sheet->mergeCells('B4:C4');
                 $sheet->setCellValue('B4', $periodLabel);
                 $sheet->getStyle('A4')->getFont()->setBold(true);
 
                 if ($this->notariaName) {
                     $sheet->setCellValue('A5', 'Notaría:');
+                    $sheet->mergeCells('B5:C5');
                     $sheet->setCellValue('B5', $this->notariaName);
                     $sheet->getStyle('A5')->getFont()->setBold(true);
                 }
 
-                $dateLabel = $this->notariaName ? 'D4' : 'D4';
-                $dateValue = $this->notariaName ? 'E4' : 'E4';
-                $sheet->setCellValue($dateLabel, 'Generado:');
-                $sheet->setCellValue($dateValue, now()->format('d/m/Y H:i'));
-                $sheet->getStyle($dateLabel)->getFont()->setBold(true);
+                $sheet->setCellValue('D4', 'Generado:');
+                $sheet->mergeCells('E4:F4');
+                $sheet->setCellValue('E4', now()->format('d/m/Y H:i'));
+                $sheet->getStyle('D4')->getFont()->setBold(true);
 
-                $totalLabel = $this->notariaName ? 'D5' : 'D5';
-                $totalValue = $this->notariaName ? 'E5' : 'E5';
-                $sheet->setCellValue($totalLabel, 'Total Registros:');
-                $sheet->setCellValue($totalValue, count($this->data));
-                $sheet->getStyle($totalLabel)->getFont()->setBold(true);
+                $sheet->setCellValue('D5', 'Total Registros:');
+                $sheet->setCellValue('E5', count($this->data));
+                $sheet->getStyle('D5')->getFont()->setBold(true);
+
+                // Altura de fila de encabezados
+                $sheet->getRowDimension(7)->setRowHeight(35);
 
                 // Aplicar bordes a las celdas de datos
                 $highestRow = $sheet->getHighestRow();
                 $highestColumn = $sheet->getHighestColumn();
 
-                $sheet->getStyle('A7:'.$highestColumn.$highestRow)->applyFromArray([
-                    'borders' => [
-                        'allBorders' => [
-                            'borderStyle' => Border::BORDER_THIN,
-                            'color' => ['rgb' => 'CCCCCC'],
+                // Bordes solo en la tabla de datos (desde fila 7)
+                if ($highestRow >= 7) {
+                    $sheet->getStyle('A7:'.$highestColumn.$highestRow)->applyFromArray([
+                        'borders' => [
+                            'allBorders' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color' => ['rgb' => 'DDDDDD'],
+                            ],
                         ],
-                    ],
-                ]);
+                    ]);
+                }
 
-                // Aplicar formato alternado a las filas de datos
+                // Aplicar formato alternado a las filas de datos (desde fila 8)
                 for ($row = 8; $row <= $highestRow; $row++) {
+                    // Altura de cada fila de datos
+                    $sheet->getRowDimension($row)->setRowHeight(30);
+
+                    // Color alternado
                     if ($row % 2 == 0) {
                         $sheet->getStyle('A'.$row.':'.$highestColumn.$row)->applyFromArray([
                             'fill' => [
                                 'fillType' => Fill::FILL_SOLID,
-                                'startColor' => ['rgb' => 'F9F9F9'],
+                                'startColor' => ['rgb' => 'F8F9FA'],
                             ],
                         ]);
                     }
                 }
 
-                // Formato de moneda para la columna de costo
-                $sheet->getStyle('F8:F'.$highestRow)->getNumberFormat()->setFormatCode('$#,##0.00');
+                // Formato de moneda para la columna de costo (F)
+                if ($highestRow >= 8) {
+                    $sheet->getStyle('F8:F'.$highestRow)->getNumberFormat()->setFormatCode('$#,##0.00');
+                }
 
-                // Alineación de cantidades
-                $sheet->getStyle('E8:E'.$highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                // Alineación
+                if ($highestRow >= 8) {
+                    $sheet->getStyle('E8:E'.$highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle('F8:F'.$highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle('A8:D'.$highestRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                }
 
-                // Agregar resumen al final
-                $summaryRow = $highestRow + 2;
-                $sheet->mergeCells('A'.$summaryRow.':F'.$summaryRow);
-                $sheet->setCellValue('A'.$summaryRow, 'RESUMEN DEL REPORTE');
-                $sheet->getStyle('A'.$summaryRow)->applyFromArray([
-                    'font' => [
-                        'bold' => true,
-                        'size' => 12,
-                    ],
-                    'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    ],
-                ]);
+                // Autoajustar altura de texto
+                for ($row = 7; $row <= $highestRow; $row++) {
+                    $sheet->getStyle('A'.$row.':'.$highestColumn.$row)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+                    $sheet->getStyle('A'.$row.':'.$highestColumn.$row)->getAlignment()->setWrapText(false);
+                }
 
-                $summaryRow++;
-                $sheet->mergeCells('A'.$summaryRow.':F'.$summaryRow);
-                $sheet->setCellValue('A'.$summaryRow, 'Este reporte muestra el detalle completo de uso de servicios para el período seleccionado, incluyendo fecha y hora exacta de cada solicitud.');
-                $sheet->getStyle('A'.$summaryRow)->applyFromArray([
-                    'font' => [
-                        'italic' => true,
-                        'color' => ['rgb' => '666666'],
-                    ],
-                    'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_LEFT,
-                        'wrapText' => true,
-                    ],
-                ]);
-                $sheet->getRowDimension($summaryRow)->setRowHeight(30);
+                // Agregar resumen al final si hay datos
+                if (count($this->data) > 0) {
+                    $summaryRow = $highestRow + 3;
+                    $sheet->mergeCells('A'.$summaryRow.':F'.$summaryRow);
+                    $sheet->setCellValue('A'.$summaryRow, 'RESUMEN DEL REPORTE');
+                    $sheet->getStyle('A'.$summaryRow)->applyFromArray([
+                        'font' => [
+                            'bold' => true,
+                            'size' => 12,
+                            'color' => ['rgb' => '0066CC'],
+                        ],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        ],
+                    ]);
+                    $sheet->getRowDimension($summaryRow)->setRowHeight(25);
+
+                    $summaryRow++;
+                    $sheet->mergeCells('A'.$summaryRow.':F'.$summaryRow);
+                    $sheet->setCellValue('A'.$summaryRow, 'Este reporte muestra el detalle completo de uso de servicios para el período seleccionado, incluyendo fecha y hora exacta de cada solicitud.');
+                    $sheet->getStyle('A'.$summaryRow)->applyFromArray([
+                        'font' => [
+                            'italic' => true,
+                            'size' => 10,
+                            'color' => ['rgb' => '666666'],
+                        ],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_LEFT,
+                            'wrapText' => true,
+                        ],
+                    ]);
+                    $sheet->getRowDimension($summaryRow)->setRowHeight(35);
+                }
             },
         ];
     }
