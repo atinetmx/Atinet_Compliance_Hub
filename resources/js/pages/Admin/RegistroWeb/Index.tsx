@@ -128,6 +128,8 @@ const selectClass =
     'w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500';
 
 function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash }: Props) {
+    type IdentityConflictAction = 'replace' | 'fill-empty' | 'cancel';
+
     const [activeTab, setActiveTab] = useState<PersonaType>('fisica');
     const [personTypeLockedByQR, setPersonTypeLockedByQR] = useState(false); // Bloquear cambio de tipo cuando viene del QR
     const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
@@ -163,6 +165,55 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
     });
 
     const [showVistaPrevia, setShowVistaPrevia] = useState(false);
+
+    const [identityConflictDialog, setIdentityConflictDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        body: string;
+        currentIdentity: string;
+        incomingIdentity: string;
+        resolve: ((value: IdentityConflictAction) => void) | null;
+    }>({
+        isOpen: false,
+        title: '',
+        body: '',
+        currentIdentity: '',
+        incomingIdentity: '',
+        resolve: null,
+    });
+
+    const askIdentityConflict = (
+        title: string,
+        body: string,
+        currentIdentity: string,
+        incomingIdentity: string
+    ): Promise<IdentityConflictAction> => {
+        return new Promise((resolve) => {
+            setIdentityConflictDialog({
+                isOpen: true,
+                title,
+                body,
+                currentIdentity,
+                incomingIdentity,
+                resolve,
+            });
+        });
+    };
+
+    const resolveIdentityConflict = (value: IdentityConflictAction) => {
+        setIdentityConflictDialog((prev) => {
+            prev.resolve?.(value);
+
+            return {
+                isOpen: false,
+                title: '',
+                body: '',
+                currentIdentity: '',
+                incomingIdentity: '',
+                resolve: null,
+            };
+        });
+    };
 
     // Diálogo de confirmación para flujo SAT (promise-based para usarlo en async)
     const [satConfirmDialog, setSatConfirmDialog] = useState<{
@@ -411,6 +462,102 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
     const handleScanQR = () => setQrScannerOpen(true);
     const handleManualEntry = () => alert('Captura Manual - Disponible');
 
+    const hasValue = (value: unknown): boolean => {
+        if (value === null || value === undefined) {
+            return false;
+        }
+
+        return String(value).trim() !== '';
+    };
+
+    const normalizeIdentity = (value: unknown): string => {
+        return String(value ?? '')
+            .toUpperCase()
+            .trim()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ');
+    };
+
+    const getIncomingIdentity = (incoming: Record<string, unknown>) => {
+        const nombre = String(incoming.nombre ?? '').trim();
+        const apellidopat = String(incoming.apellidopat ?? '').trim();
+        const apellidomat = String(incoming.apellidomat ?? '').trim();
+
+        return {
+            rfc: String(incoming.rfc ?? '').trim(),
+            curp: String(incoming.curp ?? '').trim(),
+            nombreCompleto: [nombre, apellidopat, apellidomat].filter(Boolean).join(' ').trim(),
+        };
+    };
+
+    const getCurrentIdentity = () => {
+        return {
+            rfc: String(data.rfc ?? '').trim(),
+            curp: String(data.curp ?? '').trim(),
+            nombreCompleto: [data.nombre, data.apellidopat, data.apellidomat]
+                .filter((part) => hasValue(part))
+                .map((part) => String(part).trim())
+                .join(' ')
+                .trim(),
+        };
+    };
+
+    const formatIdentitySummary = (identity: { rfc: string; curp: string; nombreCompleto: string }): string => {
+        const parts: string[] = [];
+
+        if (identity.rfc) {
+            parts.push(`RFC: ${identity.rfc}`);
+        }
+
+        if (identity.curp) {
+            parts.push(`CURP: ${identity.curp}`);
+        }
+
+        if (identity.nombreCompleto) {
+            parts.push(`Nombre: ${identity.nombreCompleto}`);
+        }
+
+        return parts.join(' · ');
+    };
+
+    const verifyIdentityConflict = async (incomingRaw: Record<string, unknown>): Promise<IdentityConflictAction> => {
+        const current = getCurrentIdentity();
+        const incoming = getIncomingIdentity(incomingRaw);
+
+        const currentHasIdentity = hasValue(current.rfc) || hasValue(current.curp) || hasValue(current.nombreCompleto);
+        const incomingHasIdentity = hasValue(incoming.rfc) || hasValue(incoming.curp) || hasValue(incoming.nombreCompleto);
+
+        if (!currentHasIdentity || !incomingHasIdentity) {
+            return 'replace';
+        }
+
+        let conflictReason = '';
+
+        if (hasValue(current.rfc) && hasValue(incoming.rfc) && normalizeIdentity(current.rfc) !== normalizeIdentity(incoming.rfc)) {
+            conflictReason = 'RFC diferente';
+        } else if (hasValue(current.curp) && hasValue(incoming.curp) && normalizeIdentity(current.curp) !== normalizeIdentity(incoming.curp)) {
+            conflictReason = 'CURP diferente';
+        } else if (
+            hasValue(current.nombreCompleto) &&
+            hasValue(incoming.nombreCompleto) &&
+            normalizeIdentity(current.nombreCompleto) !== normalizeIdentity(incoming.nombreCompleto)
+        ) {
+            conflictReason = 'Nombre diferente';
+        }
+
+        if (!conflictReason) {
+            return 'replace';
+        }
+
+        return askIdentityConflict(
+            '⚠️ Posible incompatibilidad de datos',
+            `Se detectó ${conflictReason} entre el formulario actual y el documento escaneado.\n\n¿Qué deseas hacer?`,
+            formatIdentitySummary(current),
+            formatIdentitySummary(incoming)
+        );
+    };
+
     /**
      * Cierra el loader asegurando un tiempo mínimo de visualización (para ver el modelo 3D)
      */
@@ -440,6 +587,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
         try {
             // 1. Parsear QR localmente
             const parsedData = procesarDatosQR(qrText);
+            let loadStrategy: IdentityConflictAction = 'replace';
 
             // Verificar si el QR tiene datos útiles
             const hasUsefulData = parsedData.rfc ||
@@ -453,6 +601,14 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                 // QR no reconocido - mostrar texto crudo para copiar
                 setConfirmCopyDialog({ isOpen: true, text: qrText });
                 toast.info('ℹ️ QR no reconocido. Puedes copiar el contenido manualmente.');
+                return;
+            }
+
+            // 1.5 Verificación de identidad previa a cualquier carga (RFC/CURP/nombre)
+            loadStrategy = await verifyIdentityConflict(parsedData as unknown as Record<string, unknown>);
+            if (loadStrategy === 'cancel') {
+                toast.info('✋ Escaneo cancelado por incompatibilidad de datos');
+
                 return;
             }
 
@@ -480,7 +636,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                     await closeLoaderWithMinDelay(loaderInstance, startTime);
 
                     // Cargar datos de la BD al formulario
-                    cargarDatosQR(searchResult.data);
+                    cargarDatosQR(searchResult.data, loadStrategy);
 
                     // Verificar si tiene campos incompletos
                     const missingGroups = verificarCamposFaltantes(searchResult.data);
@@ -542,7 +698,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                                 });
 
                                 // Cargar datos combinados
-                                cargarDatosQR(mergedData);
+                                cargarDatosQR(mergedData, loadStrategy);
 
                                 // Re-verificar campos faltantes después de SAT
                                 const updatedMissingGroups = verificarCamposFaltantes(mergedData);
@@ -601,7 +757,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                 // Cargar datos básicos primero (los que se extrajeron sin IA)
                 const basicFields = Object.keys(parsedData).filter(k => !k.startsWith('_')).length;
                 if (basicFields > 0) {
-                    cargarDatosQR(parsedData);
+                    cargarDatosQR(parsedData, loadStrategy);
                 }
 
                 // Preguntar si procesar con IA (como en el legacy)
@@ -652,7 +808,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
 
                 if (satResult.success && satResult.data) {
                     // Cargar datos del SAT
-                    cargarDatosQR(satResult.data);
+                    cargarDatosQR(satResult.data, loadStrategy);
 
                     // Verificar campos faltantes
                     const missingGroups = verificarCamposFaltantes(satResult.data);
@@ -697,7 +853,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
 
             // 4. Cargar datos parseados localmente (CURP, Acta de Nacimiento, u otros)
             if (Object.keys(parsedData).filter(k => !k.startsWith('_')).length > 0) {
-                cargarDatosQR(parsedData);
+                cargarDatosQR(parsedData, loadStrategy);
 
                 const missingGroups = verificarCamposFaltantes(parsedData);
 
@@ -871,7 +1027,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
     /**
      * Cargar datos del QR al formulario
      */
-    const cargarDatosQR = (datos: ParsedQRData) => {
+    const cargarDatosQR = (datos: ParsedQRData, strategy: IdentityConflictAction = 'replace') => {
         // Determinar tipo de persona
         if (datos.Persona === 'MORAL') {
             setActiveTab('moral');
@@ -918,7 +1074,14 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
 
         // Actualizar formulario con todos los datos
         Object.entries(updates).forEach(([key, value]) => {
-            setData(key as keyof typeof data, value);
+            const fieldKey = key as keyof typeof data;
+            const currentValue = data[fieldKey];
+
+            if (strategy === 'fill-empty' && hasValue(currentValue)) {
+                return;
+            }
+
+            setData(fieldKey, value);
         });
 
         // Abrir sección de datos generales
@@ -1861,6 +2024,55 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                                     </button>
                                 </>
                             )}
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Identity Conflict Dialog - Verificación previa al escaneo */}
+            <Dialog open={identityConflictDialog.isOpen} onOpenChange={(open) => { if (!open) resolveIdentityConflict('cancel'); }}>
+                <DialogContent className="sm:max-w-[480px] text-center [&>button]:hidden">
+                    <DialogTitle className="sr-only">Posible incompatibilidad de datos</DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Se detectaron diferencias de identidad entre los datos actuales del formulario y el documento escaneado.
+                    </DialogDescription>
+
+                    <div className="flex flex-col items-center gap-4 px-4 pt-4 pb-2">
+                        <div className="flex size-24 items-center justify-center rounded-full border-4 border-amber-400">
+                            <span className="text-5xl font-bold text-amber-400">!</span>
+                        </div>
+
+                        <h2 className="text-2xl font-semibold text-gray-800">{identityConflictDialog.title}</h2>
+
+                        <p className="text-sm text-gray-600 whitespace-pre-line">{identityConflictDialog.body}</p>
+
+                        <div className="w-full space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-left text-xs text-gray-700">
+                            <p><span className="font-semibold text-gray-800">Formulario:</span> {identityConflictDialog.currentIdentity || 'Sin datos de identidad'}</p>
+                            <p><span className="font-semibold text-gray-800">Escaneado:</span> {identityConflictDialog.incomingIdentity || 'Sin datos de identidad'}</p>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap justify-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => resolveIdentityConflict('replace')}
+                                className="inline-flex h-10 items-center justify-center rounded-md bg-red-500 px-4 text-sm font-medium text-white shadow hover:bg-red-600 focus:outline-none"
+                            >
+                                Reemplazar todo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => resolveIdentityConflict('fill-empty')}
+                                className="inline-flex h-10 items-center justify-center rounded-md bg-indigo-500 px-4 text-sm font-medium text-white shadow hover:bg-indigo-600 focus:outline-none"
+                            >
+                                Solo llenar vacíos
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => resolveIdentityConflict('cancel')}
+                                className="inline-flex h-10 items-center justify-center rounded-md bg-gray-500 px-4 text-sm font-medium text-white hover:bg-gray-600 focus:outline-none"
+                            >
+                                Cancelar
+                            </button>
                         </div>
                     </div>
                 </DialogContent>
