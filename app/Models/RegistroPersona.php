@@ -197,53 +197,6 @@ class RegistroPersona extends Model
     protected static function boot()
     {
         parent::boot();
-
-        // BEFORE SAVE: sincronizar campos legacy automáticamente
-        static::saving(function ($model) {
-            // 1. Sincronizar sabe_escribir -> escribir
-            if ($model->isDirty('sabe_escribir')) {
-                $model->setAttribute('escribir', $model->sabe_escribir ?? '');
-            }
-
-            // 2. Sincronizar sabe_leer -> leer
-            if ($model->isDirty('sabe_leer')) {
-                $model->setAttribute('leer', $model->sabe_leer ?? '');
-            }
-
-            // 3. Sincronizar padre_nombre -> nombre_padre (legacy)
-            if ($model->isDirty('padre_nombre')) {
-                $model->setAttribute('nombre_padre', $model->padre_nombre ?? '');
-            }
-
-            // 4. Sincronizar madre_nombre -> nombre_madre (legacy)
-            if ($model->isDirty('madre_nombre')) {
-                $model->setAttribute('nombre_madre', $model->madre_nombre ?? '');
-            }
-
-            // 5. Sincronizar herederos_sustitutos -> herederosSustitutos (truncar a 200 chars)
-            if ($model->isDirty('herederos_sustitutos')) {
-                $value = $model->herederos_sustitutos ?? '';
-                $model->setAttribute('herederosSustitutos', substr($value, 0, 200));
-            }
-
-            // 6. Sincronizar albacea_sustituto -> albaceaSustituto (truncar a 45 chars)
-            if ($model->isDirty('albacea_sustituto')) {
-                $value = $model->albacea_sustituto ?? '';
-                $model->setAttribute('albaceaSustituto', substr($value, 0, 45));
-            }
-
-            // 7. Sincronizar tutor_tutriz -> TutorTutriz (truncar a 45 chars)
-            if ($model->isDirty('tutor_tutriz')) {
-                $value = $model->tutor_tutriz ?? '';
-                $model->setAttribute('TutorTutriz', substr($value, 0, 45));
-            }
-
-            // 8. Sincronizar tutor_sustituto -> tutorSustituto (truncar a 45 chars)
-            if ($model->isDirty('tutor_sustituto')) {
-                $value = $model->tutor_sustituto ?? '';
-                $model->setAttribute('tutorSustituto', substr($value, 0, 45));
-            }
-        });
     }
 
     /**

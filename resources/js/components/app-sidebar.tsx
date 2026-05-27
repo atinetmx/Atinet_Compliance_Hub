@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, Receipt, QrCode, ScanSearch } from 'lucide-react';
+import { BookOpen, CalendarDays, Folder, LayoutGrid, CreditCard, Package, Layers, Shield, BarChart3, Scale, History, Search, Settings, FileText, DollarSign, Users, Receipt, QrCode, ScanSearch, UserCheck } from 'lucide-react';
 
 import * as SubscriptionController from '@/actions/App/Http/Controllers/Admin/SubscriptionController';
 import { NavFooter } from '@/components/nav-footer';
@@ -33,6 +33,9 @@ export function AppSidebar() {
     const hasBlacklistServices = servicios.some(
         (s) => s.code === 'BLACKLIST_OFAC' || s.code === 'BLACKLIST_SAT'
     );
+
+    // Check if user has Listas PEP service
+    const hasPEPServices = isSuperAdmin || servicios.some((s) => s.code === 'LISTAS_PEP');
 
     // Check if user has Control Notarial service (future: will be checked from servicios)
     const hasControlNotarial = servicios.some((s) => s.code === 'CONTROL_NOTARIAL') || isSuperAdmin;
@@ -82,6 +85,23 @@ export function AppSidebar() {
                           {
                               title: 'Historial',
                               href: '/admin/search-history',
+                              icon: History,
+                          },
+                      ],
+                  },
+                  {
+                      title: 'Listas PEP',
+                      href: '/admin/listas-pep',
+                      icon: UserCheck,
+                      items: [
+                          {
+                              title: 'Búsqueda',
+                              href: '/admin/listas-pep',
+                              icon: Search,
+                          },
+                          {
+                              title: 'Historial',
+                              href: '/admin/listas-pep/historial',
                               icon: History,
                           },
                       ],
@@ -192,6 +212,27 @@ export function AppSidebar() {
                           {
                               title: 'Historial',
                               href: '/admin/search-history',
+                              icon: History,
+                          },
+                      ],
+                  },
+              ]
+            : []),
+        ...(hasPEPServices && !isSuperAdmin
+            ? [
+                  {
+                      title: 'Listas PEP',
+                      href: '/admin/listas-pep',
+                      icon: UserCheck,
+                      items: [
+                          {
+                              title: 'Búsqueda',
+                              href: '/admin/listas-pep',
+                              icon: Search,
+                          },
+                          {
+                              title: 'Historial',
+                              href: '/admin/listas-pep/historial',
                               icon: History,
                           },
                       ],
