@@ -98,8 +98,11 @@ class AgendaController extends Controller
             ->orderBy('created_at', 'desc');
 
         // Filtrar por notaría (incluyendo eventos eliminados)
-        if ($user->notaria_id) {
-            // Filtrar por notaría usando una subconsulta más flexible
+        if ($user->tipo_cuenta === 'super_admin') {
+            // Super admin ve TODOS los logs de agenda (sin filtrar por notaria_id)
+            // No aplicar filtro adicional - ya está filtrado por log_name='agenda'
+        } elseif ($user->notaria_id) {
+            // Usuarios de notaría: filtrar por su notaría
             $newActivities->where(function ($query) use ($user) {
                 // Eventos que aún existen y pertenecen a la notaría
                 $query->whereHasMorph('subject', [AgendaEvent::class], function ($q) use ($user) {
@@ -109,9 +112,6 @@ class AgendaController extends Controller
                     ->orWhereRaw("JSON_EXTRACT(properties, '$.attributes.notaria_id') = ?", [$user->notaria_id])
                     ->orWhereRaw("JSON_EXTRACT(properties, '$.old.notaria_id') = ?", [$user->notaria_id]);
             });
-        } elseif ($user->tipo_cuenta === 'super_admin') {
-            // Super admin sin notaría: ve TODOS los logs de agenda
-            // No aplicar filtro adicional - ya está filtrado por log_name='agenda'
         }
 
         // Filtrar por usuario si no es admin

@@ -161,14 +161,22 @@ private function tenantConnectionForUser(User $user): string
 
 ### Fase 2: Correcciones Críticas
 1. ✅ **AgendaEvent.php** - Ajustada lógica para notaria_id=11 (3 ubicaciones)
-2. ✅ **AgendaController.php** - Corregida condición para super_admin con notaria_id=11
+2. ✅ **AgendaController.php** - Corregida condición para super_admin con notaria_id=11 (2 ubicaciones)
+   - Línea 131: Mapeo a 'atinet' legacy
+   - Línea 101: Filtrado de logs en bitácora
 3. ✅ **NotariaScope.php** - Ya excluye super_admin correctamente (no requiere cambios)
-4. ⬜ **Middlewares** - Verificar comportamiento
+4. ✅ **SyncAgendaFromLegacy.php** - Corregido mapeo 'atinet' → notaria_id=11 (antes era NULL)
+5. ✅ **AgendaEvent Model** - Agregado trait BelongsToNotaria para auto-asignación de notaria_id
+6. ⬜ **Middlewares** - Verificar comportamiento
 
-### Fase 3: Validación (PENDIENTE)
-5. ⬜ Testing manual: Crear eventos como super_admin
-6. ⬜ Testing manual: Ver agenda como super_admin
-7. ⬜ Testing manual: Acceder a Control Notarial como super_admin
+### Fase 3: Sincronización de Datos Legacy
+6. ✅ Ejecutado `php artisan agenda:sync-legacy --notaria=atinet`
+7. ✅ Importados 1,103 eventos legacy con notaria_id=11 correctamente
+
+### Fase 4: Validación (PENDIENTE)
+8. ⬜ Testing manual: Crear eventos como super_admin
+9. ⬜ Testing manual: Ver agenda como super_admin
+10. ⬜ Testing manual: Acceder a Control Notarial como super_admin
 
 ---
 
@@ -238,6 +246,123 @@ if ($user->tipo_cuenta === 'super_admin') {
 ```
 
 **Resultado:** Super_admin con notaria_id=11 ahora accede correctamente a logs legacy de 'atinet'.
+
+---
+
+### 3. AgendaController.php (Bitácora - Método log)
+**Ubicación:** Línea 101
+
+**Antes:**
+```php
+// Filtrar por notaría (incluyendo eventos eliminados)
+if ($user->notaria_id) {
+    // Filtrar por notaría usando una subconsulta más flexible
+    $newActivities->where(function ($query) use ($user) {
+        ...
+    });
+} elseif ($user->tipo_cuenta === 'super_admin') {
+    // Super admin sin notaría: ve TODOS los logs de agenda
+}
+```
+
+**Después:**
+```php
+// Filtrar por notaría (incluyendo eventos eliminados)
+if ($user->tipo_cuenta === 'super_admin') {
+    // Super admin ve TODOS los logs de agenda (sin filtrar por notaria_id)
+    // No aplicar filtro adicional - ya está filtrado por log_name='agenda'
+} elseif ($user->notaria_id) {
+    // Usuarios de notaría: filtrar por su notaría
+    $newActivities->where(function ($query) use ($user) {
+        ...
+    });
+}
+```
+
+**Resultado:** 
+- Super_admin ahora ve TODOS los logs sin importar que tenga notaria_id=11
+- Probado: ✅ Puede ver logs de todas las notarías en bitácora
+- Combina logs de activity_log (nuevo) + aplicativos.log (legacy)
+
+---
+
+### 4. SyncAgendaFromLegacy.php
+**Ubicación:** Línea 31 (método buildNotariasMap)
+
+**Antes:**
+```php
+// Atinet siempre mapeada a NULL (sin notaria asignada, visible para super_admins)
+$mapped['atinet'] = null;
+```
+
+**Después:**
+```php
+// Atinet siempre mapeada a ATINET MASTER (id=11) para compatibilidad con Control Notarial
+$mapped['atinet'] = 11;
+```
+
+**Resultado:** 
+- Eventos legacy de 'atinet' ahora se importan con `notaria_id=11`
+- ✅ Ejecutado: `php artisan agenda:sync-legacy --notaria=atinet`
+- ✅ Importados: **1,103 eventos** con `notaria_id=11` correctamente
+- ✅ Compatibilidad con Control Notarial garantizada
+
+---
+
+### 5. AgendaEvent Model (BelongsToNotaria Trait)
+**Ubicación:** Línea 10
+
+**Antes:**
+```php
+class AgendaEvent extends Model
+{
+    use LogsActivity;
+```
+
+**Después:**
+```php
+class AgendaEvent extends Model
+{
+    use BelongsToNotaria;
+    use LogsActivity;
+```
+
+**Resultado:**
+- ✅ Nuevos eventos creados por super_admin ahora se asignan automáticamente `notaria_id=11`
+- ✅ Probado con evento de prueba: ✅ CORRECTO
+- ✅ Trait aplica NotariaScope automáticamente
+- ✅ Super_admin mantiene global scope (excluido del filtrado)
+
+---
+
+## 🧪 PRUEBAS EJECUTADAS
+
+### Test Script 1: _test_super_admin_functionality.php
+
+```
+✅ Super_admin tiene notaria_id=11
+✅ ATINET MASTER existe y está configurada  
+✅ Eventos legacy importados con notaria_id=11 (1,103 eventos)
+✅ Super_admin puede ver eventos legacy (1,103 visibles)
+✅ Nuevos eventos se crean con notaria_id=11 automáticamente
+```
+
+### Test Script 2: _test_bitacora_super_admin.php
+
+```
+✅ Super_admin NO filtra logs por notaria_id
+✅ Puede ver logs de activity_log (nuevo sistema)
+✅ Puede ver logs legacy de aplicativos.log
+✅ Puede ver logs de TODAS las notarías
+✅ Los eventos creados por super_admin generan logs correctamente
+✅ Sistema de bitácora combinando logs nuevo + legacy
+```
+
+**Logs generados exitosamente:**
+- Creación de evento → Log en activity_log
+- Actualización de evento → Log en activity_log
+- Eliminación de evento → Log en activity_log
+- Todos visibles en bitácora para super_admin
 
 ---
 

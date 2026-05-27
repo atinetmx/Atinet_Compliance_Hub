@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToNotaria;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\LogOptions;
@@ -9,6 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class AgendaEvent extends Model
 {
+    use BelongsToNotaria;
     use LogsActivity;
 
     protected $table = 'agenda_events';
