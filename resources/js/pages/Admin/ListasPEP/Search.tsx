@@ -11,6 +11,13 @@ import {
     Globe,
     Users,
     History as HistoryIcon,
+    ExternalLink,
+    Building,
+    MapPin,
+    Calendar,
+    Briefcase,
+    User,
+    Hash,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -19,6 +26,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -40,13 +55,42 @@ import type { BreadcrumbItem } from '@/types';
 type TipoPEP = 'PEP' | 'EX PEP' | 'AFIN PEP' | 'AFIN EX PEP' | 'OTROS';
 type OrigenFuente = 'MEX' | 'ARG' | 'USA' | 'OTRO';
 
-interface PEPResultado {
+/** Respuesta real de la API de PrevencionDeLavado.com */
+interface PEPResultadoAPI {
+    codigoIndividuo: number;
+    denominacion: string;
+    identificacion: string | null;
+    idTributaria: string | null;
+    otraIdentificacion: string | null;
+    fechaNacimiento: string | null; // YYYYMMDD
+    tipo: string;
+    subTipo: string;
+    estado: string; // "ACTIVO" | "INACTIVO"
+    cargo: string;
+    finalizacionCargo: string | null;
+    lugarTrabajo: string;
+    direccion: string;
+    lista: string;
+    paisLista: string;
+    supuesto: string | null;
+    situacion: string | null;
+    exactitudDenominacion: string; // "ALTO (5 sobre 5)"
+    exactitudIdentificacion: string; // "COINCIDE" | "N/D"
+    enlace: string | null;
+}
+
+interface BusquedaResponseAPI {
+    codigoCertificadoBusqueda: string; // UUID
+    fechaConsulta: string; // ISO DateTime
+    resultados: PEPResultadoAPI[];
+}
+
+/** Tipo adaptado para React */
+interface PEPResultado extends PEPResultadoAPI {
     id: string;
     apellido_denominacion: string;
     nombres: string;
-    identificacion?: string;
     exactitud: number; // 0–100
-    tipo: TipoPEP;
     fuente: OrigenFuente;
 }
 
@@ -54,6 +98,14 @@ interface BusquedaForm {
     apellido_denominacion: string;
     nombres: string;
     identificacion: string;
+}
+
+interface OpcionesBusqueda {
+    pepsOtrosPaises: boolean;
+    satXDenominacion: boolean;
+    documentosSimilares: boolean;
+    forzarApellidos: boolean;
+    generarCertificados: boolean;
 }
 
 interface PaqueteInfo {
@@ -64,6 +116,50 @@ interface PaqueteInfo {
 
 interface Props {
     paquete?: PaqueteInfo;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Convierte fecha YYYYMMDD a DD/MM/YYYY */
+function formatoFecha(fecha: string | null): string {
+    if (!fecha || fecha.length !== 8) return 'N/D';
+    const year = fecha.substring(0, 4);
+    const month = fecha.substring(4, 6);
+    const day = fecha.substring(6, 8);
+    return `${day}/${month}/${year}`;
+}
+
+/** Mapea resultado de API a formato React */
+function mapearResultadoAPI(resultado: PEPResultadoAPI): PEPResultado {
+    // Separar denominacion en apellido y nombres (heurística simple)
+    const partes = resultado.denominacion.split(' ');
+    const apellido = partes.slice(0, 2).join(' ');
+    const nombres = partes.slice(2).join(' ') || '';
+
+    // Convertir exactitud "ALTO (5 sobre 5)" -> 100
+    let exactitud = 0;
+    if (resultado.exactitudDenominacion?.includes('5 sobre 5')) exactitud = 100;
+    else if (resultado.exactitudDenominacion?.includes('4 sobre 5')) exactitud = 80;
+    else if (resultado.exactitudDenominacion?.includes('3 sobre 5')) exactitud = 60;
+    else if (resultado.exactitudDenominacion?.includes('2 sobre 5')) exactitud = 40;
+    else if (resultado.exactitudDenominacion?.includes('1 sobre 5')) exactitud = 20;
+
+    // Determinar fuente por país
+    let fuente: OrigenFuente = 'OTRO';
+    if (resultado.paisLista?.toUpperCase().includes('MEX')) fuente = 'MEX';
+    else if (resultado.paisLista?.toUpperCase().includes('ARG')) fuente = 'ARG';
+    else if (resultado.paisLista?.toUpperCase().includes('USA') || resultado.paisLista?.toUpperCase().includes('ESTADOS UNIDOS')) fuente = 'USA';
+
+    return {
+        ...resultado,
+        id: resultado.codigoIndividuo.toString(),
+        apellido_denominacion: apellido,
+        nombres: nombres,
+        exactitud: exactitud,
+        fuente: fuente,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +221,177 @@ function FuenteBadge({ fuente }: { fuente: OrigenFuente }) {
     );
 }
 
+/** Componente de vista detallada de resultado */
+function DetalleResultado({ resultado }: { resultado: PEPResultado }) {
+    const getEstadoClass = (estado: string) => {
+        return estado === 'ACTIVO'
+            ? 'bg-green-100 text-green-800 border-green-300'
+            : 'bg-gray-100 text-gray-600 border-gray-300';
+    };
+
+    const getExactitudClass = (exactitud: string) => {
+        if (exactitud?.includes('5 sobre 5')) return 'text-green-700 font-semibold';
+        if (exactitud?.includes('4 sobre 5')) return 'text-green-600 font-medium';
+        if (exactitud?.includes('3 sobre 5')) return 'text-yellow-600 font-medium';
+        return 'text-muted-foreground';
+    };
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 text-xs">
+                    Ver detalles
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-blue-600" />
+                        {resultado.denominacion}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Información completa del registro
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 mt-4">
+                    {/* Información Personal */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                Información Personal
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span className="text-muted-foreground">Identificación (CURP):</span>
+                                <p className="font-medium">{resultado.identificacion || 'N/D'}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">RFC:</span>
+                                <p className="font-medium">{resultado.idTributaria || 'N/D'}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Fecha de Nacimiento:</span>
+                                <p className="font-medium">{formatoFecha(resultado.fechaNacimiento)}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Estado:</span>
+                                <Badge className={getEstadoClass(resultado.estado)}>
+                                    {resultado.estado}
+                                </Badge>
+                            </div>
+                            <div className="col-span-2">
+                                <span className="text-muted-foreground">Código Individuo:</span>
+                                <p className="font-mono text-xs">{resultado.codigoIndividuo}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Cargo y Función */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Briefcase className="h-4 w-4" />
+                                Cargo y Función Pública
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <div>
+                                <span className="text-muted-foreground">Cargo:</span>
+                                <p className="font-medium mt-1">{resultado.cargo}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground">Lugar de Trabajo:</span>
+                                <p className="text-sm mt-1">{resultado.lugarTrabajo}</p>
+                            </div>
+                            {resultado.finalizacionCargo && (
+                                <div>
+                                    <span className="text-muted-foreground">Finalización del Cargo:</span>
+                                    <p className="text-sm mt-1">{resultado.finalizacionCargo}</p>
+                                </div>
+                            )}
+                            <div>
+                                <span className="text-muted-foreground">Tipo / Subtipo:</span>
+                                <div className="flex gap-2 mt-1">
+                                    <TipoBadge tipo={resultado.tipo as TipoPEP} />
+                                    {resultado.subTipo && (
+                                        <Badge variant="outline">{resultado.subTipo}</Badge>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Ubicación */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                Ubicación
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">{resultado.direccion}</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Lista y Exactitud */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Hash className="h-4 w-4" />
+                                Clasificación y Exactitud
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span className="text-muted-foreground">Lista:</span>
+                                    <p className="font-medium mt-1">{resultado.lista}</p>
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground">País:</span>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span>{resultado.paisLista}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <Separator />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span className="text-muted-foreground">Exactitud Denominación:</span>
+                                    <p className={`mt-1 ${getExactitudClass(resultado.exactitudDenominacion)}`}>
+                                        {resultado.exactitudDenominacion}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground">Exactitud Identificación:</span>
+                                    <p className={`mt-1 font-medium ${resultado.exactitudIdentificacion === 'COINCIDE' ? 'text-green-700' : 'text-muted-foreground'}`}>
+                                        {resultado.exactitudIdentificacion}
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Enlace externo */}
+                    {resultado.enlace && (
+                        <Button asChild className="w-full">
+                            <a href={resultado.enlace} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Ver información completa en PrevencionDeLavado.com
+                            </a>
+                        </Button>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
@@ -142,20 +409,188 @@ export default function ListasPEPSearch({ paquete }: Props) {
         identificacion: '',
     });
 
+    // ---- Estado de opciones de búsqueda ----
+    const [opciones, setOpciones] = useState<OpcionesBusqueda>({
+        pepsOtrosPaises: true,
+        satXDenominacion: true,
+        documentosSimilares: true,
+        forzarApellidos: false,
+        generarCertificados: true,
+    });
+
     // ---- Estado de resultados ----
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [resultados, setResultados] = useState<PEPResultado[]>([]);
     const [totalAciertos, setTotalAciertos] = useState<number | null>(null);
     const [ultimaBusqueda, setUltimaBusqueda] = useState<Partial<BusquedaForm> | null>(null);
+    const [codigoCertificado, setCodigoCertificado] = useState<string | null>(null);
+    const [fechaConsulta, setFechaConsulta] = useState<string | null>(null);
 
     // ---- Estado de filtros ----
-    const [filtroTipo, setFiltroTipo] = useState<TipoPEP[]>([]);
-    const [filtroFuente, setFiltroFuente] = useState<OrigenFuente[]>([]);
+    const [filtroTipo, setFiltroTipo] = useState<string>('');
+    const [filtroFuente, setFiltroFuente] = useState<string>('');
+    const [filtroTexto, setFiltroTexto] = useState<string>('');
+    const [showFilters, setShowFilters] = useState<boolean>(false);
 
     // ---- Selección para certificado ----
     const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
     const [generandoCertificado, setGenerandoCertificado] = useState(false);
+
+    // ---- Datos de ejemplo para demostración ----
+    const generarDatosEjemplo = (): BusquedaResponseAPI => {
+        return {
+            codigoCertificadoBusqueda: "6a71f8da-a0d8-4946-9579-7b5978ae4f70",
+            fechaConsulta: new Date().toISOString(),
+            resultados: [
+                {
+                    codigoIndividuo: 3086274,
+                    denominacion: "LOPEZ OBRADOR ANDRES MANUEL",
+                    identificacion: "LOOA531113HTCPBN07",
+                    idTributaria: "LOOA531113FI5",
+                    otraIdentificacion: null,
+                    fechaNacimiento: "19531113",
+                    tipo: "EX PEP",
+                    subTipo: "EX PEP",
+                    estado: "INACTIVO",
+                    cargo: "PRESIDENTE DE LOS ESTADOS UNIDOS MEXICANOS",
+                    finalizacionCargo: "Septiembre de 2024",
+                    lugarTrabajo: "Secretaría Particular del Presidente - Oficina de la Presidencia de la República - Federación",
+                    direccion: "C ODONTOLOGIA 57 EDIF B, DEPT 301, COL COPILCO UNIVERSIDAD, 04360, CIUDAD DE MEXICO, COYOACAN, MEXICO",
+                    lista: "EX-PEP según legislación de México",
+                    paisLista: "MÉXICO",
+                    supuesto: null,
+                    situacion: null,
+                    exactitudDenominacion: "ALTO (5 sobre 5)",
+                    exactitudIdentificacion: "COINCIDE",
+                    enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=UTERU6LnQHe/ATRWqgp8rSx5c4GJrRct0QBR+m0NY3Fv07W1S2LBs0iWf+wlEhNlaXag4e52Wc8=",
+                },
+                {
+                    codigoIndividuo: 19231715,
+                    denominacion: "GARCIA MORALES JUAN CARLOS",
+                    identificacion: "GAMJ850615HDFRRL03",
+                    idTributaria: "GAMJ850615KL8",
+                    otraIdentificacion: null,
+                    fechaNacimiento: "19850615",
+                    tipo: "PEP",
+                    subTipo: "PEP",
+                    estado: "ACTIVO",
+                    cargo: "DIRECTOR GENERAL DE ADMINISTRACIÓN",
+                    finalizacionCargo: null,
+                    lugarTrabajo: "Secretaría de Hacienda y Crédito Público - Gobierno Federal - México",
+                    direccion: "AV INSURGENTES SUR 1735, COL GUADALUPE INN, 01020, CIUDAD DE MEXICO, ALVARO OBREGON, MEXICO",
+                    lista: "PEP de México",
+                    paisLista: "MÉXICO",
+                    supuesto: null,
+                    situacion: null,
+                    exactitudDenominacion: "ALTO (5 sobre 5)",
+                    exactitudIdentificacion: "COINCIDE",
+                    enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=oNSpgET6KFhOhcwevXkLLG/X3nTKb/qwLfeYF7D7U+wNI99QGN9b+yAQQx5jw7rqFu/FzsB0Afk=",
+                },
+                {
+                    codigoIndividuo: 18398241,
+                    denominacion: "MARTINEZ RODRIGUEZ MARIA ELENA",
+                    identificacion: null,
+                    idTributaria: null,
+                    otraIdentificacion: null,
+                    fechaNacimiento: "19780320",
+                    tipo: "AFIN PEP",
+                    subTipo: "AFIN PEP",
+                    estado: "ACTIVO",
+                    cargo: "CONYUGE DE SUBSECRETARIO DE ESTADO",
+                    finalizacionCargo: null,
+                    lugarTrabajo: "Secretaría de Relaciones Exteriores - Gobierno Federal - México",
+                    direccion: "CIUDAD DE MEXICO, MEXICO",
+                    lista: "Afines PEP de México",
+                    paisLista: "MÉXICO",
+                    supuesto: null,
+                    situacion: null,
+                    exactitudDenominacion: "MEDIO (4 sobre 5)",
+                    exactitudIdentificacion: "N/D",
+                    enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=uKT+QQan/GcZnb8s7d8Hwwh7zQOKed2lwm0Bm3hA+7zbpsFKLVh7IjaonhuBlgsgrmw+kiDSeJs=",
+                },
+                {
+                    codigoIndividuo: 5738291,
+                    denominacion: "HERNANDEZ LOPEZ CARLOS ALBERTO",
+                    identificacion: null,
+                    idTributaria: "HELC920804PN2",
+                    otraIdentificacion: null,
+                    fechaNacimiento: "19920804",
+                    tipo: "PEP",
+                    subTipo: "PEP",
+                    estado: "ACTIVO",
+                    cargo: "DIRECTOR DE AREA",
+                    finalizacionCargo: null,
+                    lugarTrabajo: "Dirección de Recursos de Revisión de Usos de Suelo - Ayuntamiento de Guadalajara - Jalisco",
+                    direccion: "JALISCO, MEXICO",
+                    lista: "PEP de México sin identificación",
+                    paisLista: "MÉXICO",
+                    supuesto: null,
+                    situacion: null,
+                    exactitudDenominacion: "MEDIO (3 sobre 5)",
+                    exactitudIdentificacion: "N/D",
+                    enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=xYz123ABC/def456GHI789jkl012MNO345pqr678STU901vwx234YZA567bcd890EFG123hij456KLM=",
+                },
+                {
+                    codigoIndividuo: 4829156,
+                    denominacion: "RAMIREZ SANCHEZ JOSE LUIS",
+                    identificacion: "RASJ751025HDFMNL08",
+                    idTributaria: "RASJ751025HK4",
+                    otraIdentificacion: null,
+                    fechaNacimiento: "19751025",
+                    tipo: "EX PEP",
+                    subTipo: "EX PEP",
+                    estado: "INACTIVO",
+                    cargo: "SECRETARIO DE ESTADO",
+                    finalizacionCargo: "Diciembre de 2023",
+                    lugarTrabajo: "Secretaría de Gobernación - Gobierno Federal - México",
+                    direccion: "AV REVOLUCION 1425, COL CAMPESTRE, 01040, CIUDAD DE MEXICO, ALVARO OBREGON, MEXICO",
+                    lista: "EX-PEP según legislación de México",
+                    paisLista: "MÉXICO",
+                    supuesto: null,
+                    situacion: null,
+                    exactitudDenominacion: "ALTO (5 sobre 5)",
+                    exactitudIdentificacion: "COINCIDE",
+                    enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=mNO789pQR012stu345VWX678yza901BCD234efg567HIJ890klm123NOP456qrs789TUV012wxy=",
+                },
+            ],
+        };
+    };
+
+    // ---- Handler búsqueda simulada (DEMO) ----
+    const handleSearchDemo = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        setLoading(true);
+        setError(null);
+        setResultados([]);
+        setTotalAciertos(null);
+        setSeleccionados(new Set());
+        setFiltroTipo('');
+        setFiltroFuente('');
+        setFiltroTexto('');
+
+        // Simular delay de red
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        try {
+            const datosEjemplo = generarDatosEjemplo();
+            const resultadosMapeados = datosEjemplo.resultados.map(mapearResultadoAPI);
+            setResultados(resultadosMapeados);
+            setTotalAciertos(datosEjemplo.resultados.length);
+            setCodigoCertificado(datosEjemplo.codigoCertificadoBusqueda);
+            setFechaConsulta(datosEjemplo.fechaConsulta);
+            setUltimaBusqueda({
+                apellido_denominacion: 'LOPEZ',
+                nombres: 'ANDRES',
+                identificacion: ''
+            });
+        } catch (err) {
+            setError('Error al cargar datos de ejemplo');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // ---- Handler búsqueda ----
     const handleSearch = async (e: React.FormEvent) => {
@@ -170,8 +605,9 @@ export default function ListasPEPSearch({ paquete }: Props) {
         setResultados([]);
         setTotalAciertos(null);
         setSeleccionados(new Set());
-        setFiltroTipo([]);
-        setFiltroFuente([]);
+        setFiltroTipo('');
+        setFiltroFuente('');
+        setFiltroTexto('');
 
         try {
             // TODO: Reemplazar con el endpoint real de la API del proveedor
@@ -190,14 +626,21 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     apellido_denominacion: form.apellido_denominacion,
                     nombres: form.nombres,
                     identificacion: form.identificacion,
+                    ...opciones,
                 }),
             });
 
             const data = await response.json();
 
             if (data.success) {
-                setResultados(data.data?.resultados ?? []);
+                // Mapear resultados de API a formato React
+                const resultadosAPI: PEPResultadoAPI[] = data.data?.resultados ?? [];
+                const resultadosMapeados = resultadosAPI.map(mapearResultadoAPI);
+
+                setResultados(resultadosMapeados);
                 setTotalAciertos(data.data?.total_aciertos ?? 0);
+                setCodigoCertificado(data.data?.codigo_certificado ?? null);
+                setFechaConsulta(data.data?.fecha_consulta ?? null);
                 setUltimaBusqueda({ ...form });
             } else {
                 setError(data.message ?? 'Error en la búsqueda');
@@ -211,22 +654,20 @@ export default function ListasPEPSearch({ paquete }: Props) {
 
     // ---- Filtrado local sobre resultados ----
     const resultadosFiltrados = resultados.filter((r) => {
-        const pasaTipo = filtroTipo.length === 0 || filtroTipo.includes(r.tipo);
-        const pasaFuente = filtroFuente.length === 0 || filtroFuente.includes(r.fuente);
-        return pasaTipo && pasaFuente;
+        const pasaTipo = !filtroTipo || r.tipo === filtroTipo;
+        const pasaFuente = !filtroFuente || r.fuente === filtroFuente;
+        const pasaTexto = !filtroTexto ||
+            r.apellido_denominacion.toLowerCase().includes(filtroTexto.toLowerCase()) ||
+            r.nombres.toLowerCase().includes(filtroTexto.toLowerCase()) ||
+            r.identificacion?.toLowerCase().includes(filtroTexto.toLowerCase());
+        return pasaTipo && pasaFuente && pasaTexto;
     });
 
-    // ---- Toggle tipo de filtro ----
-    const toggleFiltroTipo = (tipo: TipoPEP) => {
-        setFiltroTipo((prev) =>
-            prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo],
-        );
-    };
-
-    const toggleFiltroFuente = (fuente: OrigenFuente) => {
-        setFiltroFuente((prev) =>
-            prev.includes(fuente) ? prev.filter((f) => f !== fuente) : [...prev, fuente],
-        );
+    // ---- Limpiar filtros ----
+    const limpiarFiltros = () => {
+        setFiltroTipo('');
+        setFiltroFuente('');
+        setFiltroTexto('');
     };
 
     // ---- Selección para certificados ----
@@ -489,6 +930,92 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                     />
                                 </div>
 
+                                {/* Opciones de búsqueda */}
+                                <div className="space-y-3 pt-2">
+                                    <Label className="text-sm font-medium">Opciones de búsqueda</Label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="pepsOtrosPaises"
+                                                checked={opciones.pepsOtrosPaises}
+                                                onCheckedChange={(checked) =>
+                                                    setOpciones({ ...opciones, pepsOtrosPaises: checked === true })
+                                                }
+                                            />
+                                            <label
+                                                htmlFor="pepsOtrosPaises"
+                                                className="text-sm cursor-pointer"
+                                            >
+                                                PEPs en otros países
+                                            </label>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="satXDenominacion"
+                                                checked={opciones.satXDenominacion}
+                                                onCheckedChange={(checked) =>
+                                                    setOpciones({ ...opciones, satXDenominacion: checked === true })
+                                                }
+                                            />
+                                            <label
+                                                htmlFor="satXDenominacion"
+                                                className="text-sm cursor-pointer"
+                                            >
+                                                SAT por denominación
+                                            </label>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="documentosSimilares"
+                                                checked={opciones.documentosSimilares}
+                                                onCheckedChange={(checked) =>
+                                                    setOpciones({ ...opciones, documentosSimilares: checked === true })
+                                                }
+                                            />
+                                            <label
+                                                htmlFor="documentosSimilares"
+                                                className="text-sm cursor-pointer"
+                                            >
+                                                Documentos similares
+                                            </label>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="forzarApellidos"
+                                                checked={opciones.forzarApellidos}
+                                                onCheckedChange={(checked) =>
+                                                    setOpciones({ ...opciones, forzarApellidos: checked === true })
+                                                }
+                                            />
+                                            <label
+                                                htmlFor="forzarApellidos"
+                                                className="text-sm cursor-pointer"
+                                            >
+                                                Forzar apellidos
+                                            </label>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2 col-span-2">
+                                            <Checkbox
+                                                id="generarCertificados"
+                                                checked={opciones.generarCertificados}
+                                                onCheckedChange={(checked) =>
+                                                    setOpciones({ ...opciones, generarCertificados: checked === true })
+                                                }
+                                            />
+                                            <label
+                                                htmlFor="generarCertificados"
+                                                className="text-sm cursor-pointer"
+                                            >
+                                                Generar certificados automáticamente
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <Alert className="border-amber-200 bg-amber-50 text-amber-800">
                                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                                     <AlertDescription className="text-xs">
@@ -497,7 +1024,26 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                     </AlertDescription>
                                 </Alert>
 
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleSearchDemo}
+                                        disabled={loading}
+                                        className="min-w-40"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                                                Cargando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Info className="mr-2 h-4 w-4" />
+                                                Vista Previa (Demo)
+                                            </>
+                                        )}
+                                    </Button>
                                     <Button
                                         type="submit"
                                         disabled={loading}
@@ -586,6 +1132,36 @@ export default function ListasPEPSearch({ paquete }: Props) {
                 {totalAciertos !== null && (
                     <Card>
                         <CardContent className="pt-5">
+                            {/* Código de certificado y fecha */}
+                            {codigoCertificado && (
+                                <Card className="mb-4 bg-blue-50/50 border-blue-200">
+                                    <CardContent className="flex items-center justify-between py-3">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground mb-1">
+                                                Código de Certificado de Búsqueda
+                                            </p>
+                                            <code className="text-sm font-mono font-semibold text-blue-800">
+                                                {codigoCertificado}
+                                            </code>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-muted-foreground mb-1">
+                                                <Calendar className="inline h-3 w-3 mr-1" />
+                                                Fecha de Consulta
+                                            </p>
+                                            <p className="text-sm font-medium">
+                                                {fechaConsulta
+                                                    ? new Date(fechaConsulta).toLocaleString('es-MX', {
+                                                          dateStyle: 'short',
+                                                          timeStyle: 'short',
+                                                      })
+                                                    : 'N/D'}
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             {/* Resumen de búsqueda */}
                             <div className="mb-4 flex items-start justify-between gap-4">
                                 <div className="space-y-1">
@@ -668,63 +1244,87 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                     </p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-                                    {/* Filtros laterales */}
-                                    <div className="space-y-5 rounded-lg border bg-muted/20 p-4 lg:col-span-1">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <div className="space-y-4">
+                                    {/* Barra de búsqueda y botón de filtros */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Buscar por nombre, apellido o identificación..."
+                                                value={filtroTexto}
+                                                onChange={(e) => setFiltroTexto(e.target.value)}
+                                                className="pl-10"
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setShowFilters(!showFilters)}
+                                            className="shrink-0"
+                                        >
+                                            <ChevronDown className="mr-2 h-4 w-4" />
                                             Filtros
-                                        </p>
-
-                                        {tiposDisponibles.length > 0 && (
-                                            <div className="space-y-2">
-                                                <p className="text-xs font-medium text-foreground">
-                                                    Tipo de Fuente
-                                                </p>
-                                                <div className="space-y-1.5">
-                                                    {tiposDisponibles.map((tipo) => (
-                                                        <button
-                                                            key={tipo}
-                                                            onClick={() => toggleFiltroTipo(tipo)}
-                                                            className={`block text-left text-xs transition-colors ${filtroTipo.includes(tipo) ? 'font-semibold text-blue-700 underline' : 'text-blue-500 hover:text-blue-700 hover:underline'}`}
-                                                        >
-                                                            {tipo}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {fuentesDisponibles.length > 0 && (
-                                            <div className="space-y-2">
-                                                <p className="text-xs font-medium text-foreground">
-                                                    Origen de la fuente
-                                                </p>
-                                                <div className="space-y-1.5">
-                                                    {fuentesDisponibles.map((fuente) => (
-                                                        <button
-                                                            key={fuente}
-                                                            onClick={() => toggleFiltroFuente(fuente)}
-                                                            className={`block text-left text-xs transition-colors ${filtroFuente.includes(fuente) ? 'font-semibold text-blue-700 underline' : 'text-blue-500 hover:text-blue-700 hover:underline'}`}
-                                                        >
-                                                            {fuente === 'MEX' ? 'México' : fuente === 'ARG' ? 'Argentina' : fuente === 'USA' ? 'Estados Unidos' : fuente}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {(filtroTipo.length > 0 || filtroFuente.length > 0) && (
-                                            <button
-                                                onClick={() => { setFiltroTipo([]); setFiltroFuente([]); }}
-                                                className="text-xs text-red-500 hover:underline"
+                                        </Button>
+                                        {(filtroTipo || filtroFuente || filtroTexto) && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                onClick={limpiarFiltros}
+                                                className="shrink-0"
                                             >
-                                                Limpiar filtros
-                                            </button>
+                                                Limpiar
+                                            </Button>
                                         )}
                                     </div>
 
+                                    {/* Panel de filtros expandible */}
+                                    {showFilters && (
+                                        <div className="grid grid-cols-1 gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2">
+                                            <div>
+                                                <Label className="mb-2 block text-sm font-medium">
+                                                    Tipo de Fuente
+                                                </Label>
+                                                <select
+                                                    value={filtroTipo}
+                                                    onChange={(e) => setFiltroTipo(e.target.value)}
+                                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                                >
+                                                    <option value="">Todos los tipos</option>
+                                                    {tiposDisponibles.map((tipo) => (
+                                                        <option key={tipo} value={tipo}>
+                                                            {tipo}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <Label className="mb-2 block text-sm font-medium">
+                                                    Origen de la fuente
+                                                </Label>
+                                                <select
+                                                    value={filtroFuente}
+                                                    onChange={(e) => setFiltroFuente(e.target.value)}
+                                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                                                >
+                                                    <option value="">Todos los orígenes</option>
+                                                    {fuentesDisponibles.map((fuente) => (
+                                                        <option key={fuente} value={fuente}>
+                                                            {fuente === 'MEX' ? 'México' : fuente === 'ARG' ? 'Argentina' : fuente === 'USA' ? 'Estados Unidos' : fuente}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Contador de resultados filtrados */}
+                                    <div className="text-sm text-muted-foreground">
+                                        Mostrando <strong>{resultadosFiltrados.length}</strong> de{' '}
+                                        <strong>{resultados.length}</strong> resultados
+                                    </div>
+
                                     {/* Tabla de resultados */}
-                                    <div className="lg:col-span-3">
+                                    <div>
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
@@ -742,13 +1342,14 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                                     <TableHead className="w-24">Exactitud</TableHead>
                                                     <TableHead className="w-28">Tipo</TableHead>
                                                     <TableHead className="w-16">Fuente</TableHead>
+                                                    <TableHead className="w-28">Acciones</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {resultadosFiltrados.length === 0 ? (
                                                     <TableRow>
                                                         <TableCell
-                                                            colSpan={6}
+                                                            colSpan={7}
                                                             className="py-8 text-center text-sm text-muted-foreground"
                                                         >
                                                             No hay resultados con los filtros aplicados.
@@ -786,10 +1387,13 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                                                 <ExactitudBars valor={resultado.exactitud} />
                                                             </TableCell>
                                                             <TableCell>
-                                                                <TipoBadge tipo={resultado.tipo} />
+                                                                <TipoBadge tipo={resultado.tipo as TipoPEP} />
                                                             </TableCell>
                                                             <TableCell>
                                                                 <FuenteBadge fuente={resultado.fuente} />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <DetalleResultado resultado={resultado} />
                                                             </TableCell>
                                                         </TableRow>
                                                     ))
