@@ -27,14 +27,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
-import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -168,21 +160,27 @@ function mapearResultadoAPI(resultado: PEPResultadoAPI): PEPResultado {
 
 /** Barras de exactitud al estilo prevenciondelavado.com */
 function ExactitudBars({ valor }: { valor: number }) {
-    // 5 barras, se pintan según el porcentaje
-    const total = 5;
-    const llenas = Math.round((valor / 100) * total);
-
+    // Determinar color según el porcentaje
     const colorClass =
         valor >= 80 ? 'bg-green-500' : valor >= 50 ? 'bg-yellow-500' : 'bg-red-400';
+    const textColorClass =
+        valor >= 80 ? 'text-green-700' : valor >= 50 ? 'text-yellow-700' : 'text-red-700';
+    const bgColorClass =
+        valor >= 80 ? 'bg-green-50' : valor >= 50 ? 'bg-yellow-50' : 'bg-red-50';
 
     return (
-        <div className="flex items-center gap-0.5" title={`${valor}% de exactitud`}>
-            {Array.from({ length: total }).map((_, i) => (
-                <span
-                    key={i}
-                    className={`inline-block h-3 w-2 rounded-sm ${i < llenas ? colorClass : 'bg-muted'}`}
+        <div className="flex items-center gap-2">
+            {/* Barra de progreso visual */}
+            <div className="relative h-2 w-16 overflow-hidden rounded-full bg-muted">
+                <div
+                    className={`h-full transition-all ${colorClass}`}
+                    style={{ width: `${valor}%` }}
                 />
-            ))}
+            </div>
+            {/* Porcentaje numérico con badge */}
+            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${textColorClass} ${bgColorClass}`}>
+                {valor}%
+            </span>
         </div>
     );
 }
@@ -222,7 +220,8 @@ function FuenteBadge({ fuente }: { fuente: OrigenFuente }) {
 }
 
 /** Componente de vista detallada de resultado */
-function DetalleResultado({ resultado }: { resultado: PEPResultado }) {
+/** Componente para mostrar detalles expandidos en una fila */
+function DetalleExpandido({ resultado }: { resultado: PEPResultado }) {
     const getEstadoClass = (estado: string) => {
         return estado === 'ACTIVO'
             ? 'bg-green-100 text-green-800 border-green-300'
@@ -237,158 +236,135 @@ function DetalleResultado({ resultado }: { resultado: PEPResultado }) {
     };
 
     return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 text-xs">
-                    Ver detalles
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5 text-blue-600" />
-                        {resultado.denominacion}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Información completa del registro
-                    </DialogDescription>
-                </DialogHeader>
+        <div className="bg-muted/30 px-4 py-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {/* Información Personal */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                            <User className="h-3.5 w-3.5" />
+                            Información Personal
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs">
+                        <div>
+                            <span className="text-muted-foreground">CURP:</span>
+                            <p className="font-medium text-sm">{resultado.identificacion || 'N/D'}</p>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">RFC:</span>
+                            <p className="font-medium text-sm">{resultado.idTributaria || 'N/D'}</p>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">F. Nacimiento:</span>
+                            <p className="font-medium text-sm">{formatoFecha(resultado.fechaNacimiento)}</p>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">Estado:</span>
+                            <Badge className={`mt-1 ${getEstadoClass(resultado.estado)}`}>
+                                {resultado.estado}
+                            </Badge>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">Código:</span>
+                            <p className="font-mono text-[10px] break-all">{resultado.codigoIndividuo}</p>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <div className="space-y-4 mt-4">
-                    {/* Información Personal */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                Información Personal
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                {/* Cargo y Función */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                            <Briefcase className="h-3.5 w-3.5" />
+                            Cargo y Función
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs">
+                        <div>
+                            <span className="text-muted-foreground">Cargo:</span>
+                            <p className="font-medium text-sm mt-0.5">{resultado.cargo}</p>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">Lugar:</span>
+                            <p className="text-xs mt-0.5">{resultado.lugarTrabajo}</p>
+                        </div>
+                        {resultado.finalizacionCargo && (
                             <div>
-                                <span className="text-muted-foreground">Identificación (CURP):</span>
-                                <p className="font-medium">{resultado.identificacion || 'N/D'}</p>
+                                <span className="text-muted-foreground">Fin Cargo:</span>
+                                <p className="text-xs mt-0.5">{resultado.finalizacionCargo}</p>
                             </div>
-                            <div>
-                                <span className="text-muted-foreground">RFC:</span>
-                                <p className="font-medium">{resultado.idTributaria || 'N/D'}</p>
+                        )}
+                        <div>
+                            <span className="text-muted-foreground">Tipo:</span>
+                            <div className="flex gap-1.5 mt-1 flex-wrap">
+                                <TipoBadge tipo={resultado.tipo as TipoPEP} />
+                                {resultado.subTipo && (
+                                    <Badge variant="outline" className="text-[10px]">{resultado.subTipo}</Badge>
+                                )}
                             </div>
-                            <div>
-                                <span className="text-muted-foreground">Fecha de Nacimiento:</span>
-                                <p className="font-medium">{formatoFecha(resultado.fechaNacimiento)}</p>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">Estado:</span>
-                                <Badge className={getEstadoClass(resultado.estado)}>
-                                    {resultado.estado}
-                                </Badge>
-                            </div>
-                            <div className="col-span-2">
-                                <span className="text-muted-foreground">Código Individuo:</span>
-                                <p className="font-mono text-xs">{resultado.codigoIndividuo}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                    {/* Cargo y Función */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                                <Briefcase className="h-4 w-4" />
-                                Cargo y Función Pública
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <div>
-                                <span className="text-muted-foreground">Cargo:</span>
-                                <p className="font-medium mt-1">{resultado.cargo}</p>
-                            </div>
-                            <div>
-                                <span className="text-muted-foreground">Lugar de Trabajo:</span>
-                                <p className="text-sm mt-1">{resultado.lugarTrabajo}</p>
-                            </div>
-                            {resultado.finalizacionCargo && (
-                                <div>
-                                    <span className="text-muted-foreground">Finalización del Cargo:</span>
-                                    <p className="text-sm mt-1">{resultado.finalizacionCargo}</p>
-                                </div>
-                            )}
-                            <div>
-                                <span className="text-muted-foreground">Tipo / Subtipo:</span>
-                                <div className="flex gap-2 mt-1">
-                                    <TipoBadge tipo={resultado.tipo as TipoPEP} />
-                                    {resultado.subTipo && (
-                                        <Badge variant="outline">{resultado.subTipo}</Badge>
-                                    )}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* Ubicación */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5" />
+                            Ubicación
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-xs text-muted-foreground">{resultado.direccion}</p>
+                    </CardContent>
+                </Card>
 
-                    {/* Ubicación */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                                <MapPin className="h-4 w-4" />
-                                Ubicación
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">{resultado.direccion}</p>
-                        </CardContent>
-                    </Card>
-
-                    {/* Lista y Exactitud */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                                <Hash className="h-4 w-4" />
-                                Clasificación y Exactitud
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <span className="text-muted-foreground">Lista:</span>
-                                    <p className="font-medium mt-1">{resultado.lista}</p>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground">País:</span>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                                        <span>{resultado.paisLista}</span>
-                                    </div>
-                                </div>
+                {/* Clasificación y Exactitud */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                            <Hash className="h-3.5 w-3.5" />
+                            Clasificación
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs">
+                        <div>
+                            <span className="text-muted-foreground">Lista:</span>
+                            <p className="font-medium text-sm mt-0.5">{resultado.lista}</p>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">País:</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <Globe className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-sm">{resultado.paisLista}</span>
                             </div>
-                            <Separator />
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <span className="text-muted-foreground">Exactitud Denominación:</span>
-                                    <p className={`mt-1 ${getExactitudClass(resultado.exactitudDenominacion)}`}>
-                                        {resultado.exactitudDenominacion}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground">Exactitud Identificación:</span>
-                                    <p className={`mt-1 font-medium ${resultado.exactitudIdentificacion === 'COINCIDE' ? 'text-green-700' : 'text-muted-foreground'}`}>
-                                        {resultado.exactitudIdentificacion}
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Enlace externo */}
-                    {resultado.enlace && (
-                        <Button asChild className="w-full">
-                            <a href={resultado.enlace} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Ver información completa en PrevencionDeLavado.com
-                            </a>
-                        </Button>
-                    )}
-                </div>
-            </DialogContent>
-        </Dialog>
+                        </div>
+                        <Separator className="my-2" />
+                        <div>
+                            <span className="text-muted-foreground">Exactitud Denom.:</span>
+                            <p className={`mt-0.5 text-sm ${getExactitudClass(resultado.exactitudDenominacion)}`}>
+                                {resultado.exactitudDenominacion}
+                            </p>
+                        </div>
+                        <div>
+                            <span className="text-muted-foreground">Exactitud ID:</span>
+                            <p className={`mt-0.5 text-sm font-medium ${resultado.exactitudIdentificacion === 'COINCIDE' ? 'text-green-700' : 'text-muted-foreground'}`}>
+                                {resultado.exactitudIdentificacion}
+                            </p>
+                        </div>
+                        {resultado.enlace && (
+                            <Button asChild size="sm" className="w-full mt-2 h-7 text-xs">
+                                <a href={resultado.enlace} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="mr-1.5 h-3 w-3" />
+                                    Ver más
+                                </a>
+                            </Button>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
     );
 }
 
@@ -436,6 +412,9 @@ export default function ListasPEPSearch({ paquete }: Props) {
     // ---- Selección para certificado ----
     const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
     const [generandoCertificado, setGenerandoCertificado] = useState(false);
+
+    // ---- Estado de filas expandidas ----
+    const [filasExpandidas, setFilasExpandidas] = useState<Set<string>>(new Set());
 
     // ---- Datos de ejemplo para demostración ----
     const generarDatosEjemplo = (): BusquedaResponseAPI => {
@@ -689,6 +668,19 @@ export default function ListasPEPSearch({ paquete }: Props) {
         } else {
             setSeleccionados(new Set(resultadosFiltrados.map((r) => r.id)));
         }
+    };
+
+    // ---- Expansión de filas ----
+    const toggleExpansion = (id: string) => {
+        setFilasExpandidas((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
     };
 
     // ---- Generación de certificados ----
@@ -1356,47 +1348,70 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                                         </TableCell>
                                                     </TableRow>
                                                 ) : (
-                                                    resultadosFiltrados.map((resultado) => (
-                                                        <TableRow
-                                                            key={resultado.id}
-                                                            className={seleccionados.has(resultado.id) ? 'bg-blue-50' : ''}
-                                                        >
-                                                            <TableCell>
-                                                                <Checkbox
-                                                                    checked={seleccionados.has(resultado.id)}
-                                                                    onCheckedChange={() => toggleSeleccion(resultado.id)}
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <span className="font-medium uppercase">
-                                                                    {resultado.apellido_denominacion}
-                                                                </span>
-                                                                {resultado.nombres && (
-                                                                    <>
-                                                                        {' '}
-                                                                        <span className="font-semibold text-blue-700">
-                                                                            {resultado.nombres.toUpperCase()}
+                                                    resultadosFiltrados.map((resultado) => {
+                                                        const estaExpandido = filasExpandidas.has(resultado.id);
+                                                        return (
+                                                            <>
+                                                                <TableRow
+                                                                    key={resultado.id}
+                                                                    className={seleccionados.has(resultado.id) ? 'bg-blue-50' : ''}
+                                                                >
+                                                                    <TableCell>
+                                                                        <Checkbox
+                                                                            checked={seleccionados.has(resultado.id)}
+                                                                            onCheckedChange={() => toggleSeleccion(resultado.id)}
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <span className="font-medium uppercase">
+                                                                            {resultado.apellido_denominacion}
                                                                         </span>
-                                                                    </>
+                                                                        {resultado.nombres && (
+                                                                            <>
+                                                                                {' '}
+                                                                                <span className="font-semibold text-blue-700">
+                                                                                    {resultado.nombres.toUpperCase()}
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-sm text-muted-foreground">
+                                                                        {resultado.identificacion ?? '—'}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <ExactitudBars valor={resultado.exactitud} />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <TipoBadge tipo={resultado.tipo as TipoPEP} />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <FuenteBadge fuente={resultado.fuente} />
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => toggleExpansion(resultado.id)}
+                                                                            className="h-8 w-8 p-0"
+                                                                        >
+                                                                            {estaExpandido ? (
+                                                                                <ChevronDown className="h-4 w-4 rotate-180 transition-transform" />
+                                                                            ) : (
+                                                                                <ChevronDown className="h-4 w-4 transition-transform" />
+                                                                            )}
+                                                                        </Button>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                                {estaExpandido && (
+                                                                    <TableRow key={`${resultado.id}-detalle`}>
+                                                                        <TableCell colSpan={7} className="p-0">
+                                                                            <DetalleExpandido resultado={resultado} />
+                                                                        </TableCell>
+                                                                    </TableRow>
                                                                 )}
-                                                            </TableCell>
-                                                            <TableCell className="text-sm text-muted-foreground">
-                                                                {resultado.identificacion ?? '—'}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <ExactitudBars valor={resultado.exactitud} />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <TipoBadge tipo={resultado.tipo as TipoPEP} />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <FuenteBadge fuente={resultado.fuente} />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <DetalleResultado resultado={resultado} />
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))
+                                                            </>
+                                                        );
+                                                    })
                                                 )}
                                             </TableBody>
                                         </Table>
