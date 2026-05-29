@@ -1,8 +1,30 @@
 # 📋 Plan de Implementación - Módulo Listas PEP
 
 **Fecha:** Mayo 27, 2026  
+**Actualizado:** Mayo 28, 2026  
 **Proyecto:** Atinet Compliance Hub  
 **Objetivo:** Implementar completamente el módulo de Listas PEP con integración a prevenciondelavado.com
+
+## 📈 Estado General del Proyecto
+
+| Fase | Descripción | Estado | Progreso |
+|------|-------------|--------|----------|
+| **FASE 1** | Mejorar Vista React | ✅ Completada | 100% |
+| **FASE 2** | Migraciones BD | ✅ Completada | 100% |
+| **FASE 3** | Servicio API Externa | ⏳ Pendiente | 0% |
+| **FASE 4** | Controller y Rutas | ⏳ Pendiente | 0% |
+| **FASE 5** | Integración React-Laravel | ⏳ Pendiente | 0% |
+| **FASE 6** | Historial y Certificados | ⏳ Pendiente | 0% |
+| **FASE 7** | Testing | ⏳ Pendiente | 0% |
+| **FASE 8** | Deploy y Producción | ⏳ Pendiente | 0% |
+
+**Progreso Total:** 25% (2/8 fases completadas)
+
+### 📚 Documentación Generada
+- ✅ [PLAN_IMPLEMENTACION_LISTAS_PEP.md](./PLAN_IMPLEMENTACION_LISTAS_PEP.md) - Plan maestro completo
+- ✅ [ANALISIS_CAMPOS_BD_LISTAS_PEP.md](./ANALISIS_CAMPOS_BD_LISTAS_PEP.md) - Análisis de campos de BD
+- ✅ [DOCUMENTACION_FASE_1_LISTAS_PEP.md](./DOCUMENTACION_FASE_1_LISTAS_PEP.md) - Documentación FASE 1
+- ✅ [DOCUMENTACION_FASE_2_LISTAS_PEP.md](./DOCUMENTACION_FASE_2_LISTAS_PEP.md) - Documentación FASE 2 + incidentes
 
 ---
 
@@ -431,47 +453,46 @@ Agregar tarjeta arriba de los resultados:
 ### **FASE 2: Backend - Migración y Modelo** 💾
 
 **Prioridad:** ALTA  
-**Tiempo estimado:** 1 hora
+**Tiempo estimado:** 1 hora  
+**Estado:** ✅ **COMPLETADA** (28/Mayo/2026)  
+**Documentación:** Ver [DOCUMENTACION_FASE_2_LISTAS_PEP.md](./DOCUMENTACION_FASE_2_LISTAS_PEP.md)
 
 #### Tareas:
-1. ✅ Crear migración `create_listas_pep_busquedas_table`
+1. ✅ Crear migración `create_listas_pep_busquedas_table` (15 campos, 8 índices)
    - `id`, `user_id`, `notaria_id`
    - `apellido_denominacion`, `nombres`, `identificacion`
-   - `opciones` (JSON con checkboxes)
-   - `total_aciertos`, `codigo_certificado` (UUID de API)
-   - `raw_response` (JSON completo de respuesta)
+   - `opciones` (JSON con 5 checkboxes)
+   - `total_resultados` (total API ej: 94), `codigo_certificado` (UUID)
+   - `fecha_consulta`, `ip_address`, `estado_busqueda`
+   - `expediente_id` (ref: tbl_ope_expedientes sin FK)
    - `timestamps`
 
-2. ✅ Crear modelo `ListaPEPBusqueda`
-   - Relaciones: `belongsTo(User)`, `belongsTo(Notaria)`
-   - Casts: `opciones` → array, `raw_response` → array
-   - Usar trait `BelongsToNotaria`
+2. ✅ Crear migración `create_listas_pep_resultados_table` (29 campos, 12 índices)
+   - Tabla separada para almacenar TODOS los resultados individuales
+   - FK a `listas_pep_busquedas` con CASCADE DELETE
+   - Incluye: denominación, identificación, cargo, lugar, exactitud, enlace URL
+   - Hash SHA256 para detectar cambios, flags de acción tomada
 
-3. ✅ Ejecutar migración
+3. ✅ Implementar medidas de seguridad en migraciones
+   - Verificación de existencia con `Schema::hasTable()`
+   - Foreign Keys condicionales (solo si tabla padre existe)
+   - Rollback no destructivo con `dropIfExists()`
+   - Documentación exhaustiva con comments SQL
 
-**Código:**
-```php
-// database/migrations/YYYY_MM_DD_create_listas_pep_busquedas_table.php
-Schema::create('listas_pep_busquedas', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('user_id')->constrained()->onDelete('cascade');
-    $table->foreignId('notaria_id')->nullable()->constrained()->onDelete('set null');
-    
-    $table->string('apellido_denominacion');
-    $table->string('nombres')->nullable();
-    $table->string('identificacion')->nullable();
-    
-    $table->json('opciones'); // {pepsOtrosPaises: true, ...}
-    
-    $table->integer('total_aciertos')->default(0);
-    $table->uuid('codigo_certificado')->nullable(); // UUID de la API
-    $table->json('raw_response')->nullable(); // Respuesta completa
-    
-    $table->timestamps();
-    
-    $table->index(['user_id', 'notaria_id', 'created_at']);
-});
-```
+4. ✅ Ejecutar migraciones exitosamente
+   - Batch 2: Ambas tablas creadas correctamente
+   - 0 registros iniciales (listas para uso)
+
+#### Incidentes Resueltos:
+⚠️ **Error FK con expediente_id:** Solucionado removiendo FK constraint (incompatibilidad signed/unsigned)  
+🔴 **Incidente db:wipe:** Se eliminó toda la BD por error. Implementadas medidas de seguridad para prevenir en producción.
+
+**📘 Documentación completa:** [DOCUMENTACION_FASE_2_LISTAS_PEP.md](./DOCUMENTACION_FASE_2_LISTAS_PEP.md)
+- Estructura detallada de 2 tablas (15 + 29 campos)
+- Ejemplos de registros JSON
+- Queries SQL útiles
+- Checklist de seguridad para producción
+- Lecciones aprendidas del incidente
 
 ---
 
@@ -481,7 +502,7 @@ Schema::create('listas_pep_busquedas', function (Blueprint $table) {
 **Tiempo estimado:** 2 horas
 
 #### Tareas:
-1. ✅ Crear `app/Services/PrevencionDeLavadoService.php`
+1. ❌ Crear `app/Services/PrevencionDeLavadoService.php`
    - Método `login()` con caché de token (55 minutos)
    - Método `buscarEnListas(array $parametros)`
    - Manejo de errores y reintentos

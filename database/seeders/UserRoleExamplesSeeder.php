@@ -122,8 +122,7 @@ class UserRoleExamplesSeeder extends Seeder
             'nombre' => 'ATINET MASTER',
             'numero_notaria' => '1',
             'estado' => 'Nacional',
-            'ciudad' => 'Sistema Central',
-            'activo' => true,
+            'activa' => true,
             'tenant_db_name' => 'atinet_cn_master',
             'cn_notaria_id' => 1,
         ]);

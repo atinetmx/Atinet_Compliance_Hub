@@ -18,6 +18,7 @@ import {
     Briefcase,
     User,
     Hash,
+    Link2,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -69,6 +70,7 @@ interface PEPResultadoAPI {
     exactitudDenominacion: string; // "ALTO (5 sobre 5)"
     exactitudIdentificacion: string; // "COINCIDE" | "N/D"
     enlace: string | null;
+    relaciones: string | null; // Ej: "Hijos de ROSALIA ELVIA PEREZ PEREZ (PEFR611575U8)" - solo AFIN PEP
 }
 
 interface BusquedaResponseAPI {
@@ -206,15 +208,30 @@ function TipoBadge({ tipo }: { tipo: TipoPEP }) {
 
 /** Badge por origen de fuente */
 function FuenteBadge({ fuente }: { fuente: OrigenFuente }) {
-    const colors: Record<OrigenFuente, string> = {
-        MEX: 'bg-green-100 text-green-800',
-        ARG: 'bg-sky-100 text-sky-800',
-        USA: 'bg-indigo-100 text-indigo-800',
-        OTRO: 'bg-muted text-muted-foreground',
+    const variants: Record<OrigenFuente, { color: string; label: string }> = {
+        MEX: {
+            color: 'bg-green-100 text-green-800 border-green-300',
+            label: 'México'
+        },
+        ARG: {
+            color: 'bg-sky-100 text-sky-800 border-sky-300',
+            label: 'Argentina'
+        },
+        USA: {
+            color: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+            label: 'USA'
+        },
+        OTRO: {
+            color: 'bg-gray-100 text-gray-700 border-gray-300',
+            label: 'Otro'
+        },
     };
+
+    const v = variants[fuente];
     return (
-        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${colors[fuente]}`}>
-            {fuente}
+        <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-semibold ${v.color}`}>
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-current opacity-70" />
+            {v.label}
         </span>
     );
 }
@@ -286,13 +303,22 @@ function DetalleExpandido({ resultado }: { resultado: PEPResultado }) {
                             <p className="font-medium text-sm mt-0.5">{resultado.cargo}</p>
                         </div>
                         <div>
-                            <span className="text-muted-foreground">Lugar:</span>
+                            <span className="text-muted-foreground">Institución:</span>
                             <p className="text-xs mt-0.5">{resultado.lugarTrabajo}</p>
                         </div>
                         {resultado.finalizacionCargo && (
                             <div>
                                 <span className="text-muted-foreground">Fin Cargo:</span>
                                 <p className="text-xs mt-0.5">{resultado.finalizacionCargo}</p>
+                            </div>
+                        )}
+                        {resultado.relaciones && (
+                            <div className="rounded-md border border-yellow-200 bg-yellow-50 p-2">
+                                <span className="flex items-center gap-1 text-yellow-700 font-medium mb-0.5">
+                                    <Link2 className="h-3 w-3" />
+                                    Relaciones:
+                                </span>
+                                <p className="text-xs text-yellow-800">{resultado.relaciones}</p>
                             </div>
                         )}
                         <div>
@@ -443,6 +469,7 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     exactitudDenominacion: "ALTO (5 sobre 5)",
                     exactitudIdentificacion: "COINCIDE",
                     enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=UTERU6LnQHe/ATRWqgp8rSx5c4GJrRct0QBR+m0NY3Fv07W1S2LBs0iWf+wlEhNlaXag4e52Wc8=",
+                    relaciones: null,
                 },
                 {
                     codigoIndividuo: 19231715,
@@ -465,6 +492,7 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     exactitudDenominacion: "ALTO (5 sobre 5)",
                     exactitudIdentificacion: "COINCIDE",
                     enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=oNSpgET6KFhOhcwevXkLLG/X3nTKb/qwLfeYF7D7U+wNI99QGN9b+yAQQx5jw7rqFu/FzsB0Afk=",
+                    relaciones: null,
                 },
                 {
                     codigoIndividuo: 18398241,
@@ -487,6 +515,7 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     exactitudDenominacion: "MEDIO (4 sobre 5)",
                     exactitudIdentificacion: "N/D",
                     enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=uKT+QQan/GcZnb8s7d8Hwwh7zQOKed2lwm0Bm3hA+7zbpsFKLVh7IjaonhuBlgsgrmw+kiDSeJs=",
+                    relaciones: "Cónyuge de GARCIA MORALES JUAN CARLOS (GAMJ850615HDFRRL03)",
                 },
                 {
                     codigoIndividuo: 5738291,
@@ -509,6 +538,7 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     exactitudDenominacion: "MEDIO (3 sobre 5)",
                     exactitudIdentificacion: "N/D",
                     enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=xYz123ABC/def456GHI789jkl012MNO345pqr678STU901vwx234YZA567bcd890EFG123hij456KLM=",
+                    relaciones: null,
                 },
                 {
                     codigoIndividuo: 4829156,
@@ -531,6 +561,7 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     exactitudDenominacion: "ALTO (5 sobre 5)",
                     exactitudIdentificacion: "COINCIDE",
                     enlace: "https://www.prevenciondelavado.com/portal/enlace.aspx?c=mNO789pQR012stu345VWX678yza901BCD234efg567HIJ890klm123NOP456qrs789TUV012wxy=",
+                    relaciones: null,
                 },
             ],
         };
@@ -684,17 +715,27 @@ export default function ListasPEPSearch({ paquete }: Props) {
     };
 
     // ---- Generación de certificados ----
+
+    /** Extrae el número de exactitud del texto de la API: "ALTO (5 sobre 5)" → "5" */
+    const extraerExactitud = (texto: string | null | undefined): string => {
+        const match = texto?.match(/(\d+)\s+sobre/);
+        return match ? match[1] : (texto ?? 'N/D');
+    };
+
     const generarCertificadoConCoincidencias = async () => {
-        if (seleccionados.size === 0) {
-            setError('Seleccione al menos un registro para generar el certificado.');
+        if (seleccionados.size !== 1) {
+            setError('Seleccione exactamente 1 registro para el certificado con coincidencia.');
+            return;
+        }
+        const selectedId = Array.from(seleccionados)[0];
+        const r = resultadosFiltrados.find((res) => res.id === selectedId);
+        if (!r) {
+            setError('Resultado seleccionado no encontrado.');
             return;
         }
         setGenerandoCertificado(true);
         try {
-            // TODO: Implementar endpoint de generación de certificado PDF
-            // POST /admin/listas-pep/certificado/con-coincidencias
-            // Body: { ids: [...], busqueda }
-            const response = await fetch('/admin/listas-pep/certificado/con-coincidencias', {
+            const response = await fetch('/admin/listas-pep/certificado/con-coincidencia', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -703,8 +744,27 @@ export default function ListasPEPSearch({ paquete }: Props) {
                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
                 body: JSON.stringify({
-                    ids: Array.from(seleccionados),
-                    busqueda: ultimaBusqueda,
+                    apellido_denominacion: ultimaBusqueda?.apellido_denominacion ?? '',
+                    nombres: ultimaBusqueda?.nombres ?? null,
+                    identificacion: ultimaBusqueda?.identificacion ?? null,
+                    fecha_consulta: fechaConsulta ?? new Date().toLocaleString('es-MX'),
+                    resultado: {
+                        denominacion:              r.denominacion,
+                        identificacion:            r.identificacion ?? null,
+                        rfc:                       r.idTributaria ?? null,
+                        cargo:                     r.cargo ?? null,
+                        institucion:               r.lugarTrabajo ?? null,
+                        estado:                    r.estado ?? null,
+                        link:                      r.enlace ?? null,
+                        lista:                     r.lista ?? null,
+                        tipo:                      r.tipo ?? null,
+                        pais_lista:                r.paisLista ?? null,
+                        exactitud_denominacion:    extraerExactitud(r.exactitudDenominacion),
+                        exactitud_identificacion:  r.exactitudIdentificacion ?? 'N/D',
+                        codigo_individuo:          r.codigoIndividuo?.toString() ?? null,
+                        relaciones:                r.relaciones ?? null,
+                        descripcion_fuente:        r.lista ?? null,
+                    },
                 }),
             });
 
@@ -713,7 +773,7 @@ export default function ListasPEPSearch({ paquete }: Props) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `certificado-pep-coincidencias-${Date.now()}.pdf`;
+                a.download = `certificado-pep-coincidencia-${Date.now()}.pdf`;
                 a.click();
                 URL.revokeObjectURL(url);
             } else {
@@ -730,11 +790,6 @@ export default function ListasPEPSearch({ paquete }: Props) {
     const generarCertificadoSinCoincidencias = async () => {
         setGenerandoCertificado(true);
         try {
-            // TODO: Implementar endpoint de certificado sin coincidencias
-            // POST /admin/listas-pep/certificado/sin-coincidencias
-            // Genera el certificado con leyenda:
-            // "De acuerdo con el análisis del usuario, los aciertos hallados
-            //  no se corresponden con la persona buscada"
             const response = await fetch('/admin/listas-pep/certificado/sin-coincidencias', {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -743,7 +798,22 @@ export default function ListasPEPSearch({ paquete }: Props) {
                     'X-CSRF-TOKEN':
                         document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({ busqueda: ultimaBusqueda }),
+                body: JSON.stringify({
+                    apellido_denominacion: ultimaBusqueda?.apellido_denominacion ?? '',
+                    nombres:               ultimaBusqueda?.nombres ?? null,
+                    identificacion:        ultimaBusqueda?.identificacion ?? null,
+                    total_resultados:      totalAciertos ?? resultados.length,
+                    fecha_consulta:        fechaConsulta ?? new Date().toLocaleString('es-MX'),
+                    resultados: resultadosFiltrados.map((r) => ({
+                        denominacion:             r.denominacion,
+                        identificacion:           r.identificacion ?? null,
+                        exactitud_denominacion:   extraerExactitud(r.exactitudDenominacion),
+                        exactitud_identificacion: r.exactitudIdentificacion ?? 'N/D',
+                        tipo:                     r.tipo ?? null,
+                        pais_lista:               r.paisLista ?? null,
+                        lista:                    r.lista ?? null,
+                    })),
+                }),
             });
 
             if (response.ok) {
@@ -1203,13 +1273,15 @@ export default function ListasPEPSearch({ paquete }: Props) {
                                         <DropdownMenuContent align="end" className="w-64">
                                             <DropdownMenuItem
                                                 onClick={generarCertificadoConCoincidencias}
-                                                disabled={seleccionados.size === 0}
+                                                disabled={seleccionados.size !== 1}
                                             >
                                                 <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium">Con coincidencias</span>
+                                                    <span className="font-medium">Con coincidencia</span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        Registros marcados ({seleccionados.size} sel.)
+                                                        {seleccionados.size === 1
+                                                            ? 'Listo — 1 registro seleccionado'
+                                                            : 'Seleccione exactamente 1 registro'}
                                                     </span>
                                                 </div>
                                             </DropdownMenuItem>

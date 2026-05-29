@@ -377,10 +377,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Route::prefix('listas-pep')->name('listas-pep.')->middleware(['subscription', 'service:LISTAS_PEP'])->group(function () {
     //     Route::post('buscar', [\App\Http\Controllers\Admin\ListasPEPController::class, 'buscar'])->name('buscar');
     //     Route::get('historial/data', [\App\Http\Controllers\Admin\ListasPEPController::class, 'historial'])->name('historial.data');
-    //     Route::post('certificado/con-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencias'])->name('certificado.con-coincidencias');
-    //     Route::post('certificado/sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])->name('certificado.sin-coincidencias');
     //     Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])->name('listados');
     // });
+
+    // Rutas de certificados PDF (activas — no requieren servicio externo)
+    Route::prefix('listas-pep/certificado')->name('listas-pep.certificado.')->group(function () {
+        Route::post('sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])
+            ->name('sin-coincidencias');
+        Route::post('con-coincidencia', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencia'])
+            ->name('con-coincidencia');
+    });
 });
 
 // Rutas para admin_notaria - Gestión de usuarios de su notaría
