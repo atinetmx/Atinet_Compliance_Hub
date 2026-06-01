@@ -1,6 +1,6 @@
 # Guía de Publicación — Acceso Externo al Sistema Atinet Compliance Hub
 
-**Fecha**: 9 de marzo de 2026 — **Actualizada**: 22 de mayo de 2026  
+**Fecha**: 9 de marzo de 2026 — **Actualizada**: 1 de junio de 2026  
 **Estado**: ✅ En producción  
 **Objetivo**: Que las notarías y clientes de Atinet accedan al sistema desde internet mediante `https://atinet.com.mx/compliance_hub`
 
@@ -41,11 +41,13 @@ Notaría (navegador)
 
 ### Windows Service separado
 
-Existe también un Windows Service llamado `Cloudflared` que usa `--token` (named tunnel). Este servicio es **independiente** del quick tunnel y no interfiere con él. Ambos coexisten.
+Existe también un Windows Service llamado `Cloudflared` que usa `--token` (named tunnel). Este servicio es **independiente** del quick tunnel en propósito, pero **compite por el mismo proceso** en el arranque del servidor.
+
+> **⚠️ Comportamiento importante (descubierto el 01/06/2026):** El Windows Service `cloudflared` tiene `StartType: Automatic`, por lo que arranca durante el boot **antes** de que el Task Scheduler ejecute `start-tunnel.ps1`. Cuando `start-tunnel.ps1` mataba el proceso cloudflared, el Service lo relanzaba de inmediato, impidiendo que el quick tunnel obtuviera y registrara su URL. **Solución aplicada:** `start-tunnel.ps1` ahora detiene el Windows Service con `Stop-Service` antes de iniciar el quick tunnel.
 
 | Servicio | Tipo | URL | Propósito |
 |---------|------|-----|-----------|
-| Windows Service `Cloudflared` | Named tunnel con `--token` | no relevante externamente | Reservado/legado |
+| Windows Service `Cloudflared` | Named tunnel con `--token` | no relevante externamente | Reservado/legado — **se detiene al arrancar el quick tunnel** |
 | `CloudflaredTunnel-Atinet` (Task Scheduler) | Quick tunnel con `--url` | `*.trycloudflare.com` | Acceso externo real |
 
 ### Task Scheduler — tareas configuradas
@@ -56,17 +58,18 @@ Existe también un Windows Service llamado `Cloudflared` que usa `--token` (name
 | `MonitorTunnelUrl-Atinet` | Cada 5 minutos | `C:\cloudflared\monitor-tunnel-url.ps1` | Lee URL del log, actualiza Hostgator si cambió, envía heartbeat |
 | `LaravelScheduler-Atinet` | Cada minuto | `php artisan schedule:run` | Tareas programadas de Laravel |
 
-> ⚠️ El delay de **30 segundos** en `CloudflaredTunnel-Atinet` es crítico. Sin él, el quick tunnel arranca casi simultáneamente con el Windows Service `Cloudflared` y puede ser interrumpido antes de obtener la URL. Configurado el 22/05/2026.
+> ⚠️ El delay de **30 segundos** en `CloudflaredTunnel-Atinet` sigue siendo necesario para dar tiempo al sistema operativo de estabilizarse tras el boot. Sin embargo, el delay por sí solo **no es suficiente** para evitar la condición de carrera con el Windows Service. La solución definitiva está en `start-tunnel.ps1`, que desde el 01/06/2026 detiene explícitamente el Windows Service antes de iniciar el quick tunnel.
 
 ### Flujo de actualización de URL
 
 1. **Boot del servidor** → Task Scheduler ejecuta `start-tunnel.ps1` (con 30 s de delay)
-2. `start-tunnel.ps1` mata cualquier instancia previa de cloudflared, limpia `tunnel-temp.log`, inicia el proceso y llama a `publish-tunnel-url.ps1`
-3. `publish-tunnel-url.ps1` espera hasta 30 s a que aparezca la URL en `tunnel-temp.log` y la escribe en `atinet65_aplicativos.compliance_tunnel`
-4. **Cada 5 min** → `monitor-tunnel-url.ps1` lee la URL actual del log y:
+2. `start-tunnel.ps1` **detiene el Windows Service `cloudflared`** (evita condición de carrera), mata cualquier proceso cloudflared residual, limpia `tunnel-temp.log` e inicia el quick tunnel
+3. Después de 10 s, llama a `publish-tunnel-url.ps1`
+4. `publish-tunnel-url.ps1` espera hasta 30 s a que aparezca la URL en `tunnel-temp.log` y la escribe en `atinet65_aplicativos.compliance_tunnel`
+5. **Cada 5 min** → `monitor-tunnel-url.ps1` lee la URL actual del log y:
    - Si cambió: actualiza `tunnel_url` + `updated_at` en Hostgator
    - Si no cambió: actualiza solo `updated_at` (heartbeat) para evitar que `index.php` la marque como vencida (> 60 min)
-5. **Notaría visita** `atinet.com.mx/compliance_hub` → `index.php` lee la URL de MySQL → redirige si `updated_at` < 60 min → usuario llega al sistema
+6. **Notaría visita** `atinet.com.mx/compliance_hub` → `index.php` lee la URL de MySQL → redirige si `updated_at` < 60 min → usuario llega al sistema
 
 ### Verificar estado actual
 
@@ -90,8 +93,74 @@ Select-String -Path C:\cloudflared\tunnel-temp.log -Pattern "trycloudflare"
 |---------|---------------|----------|
 | "No se encontró URL en el log del tunnel" en monitor.log | cloudflared no inició correctamente | Ejecutar `C:\cloudflared\start-tunnel.ps1` como Administrador |
 | La URL en Hostgator tiene más de 60 minutos | `monitor-tunnel-url.ps1` no corre (Task Scheduler) | Verificar tarea `MonitorTunnelUrl-Atinet` en Task Scheduler |
-| El tunnel arranca pero URL nunca aparece en log | Condición de carrera en boot (Windows Service interfiere) | El delay de 30 s en `CloudflaredTunnel-Atinet` resuelve esto |
+| El tunnel arranca pero URL nunca aparece en log tras corte de luz / reboot | Windows Service `cloudflared` (Automatic) compite con el quick tunnel; `start-tunnel.ps1` mataba el proceso pero el Service lo relanzaba inmediatamente | **✅ Corregido el 01/06/2026**: `start-tunnel.ps1` ahora detiene el Windows Service antes de iniciar el quick tunnel |
 | `index.php` en Hostgator muestra error | URL vencida o tabla vacía | Correr `publish-tunnel-url.ps1` manualmente |
+
+> **⚠️ Nota sobre el Windows Service `cloudflared`:** El servicio de Windows `cloudflared` (tipo: named tunnel con `--token`) está configurado como `Automatic`. Al hacer reboot, este servicio arranca ANTES que el Task Scheduler y ocupa el proceso. `start-tunnel.ps1` ahora lo detiene explícitamente con `Stop-Service` antes de iniciar el quick tunnel. El servicio se vuelve a poder iniciar manualmente si se necesita, pero no interfiere con el acceso externo.
+
+---
+
+### 🚨 Recuperación manual tras corte de luz o reboot
+
+**Síntoma:** El sistema muestra la página "Sistema no disponible" al intentar acceder desde exterior.
+
+**Causa:** El tunnel no publicó su URL correctamente durante el arranque del servidor.
+
+**Diagnóstico rápido (ejecutar en PowerShell como Administrador):**
+
+```powershell
+# 1. Ver si cloudflared está corriendo
+Get-Process cloudflared -ErrorAction SilentlyContinue | Select-Object Id, StartTime
+
+# 2. Ver si el log tiene URL
+Select-String -Path C:\cloudflared\tunnel-temp.log -Pattern "trycloudflare"
+
+# 3. Ver el log del monitor (buscar SKIPs consecutivos = URL nunca publicada)
+Get-Content C:\cloudflared\monitor-url.log -Tail 10
+```
+
+**Si el log NO tiene URL (caso más común tras reboot):**
+
+```powershell
+# Paso 1: Detener todo
+Stop-Service -Name "cloudflared" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "cloudflared" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+
+# Paso 2: Limpiar log anterior
+Remove-Item C:\cloudflared\tunnel-temp.log -Force -ErrorAction SilentlyContinue
+
+# Paso 3: Iniciar el quick tunnel
+Start-Process -FilePath "C:\cloudflared\cloudflared.exe" `
+    -ArgumentList "tunnel --url http://localhost:8080 --logfile C:\cloudflared\tunnel-temp.log" `
+    -WindowStyle Hidden
+Start-Sleep -Seconds 15
+
+# Paso 4: Verificar que la URL apareció en el log
+Select-String -Path C:\cloudflared\tunnel-temp.log -Pattern "trycloudflare"
+
+# Paso 5: Publicar la URL en Hostgator
+& "C:\cloudflared\publish-tunnel-url.ps1"
+```
+
+**Si la URL sí aparece en el log pero el sistema sigue sin funcionar:**
+
+```powershell
+# Republicar manualmente a Hostgator
+& "C:\cloudflared\publish-tunnel-url.ps1"
+```
+
+**Verificar que todo quedó bien:**
+
+```powershell
+# Ver URL almacenada en Hostgator
+php C:\cloudflared\check_url.php
+
+# Confirmar que solo hay UN proceso cloudflared corriendo
+Get-Process cloudflared | Select-Object Id, StartTime
+```
+
+> **Tiempo estimado de recuperación:** 2-3 minutos desde que se ejecutan los comandos.
 
 ---
 

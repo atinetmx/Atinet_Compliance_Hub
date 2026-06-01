@@ -241,6 +241,10 @@ class SearchHistoryExport implements FromArray, WithColumnWidths, WithEvents, Wi
             $parts[] = "Tipo: {$this->filters['tipo_busqueda']}";
         }
 
+        if (! empty($this->filters['notaria_id']) && $this->filters['notaria_id'] !== 'all') {
+            $parts[] = 'Notaría: '.($this->filters['notaria_label'] ?? $this->filters['notaria_id']);
+        }
+
         if (! empty($this->filters['dias']) && $this->filters['dias'] !== 'all') {
             $diasLabels = [
                 '7' => 'Últimos 7 días',

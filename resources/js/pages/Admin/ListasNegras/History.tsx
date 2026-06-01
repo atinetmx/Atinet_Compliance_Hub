@@ -39,7 +39,14 @@ interface SearchHistoryItem {
     notaria?: {
         id: number;
         nombre: string;
+        numero_notaria?: number | null;
     } | null;
+}
+
+interface NotariaFilterOption {
+    id: number;
+    nombre: string;
+    numero_notaria?: number | null;
 }
 
 interface PaginatedHistory {
@@ -50,6 +57,14 @@ interface PaginatedHistory {
     total: number;
     from: number;
     to: number;
+}
+
+interface HistoryResponse {
+    success: boolean;
+    data: PaginatedHistory;
+    filters?: {
+        notarias_disponibles?: NotariaFilterOption[];
+    };
 }
 
 export default function ListasNegrasHistory() {
@@ -70,11 +85,13 @@ export default function ListasNegrasHistory() {
     ];
 
     const [history, setHistory] = useState<PaginatedHistory | null>(null);
+    const [availableNotarias, setAvailableNotarias] = useState<NotariaFilterOption[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Filtros
     const [filters, setFilters] = useState({
         tipo_busqueda: 'all',
+        notaria_id: 'all',
         dias: '30',
         termino: '',
     });
@@ -92,6 +109,7 @@ export default function ListasNegrasHistory() {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
                 ...(filters.tipo_busqueda && filters.tipo_busqueda !== 'all' && { tipo_busqueda: filters.tipo_busqueda }),
+                ...(filters.notaria_id && filters.notaria_id !== 'all' && { notaria_id: filters.notaria_id }),
                 ...(filters.dias && filters.dias !== 'all' && { dias: filters.dias }),
                 ...(filters.termino && { termino: filters.termino }),
             });
@@ -106,9 +124,10 @@ export default function ListasNegrasHistory() {
             });
 
             if (res.ok) {
-                const json = await res.json();
+                const json: HistoryResponse = await res.json();
                 if (json.success) {
                     setHistory(json.data);
+                    setAvailableNotarias(json.filters?.notarias_disponibles ?? []);
                 }
             }
         } catch (error) {
@@ -156,10 +175,19 @@ export default function ListasNegrasHistory() {
     const handleClearFilters = () => {
         setFilters({
             tipo_busqueda: 'all',
+            notaria_id: 'all',
             dias: '30',
             termino: '',
         });
         setCurrentPage(1);
+    };
+
+    const formatNotariaLabel = (notaria?: NotariaFilterOption | SearchHistoryItem['notaria'] | null): string => {
+        if (!notaria) {
+            return 'Sin notaría';
+        }
+
+        return notaria.numero_notaria ? `${notaria.nombre} (#${notaria.numero_notaria})` : notaria.nombre;
     };
 
     const getResultsCount = (item: SearchHistoryItem): number => {
@@ -190,9 +218,13 @@ export default function ListasNegrasHistory() {
         }
 
         try {
+            const selectedNotaria = availableNotarias.find((notaria) => String(notaria.id) === filters.notaria_id);
             const payload = {
                 history: history.data,
-                filters: filters,
+                filters: {
+                    ...filters,
+                    notaria_label: selectedNotaria ? formatNotariaLabel(selectedNotaria) : undefined,
+                },
             };
 
             const response = await fetch('/admin/export/history', {
@@ -280,10 +312,10 @@ export default function ListasNegrasHistory() {
                             <Filter className="w-5 h-5" />
                             Filtros
                         </CardTitle>
-                        <CardDescription>Filtra el historial por tipo, fecha o término de búsqueda</CardDescription>
+                        <CardDescription>Filtra el historial por tipo, notaría, fecha o término de búsqueda</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-4 md:grid-cols-4">
+                        <div className="grid gap-4 md:grid-cols-5">
                             <div className="space-y-2">
                                 <Label htmlFor="tipo-filter">Tipo de búsqueda</Label>
                                 <Select
@@ -302,6 +334,30 @@ export default function ListasNegrasHistory() {
                                         <SelectItem value="Persona Moral">Persona Moral</SelectItem>
                                         <SelectItem value="RFC">RFC</SelectItem>
                                         <SelectItem value="Búsqueda Combinada">Búsqueda Combinada</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="notaria-filter">Notaría</Label>
+                                <Select
+                                    value={filters.notaria_id}
+                                    onValueChange={(value) => {
+                                        setFilters(prev => ({ ...prev, notaria_id: value }));
+                                        setCurrentPage(1);
+                                    }}
+                                    disabled={availableNotarias.length <= 1}
+                                >
+                                    <SelectTrigger id="notaria-filter">
+                                        <SelectValue placeholder="Todas las notarías" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las notarías</SelectItem>
+                                        {availableNotarias.map((notaria) => (
+                                            <SelectItem key={notaria.id} value={String(notaria.id)}>
+                                                {formatNotariaLabel(notaria)}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -407,6 +463,7 @@ export default function ListasNegrasHistory() {
                                             <TableHead>Tipo</TableHead>
                                             <TableHead>Término de búsqueda</TableHead>
                                             <TableHead className="text-center">Resultados</TableHead>
+                                            <TableHead>Notaría</TableHead>
                                             <TableHead>Fecha</TableHead>
                                             <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
@@ -426,6 +483,11 @@ export default function ListasNegrasHistory() {
                                                     <Badge variant={getResultsCount(item) > 0 ? 'destructive' : 'secondary'}>
                                                         {getResultsCount(item)}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {formatNotariaLabel(item.notaria)}
+                                                    </span>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-1 text-sm text-muted-foreground">

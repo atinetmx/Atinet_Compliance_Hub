@@ -36,6 +36,7 @@ class SearchHistoryController extends Controller
         // SuperAdmin puede ver todas las búsquedas, usuarios normales solo de su notaría
         if ($user->isSuperAdmin()) {
             $query = Busqueda::query();
+            $notariasDisponiblesQuery = Busqueda::query();
         } else {
             $notaria = $user->notaria;
 
@@ -47,6 +48,7 @@ class SearchHistoryController extends Controller
             }
 
             $query = Busqueda::where('notaria_id', $notaria->id);
+            $notariasDisponiblesQuery = Busqueda::where('notaria_id', $notaria->id);
         }
 
         // Filtros opcionales
@@ -62,18 +64,40 @@ class SearchHistoryController extends Controller
             $query->delUsuario((int) $request->usuario_id);
         }
 
+        if ($request->filled('notaria_id')) {
+            $query->deLaNotaria((int) $request->notaria_id);
+        }
+
         if ($request->has('termino') && $request->termino !== '') {
             $query->porTermino($request->termino);
         }
 
+        $notariasDisponibles = $notariasDisponiblesQuery
+            ->whereNotNull('notaria_id')
+            ->with('notaria:id,nombre,numero_notaria')
+            ->select('notaria_id')
+            ->groupBy('notaria_id')
+            ->get()
+            ->pluck('notaria')
+            ->filter()
+            ->map(fn ($notaria) => [
+                'id' => $notaria->id,
+                'nombre' => $notaria->nombre,
+                'numero_notaria' => $notaria->numero_notaria,
+            ])
+            ->values();
+
         $busquedas = $query
-            ->with(['user:id,name,email', 'notaria:id,nombre'])
+            ->with(['user:id,name,email', 'notaria:id,nombre,numero_notaria'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
         return response()->json([
             'success' => true,
             'data' => $busquedas,
+            'filters' => [
+                'notarias_disponibles' => $notariasDisponibles,
+            ],
         ]);
     }
 

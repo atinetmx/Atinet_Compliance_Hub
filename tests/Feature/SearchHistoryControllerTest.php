@@ -104,6 +104,45 @@ test('puede filtrar búsquedas por días', function () {
     expect($data)->toHaveCount(1);
 });
 
+test('super admin puede filtrar búsquedas por notaría', function () {
+    $otraNotaria = Notaria::factory()->create();
+
+    Subscription::factory()->create([
+        'notaria_id' => $otraNotaria->id,
+        'status' => Subscription::STATUS_ACTIVA,
+        'fecha_vencimiento' => now()->addMonth(),
+    ]);
+
+    $superAdmin = User::factory()->create([
+        'tipo_cuenta' => 'super_admin',
+    ]);
+
+    $this->actingAs($superAdmin);
+
+    Busqueda::factory()->create([
+        'notaria_id' => $this->notaria->id,
+        'user_id' => $this->user->id,
+        'termino_busqueda' => 'Búsqueda notaría 1',
+    ]);
+
+    Busqueda::factory()->create([
+        'notaria_id' => $otraNotaria->id,
+        'user_id' => $this->user->id,
+        'termino_busqueda' => 'Búsqueda notaría 2',
+    ]);
+
+    $response = $this->getJson("/admin/search-history?notaria_id={$otraNotaria->id}");
+
+    $response->assertSuccessful();
+
+    $data = $response->json('data.data');
+    $notariasDisponibles = collect($response->json('filters.notarias_disponibles'))->pluck('id');
+
+    expect($data)->toHaveCount(1)
+        ->and($data[0]['notaria_id'])->toBe($otraNotaria->id)
+        ->and($notariasDisponibles)->toContain($this->notaria->id, $otraNotaria->id);
+});
+
 test('puede ver detalle de una búsqueda propia', function () {
     $busqueda = Busqueda::factory()->create([
         'notaria_id' => $this->notaria->id,
