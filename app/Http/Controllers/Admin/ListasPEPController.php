@@ -158,4 +158,63 @@ class ListasPEPController extends Controller
             'Content-Length' => strlen($pdfContent),
         ]);
     }
+
+    /**
+     * Genera y descarga uno de los listados complementarios en PDF con branding Atinet.
+     *
+     * Tipos disponibles:
+     *   - refipre → Regímenes Fiscales Preferentes (SAT — LISR Título VI)
+     *   - ocde    → Países y Territorios con Paraísos Fiscales (OCDE)
+     *   - gafi    → Territorios bajo Revisión del GAFI/FATF
+     */
+    public function descargarListado(string $tipo): Response
+    {
+        $config = match ($tipo) {
+            'refipre' => [
+                'view' => 'pdf.listas-pep.listado-refipre',
+                'nombre' => 'Atinet-REFIPRE-Regimenes-Fiscales-Preferentes.pdf',
+            ],
+            'ocde' => [
+                'view' => 'pdf.listas-pep.listado-ocde',
+                'nombre' => 'Atinet-OCDE-Paraisos-Fiscales.pdf',
+            ],
+            'gafi' => [
+                'view' => 'pdf.listas-pep.listado-gafi',
+                'nombre' => 'Atinet-GAFI-Territorios-Revisados.pdf',
+            ],
+            default => null,
+        };
+
+        abort_unless($config !== null, 404, 'Listado no disponible.');
+
+        // Mientras las plantillas OCDE/GAFI no estén listas, servir el PDF original
+        if (! view()->exists($config['view'])) {
+            $ruta = storage_path('app/listas-pep/'.strtoupper($tipo).'.pdf');
+            abort_unless(file_exists($ruta), 404, 'El archivo no se encuentra en el servidor.');
+
+            return response(file_get_contents($ruta), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="'.$config['nombre'].'"',
+            ]);
+        }
+
+        $data = ['fecha_generacion' => now()->format('d/m/Y H:i:s')];
+
+        $pdf = Pdf::loadView($config['view'], $data)
+            ->setPaper('letter', 'portrait')
+            ->setOptions([
+                'defaultFont' => 'Arial',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => false,
+                'dpi' => 110,
+            ]);
+
+        $pdfContent = $pdf->output();
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$config['nombre'].'"',
+            'Content-Length' => strlen($pdfContent),
+        ]);
+    }
 }

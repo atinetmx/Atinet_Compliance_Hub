@@ -10,21 +10,65 @@
 | Fase | Descripción | Estado | Progreso |
 |------|-------------|--------|----------|
 | **FASE 1** | Mejorar Vista React | ✅ Completada | 100% |
-| **FASE 2** | Migraciones BD | ✅ Completada | 100% |
-| **FASE 3** | Servicio API Externa | ⏳ Pendiente | 0% |
-| **FASE 4** | Controller y Rutas | ⏳ Pendiente | 0% |
-| **FASE 5** | Integración React-Laravel | ⏳ Pendiente | 0% |
-| **FASE 6** | Historial y Certificados | ⏳ Pendiente | 0% |
+| **FASE 2** | Migraciones BD (busquedas + resultados + certificados) | ✅ Completada | 100% |
+| **FASE 3** | Servicio API Externa (PrevencionDeLavado.com) | 🔒 Bloqueada | 0% |
+| **FASE 4** | Controller y Rutas | 🔄 Parcial | 60% |
+| **FASE 5** | Integración React ↔ Laravel | 🔄 Parcial | 50% |
+| **FASE 6** | Historial y Certificados PDF | 🔄 Parcial | 75% |
 | **FASE 7** | Testing | ⏳ Pendiente | 0% |
 | **FASE 8** | Deploy y Producción | ⏳ Pendiente | 0% |
 
-**Progreso Total:** 25% (2/8 fases completadas)
+**Progreso Total:** ~48% (2 fases completas + 3 parciales)
+
+> **⚠️ BLOQUEO ACTIVO — FASE 3:** La integración real con PrevencionDeLavado.com está en pausa.
+> Solo quedan **23 de 600 búsquedas** disponibles en el plan contratado. No se usarán hasta renovar
+> el plan o recibir instrucciones. Las Fases 4 y 5 dependen de FASE 3 para la ruta `buscar`.
+>
+> **✅ DESBLOQUEADO sin API:** Certificados PDF (rutas activas), descarga de listados estáticos,
+> historial de búsquedas (esqueleto con datos vacíos), persistencia en BD de certificados.
 
 ### 📚 Documentación Generada
 - ✅ [PLAN_IMPLEMENTACION_LISTAS_PEP.md](./PLAN_IMPLEMENTACION_LISTAS_PEP.md) - Plan maestro completo
 - ✅ [ANALISIS_CAMPOS_BD_LISTAS_PEP.md](./ANALISIS_CAMPOS_BD_LISTAS_PEP.md) - Análisis de campos de BD
 - ✅ [DOCUMENTACION_FASE_1_LISTAS_PEP.md](./DOCUMENTACION_FASE_1_LISTAS_PEP.md) - Documentación FASE 1
 - ✅ [DOCUMENTACION_FASE_2_LISTAS_PEP.md](./DOCUMENTACION_FASE_2_LISTAS_PEP.md) - Documentación FASE 2 + incidentes
+
+---
+
+## 🗂️ Inventario de Archivos — Estado al 28/Mayo/2026
+
+### 🗄️ Migraciones (todas ejecutadas)
+| Migración | Batch | Estado |
+|-----------|-------|--------|
+| `2026_05_xx_create_listas_pep_busquedas_table` | 2 | ✅ Ejecutada |
+| `2026_05_xx_create_listas_pep_resultados_table` | 2 | ✅ Ejecutada |
+| `2026_05_28_173320_create_listas_pep_certificados_table` | 4 | ✅ Ejecutada |
+
+### 🖥️ Backend
+| Archivo | Estado | Notas |
+|---------|--------|-------|
+| `app/Http/Controllers/Admin/ListasPEPController.php` | 🔄 Parcial | `certificadoSinCoincidencias()` + `certificadoConCoincidencia()` ✅. Faltan: `buscar()`, `historial()`, `descargarListado()` |
+| `app/Services/PrevencionDeLavadoService.php` | ❌ No creado | Requiere credenciales / quota disponible |
+
+### 🛣️ Rutas (`routes/web.php`)
+| Ruta | Método | Estado |
+|------|--------|--------|
+| `POST /admin/listas-pep/certificado/sin-coincidencias` | Controller | ✅ Activa |
+| `POST /admin/listas-pep/certificado/con-coincidencia` | Controller | ✅ Activa |
+| `POST /admin/listas-pep/buscar` | Controller | 🔒 Comentada (espera API) |
+| `GET /admin/listas-pep/historial/data` | Controller | 🔒 Comentada |
+| `GET /admin/listas-pep/listados/{tipo}` | Controller | 🔒 Comentada |
+
+### 🎨 Frontend React
+| Archivo | Estado | Notas |
+|---------|--------|-------|
+| `resources/js/pages/Admin/ListasPEP/Search.tsx` | 🔄 Parcial | `generarCertificadoSinCoincidencias()` + `generarCertificadoConCoincidencias()` ✅. `handleBuscar()` conectado a endpoint aún comentado |
+
+### 📄 Plantillas PDF (Blade)
+| Archivo | Estado |
+|---------|--------|
+| `resources/views/pdf/listas-pep/certificado-sin-coincidencias.blade.php` | ✅ Completa |
+| `resources/views/pdf/listas-pep/certificado-con-coincidencia.blade.php` | ✅ Completa |
 
 ---
 
@@ -458,30 +502,15 @@ Agregar tarjeta arriba de los resultados:
 **Documentación:** Ver [DOCUMENTACION_FASE_2_LISTAS_PEP.md](./DOCUMENTACION_FASE_2_LISTAS_PEP.md)
 
 #### Tareas:
-1. ✅ Crear migración `create_listas_pep_busquedas_table` (15 campos, 8 índices)
-   - `id`, `user_id`, `notaria_id`
-   - `apellido_denominacion`, `nombres`, `identificacion`
-   - `opciones` (JSON con 5 checkboxes)
-   - `total_resultados` (total API ej: 94), `codigo_certificado` (UUID)
-   - `fecha_consulta`, `ip_address`, `estado_busqueda`
-   - `expediente_id` (ref: tbl_ope_expedientes sin FK)
-   - `timestamps`
-
-2. ✅ Crear migración `create_listas_pep_resultados_table` (29 campos, 12 índices)
-   - Tabla separada para almacenar TODOS los resultados individuales
-   - FK a `listas_pep_busquedas` con CASCADE DELETE
-   - Incluye: denominación, identificación, cargo, lugar, exactitud, enlace URL
-   - Hash SHA256 para detectar cambios, flags de acción tomada
-
-3. ✅ Implementar medidas de seguridad en migraciones
-   - Verificación de existencia con `Schema::hasTable()`
-   - Foreign Keys condicionales (solo si tabla padre existe)
-   - Rollback no destructivo con `dropIfExists()`
-   - Documentación exhaustiva con comments SQL
-
-4. ✅ Ejecutar migraciones exitosamente
-   - Batch 2: Ambas tablas creadas correctamente
-   - 0 registros iniciales (listas para uso)
+1. ✅ Crear migración `create_listas_pep_busquedas_table` (Batch 2)
+2. ✅ Crear migración `create_listas_pep_resultados_table` (Batch 2)
+3. ✅ Crear migración `create_listas_pep_certificados_table` (Batch 4, 28/Mayo/2026)
+   - `busqueda_id` FK → listas_pep_busquedas CASCADE
+   - `resultado_id` FK nullable → listas_pep_resultados SET NULL
+   - `tipo` ENUM: `SIN_COINCIDENCIAS` / `CON_COINCIDENCIA`
+   - `archivo_pdf`, `hash_pdf`, `uuid_certificado` (unique), `observaciones`
+   - `emitido_por` FK nullable → users SET NULL
+4. ✅ Implementar medidas de seguridad en migraciones (verificación hasTable, FKs condicionales)
 
 #### Incidentes Resueltos:
 ⚠️ **Error FK con expediente_id:** Solucionado removiendo FK constraint (incompatibilidad signed/unsigned)  
@@ -499,6 +528,7 @@ Agregar tarjeta arriba de los resultados:
 ### **FASE 3: Backend - Servicio de API Externa** 🌐
 
 **Prioridad:** ALTA  
+**Estado:** 🔒 **BLOQUEADA** — Solo 23/600 búsquedas disponibles. No implementar hasta renovar plan.  
 **Tiempo estimado:** 2 horas
 
 #### Tareas:
@@ -508,7 +538,7 @@ Agregar tarjeta arriba de los resultados:
    - Manejo de errores y reintentos
    - Logging de requests
 
-2. ✅ Agregar credenciales al `.env`
+2. ✅ Credenciales en `.env`
    ```
    PREVENCION_LAVADO_USER=acostacl
    PREVENCION_LAVADO_PASS=26F1D723
@@ -650,18 +680,17 @@ class PrevencionDeLavadoService
 ### **FASE 4: Backend - Controlador** 🎮
 
 **Prioridad:** ALTA  
-**Tiempo estimado:** 2 horas
+**Estado:** 🔄 **PARCIAL** (60%) — Certificados completos, `buscar()` e `historial()` pendientes.  
+**Tiempo estimado:** 2 horas (restante)
 
 #### Tareas:
 1. ✅ Crear `app/Http/Controllers/Admin/ListasPEPController.php`
-   - Método `buscar()` - Realiza búsqueda y guarda en BD
-   - Método `historial()` - Lista de búsquedas con filtros
-   - Método `certificadoConCoincidencias()` - Genera PDF
-   - Método `certificadoSinCoincidencias()` - Genera PDF
-   - Método `descargarListado()` - Descarga REFIPRE/OCDE/GAFI
-
-2. ✅ Validación con FormRequest
-3. ✅ Verificar suscripción activa y servicio habilitado
+2. ✅ Método `certificadoSinCoincidencias()` — genera y descarga PDF "Sin Coincidencias"
+3. ✅ Método `certificadoConCoincidencia()` — genera y descarga PDF "Con Coincidencia"
+4. ❌ Método `buscar()` — requiere `PrevencionDeLavadoService` (FASE 3)
+5. ❌ Método `historial()` — lista paginada de `listas_pep_busquedas`
+6. ❌ Método `descargarListado($tipo)` — descarga REFIPRE / OCDE / GAFI (archivos estáticos)
+7. ❌ Persistir certificados en tabla `listas_pep_certificados` tras generarlos
 
 **Código:**
 ```php
@@ -770,13 +799,16 @@ class ListasPEPController extends Controller
 ### **FASE 5: Rutas y Middleware** 🛣️
 
 **Prioridad:** ALTA  
-**Tiempo estimado:** 30 minutos
+**Estado:** 🔄 **PARCIAL** (50%) — Rutas de certificados activas, resto comentado.  
+**Tiempo estimado:** 30 minutos (restante)
 
 #### Tareas:
-1. ✅ Descomentar rutas en `routes/web.php`
-2. ✅ Agregar middleware de suscripción
-3. ✅ Agregar middleware de servicio habilitado
-4. ✅ Probar rutas con Postman/Thunder Client
+1. ✅ Rutas de certificados activas:
+   - `POST /admin/listas-pep/certificado/sin-coincidencias`
+   - `POST /admin/listas-pep/certificado/con-coincidencia`
+2. ❌ Descomentar `buscar` (requiere FASE 3)
+3. ❌ Descomentar `historial/data`
+4. ❌ Descomentar `listados/{tipo}`
 
 **Código:**
 ```php

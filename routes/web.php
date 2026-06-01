@@ -377,15 +377,22 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Route::prefix('listas-pep')->name('listas-pep.')->middleware(['subscription', 'service:LISTAS_PEP'])->group(function () {
     //     Route::post('buscar', [\App\Http\Controllers\Admin\ListasPEPController::class, 'buscar'])->name('buscar');
     //     Route::get('historial/data', [\App\Http\Controllers\Admin\ListasPEPController::class, 'historial'])->name('historial.data');
-    //     Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])->name('listados');
     // });
 
-    // Rutas de certificados PDF (activas — no requieren servicio externo)
-    Route::prefix('listas-pep/certificado')->name('listas-pep.certificado.')->group(function () {
-        Route::post('sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])
-            ->name('sin-coincidencias');
-        Route::post('con-coincidencia', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencia'])
-            ->name('con-coincidencia');
+    // Rutas activas — no requieren servicio externo ni API PLD
+    Route::prefix('listas-pep')->name('listas-pep.')->group(function () {
+        // Descarga de listados complementarios estáticos (REFIPRE / OCDE / GAFI)
+        Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])
+            ->where('tipo', 'refipre|ocde|gafi')
+            ->name('listados');
+
+        // Certificados PDF (generados desde datos del frontend)
+        Route::prefix('certificado')->name('certificado.')->group(function () {
+            Route::post('sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])
+                ->name('sin-coincidencias');
+            Route::post('con-coincidencia', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencia'])
+                ->name('con-coincidencia');
+        });
     });
 });
 
