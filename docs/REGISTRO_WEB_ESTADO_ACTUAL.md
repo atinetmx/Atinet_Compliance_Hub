@@ -1,8 +1,40 @@
 # 📊 Registro Web - Estado Actual del Desarrollo
 
-**Última Actualización:** 10 Abril 2026  
-**Sesión:** Implementación Scanner QR + 3D Loader + Detección Automática  
-**Progreso Global:** ~75% Frontend + 80% Backend = **~78% Total**
+**Última Actualización:** 01 Junio 2026  
+**Sesión:** Estabilización de guardado + accesibilidad + verificación de identidad previa en QR  
+**Progreso Global:** ~82% Frontend + 88% Backend = **~85% Total**
+
+---
+
+## 🆕 Actualización 01 Junio 2026 (Delta)
+
+### ✅ Correcciones críticas aplicadas
+
+1. **Guardado sin 500 en flujo Inertia**
+    - Se corrigió el redirect posterior al guardado para usar la ruta correcta: `admin.registro-web.index`.
+    - Se eliminaron fallos por constraints `NOT NULL` en `registro_web` aplicando defaults seguros para campos que podían llegar como `null`.
+
+2. **Errores del backend visibles en UI**
+    - Los errores de validación del servidor (422) ahora se muestran en el modal de "Datos incompletos", no solo en consola.
+
+3. **Accesibilidad de modales (Radix Dialog)**
+    - Se agregaron `DialogTitle` y/o `DialogDescription` donde faltaban para eliminar warnings de accesibilidad de `DialogContent`.
+
+4. **Nuevo paso previo a flujo QR: Verificación de identidad**
+    - Se implementó validación previa al flujo BD/SAT/IA en escaneo QR.
+    - Orden de comparación: **RFC → CURP → Nombre completo**.
+    - Si detecta conflicto, muestra modal con 3 decisiones:
+      - **Reemplazar todo**
+      - **Solo llenar vacíos**
+      - **Cancelar escaneo**
+    - Este paso se aplica antes de cargar datos al formulario desde QR.
+
+### 🟡 Pendiente inmediato
+
+- Replicar la misma verificación de identidad previa en los otros scanners:
+  - INE
+  - CURP
+  - Acta de nacimiento
 
 ---
 

@@ -75,7 +75,8 @@ export function procesarDatosQR(textoQR: string): ParsedQRData {
             }
             // Detectar QR SAT (constancia fiscal)
             if (esQRdeSAT(textoQR)) {
-                return { urlSAT: textoQR, _tipoDocumento: 'sat' };
+                    const satData = parsearQRURLEncoded(textoQR);
+                    return { ...satData, urlSAT: textoQR, _tipoDocumento: 'sat' };
             }
             return parsearQRURLEncoded(textoQR);
         }
@@ -298,7 +299,7 @@ function esQRdeRENAPO(texto: string): boolean {
  * Parsear QR de constancia CURP del RENAPO
  */
 function parsearQRRENAPO(texto: string): ParsedQRData {
-    const datos: ParsedQRData = {};
+    const datos: ParsedQRData = { _tipoDocumento: 'curp' };
 
     try {
         const url = new URL(texto);
@@ -317,11 +318,14 @@ function parsearQRRENAPO(texto: string): ParsedQRData {
         const fechaNac = params.get('fecha_nacimiento');
         const sexo = params.get('sexo');
 
-        if (nombre) datos.nombre = nombre;
-        if (primerApellido) datos.apellidopat = primerApellido;
-        if (segApellido) datos.apellidomat = segApellido;
+        if (nombre) datos.nombre = nombre.toUpperCase();
+        if (primerApellido) datos.apellidopat = primerApellido.toUpperCase();
+        if (segApellido) datos.apellidomat = segApellido.toUpperCase();
         if (fechaNac) datos.dia = fechaNac;
-        if (sexo) datos.genero = sexo === 'H' ? 'H' : 'M';
+        if (sexo) {
+            const sx = sexo.toUpperCase();
+            datos.genero = (sx === 'H' || sx === 'HOMBRE' || sx === 'MASCULINO') ? 'H' : 'M';
+        }
     } catch {
         // Si no es URL válida, buscar CURP directamente en el texto
         const curpMatch = texto.match(/[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d/);
@@ -351,6 +355,7 @@ function parsearQRPipeDelimited(texto: string): ParsedQRData {
     const curpIdx = partes.findIndex((p) => /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d$/.test(p));
 
     if (curpIdx >= 0) {
+        datos._tipoDocumento = 'curp';
         datos.curp = partes[curpIdx];
 
         // Con el CURP como ancla, leer posiciones relativas
@@ -385,9 +390,44 @@ function parsearQRPipeDelimited(texto: string): ParsedQRData {
             datos.dia = normalizarFecha(fecha);
         }
 
-        if (estado) datos.estado_nac = estado;
-        if (mun) datos.municipio_nac = mun;
-        if (nacion) datos.nacionalidad = nacion;
+        if (estado && esEstadoValido(estado)) {
+            datos.estado_nac = estado.toUpperCase();
+        }
+        if (mun && datos.estado_nac && !esTokenGenero(mun) && !esNacionalidadValida(mun)) {
+            datos.municipio_nac = mun.toUpperCase();
+        }
+        if (nacion && esNacionalidadValida(nacion)) {
+            datos.nacionalidad = nacion.toUpperCase();
+        }
+
+        // Heurística: algunos QR CURP colocan apellidos/nombre después del CURP
+        // y antes del sexo; en ese caso los extraemos para evitar desplazamientos.
+        if (!datos.nombre && !datos.apellidopat && !datos.apellidomat) {
+            const tail = partes.slice(curpIdx + 1);
+            const sexoIdx = tail.findIndex(esTokenGenero);
+
+            if (sexoIdx >= 2) {
+                if (sexoIdx >= 3) {
+                    datos.apellidopat = tail[0]?.toUpperCase();
+                    datos.apellidomat = tail[1]?.toUpperCase();
+                    datos.nombre = tail.slice(2, sexoIdx).join(' ').toUpperCase();
+                } else {
+                    datos.apellidopat = tail[0]?.toUpperCase();
+                    datos.nombre = tail[1]?.toUpperCase();
+                }
+
+                const sexoToken = tail[sexoIdx];
+                if (sexoToken) {
+                    datos.genero = esGeneroHombre(sexoToken) ? 'H' : 'M';
+                }
+
+                const fechaToken = tail[sexoIdx + 1];
+                const fechaNormalizada = normalizarFecha(fechaToken);
+                if (fechaNormalizada) {
+                    datos.dia = fechaNormalizada;
+                }
+            }
+        }
 
         if (padreNombre && padreNombre.length > 2) datos.padre_nombre = padreNombre;
         if (madreNombre && madreNombre.length > 2) datos.madre_nombre = madreNombre;
@@ -403,6 +443,44 @@ function parsearQRPipeDelimited(texto: string): ParsedQRData {
     }
 
     return datos;
+}
+
+function esGeneroHombre(token: string): boolean {
+    const t = token.toUpperCase().trim();
+
+    return t === 'H' || t === 'HOMBRE' || t === 'MASCULINO' || t === 'M_HOMBRE';
+}
+
+function esTokenGenero(token: string): boolean {
+    const t = token.toUpperCase().trim();
+
+    return (
+        t === 'H' ||
+        t === 'M' ||
+        t === 'HOMBRE' ||
+        t === 'MUJER' ||
+        t === 'MASCULINO' ||
+        t === 'FEMENINO' ||
+        t === 'M_HOMBRE' ||
+        t === 'F_MUJER'
+    );
+}
+
+function esNacionalidadValida(token: string): boolean {
+    const t = token.toUpperCase().trim();
+
+    return t.includes('MEXIC') || t.includes('EXTRANJ');
+}
+
+function esEstadoValido(token: string): boolean {
+    const t = token.toUpperCase().trim();
+    const estados = new Set(Object.values(ESTADOS_CODIGO));
+    const codigosDosLetras = new Set([
+        'AS', 'BC', 'BS', 'CC', 'CL', 'CM', 'CS', 'CH', 'DF', 'DG', 'GT', 'GR', 'HG', 'JC', 'MC', 'MN',
+        'MS', 'NT', 'NL', 'OC', 'PL', 'QT', 'QR', 'SP', 'SL', 'SR', 'TC', 'TS', 'TL', 'VZ', 'YN', 'ZS',
+    ]);
+
+    return estados.has(t) || codigosDosLetras.has(t);
 }
 
 /**

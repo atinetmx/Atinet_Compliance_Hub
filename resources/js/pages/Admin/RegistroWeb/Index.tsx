@@ -618,16 +618,21 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
             console.log('📄 Tipo de documento detectado:', parsedData._tipoDocumento || 'desconocido');
             console.log('📊 Datos parseados:', parsedData);
 
-            // 2. Buscar en base de datos por RFC (solo si tiene RFC)
-            if (parsedData.rfc) {
+            // 2. Buscar en base de datos por RFC o CURP
+            const searchBy: 'rfc' | 'curp' | null = parsedData.rfc ? 'rfc' : (parsedData.curp ? 'curp' : null);
+            const searchValue = searchBy === 'rfc' ? parsedData.rfc : parsedData.curp;
+
+            if (searchBy && searchValue) {
                 loaderInstance = await AtinetLoader.show({
                     title: 'Buscando en base de datos...',
-                    text: `Consultando RFC: ${parsedData.rfc}`,
+                    text: `Consultando ${searchBy.toUpperCase()}: ${searchValue}`,
                     showRings: true,
                 });
 
                 const searchResponse = await fetch(
-                    `/admin/registro-web/search-rfc?rfc=${encodeURIComponent(parsedData.rfc)}`
+                    searchBy === 'rfc'
+                        ? `/admin/registro-web/search-rfc?rfc=${encodeURIComponent(searchValue)}`
+                        : `/admin/registro-web/search-curp?curp=${encodeURIComponent(searchValue)}`
                 );
                 const searchResult = await searchResponse.json();
 
@@ -748,11 +753,11 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                     return;
                 }
 
-                // ❌ No encontrado en BD - fetch desde SAT
+                // ❌ No encontrado en BD - continuar a SAT/IA o carga local
                 await closeLoaderWithMinDelay(loaderInstance, startTime);
             }
 
-            // 3. Consultar SAT si no está en BD o no hay RFC
+            // 3. Consultar SAT si no está en BD o no hay RFC/CURP
             if (parsedData.urlSAT) {
                 // Cargar datos básicos primero (los que se extrajeron sin IA)
                 const basicFields = Object.keys(parsedData).filter(k => !k.startsWith('_')).length;
@@ -765,6 +770,8 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                 const rfcBasico = parsedData.rfc || '';
                 const descripcion = rfcBasico
                     ? `RFC ${rfcBasico}${nombreBasico ? ` (${nombreBasico})` : ''} no se encontró en la base de datos.`
+                    : parsedData.curp
+                    ? `CURP ${parsedData.curp}${nombreBasico ? ` (${nombreBasico})` : ''} no se encontró en la base de datos.`
                     : 'No se encontró en la base de datos.';
 
                 const confirmarIA = await askSatConfirm(

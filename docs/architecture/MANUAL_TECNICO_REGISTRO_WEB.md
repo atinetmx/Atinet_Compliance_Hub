@@ -484,15 +484,19 @@ El sistema detecta automáticamente cuando se intenta cargar datos de una **pers
 
 **Función:** `_verificarConflictoIdentidad()`
 
-**Criterios de Comparación:**
+**Criterios de Comparación (actualizados):**
 
-1. **CURP** (prioridad máxima):
-   - Si ambos tienen CURP → Compara
-   - Si son diferentes → ⚠️ Conflicto
+1. **RFC** (prioridad máxima):
+    - Si ambos tienen RFC → Compara
+    - Si son diferentes → ⚠️ Conflicto
 
-2. **Nombre + Apellido** (fallback):
-   - Si ninguno tiene CURP
-   - Compara nombre completo normalizado
+2. **CURP** (segunda prioridad):
+    - Si ambos tienen CURP → Compara
+    - Si son diferentes → ⚠️ Conflicto
+
+3. **Nombre + Apellido** (fallback):
+    - Si no hay RFC/CURP comparables
+    - Compara nombre completo normalizado
 
 **Normalización:**
 ```javascript
@@ -531,6 +535,10 @@ Documento escaneado: GOMJ900812MDFNRS07
 
 [Reemplazar todo] [Solo llenar vacíos] [Cancelar]
 ```
+
+**Estado de implementación (junio 2026):**
+- ✅ Implementado en flujo **QR** antes de la secuencia BD/SAT/IA.
+- 🟡 Pendiente de replicar en scanners **INE**, **CURP** y **Acta**.
 
 ### 2. Validación de Formato
 
