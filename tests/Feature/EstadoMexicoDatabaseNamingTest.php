@@ -13,7 +13,7 @@ test('genera códigos cortos de estado correctamente', function () {
 
 test('obtiene código de estado desde nombre string', function () {
     expect(EstadoMexico::getCodeFromName('Baja California Sur'))->toBe('bcs');
-    expect(EstadoMexico::getCodeFromName('Estado de México'))->toBe('edomex');
+    expect(EstadoMexico::getCodeFromName('México'))->toBe('edomex');
     expect(EstadoMexico::getCodeFromName('Jalisco'))->toBe('jal');
     expect(EstadoMexico::getCodeFromName('Ciudad de México'))->toBe('cdmx');
     expect(EstadoMexico::getCodeFromName(null))->toBe('default');
@@ -35,7 +35,7 @@ test('formato de nombre de base de datos incluye estado', function () {
 
 test('formato de nombre de base de datos con diferentes estados', function () {
     $testCases = [
-        ['estado' => 'Estado de México', 'numero' => 1, 'expected' => 'atinet_edomex_notaria_1'],
+        ['estado' => 'México', 'numero' => 1, 'expected' => 'atinet_edomex_notaria_1'],
         ['estado' => 'Jalisco', 'numero' => 15, 'expected' => 'atinet_jal_notaria_15'],
         ['estado' => 'Nuevo León', 'numero' => 99, 'expected' => 'atinet_nl_notaria_99'],
         ['estado' => null, 'numero' => 1, 'expected' => 'atinet_default_notaria_1'],

@@ -368,19 +368,39 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return Inertia::render('Admin/ListasPEP/Search');
     })->name('listas-pep');
 
-    // Página de historial de consultas
-    Route::get('listas-pep/historial', function () {
-        return Inertia::render('Admin/ListasPEP/History');
-    })->name('listas-pep.historial');
+    // Página de historial de consultas — datos paginados via controller
+    Route::get('listas-pep/historial', [\App\Http\Controllers\Admin\ListasPEPController::class, 'historialPage'])
+        ->name('listas-pep.historial');
 
     // TODO: Descomentar estas rutas cuando se implemente el controlador ListasPEPController
     // Route::prefix('listas-pep')->name('listas-pep.')->middleware(['subscription', 'service:LISTAS_PEP'])->group(function () {
     //     Route::post('buscar', [\App\Http\Controllers\Admin\ListasPEPController::class, 'buscar'])->name('buscar');
     //     Route::get('historial/data', [\App\Http\Controllers\Admin\ListasPEPController::class, 'historial'])->name('historial.data');
-    //     Route::post('certificado/con-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencias'])->name('certificado.con-coincidencias');
-    //     Route::post('certificado/sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])->name('certificado.sin-coincidencias');
-    //     Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])->name('listados');
     // });
+
+    // Rutas activas — no requieren servicio externo ni API PLD
+    Route::prefix('listas-pep')->name('listas-pep.')->group(function () {
+        // Búsqueda en listas PEP (API PrevencionDeLavado.com + BD interna)
+        Route::post('buscar', [\App\Http\Controllers\Admin\ListasPEPController::class, 'buscar'])
+            ->name('buscar');
+
+        // Consultas disponibles del plan PLD contratado
+        Route::get('consumos', [\App\Http\Controllers\Admin\ListasPEPController::class, 'consumos'])
+            ->name('consumos');
+
+        // Descarga de listados complementarios estáticos (REFIPRE / OCDE / GAFI)
+        Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])
+            ->where('tipo', 'refipre|ocde|gafi')
+            ->name('listados');
+
+        // Certificados PDF (generados desde datos del frontend)
+        Route::prefix('certificado')->name('certificado.')->group(function () {
+            Route::post('sin-coincidencias', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoSinCoincidencias'])
+                ->name('sin-coincidencias');
+            Route::post('con-coincidencia', [\App\Http\Controllers\Admin\ListasPEPController::class, 'certificadoConCoincidencia'])
+                ->name('con-coincidencia');
+        });
+    });
 });
 
 // Rutas para admin_notaria - Gestión de usuarios de su notaría

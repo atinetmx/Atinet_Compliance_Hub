@@ -4,7 +4,7 @@ test('registration screen can be rendered', function () {
     $response = $this->get(route('register'));
 
     $response->assertOk();
-});
+})->skip('El registro público está deshabilitado en este proyecto. Los usuarios son creados por super-admins.');
 
 test('new users can register', function () {
     $response = $this->post(route('register.store'), [
@@ -16,4 +16,4 @@ test('new users can register', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
-});
+})->skip('El registro público está deshabilitado en este proyecto. Los usuarios son creados por super-admins.');

@@ -1,10 +1,9 @@
 import { Head, router } from '@inertiajs/react';
 import { Shield, History as HistoryIcon, Search, Calendar, Filter, RefreshCw, ArrowLeft } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,18 +25,20 @@ interface HistorialItem {
     apellido_denominacion: string;
     nombres: string;
     identificacion: string | null;
-    total_aciertos: number;
-    consumo_id: string | null; // ID de referencia en la API del proveedor
+    total_resultados: number;
+    codigo_certificado: string;
+    fecha_consulta: string;
+    estado_busqueda: string;
     created_at: string;
     updated_at: string;
     user: {
         id: number;
         name: string;
-        email: string;
     };
     notaria?: {
         id: number;
         nombre: string;
+        numero_notaria?: number;
     } | null;
 }
 
@@ -57,59 +58,80 @@ interface PaqueteInfo {
     disponibles: number;
 }
 
+interface NotariaOption {
+    id: number;
+    nombre: string;
+    numero_notaria?: number | null;
+}
+
 interface Props {
     historial?: PaginatedHistorial;
     paquete?: PaqueteInfo;
+    notarias?: NotariaOption[];
+    is_super_admin?: boolean;
+    filters?: { q: string | null; dias: string | number; notaria_id?: number | null };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers UI
+// ---------------------------------------------------------------------------
+
+function EstadoBusquedaBadge({ estado }: { estado: string }) {
+    const variants: Record<string, { color: string; label: string }> = {
+        BD_INTERNA:  { color: 'border-green-300 bg-green-50 text-green-700',  label: 'BD Interna' },
+        PROCESADA:   { color: 'border-blue-300 bg-blue-50 text-blue-700',     label: 'Procesada'  },
+        APROBADA:    { color: 'border-emerald-300 bg-emerald-50 text-emerald-700', label: 'Aprobada' },
+        RECHAZADA:   { color: 'border-red-300 bg-red-50 text-red-700',        label: 'Rechazada'  },
+        PENDIENTE:   { color: 'border-yellow-300 bg-yellow-50 text-yellow-700', label: 'Pendiente' },
+    };
+    const v = variants[estado] ?? { color: 'border-gray-300 bg-gray-50 text-gray-600', label: estado };
+    return (
+        <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${v.color}`}>
+            {v.label}
+        </span>
+    );
 }
 
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
 
-export default function ListasPEPHistory({ historial: historialProp, paquete }: Props) {
+export default function ListasPEPHistory({ historial, paquete, notarias = [], is_super_admin = false, filters: initialFilters }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Listas PEP', href: '/admin/listas-pep', icon: Shield },
         { title: 'Historial', href: '/admin/listas-pep/historial', icon: HistoryIcon },
     ];
 
-    // TODO: Cuando el endpoint esté implementado, pasar los datos via Inertia props
-    const [historial, setHistorial] = useState<PaginatedHistorial | null>(historialProp ?? null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
     const [filters, setFilters] = useState({
-        termino: '',
-        dias: '30',
+        termino: initialFilters?.q ?? '',
+        dias: String(initialFilters?.dias ?? '30'),
+        notaria_id: initialFilters?.notaria_id ? String(initialFilters.notaria_id) : '',
     });
 
-    // ---- Cargar historial ----
-    // TODO: Activar este método cuando se implemente ListasPEPController y el
-    // endpoint GET /admin/listas-pep/historial/data esté disponible.
-    const cargarHistorial = async (_page = 1) => {
-        // Pendiente de implementación — la API del proveedor aún no ha sido entregada.
-        console.info('[ListasPEP] cargarHistorial: endpoint pendiente de implementación.');
+    const aplicarFiltros = (page = 1) => {
+        router.get(
+            '/admin/listas-pep/historial',
+            {
+                q: filters.termino || undefined,
+                dias: filters.dias,
+                notaria_id: filters.notaria_id || undefined,
+                page,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
     };
 
-    useEffect(() => {
-        // TODO: Descomentar cuando el endpoint esté disponible
-        // if (!historialProp) cargarHistorial();
-    }, []);
-
     const handleFilterChange = () => {
-        cargarHistorial(1);
+        aplicarFiltros(1);
     };
 
     const limpiarFiltros = () => {
-        setFilters({ termino: '', dias: '30' });
-        setTimeout(() => cargarHistorial(1), 0);
+        setFilters({ termino: '', dias: '30', notaria_id: '' });
+        router.get('/admin/listas-pep/historial', {}, { preserveState: false });
     };
 
-    const paqueteLocal = paquete ?? {
-        total_contratado: 600,
-        consumidas: 0,
-        disponibles: 600,
-    };
+    const paqueteLocal = paquete ?? null;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -142,40 +164,60 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                 </div>
 
                 {/* ── Stats del paquete ── */}
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {paqueteLocal ? (
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <Card>
+                            <CardContent className="pt-5">
+                                <p className="text-xs text-muted-foreground">Total contratado</p>
+                                <p className="mt-1 text-2xl font-bold text-foreground">
+                                    {paqueteLocal.total_contratado.toLocaleString()}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="pt-5">
+                                <p className="text-xs text-muted-foreground">Búsquedas consumidas</p>
+                                <p className="mt-1 text-2xl font-bold text-orange-600">
+                                    {paqueteLocal.consumidas.toLocaleString()}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="pt-5">
+                                <p className="text-xs text-muted-foreground">Disponibles</p>
+                                <p
+                                    className={`mt-1 text-2xl font-bold ${
+                                        paqueteLocal.disponibles <= 5
+                                            ? 'text-red-600'
+                                            : paqueteLocal.disponibles <= 15
+                                              ? 'text-yellow-600'
+                                              : 'text-green-600'
+                                    }`}
+                                >
+                                    {paqueteLocal.disponibles.toLocaleString()}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="pt-5">
+                                <p className="text-xs text-muted-foreground">% Consumido</p>
+                                <p className="mt-1 text-2xl font-bold text-blue-600">
+                                    {paqueteLocal.total_contratado > 0
+                                        ? Math.round((paqueteLocal.consumidas / paqueteLocal.total_contratado) * 100)
+                                        : 0}
+                                    %
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                ) : (
                     <Card>
-                        <CardContent className="pt-5">
-                            <p className="text-xs text-muted-foreground">Total contratado</p>
-                            <p className="mt-1 text-2xl font-bold text-foreground">
-                                {paqueteLocal.total_contratado.toLocaleString()}
-                            </p>
+                        <CardContent className="flex items-center gap-3 py-4 text-muted-foreground">
+                            <Shield className="h-5 w-5 shrink-0" />
+                            <p className="text-sm">Sin paquete PEP activo asignado. Contacta a Atinet para activar búsquedas.</p>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardContent className="pt-5">
-                            <p className="text-xs text-muted-foreground">Búsquedas consumidas</p>
-                            <p className="mt-1 text-2xl font-bold text-orange-600">
-                                {paqueteLocal.consumidas.toLocaleString()}
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-5">
-                            <p className="text-xs text-muted-foreground">Disponibles</p>
-                            <p className={`mt-1 text-2xl font-bold ${paqueteLocal.disponibles <= 50 ? 'text-red-600' : paqueteLocal.disponibles <= 100 ? 'text-yellow-600' : 'text-green-600'}`}>
-                                {paqueteLocal.disponibles.toLocaleString()}
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-5">
-                            <p className="text-xs text-muted-foreground">% Consumido</p>
-                            <p className="mt-1 text-2xl font-bold text-blue-600">
-                                {Math.round((paqueteLocal.consumidas / paqueteLocal.total_contratado) * 100)}%
-                            </p>
-                        </CardContent>
-                    </Card>
-                </div>
+                )}
 
                 {/* ── Filtros ── */}
                 <Card>
@@ -220,31 +262,46 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button size="sm" onClick={handleFilterChange} disabled={loading}>
+                            {is_super_admin && notarias.length > 0 && (
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="notaria_id">Notaría</Label>
+                                    <Select
+                                        value={filters.notaria_id || 'all'}
+                                        onValueChange={(value) =>
+                                            setFilters({ ...filters, notaria_id: value === 'all' ? '' : value })
+                                        }
+                                    >
+                                        <SelectTrigger id="notaria_id" className="w-52">
+                                            <SelectValue placeholder="Todas las notarías" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todas las notarías</SelectItem>
+                                            {notarias.map((n) => (
+                                                <SelectItem key={n.id} value={String(n.id)}>
+                                                    {n.numero_notaria ? `N° ${n.numero_notaria} — ` : ''}{n.nombre}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                            <Button size="sm" onClick={handleFilterChange}>
                                 <Search className="mr-2 h-4 w-4" />
                                 Filtrar
                             </Button>
-                            <Button size="sm" variant="outline" onClick={limpiarFiltros} disabled={loading}>
+                            <Button size="sm" variant="outline" onClick={limpiarFiltros}>
                                 Limpiar
                             </Button>
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => cargarHistorial(historial?.current_page ?? 1)}
-                                disabled={loading}
+                                onClick={() => router.reload()}
                             >
-                                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                                <RefreshCw className="h-4 w-4" />
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
-
-                {/* ── Error ── */}
-                {error && (
-                    <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                )}
 
                 {/* ── Tabla ── */}
                 <Card>
@@ -259,12 +316,7 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        {loading ? (
-                            <div className="flex items-center justify-center py-16 text-muted-foreground">
-                                <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-                                Cargando historial...
-                            </div>
-                        ) : !historial || historial.data.length === 0 ? (
+                        {!historial || historial.data.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 text-center">
                                 <HistoryIcon className="mb-3 h-10 w-10 text-muted-foreground/40" />
                                 <p className="font-medium text-muted-foreground">Sin registros</p>
@@ -289,6 +341,7 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                                         <TableHead>Nombres</TableHead>
                                         <TableHead>Identificación</TableHead>
                                         <TableHead className="w-24 text-center">Aciertos</TableHead>
+                                        <TableHead className="w-28 text-center">Estado</TableHead>
                                         <TableHead>Usuario</TableHead>
                                         <TableHead>Notaría</TableHead>
                                         <TableHead>Fecha</TableHead>
@@ -311,11 +364,14 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge
-                                                    variant={item.total_aciertos > 0 ? 'destructive' : 'outline'}
-                                                    className={item.total_aciertos === 0 ? 'text-green-700 border-green-400' : ''}
+                                                    variant={item.total_resultados > 0 ? 'destructive' : 'outline'}
+                                                    className={item.total_resultados === 0 ? 'text-green-700 border-green-400' : ''}
                                                 >
-                                                    {item.total_aciertos}
+                                                    {item.total_resultados}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <EstadoBusquedaBadge estado={item.estado_busqueda} />
                                             </TableCell>
                                             <TableCell className="text-sm">
                                                 {item.user.name}
@@ -324,7 +380,7 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                                                 {item.notaria?.nombre ?? '—'}
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
-                                                {format(new Date(item.created_at), "d 'de' MMMM yyyy 'a las' HH:mm", { locale: es })}
+                                                {format(new Date(item.fecha_consulta), "d 'de' MMMM yyyy 'a las' HH:mm", { locale: es })}
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -339,8 +395,8 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                             <Button
                                 variant="outline"
                                 size="sm"
-                                disabled={historial.current_page <= 1 || loading}
-                                onClick={() => cargarHistorial(historial.current_page - 1)}
+                                disabled={historial.current_page <= 1}
+                                onClick={() => aplicarFiltros(historial.current_page - 1)}
                             >
                                 Anterior
                             </Button>
@@ -350,8 +406,8 @@ export default function ListasPEPHistory({ historial: historialProp, paquete }: 
                             <Button
                                 variant="outline"
                                 size="sm"
-                                disabled={historial.current_page >= historial.last_page || loading}
-                                onClick={() => cargarHistorial(historial.current_page + 1)}
+                                disabled={historial.current_page >= historial.last_page}
+                                onClick={() => aplicarFiltros(historial.current_page + 1)}
                             >
                                 Siguiente
                             </Button>

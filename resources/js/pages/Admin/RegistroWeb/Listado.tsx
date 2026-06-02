@@ -178,7 +178,7 @@ export default function RegistroWebListado({ registros, notarias, can_delete, is
                 <div className="rounded-xl border border-sidebar-border/70 bg-background p-4 dark:border-sidebar-border">
                     <div className="flex flex-wrap items-end gap-3">
                         {/* Búsqueda por nombre / CURP / RFC */}
-                        <div className="relative min-w-[220px] flex-1">
+                        <div className="relative min-w-55 flex-1">
                             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Nombre, CURP o RFC..."
@@ -192,7 +192,7 @@ export default function RegistroWebListado({ registros, notarias, can_delete, is
                         {/* Filtro por notaría (solo super_admin) */}
                         {is_super_admin && (
                             <Select value={notaria} onValueChange={setNotaria}>
-                                <SelectTrigger className="min-w-[200px]">
+                                <SelectTrigger className="min-w-50">
                                     <SelectValue placeholder="Todas las notarías" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -216,7 +216,7 @@ export default function RegistroWebListado({ registros, notarias, can_delete, is
                                 type="date"
                                 value={fechaDesde}
                                 onChange={(e) => setFechaDesde(e.target.value)}
-                                className="w-[150px]"
+                                className="w-37.5"
                                 title="Fecha desde"
                             />
                         </div>
@@ -228,7 +228,7 @@ export default function RegistroWebListado({ registros, notarias, can_delete, is
                                 type="date"
                                 value={fechaHasta}
                                 onChange={(e) => setFechaHasta(e.target.value)}
-                                className="w-[150px]"
+                                className="w-37.5"
                                 title="Fecha hasta"
                             />
                         </div>

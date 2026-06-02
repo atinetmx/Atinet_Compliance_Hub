@@ -50,7 +50,7 @@ describe('aislamiento database per tenant', function () {
         $notaria1 = Notaria::create([
             'nombre' => 'Notaría Test 999',
             'numero_notaria' => 999,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'municipio' => 'Toluca',
             'activa' => true,
             'fecha_registro' => now(),
@@ -59,14 +59,14 @@ describe('aislamiento database per tenant', function () {
         $notaria2 = Notaria::create([
             'nombre' => 'Notaría Test 888',
             'numero_notaria' => 888,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'municipio' => 'Naucalpan',
             'activa' => true,
             'fecha_registro' => now(),
         ]);
 
         // Act - Crear BDs para cada notaría
-        $estadoCodigo = EstadoMexico::getCodeFromName('Estado de México');
+        $estadoCodigo = EstadoMexico::getCodeFromName('México');
         $db1Name = "atinet_{$estadoCodigo}_notaria_999";
         $db2Name = "atinet_{$estadoCodigo}_notaria_888";
 
@@ -89,14 +89,14 @@ describe('aislamiento database per tenant', function () {
         $notaria1 = Notaria::create([
             'nombre' => 'Notaría Test 999',
             'numero_notaria' => 999,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'municipio' => 'Toluca',
             'activa' => true,
             'fecha_registro' => now(),
         ]);
 
         // Crear BD tenant
-        $estadoCodigo = EstadoMexico::getCodeFromName('Estado de México');
+        $estadoCodigo = EstadoMexico::getCodeFromName('México');
         $dbName = "atinet_{$estadoCodigo}_notaria_999";
 
         DB::statement("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
@@ -158,14 +158,14 @@ describe('aislamiento database per tenant', function () {
         $notaria = Notaria::create([
             'nombre' => 'Notaría Test 999',
             'numero_notaria' => 999,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'municipio' => 'Toluca',
             'activa' => true,
             'fecha_registro' => now(),
         ]);
 
         // Crear BD tenant
-        $estadoCodigo = EstadoMexico::getCodeFromName('Estado de México');
+        $estadoCodigo = EstadoMexico::getCodeFromName('México');
         $dbName = "atinet_{$estadoCodigo}_notaria_999";
 
         DB::statement("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
@@ -228,7 +228,7 @@ describe('aislamiento database per tenant', function () {
         $notaria1 = Notaria::create([
             'nombre' => 'Notaría Test 999',
             'numero_notaria' => 999,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'activa' => true,
             'fecha_registro' => now(),
         ]);
@@ -236,12 +236,12 @@ describe('aislamiento database per tenant', function () {
         $notaria2 = Notaria::create([
             'nombre' => 'Notaría Test 888',
             'numero_notaria' => 888,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'activa' => true,
             'fecha_registro' => now(),
         ]);
 
-        $estadoCodigo = EstadoMexico::getCodeFromName('Estado de México');
+        $estadoCodigo = EstadoMexico::getCodeFromName('México');
         $db1Name = "atinet_{$estadoCodigo}_notaria_999";
         $db2Name = "atinet_{$estadoCodigo}_notaria_888";
 
@@ -336,7 +336,7 @@ describe('aislamiento database per tenant', function () {
         $notaria = Notaria::create([
             'nombre' => 'Notaría Test 999',
             'numero_notaria' => 999,
-            'estado' => 'Estado de México',
+            'estado' => 'México',
             'activa' => true,
             'fecha_registro' => now(),
         ]);

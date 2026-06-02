@@ -58,6 +58,9 @@ class PlanServicesSeeder extends Seeder
 
             // ✅ ESCÁNER INTELIGENTE - Con límite
             'ESCANER_INTELIGENTE' => ['is_included' => true, 'usage_limit' => 20, 'priority' => 6],
+
+            // ❌ LISTAS PEP - No incluido en plan básico
+            'LIST_PEP' => ['is_included' => false, 'usage_limit' => null, 'priority' => 7],
         ];
 
         $this->attachServicesToPlan($plan, $services);
@@ -91,6 +94,9 @@ class PlanServicesSeeder extends Seeder
 
             // ✅ ESCÁNER INTELIGENTE - Mayor límite
             'ESCANER_INTELIGENTE' => ['is_included' => true, 'usage_limit' => 100, 'priority' => 6],
+
+            // ✅ LISTAS PEP - Incluido; cuota gestionada por pep_cuotas_notaria
+            'LIST_PEP' => ['is_included' => true, 'usage_limit' => null, 'priority' => 7],
         ];
 
         $this->attachServicesToPlan($plan, $services);
@@ -118,6 +124,8 @@ class PlanServicesSeeder extends Seeder
             'BLACKLIST_SAT' => ['is_included' => true, 'usage_limit' => null, 'priority' => 4],
             'BLACKLIST_OFAC' => ['is_included' => true, 'usage_limit' => null, 'priority' => 5],
             'ESCANER_INTELIGENTE' => ['is_included' => true, 'usage_limit' => null, 'priority' => 6],
+            // ✅ LISTAS PEP - Incluido; cuota gestionada por pep_cuotas_notaria
+            'LIST_PEP' => ['is_included' => true, 'usage_limit' => null, 'priority' => 7],
         ];
 
         $this->attachServicesToPlan($plan, $services);

@@ -49,10 +49,6 @@ class NotariaDestroyTest extends TestCase
             ]
         );
 
-        dump('Status:', $response->status());
-        dump('Content:', $response->getContent());
-        dump('Redirection:', $response->headers->get('Location'));
-
         $this->assertDatabaseMissing('notarias', [
             'id' => $this->notaria->id,
         ]);
@@ -70,8 +66,6 @@ class NotariaDestroyTest extends TestCase
                 'reason' => 'Notaría de prueba que debe ser eliminada',
             ]
         );
-
-        dump('Status para contraseña incorrecta:', $response->status());
 
         // La notaría NO debe ser eliminada
         $this->assertDatabaseHas('notarias', [
@@ -92,10 +86,8 @@ class NotariaDestroyTest extends TestCase
             ]
         );
 
-        dump('Status para razón corta:', $response->status());
-        dump('Errores de validación:', $response->json('errors'));
-
-        $response->assertSessionHasErrors('reason');
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
 
         // La notaría NO debe ser eliminada
         $this->assertDatabaseHas('notarias', [
@@ -121,8 +113,6 @@ class NotariaDestroyTest extends TestCase
                 'reason' => 'Intentando eliminar notaría con usuarios activos',
             ]
         );
-
-        dump('Status con usuarios activos:', $response->status());
 
         // La notaría NO debe ser eliminada
         $this->assertDatabaseHas('notarias', [
@@ -200,8 +190,6 @@ class NotariaDestroyTest extends TestCase
             ])
         );
 
-        dump('Response Status:', $response->status());
-        dump('Request All:', request()->all());
-        dump('Request Input:', request()->input());
+        $response->assertStatus(302);
     }
 }
