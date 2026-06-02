@@ -47,42 +47,47 @@ export interface ParsedQRData {
  * Procesar datos del QR según formato
  */
 export function procesarDatosQR(textoQR: string): ParsedQRData {
+    const textoNormalizado = normalizarTextoQR(textoQR);
+
     try {
         // Intentar parsear como JSON
-        const datos = JSON.parse(textoQR);
+        const datos = JSON.parse(textoNormalizado);
         return datos;
     } catch {
         // Si no es JSON, intentar otros formatos
 
+        // Detectar SAT primero (algunos lectores regresan texto con saltos o prefijos)
+        if (esQRdeSAT(textoNormalizado)) {
+            const satUrl = extraerUrlSAT(textoNormalizado);
+            const satData = parsearQRURLEncoded(satUrl);
+
+            return { ...satData, urlSAT: satUrl, _tipoDocumento: 'sat' };
+        }
+
         // Formato pipe-delimited (acta registro civil KV o INE posicional)
-        if (textoQR.includes('|')) {
+        if (textoNormalizado.includes('|')) {
             // Acta de Nacimiento formato clave:valor (Registro Civil mexicano)
-            if (esQRdeActaNacimientoKV(textoQR)) {
-                return parsearQRActaNacimientoKV(textoQR);
+            if (esQRdeActaNacimientoKV(textoNormalizado)) {
+                return parsearQRActaNacimientoKV(textoNormalizado);
             }
-            return parsearQRPipeDelimited(textoQR);
+            return parsearQRPipeDelimited(textoNormalizado);
         }
 
         // Formato URL-encoded
-        if (textoQR.startsWith('http') || textoQR.includes('=')) {
+        if (textoNormalizado.startsWith('http') || textoNormalizado.includes('=')) {
             // Detectar QR de Acta de Nacimiento (prioridad sobre RENAPO genérico)
-            if (esQRdeActaNacimiento(textoQR)) {
-                return parsearQRActaNacimiento(textoQR);
+            if (esQRdeActaNacimiento(textoNormalizado)) {
+                return parsearQRActaNacimiento(textoNormalizado);
             }
             // Detectar QR de RENAPO (constancia CURP)
-            if (esQRdeRENAPO(textoQR)) {
-                return parsearQRRENAPO(textoQR);
+            if (esQRdeRENAPO(textoNormalizado)) {
+                return parsearQRRENAPO(textoNormalizado);
             }
-            // Detectar QR SAT (constancia fiscal)
-            if (esQRdeSAT(textoQR)) {
-                    const satData = parsearQRURLEncoded(textoQR);
-                    return { ...satData, urlSAT: textoQR, _tipoDocumento: 'sat' };
-            }
-            return parsearQRURLEncoded(textoQR);
+            return parsearQRURLEncoded(textoNormalizado);
         }
 
         // Si es solo texto, buscar CURP
-        const curpMatch = textoQR.match(/[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d/);
+        const curpMatch = textoNormalizado.match(/[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d/);
         if (curpMatch) {
             return { curp: curpMatch[0] };
         }
@@ -341,7 +346,7 @@ function parsearQRRENAPO(texto: string): ParsedQRData {
  * Detectar si el QR es del SAT (constancia fiscal)
  */
 function esQRdeSAT(texto: string): boolean {
-    return texto.includes('siat.sat.gob.mx');
+    return texto.toLowerCase().includes('siat.sat.gob.mx');
 }
 
 /**
@@ -499,7 +504,7 @@ function parsearQRURLEncoded(texto: string): ParsedQRData {
         }
 
         // Parseo específico para QR SAT
-        if (texto.includes('siat.sat.gob.mx') && datos.D3) {
+        if (texto.toLowerCase().includes('siat.sat.gob.mx') && datos.D3) {
             datos.urlSAT = texto;
 
             // D3 contiene: NumeroSerie_RFC
@@ -544,6 +549,23 @@ function parsearQRURLEncoded(texto: string): ParsedQRData {
     }
 
     return datos;
+}
+
+function normalizarTextoQR(texto: string): string {
+    return texto
+        .replace(/\r?\n/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function extraerUrlSAT(texto: string): string {
+    const match = texto.match(/https?:\/\/[^\s]+siat\.sat\.gob\.mx[^\s]*/i);
+
+    if (match?.[0]) {
+        return match[0].trim();
+    }
+
+    return texto;
 }
 
 /**

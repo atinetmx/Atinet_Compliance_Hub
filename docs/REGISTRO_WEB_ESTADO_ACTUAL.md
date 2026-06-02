@@ -1,8 +1,38 @@
 # 📊 Registro Web - Estado Actual del Desarrollo
 
-**Última Actualización:** 01 Junio 2026  
-**Sesión:** Estabilización de guardado + accesibilidad + verificación de identidad previa en QR  
+**Última Actualización:** 02 Junio 2026  
+**Sesión:** Consolidación de flujo QR oficial + doble confirmación + resumen al cancelar continuidad  
 **Progreso Global:** ~82% Frontend + 88% Backend = **~85% Total**
+
+---
+
+## 🆕 Actualización 02 Junio 2026 (Flujo Oficial QR)
+
+### ✅ Reglas de negocio validadas e implementadas (QR)
+
+1. **Escaneo inicial obligatorio antes de decisiones**
+    - Al activar QR (cámara o archivo), primero se obtiene identidad base para comparar contra BD y formulario.
+
+2. **Formulario limpio + registro existente = confirmación de continuidad**
+    - Si se encuentra registro en BD y el formulario estaba limpio al iniciar el escaneo, se pregunta explícitamente si desea continuar.
+    - Si el usuario cancela continuidad, se muestra **resumen de resultados + datos faltantes** y se regresa al loop.
+
+3. **Doble modal en decisiones sensibles de conflicto**
+    - Primer modal: selección de estrategia (`Reemplazar todo` / `Solo llenar vacíos` / `Cancelar`).
+    - Segundo modal (confirmación):
+      - `Reemplazar todo` → confirmación de sobreescritura total.
+      - `Solo llenar vacíos` → confirmación por riesgo de cruce de datos.
+
+4. **Retorno al loop por defecto**
+    - Todo flujo no terminal regresa a espera de nueva interacción (escanear, limpiar, vista previa, cancelar).
+    - Única salida terminal del loop funcional: botón **Guardar Registro**.
+
+### 🔧 Implementación aplicada en código
+
+- `Index.tsx` ahora evalúa si el formulario estaba limpio al inicio del escaneo QR.
+- Si hay registro existente en BD y formulario limpio, exige confirmación de continuidad.
+- Si se cancela continuidad, abre modal de resultados/faltantes sin cargar forzosamente al formulario.
+- Se agregó segunda confirmación para estrategias de conflicto (`replace` y `fill-empty`).
 
 ---
 

@@ -81,7 +81,7 @@ class StoreRegistroRequest extends FormRequest
         if ($persona === 'fisica') {
             // PERSONA FÍSICA: apellidos obligatorios, CURP obligatorio
             $rules = array_merge($rules, [
-                'nombre' => 'required|string|max:30',
+                'nombre' => 'required|string|max:255',
                 'apellidopat' => 'required|string|max:30',
                 'apellidomat' => 'required|string|max:30',
                 'curp' => [
@@ -95,7 +95,7 @@ class StoreRegistroRequest extends FormRequest
         } else {
             // PERSONA MORAL: solo razón social obligatorio, apellidos opcionales, CURP opcional
             $rules = array_merge($rules, [
-                'nombre' => 'required|string|max:255', // Razón social completa
+                'nombre' => 'required|string|max:255',
                 'apellidopat' => 'nullable|string|max:30',
                 'apellidomat' => 'nullable|string|max:30',
                 'curp' => [
@@ -254,7 +254,7 @@ class StoreRegistroRequest extends FormRequest
 
             // Mensajes nombre
             'nombre.required' => 'El nombre es obligatorio',
-            'nombre.max' => 'El nombre no puede exceder 255 caracteres',
+            'nombre.max' => 'El nombre o razón social no puede exceder 255 caracteres',
 
             // Mensajes apellidos
             'apellidopat.required' => 'El apellido paterno es obligatorio para personas físicas',

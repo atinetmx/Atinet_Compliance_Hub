@@ -521,6 +521,49 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
         return parts.join(' · ');
     };
 
+    // Determina si el formulario está "limpio" para decidir rama de continuidad al encontrar existente en BD.
+    const isFormClean = (): boolean => {
+        const relevantFields: Array<unknown> = [
+            data.curp,
+            data.rfc,
+            data.nombre,
+            data.apellidopat,
+            data.apellidomat,
+            data.dia,
+            data.calle,
+            data.cp,
+            data.correo,
+            data.regimen_fiscal,
+        ];
+
+        return !relevantFields.some((field) => hasValue(field));
+    };
+
+    // Prioridad de conflicto: RFC -> CURP -> Nombre completo.
+    const getConflictReason = (
+        current: { rfc: string; curp: string; nombreCompleto: string },
+        incoming: { rfc: string; curp: string; nombreCompleto: string }
+    ): string => {
+        if (hasValue(current.rfc) && hasValue(incoming.rfc) && normalizeIdentity(current.rfc) !== normalizeIdentity(incoming.rfc)) {
+            return 'RFC diferente';
+        }
+
+        if (hasValue(current.curp) && hasValue(incoming.curp) && normalizeIdentity(current.curp) !== normalizeIdentity(incoming.curp)) {
+            return 'CURP diferente';
+        }
+
+        if (
+            hasValue(current.nombreCompleto) &&
+            hasValue(incoming.nombreCompleto) &&
+            normalizeIdentity(current.nombreCompleto) !== normalizeIdentity(incoming.nombreCompleto)
+        ) {
+            return 'Nombre diferente';
+        }
+
+        return '';
+    };
+
+    // Primer modal de conflicto: usuario elige estrategia base (replace/fill-empty/cancel).
     const verifyIdentityConflict = async (incomingRaw: Record<string, unknown>): Promise<IdentityConflictAction> => {
         const current = getCurrentIdentity();
         const incoming = getIncomingIdentity(incomingRaw);
@@ -532,19 +575,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
             return 'replace';
         }
 
-        let conflictReason = '';
-
-        if (hasValue(current.rfc) && hasValue(incoming.rfc) && normalizeIdentity(current.rfc) !== normalizeIdentity(incoming.rfc)) {
-            conflictReason = 'RFC diferente';
-        } else if (hasValue(current.curp) && hasValue(incoming.curp) && normalizeIdentity(current.curp) !== normalizeIdentity(incoming.curp)) {
-            conflictReason = 'CURP diferente';
-        } else if (
-            hasValue(current.nombreCompleto) &&
-            hasValue(incoming.nombreCompleto) &&
-            normalizeIdentity(current.nombreCompleto) !== normalizeIdentity(incoming.nombreCompleto)
-        ) {
-            conflictReason = 'Nombre diferente';
-        }
+        const conflictReason = getConflictReason(current, incoming);
 
         if (!conflictReason) {
             return 'replace';
@@ -556,6 +587,54 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
             formatIdentitySummary(current),
             formatIdentitySummary(incoming)
         );
+    };
+
+    // Resuelve estrategia final con doble confirmación para acciones sensibles.
+    // - replace: requiere confirmación explícita de sobreescritura total.
+    // - fill-empty: requiere confirmación explícita por riesgo de cruce de datos.
+    const resolveIdentityLoadStrategy = async (incomingRaw: Record<string, unknown>): Promise<IdentityConflictAction> => {
+        const current = getCurrentIdentity();
+        const incoming = getIncomingIdentity(incomingRaw);
+        const currentHasIdentity = hasValue(current.rfc) || hasValue(current.curp) || hasValue(current.nombreCompleto);
+        const incomingHasIdentity = hasValue(incoming.rfc) || hasValue(incoming.curp) || hasValue(incoming.nombreCompleto);
+
+        if (!currentHasIdentity || !incomingHasIdentity) {
+            return 'replace';
+        }
+
+        const conflictReason = getConflictReason(current, incoming);
+
+        if (!conflictReason) {
+            return 'replace';
+        }
+
+        const option = await verifyIdentityConflict(incomingRaw);
+
+        if (option === 'cancel') {
+            return 'cancel';
+        }
+
+        if (option === 'replace') {
+            const confirmedReplace = await askSatConfirm(
+                'Confirmar reemplazo total',
+                'Se reemplazarán todos los datos actuales del formulario con los del escaneo.\n\n¿Deseas continuar?',
+                'Sí, reemplazar todo',
+                'No, cancelar',
+                'warning'
+            );
+
+            return confirmedReplace ? 'replace' : 'cancel';
+        }
+
+        const confirmedFillEmpty = await askSatConfirm(
+            'Confirmar llenado de vacíos',
+            'Solo se llenarán campos vacíos, conservando los datos actuales.\n\n⚠️ Existe riesgo de cruce de datos si son personas diferentes.\n\n¿Deseas continuar?',
+            'Sí, llenar vacíos',
+            'No, cancelar',
+            'warning'
+        );
+
+        return confirmedFillEmpty ? 'fill-empty' : 'cancel';
     };
 
     /**
@@ -583,8 +662,12 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
     const handleQRDetected = async (qrText: string) => {
         let loaderInstance: Awaited<ReturnType<typeof AtinetLoader.show>> | null = null;
         const startTime = Date.now(); // Timestamp inicio para delay mínimo
+        // Snapshot al inicio: si el formulario estaba limpio, al encontrar existente se solicita continuidad.
+        const formWasCleanAtScanStart = isFormClean();
 
         try {
+            console.log('🔎 QR RAW recibido:', qrText);
+
             // 1. Parsear QR localmente
             const parsedData = procesarDatosQR(qrText);
             let loadStrategy: IdentityConflictAction = 'replace';
@@ -605,7 +688,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
             }
 
             // 1.5 Verificación de identidad previa a cualquier carga (RFC/CURP/nombre)
-            loadStrategy = await verifyIdentityConflict(parsedData as unknown as Record<string, unknown>);
+            loadStrategy = await resolveIdentityLoadStrategy(parsedData as unknown as Record<string, unknown>);
             if (loadStrategy === 'cancel') {
                 toast.info('✋ Escaneo cancelado por incompatibilidad de datos');
 
@@ -637,6 +720,38 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                 const searchResult = await searchResponse.json();
 
                 if (searchResult.found && searchResult.data) {
+                    // Regla de negocio: con formulario limpio y registro existente, pedir continuidad.
+                    // Si el usuario cancela, mostrar resumen/faltantes y regresar al loop sin continuar carga.
+                    if (formWasCleanAtScanStart) {
+                        await closeLoaderWithMinDelay(loaderInstance, startTime);
+
+                        const continuarEscaneo = await askSatConfirm(
+                            'Registro existente encontrado',
+                            'Se detectó un registro existente en la base de datos.\n\n¿Deseas continuar con el escaneo y cargar estos datos al formulario?',
+                            'Sí, continuar',
+                            'No, finalizar escaneo',
+                            'warning'
+                        );
+
+                        if (!continuarEscaneo) {
+                            const missingGroupsExisting = verificarCamposFaltantes(searchResult.data);
+
+                            setMissingFieldsModal({
+                                isOpen: true,
+                                title: 'ℹ️ Escaneo finalizado (registro existente detectado)',
+                                personData: {
+                                    nombre: `${searchResult.data.nombre || ''} ${searchResult.data.apellidopat || ''} ${searchResult.data.apellidomat || ''}`.trim(),
+                                    rfc: searchResult.data.rfc || '',
+                                    curp: searchResult.data.curp || '',
+                                },
+                                missingGroups: missingGroupsExisting,
+                            });
+
+                            toast.info('ℹ️ Escaneo finalizado por usuario. Se muestra resumen del registro encontrado.');
+                            return;
+                        }
+                    }
+
                     // ✅ Encontrado en BD
                     await closeLoaderWithMinDelay(loaderInstance, startTime);
 
@@ -858,8 +973,30 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                 return;
             }
 
+            const hasParsedLocalData =
+                Object.keys(parsedData).filter((k) => !k.startsWith('_')).length > 0;
+
+            // QR de acta: ofrecer flujo de IA (requiere imagen completa del acta)
+            if (parsedData._tipoDocumento === 'acta_nacimiento') {
+                const confirmarIAActa = await askSatConfirm(
+                    '¿Procesar con Inteligencia Artificial?',
+                    'Se detectó un QR de Acta de Nacimiento.\n\n' +
+                    'Para extraer más datos con IA se requiere escanear la imagen completa del acta.\n\n' +
+                    '¿Deseas abrir ahora el escáner de Acta?',
+                    'Sí, abrir escáner',
+                    'No, continuar con datos QR'
+                );
+
+                if (confirmarIAActa) {
+                    setActaScannerOpen(true);
+                    toast.info('📄 Abriendo escáner de Acta para procesamiento con IA');
+                    return;
+                }
+            }
+
             // 4. Cargar datos parseados localmente (CURP, Acta de Nacimiento, u otros)
-            if (Object.keys(parsedData).filter(k => !k.startsWith('_')).length > 0) {
+            if (hasParsedLocalData) {
+
                 cargarDatosQR(parsedData, loadStrategy);
 
                 const missingGroups = verificarCamposFaltantes(parsedData);
@@ -946,14 +1083,91 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
     /**
      * Cargar datos desde OCR (INE, CURP, Acta) al formulario
      */
-    const handleOCRDataExtracted = (datos: Record<string, any>) => {
-        // Determinar tipo de persona
+    const handleOCRDataExtracted = async (datos: Record<string, any>) => {
+        const formWasCleanAtScanStart = isFormClean();
+        let loadStrategy: IdentityConflictAction = 'replace';
+
+        const incomingRaw = datos as Record<string, unknown>;
+        loadStrategy = await resolveIdentityLoadStrategy(incomingRaw);
+
+        if (loadStrategy === 'cancel') {
+            toast.info('✋ Carga de OCR cancelada por incompatibilidad de datos');
+            return;
+        }
+
+        // Si el formulario estaba limpio, validar primero si ya existe en BD por RFC/CURP.
+        const searchBy: 'rfc' | 'curp' | null = datos.rfc ? 'rfc' : (datos.curp ? 'curp' : null);
+        const searchValue = searchBy === 'rfc' ? datos.rfc : datos.curp;
+
+        if (formWasCleanAtScanStart && searchBy && searchValue) {
+            try {
+                const searchResponse = await fetch(
+                    searchBy === 'rfc'
+                        ? `/admin/registro-web/search-rfc?rfc=${encodeURIComponent(String(searchValue))}`
+                        : `/admin/registro-web/search-curp?curp=${encodeURIComponent(String(searchValue))}`
+                );
+                const searchResult = await searchResponse.json();
+
+                if (searchResult.found && searchResult.data) {
+                    const continuarEscaneo = await askSatConfirm(
+                        'Registro existente encontrado',
+                        'Se detectó un registro existente en la base de datos.\n\n¿Deseas continuar y cargar estos datos al formulario?',
+                        'Sí, continuar',
+                        'No, finalizar escaneo',
+                        'warning'
+                    );
+
+                    if (!continuarEscaneo) {
+                        const missingGroupsExisting = verificarCamposFaltantes(searchResult.data);
+
+                        setMissingFieldsModal({
+                            isOpen: true,
+                            title: 'ℹ️ Escaneo finalizado (registro existente detectado)',
+                            personData: {
+                                nombre: `${searchResult.data.nombre || ''} ${searchResult.data.apellidopat || ''} ${searchResult.data.apellidomat || ''}`.trim(),
+                                rfc: searchResult.data.rfc || '',
+                                curp: searchResult.data.curp || '',
+                            },
+                            missingGroups: missingGroupsExisting,
+                        });
+
+                        toast.info('ℹ️ Escaneo finalizado por usuario. Se muestra resumen del registro encontrado.');
+                        return;
+                    }
+
+                    cargarDatosQR(searchResult.data as ParsedQRData, loadStrategy);
+
+                    const missingGroupsFromDb = verificarCamposFaltantes(searchResult.data);
+                    setMissingFieldsModal({
+                        isOpen: true,
+                        title: '✅ Encontrado en Base de Datos',
+                        personData: {
+                            nombre: `${searchResult.data.nombre || ''} ${searchResult.data.apellidopat || ''} ${searchResult.data.apellidomat || ''}`.trim(),
+                            rfc: searchResult.data.rfc || '',
+                            curp: searchResult.data.curp || '',
+                        },
+                        missingGroups: missingGroupsFromDb,
+                    });
+
+                    toast.success(`✅ Datos encontrados en ${searchResult.source === 'nuevo' ? 'sistema nuevo' : 'sistema legacy'}`);
+                    return;
+                }
+            } catch (error) {
+                console.warn('No se pudo consultar BD antes de cargar OCR:', error);
+            }
+        }
+
+        // Determinar tipo de persona respetando estrategia fill-empty.
         if (datos.Persona === 'MORAL' || datos.persona === 'moral') {
-            setActiveTab('moral');
-            setData('persona', 'moral');
+            if (!(loadStrategy === 'fill-empty' && hasValue(data.persona))) {
+                setActiveTab('moral');
+                setData('persona', 'moral');
+            }
         } else if (datos.Persona === 'FISICA' || datos.persona === 'fisica' || datos.curp) {
-            setActiveTab('fisica');
-            setData('persona', 'fisica');
+            if (!(loadStrategy === 'fill-empty' && hasValue(data.persona))) {
+                setActiveTab('fisica');
+                setData('persona', 'fisica');
+            }
         }
 
         // Mapear todos los campos posibles
@@ -998,34 +1212,39 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
             regimen_fiscal: 'regimen_fiscal',
         };
 
-        // Actualizar formulario con datos extraídos
+        const appliedUpdates: Partial<typeof data> = {};
+
+        // Actualizar formulario con datos extraídos respetando estrategia fill-empty.
         Object.entries(datos).forEach(([key, value]) => {
             const formField = fieldMapping[key];
-            if (formField && value !== null && value !== undefined && value !== '') {
-                // Convertir CP a string para el formulario
-                if (key.includes('cp') && typeof value === 'number') {
-                    setData(formField, String(value));
-                } else {
-                    setData(formField, String(value));
-                }
+            if (!formField || value === null || value === undefined || value === '') {
+                return;
             }
+
+            if (loadStrategy === 'fill-empty' && hasValue(data[formField])) {
+                return;
+            }
+
+            const normalizedValue = key.includes('cp') && typeof value === 'number' ? String(value) : String(value);
+            setData(formField, normalizedValue);
+            (appliedUpdates as Record<string, string>)[formField] = normalizedValue;
         });
 
         // Abrir sección de datos generales
         setOpenSections((prev) => ({ ...prev, generales: true }));
 
-        toast.success('✅ Datos cargados correctamente desde el documento');
+        const mergedData = { ...data, ...appliedUpdates };
+        const missingGroups = verificarCamposFaltantes(mergedData);
 
-        // Verificar campos faltantes y mostrar modal
-        const missingGroups = verificarCamposFaltantes(data);
+        toast.success('✅ Datos cargados correctamente desde el documento');
 
         setMissingFieldsModal({
             isOpen: true,
             title: '✅ Datos extraídos del documento',
             personData: {
-                nombre: `${data.nombre || ''} ${data.apellidopat || ''} ${data.apellidomat || ''}`.trim(),
-                rfc: data.rfc || '',
-                curp: data.curp || '',
+                nombre: `${mergedData.nombre || ''} ${mergedData.apellidopat || ''} ${mergedData.apellidomat || ''}`.trim(),
+                rfc: mergedData.rfc || '',
+                curp: mergedData.curp || '',
             },
             missingGroups,
         });
@@ -1143,7 +1362,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
                         className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                             activeTab === 'moral'
                                 ? 'border-b-2 border-sky-600 bg-sky-50 text-sky-700'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-70 0'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
                         } ${
                             personTypeLockedByQR
                                 ? 'cursor-not-allowed opacity-60'

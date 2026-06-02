@@ -71,6 +71,8 @@ Existe también un Windows Service llamado `Cloudflared` que usa `--token` (name
    - Si no cambió: actualiza solo `updated_at` (heartbeat) para evitar que `index.php` la marque como vencida (> 60 min)
 6. **Notaría visita** `atinet.com.mx/compliance_hub` → `index.php` lee la URL de MySQL → redirige si `updated_at` < 60 min → usuario llega al sistema
 
+> **Importante:** aunque el monitor corra cada 5 minutos, la URL de `trycloudflare.com` puede cambiar si el tunnel se reinicia, pierde conexión o Cloudflare genera una nueva URL durante la reconexión. En ese caso hay que republicar la URL nueva en Hostgator para evitar que el navegador siga apuntando a una URL vieja.
+
 ### Verificar estado actual
 
 ```powershell
@@ -93,6 +95,7 @@ Select-String -Path C:\cloudflared\tunnel-temp.log -Pattern "trycloudflare"
 |---------|---------------|----------|
 | "No se encontró URL en el log del tunnel" en monitor.log | cloudflared no inició correctamente | Ejecutar `C:\cloudflared\start-tunnel.ps1` como Administrador |
 | La URL en Hostgator tiene más de 60 minutos | `monitor-tunnel-url.ps1` no corre (Task Scheduler) | Verificar tarea `MonitorTunnelUrl-Atinet` en Task Scheduler |
+| El navegador muestra `chrome-error://chromewebdata/` o un error de frame al abrir la URL del tunnel | La URL de `trycloudflare.com` ya cambió o dejó de resolver | Regenerar el tunnel con `C:\cloudflared\start-tunnel.ps1` y republicar con `publish-tunnel-url.ps1` |
 | El tunnel arranca pero URL nunca aparece en log tras corte de luz / reboot | Windows Service `cloudflared` (Automatic) compite con el quick tunnel; `start-tunnel.ps1` mataba el proceso pero el Service lo relanzaba inmediatamente | **✅ Corregido el 01/06/2026**: `start-tunnel.ps1` ahora detiene el Windows Service antes de iniciar el quick tunnel |
 | `index.php` en Hostgator muestra error | URL vencida o tabla vacía | Correr `publish-tunnel-url.ps1` manualmente |
 
@@ -105,6 +108,8 @@ Select-String -Path C:\cloudflared\tunnel-temp.log -Pattern "trycloudflare"
 **Síntoma:** El sistema muestra la página "Sistema no disponible" al intentar acceder desde exterior.
 
 **Causa:** El tunnel no publicó su URL correctamente durante el arranque del servidor.
+
+**Síntoma relacionado en navegador:** Si aparece un error como `chrome-error://chromewebdata/` o un aviso de frame/URL insegura, normalmente el navegador está intentando abrir una URL de `trycloudflare.com` que ya venció o cambió.
 
 **Diagnóstico rápido (ejecutar en PowerShell como Administrador):**
 
@@ -161,6 +166,8 @@ Get-Process cloudflared | Select-Object Id, StartTime
 ```
 
 > **Tiempo estimado de recuperación:** 2-3 minutos desde que se ejecutan los comandos.
+
+> **Nota operativa:** si el tunnel vuelve a cambiar de URL por reconexión, repite solo el paso de `publish-tunnel-url.ps1` después de confirmar la nueva URL en `tunnel-temp.log`.
 
 ---
 
