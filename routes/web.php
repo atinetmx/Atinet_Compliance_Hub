@@ -368,10 +368,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return Inertia::render('Admin/ListasPEP/Search');
     })->name('listas-pep');
 
-    // Página de historial de consultas
-    Route::get('listas-pep/historial', function () {
-        return Inertia::render('Admin/ListasPEP/History');
-    })->name('listas-pep.historial');
+    // Página de historial de consultas — datos paginados via controller
+    Route::get('listas-pep/historial', [\App\Http\Controllers\Admin\ListasPEPController::class, 'historialPage'])
+        ->name('listas-pep.historial');
 
     // TODO: Descomentar estas rutas cuando se implemente el controlador ListasPEPController
     // Route::prefix('listas-pep')->name('listas-pep.')->middleware(['subscription', 'service:LISTAS_PEP'])->group(function () {

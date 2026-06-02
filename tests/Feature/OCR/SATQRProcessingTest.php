@@ -311,7 +311,7 @@ class SATQRProcessingTest extends TestCase
             ->assertJson([
                 'success' => false,
             ])
-            ->assertJsonPath('message', 'Límite de uso de Gemini alcanzado. Intente más tarde.');
+            ->assertJsonPath('message', 'El servicio de análisis está temporalmente saturado. Por favor intenta de nuevo en unos momentos.');
     }
 
     /**

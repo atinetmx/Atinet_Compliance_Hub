@@ -1574,7 +1574,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
 
             {/* Modal Vista Previa */}
             <Dialog open={showVistaPrevia} onOpenChange={setShowVistaPrevia}>
-                <DialogContent className="max-w-[800px] sm:max-w-[800px]">
+                <DialogContent className="max-w-200 sm:max-w-200">
                     <DialogDescription className="sr-only">
                         Revisa la vista previa de los datos capturados antes de guardar el registro.
                     </DialogDescription>
@@ -1789,7 +1789,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
 
             {/* SAT Confirm Dialog - ¿Completar con SAT? / ¿Procesar con IA? */}
             <Dialog open={satConfirmDialog.isOpen} onOpenChange={(open) => { if (!open) resolveSatConfirm(false); }}>
-                <DialogContent className="sm:max-w-[420px] text-center [&>button]:hidden">
+                <DialogContent className="sm:max-w-105 text-center [&>button]:hidden">
                     <DialogTitle className="sr-only">Confirmación de acción</DialogTitle>
                     <DialogDescription className="sr-only">
                         Confirma si deseas continuar con la acción sugerida para los datos escaneados.
@@ -1868,7 +1868,7 @@ function RegistroWebDevView({ notaria, notaria_nombre, has_notaria, stats, flash
 
             {/* Datos Incompletos Modal - Estilo SweetAlert2 igual al legacy PHP */}
             <Dialog open={datosIncompletosModal.isOpen} onOpenChange={(open) => { if (!open) setDatosIncompletosModal({ isOpen: false, errores: [] }); }}>
-                <DialogContent className="sm:max-w-[400px] text-center [&>button]:hidden">
+                <DialogContent className="sm:max-w-100 text-center [&>button]:hidden">
                     <DialogTitle className="sr-only">Datos incompletos</DialogTitle>
                     <DialogDescription className="sr-only">
                         El formulario tiene errores o campos faltantes que deben corregirse antes de guardar.

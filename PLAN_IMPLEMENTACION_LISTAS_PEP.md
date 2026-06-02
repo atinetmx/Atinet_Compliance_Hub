@@ -1,9 +1,138 @@
 # 📋 Plan de Implementación - Módulo Listas PEP
 
 **Fecha:** Mayo 27, 2026  
-**Actualizado:** Mayo 28, 2026  
+**Actualizado:** Junio 1, 2026 (tarde)  
 **Proyecto:** Atinet Compliance Hub  
 **Objetivo:** Implementar completamente el módulo de Listas PEP con integración a prevenciondelavado.com
+
+---
+
+## 🏗️ Arquitectura del Sistema — Decisiones de Diseño (Junio 1, 2026)
+
+### Modelo de 3 Capas
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CAPA 1 — Pool PLD (pep_paquetes_pld)                       │
+│  Atinet compra paquetes a prevenciondelavado.com            │
+│  Ej: Plan 50 → total_busquedas=50, periodo_inicio/fin       │
+│  reserva_atinet (implícita) = total - busquedas_asignadas   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ Atinet asigna cuotas
+         ┌────────────┴────────────┐
+         ▼                         ▼
+┌─────────────────┐    ┌───────────────────────────┐
+│  Super-admin    │    │  pep_cuotas_notaria        │
+│  (ATINET MASTER │    │  Notaría A → 50 tokens     │
+│   notaría fija) │    │  Notaría B → 30 tokens     │
+│  sin límite de  │    │  (cuota TOTAL, no mensual) │
+│  cuota propia   │    └──────────────┬─────────────┘
+└────────┬────────┘                   │
+         │                            │ Cada búsqueda consume 1 token
+         ▼                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  CAPA 2 — BD Interna (listas_pep_personas)                  │
+│  Un registro por codigo_individuo (deduplicado)             │
+│  Alimentada por búsquedas online + scraper diario           │
+│  Permite búsquedas OFFLINE sin consumir tokens              │
+│  listas_pep_resultados = log de auditoría por búsqueda      │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ Solo si hay tokens Y no está en BD interna
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  CAPA 3 — API PLD (prevenciondelavado.com)                  │
+│  Consume 1 token del pool                                   │
+│  Resultados se guardan en listas_pep_personas (upsert)      │
+│  + listas_pep_resultados (log)  + service_usage (billing)   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Flujo Completo de una Búsqueda
+
+```
+Usuario busca "López Obrador"
+        │
+        ▼
+¿Es SuperAdmin?
+  ├─ SÍ → usa notaría ATINET MASTER; verifica pool total
+  │        disponible = total_busquedas - busquedas_asignadas_a_notarias
+  └─ NO → verifica pep_cuotas_notaria de su notaría
+                (busquedas_asignadas - busquedas_consumidas)
+        │
+        ▼
+¿Hay tokens disponibles?
+  │
+  ├─ SÍ ──────────────────────────────────────────────────────┐
+  │                                                            │
+  │  ┌─ Llamar API prevenciondelavado.com ──────────────────┐ │
+  │  │  → Guardar cada resultado en listas_pep_resultados   │ │
+  │  │  → UPSERT en listas_pep_personas por codigo_individuo│ │
+  │  │  → Decrementar pep_cuotas_notaria.busquedas_consumidas│ │
+  │  │  → Registrar en service_usage (para facturación)     │ │
+  │  │  → listas_pep_busquedas.estado = 'PROCESADA'         │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │                                                            │
+  └─ NO ───────────────────────────────────────────────────────┤
+                                                               │
+     ┌─ Buscar en listas_pep_personas ──────────────────────┐  │
+     │  WHERE denominacion LIKE '%término%'                  │  │
+     │  listas_pep_busquedas.estado = 'BD_INTERNA'          │  │
+     │  Nota: resultados pueden estar desactualizados        │  │
+     └──────────────────────────────────────────────────────┘  │
+                                                               │
+        ▼──────────────────────────────────────────────────────┘
+Guardar listas_pep_busquedas (log de la consulta)
+```
+
+### Tarea Programada — Scraper de Verificación
+
+```
+Cron diario (horario configurable)
+│
+├─ Leer listas_pep_personas donde:
+│    ultima_verificacion_scraper < NOW() - intervalo_dias
+│    OR ultima_verificacion_scraper IS NULL
+│
+├─ Para cada persona:
+│    1. Hacer HTTP GET a listas_pep_personas.enlace
+│       (URL de prevenciondelavado.com de ese individuo)
+│    2. Hacer scraping de los campos visibles
+│    3. Calcular nuevo hash_registro (SHA256 del contenido)
+│    4. Comparar con hash_registro almacenado
+│
+│    ├─ Sin cambios → actualizar ultima_verificacion_scraper
+│    └─ Con cambios → actualizar todos los campos modificados
+│                     + nueva fila en listas_pep_resultados
+│                       (tipo fuente: 'SCRAPER')
+│                     + notificar a soporte@atinet.mx si
+│                       ACTIVO → INACTIVO o viceversa
+│
+└─ Enviar resumen de ejecución por correo
+```
+
+### Reglas de Negocio Importantes
+
+| Regla | Detalle |
+|-------|---------|
+| **Sin tokens → solo BD interna** | No se puede llamar a la API PLD si `disponibles = 0` |
+| **Super-admin usa reserva Atinet** | `reserva = total_busquedas - busquedas_asignadas`. Sin límite de cuota propia |
+| **Cuota es TOTAL, no mensual** | A diferencia de BLACKLIST_SAT/OFAC (que se renuevan mensual), la cuota PEP es por paquete contratado |
+| **ATINET MASTER notaría** | Los super-admins tienen asignada esta notaría para búsquedas internas; mantiene consistencia con Control Notarial |
+| **Deduplicación por codigo_individuo** | `listas_pep_personas` = 1 fila por persona (UPSERT). `listas_pep_resultados` = log de resultados por búsqueda (puede repetir) |
+| **Fuentes del scraper** | prevenciondelavado.com expone sus fuentes en cada perfil → el scraper extrae de esas fuentes (ONU, OFAC, etc.) directamente |
+
+### Comparación con Listas Negras (SAT / OFAC)
+
+| Aspecto | SAT / OFAC | PEP (Lista PEP) |
+|---------|-----------|-----------------|
+| Fuente | Descarga CSV completo (diario) | API por consulta individual |
+| BD local | Tabla completa reemplazada diariamente | Acumulativa (crece con cada búsqueda) |
+| Búsqueda | 100% local, sin costo | Online (1 token) o BD interna (gratis) |
+| Actualización | Cron reemplaza toda la tabla | Cron verifica/actualiza registros existentes vía scraping |
+| Tokens | Sin concepto de tokens | Pool Atinet → cuotas por notaría |
+| Facturación | Incluido en plan | `service_usage` registra cada consumo |
+
+---
 
 ## 📈 Estado General del Proyecto
 
@@ -12,20 +141,163 @@
 | **FASE 1** | Mejorar Vista React | ✅ Completada | 100% |
 | **FASE 2** | Migraciones BD (busquedas + resultados + certificados) | ✅ Completada | 100% |
 | **FASE 3** | Servicio API Externa (PrevencionDeLavado.com) | 🔒 Bloqueada | 0% |
-| **FASE 4** | Controller y Rutas | 🔄 Parcial | 60% |
-| **FASE 5** | Integración React ↔ Laravel | 🔄 Parcial | 50% |
-| **FASE 6** | Historial y Certificados PDF | 🔄 Parcial | 75% |
-| **FASE 7** | Testing | ⏳ Pendiente | 0% |
-| **FASE 8** | Deploy y Producción | ⏳ Pendiente | 0% |
+| **FASE 4** | Controller — Certificados + Listados PDF Atinet | ✅ Completada | 100% |
+| **FASE 5** | Rutas activas (certificados + listados) | ✅ Completada | 100% |
+| **FASE 6** | Historial de búsquedas (React + Controller) | ✅ Completada | 100% |
+| **FASE 7** | Sistema de Cuotas PEP (`PepQuotaService` + wire) | ✅ Completada | 100% |
+| **FASE 8** | BD Interna (listas_pep_personas + scraper) | 🔄 En progreso | 50% |
+| **FASE 9** | Testing integral | ✅ Completada | 100% |
+| **FASE 10** | Deploy y Producción | ⏳ Pendiente | 0% |
 
-**Progreso Total:** ~48% (2 fases completas + 3 parciales)
+**Progreso Total:** ~80%
 
 > **⚠️ BLOQUEO ACTIVO — FASE 3:** La integración real con PrevencionDeLavado.com está en pausa.
-> Solo quedan **23 de 600 búsquedas** disponibles en el plan contratado. No se usarán hasta renovar
-> el plan o recibir instrucciones. Las Fases 4 y 5 dependen de FASE 3 para la ruta `buscar`.
+> Solo quedan ~20 de 50 búsquedas disponibles (Plan 50 activo). No se usarán hasta renovar.
+> `buscar()` y `PrevencionDeLavadoService` esperan renovación de cuota.
 >
-> **✅ DESBLOQUEADO sin API:** Certificados PDF (rutas activas), descarga de listados estáticos,
-> historial de búsquedas (esqueleto con datos vacíos), persistencia en BD de certificados.
+> **✅ COMPLETADO HOY (Junio 1, 2026 — tarde):**
+> - `History.tsx`: interfaces corregidas (`total_aciertos`→`total_resultados`, `consumo_id` eliminado, `codigo_certificado` + `fecha_consulta` + `estado_busqueda`) ✅
+> - `History.tsx`: AJAX eliminado → `router.get()` con `preserveState` (Inertia nativo) ✅
+> - `History.tsx`: dropdown de notaría para super-admins (`is_super_admin` + `notarias` props) ✅
+> - `History.tsx`: bug Radix `value=""` → sentinel `"all"` corregido ✅
+> - `historialPage()`: `notaria_id` filter super-admin, pasa `notarias` + `is_super_admin` ✅
+> - `ListaPepBusquedaFactory` creada + `HasFactory` en model ✅
+> - `HistorialPageTest.php`: 10 tests pasando (acceso, filtros, scoping por notaría, seguridad) ✅
+> - `PlanServicesSeeder`: `LIST_PEP` agregado a los 3 planes ✅
+> - `PepQuotaService` creado (`verificarDisponibilidad`, `consumir`, `getPaqueteInfo`) ✅
+> - `historialPage()`: prop `paquete` dinámica vía `PepQuotaService::getPaqueteInfo()` ✅
+> - `History.tsx`: fallback hardcoded `600 búsquedas` eliminado; estado null manejado ✅
+> - `PepQuotaServiceTest.php`: 11 tests pasando (28 total ListasPEP) ✅
+> - `CertificadosTest.php`: 13 tests pasando (PDFs + validaciones + auth) ✅
+> - `SearchPageTest.php`: 4 tests pasando (acceso, auth, ruta buscar bloqueada) ✅
+> - Controller: validación `resultados` corregida (`required` → `present` para arrays vacíos) ✅
+> - **Suite completa: 45/45 ListasPEP tests verdes** ✅
+>
+> **⏭️ SIGUIENTE:** Fase 8 — BD Interna (`pep:verificar-personas` Artisan command) — bloqueada hasta tener búsquedas reales.
+
+---
+
+## 🗂️ Detalle de Fases — Sistema de Cuotas y BD Interna
+
+### FASE 7 — Sistema de Cuotas PEP (✅ Completada)
+
+**Objetivo:** Gestionar tokens de prevenciondelavado.com a dos niveles: Atinet ↔ PLD y Atinet ↔ Notarías.
+
+#### Tablas involucradas
+
+**`pep_paquetes_pld`** ✅ Migración ejecutada
+```
+id | nombre_plan | total_busquedas | busquedas_demo | busquedas_asignadas
+   | periodo_inicio | periodo_fin | activo | notas | timestamps
+```
+- `busquedas_asignadas` = suma de lo distribuido a notarías
+- `reserva_atinet` (implícita) = `total_busquedas - busquedas_asignadas`
+
+**`pep_cuotas_notaria`** ✅ Migración ejecutada
+```
+id | notaria_id (FK) | paquete_id (FK) | busquedas_asignadas
+   | busquedas_consumidas | activo | fecha_asignacion
+   | fecha_vencimiento | notas | timestamps
+```
+
+**`service_usage`** (existente) — Registra cada búsqueda para facturación
+- `service_id` → servicio `LIST_PEP`
+- `notaria_id` → notaría que hizo la búsqueda
+- `metadata` → puede incluir `busqueda_id`, `paquete_id`
+
+#### Tareas Fase 7
+
+- [x] Actualizar `ServicesSeeder`: `LIST_PEP` → `is_active: true`, `implementation_status: 'implemented'`, `metadata.api_source: 'prevenciondelavado.com'`
+- [x] Actualizar `PlanServicesSeeder`: `LIST_PEP` agregado a los 3 planes con `usage_limit` apropiado
+- [x] Crear `PepPaquetePld` model con relaciones y `reservaAtinet()`
+- [x] Crear `PepCuotaNotaria` model con `disponibles()`, `consumir()`, scope `activa`
+- [x] Crear `PepQuotaService` — servicio que centraliza la lógica de verificación/deducción de tokens
+- [x] Wire `getPaqueteInfo()` a `historialPage()` — prop `paquete` dinámica
+- [x] `History.tsx`: fallback hardcoded eliminado, estado `null` manejado con mensaje
+- [x] `PepQuotaServiceTest.php`: 11 tests pasando
+
+---
+
+### FASE 8 — BD Interna PEP (⏳ Pendiente)
+
+**Objetivo:** Construir una BD propia de personas PEP acumulada de búsquedas, que permita búsquedas offline y sea mantenida por un scraper.
+
+#### Tabla nueva: `listas_pep_personas`
+
+Un registro por `codigo_individuo` (deduplicado). Se hace UPSERT desde:
+1. Resultados de búsquedas online (API PLD)
+2. Actualizaciones del scraper diario
+
+```
+id | codigo_individuo (UNIQUE) | denominacion | identificacion | id_tributaria
+   | otra_identificacion | relaciones | fecha_nacimiento | tipo | sub_tipo
+   | estado | cargo | finalizacion_cargo | lugar_trabajo | direccion
+   | lista | pais_lista | supuesto | situacion
+   | enlace          ← URL en prevenciondelavado.com (para scraping)
+   | hash_registro   ← SHA256 del contenido, detecta cambios
+   | primera_busqueda_id (FK listas_pep_busquedas) ← cuándo se encontró primero
+   | ultima_busqueda_id (FK listas_pep_busquedas)  ← búsqueda más reciente
+   | ultima_verificacion_online    ← última vez que la API PLD lo confirmó
+   | ultima_verificacion_scraper   ← última vez que el scraper verificó el enlace
+   | timestamps
+```
+
+#### Tabla modificada: `listas_pep_busquedas`
+
+Agregar valor `'BD_INTERNA'` al ENUM `estado_busqueda`:
+- `PENDIENTE` — búsqueda iniciada, esperando respuesta API
+- `PROCESADA` — respuesta de API PLD recibida y guardada
+- `BD_INTERNA` — **nuevo** → servida desde `listas_pep_personas` sin consumir token
+- `APROBADA` — revisada y aprobada por el notario
+- `RECHAZADA` — revisada y rechazada
+
+#### Scraper — Comando Artisan
+
+`php artisan pep:verificar-personas`
+- Lee `listas_pep_personas` donde `ultima_verificacion_scraper` es vieja o nula
+- Hace HTTP GET al `enlace` de cada persona
+- Extrae campos del HTML (prevenciondelavado.com expone las fuentes: ONU, OFAC, etc.)
+- Compara `hash_registro` nuevo vs almacenado
+- Si cambió → actualiza `listas_pep_personas` + inserta fila en `listas_pep_resultados`
+- Envía resumen a soporte@atinet.mx
+
+Configurar en `routes/console.php`:
+```php
+Schedule::command('pep:verificar-personas')->dailyAt('02:00');
+```
+
+#### Tareas pendientes Fase 8
+
+- [x] Migración `create_listas_pep_personas_table`
+- [x] Migración `add_bd_interna_to_listas_pep_busquedas_estado_enum`
+- [x] Model `ListaPepPersona` con scopes `buscar`, `pendientesVerificacion`, `upsertDesdeApi()`
+- [ ] Artisan command `pep:verificar-personas` ← **bloqueado hasta tener búsquedas reales en BD**
+- [ ] Registrar schedule en `routes/console.php`
+- [ ] Conectar offline search en controller (`buscarEnBdInterna()`)
+
+---
+
+### FASE 6 — Historial de Búsquedas (✅ Completada — 100%)
+
+**Completado:**
+- ✅ `ListaPepBusqueda` model con scopes (`deNotaria`, `ultimosDias`, `buscar`) + `HasFactory`
+- ✅ `ListaPepBusquedaFactory` con todos los campos requeridos
+- ✅ `historialPage()` en `ListasPEPController`: paginación, filtros `q`/`dias`/`notaria_id`
+- ✅ Ruta `GET /admin/listas-pep/historial` activa
+- ✅ `History.tsx`: interfaces corregidas — `total_resultados`, `codigo_certificado`, `fecha_consulta`, `estado_busqueda`
+- ✅ `History.tsx`: AJAX `cargarHistorial()` → `aplicarFiltros()` vía `router.get()` con `preserveState`
+- ✅ `History.tsx`: filtros iniciales desde prop `filters` de Inertia
+- ✅ `History.tsx`: paginación y refresh usan Inertia (`aplicarFiltros`, `router.reload()`)
+- ✅ `History.tsx`: dropdown de notaría para super-admin (visible solo con `is_super_admin`)
+- ✅ `History.tsx`: bug Radix `value=""` corregido → sentinel `"all"`
+- ✅ Controller pasa `notarias`, `is_super_admin` y `notaria_id` en `filters`
+- ✅ Usuario normal no puede ver otra notaría aunque pase `?notaria_id=X`
+- ✅ `HistorialPageTest.php`: 10 tests pasando
+
+**Completado en Fase 7+9:**
+- [x] Prop `paquete` dinámica desde controller vía `PepQuotaService::getPaqueteInfo()` ✅
+
+---
 
 ### 📚 Documentación Generada
 - ✅ [PLAN_IMPLEMENTACION_LISTAS_PEP.md](./PLAN_IMPLEMENTACION_LISTAS_PEP.md) - Plan maestro completo
@@ -43,32 +315,63 @@
 | `2026_05_xx_create_listas_pep_busquedas_table` | 2 | ✅ Ejecutada |
 | `2026_05_xx_create_listas_pep_resultados_table` | 2 | ✅ Ejecutada |
 | `2026_05_28_173320_create_listas_pep_certificados_table` | 4 | ✅ Ejecutada |
+| `2026_06_01_093944_create_pep_paquetes_pld_table` | 5 | ✅ Ejecutada |
+| `2026_06_01_093945_create_pep_cuotas_notaria_table` | 5 | ✅ Ejecutada |
+| `2026_06_01_115311_create_listas_pep_personas_table` | 6 | ✅ Ejecutada |
+| `2026_06_01_115313_add_bd_interna_to_listas_pep_busquedas_estado_enum` | 6 | ✅ Ejecutada |
 
 ### 🖥️ Backend
 | Archivo | Estado | Notas |
 |---------|--------|-------|
-| `app/Http/Controllers/Admin/ListasPEPController.php` | 🔄 Parcial | `certificadoSinCoincidencias()` + `certificadoConCoincidencia()` ✅. Faltan: `buscar()`, `historial()`, `descargarListado()` |
-| `app/Services/PrevencionDeLavadoService.php` | ❌ No creado | Requiere credenciales / quota disponible |
+| `app/Http/Controllers/Admin/ListasPEPController.php` | ✅ Avanzado | `historialPage()` ✅ (filtros q/dias/notaria_id, scoping super-admin) `certificadoSinCoincidencias()` ✅ `certificadoConCoincidencia()` ✅ `descargarListado()` ✅. Pendiente: `buscar()` (bloqueado) |
+| `app/Models/ListaPepBusqueda.php` | ✅ Completo | Scopes `deNotaria`, `ultimosDias`, `buscar` + `HasFactory` |
+| `app/Models/PepPaquetePld.php` | ✅ Completo | `reservaAtinet()`, scope `activo`, `paqueteActivo()` |
+| `app/Models/PepCuotaNotaria.php` | ✅ Completo | `disponibles()`, `consumir()`, scope `activa`, `deNotaria()` |
+| `app/Models/ListaPepPersona.php` | ✅ Completo | Scopes `buscar`, `pendientesVerificacion`, `upsertDesdeApi()` |
+| `database/factories/ListaPepBusquedaFactory.php` | ✅ Creado | Todos los campos fillable con fake data |
+| `app/Services/PrevencionDeLavadoService.php` | ❌ No creado | Requiere renovar quota API |
+| `app/Services/PepQuotaService.php` | ✅ Completo | `verificarDisponibilidad()`, `consumir()`, `getPaqueteInfo()` |
 
 ### 🛣️ Rutas (`routes/web.php`)
 | Ruta | Método | Estado |
-|------|--------|--------|
+|------|--------| ------|
 | `POST /admin/listas-pep/certificado/sin-coincidencias` | Controller | ✅ Activa |
 | `POST /admin/listas-pep/certificado/con-coincidencia` | Controller | ✅ Activa |
+| `GET /admin/listas-pep/listados/{refipre\|ocde\|gafi}` | Controller | ✅ Activa (DomPDF Atinet) |
+| `GET /admin/listas-pep/historial` | Controller | ✅ Activa (Inertia + paginación + filtros) |
 | `POST /admin/listas-pep/buscar` | Controller | 🔒 Comentada (espera API) |
-| `GET /admin/listas-pep/historial/data` | Controller | 🔒 Comentada |
-| `GET /admin/listas-pep/listados/{tipo}` | Controller | 🔒 Comentada |
 
 ### 🎨 Frontend React
 | Archivo | Estado | Notas |
 |---------|--------|-------|
 | `resources/js/pages/Admin/ListasPEP/Search.tsx` | 🔄 Parcial | `generarCertificadoSinCoincidencias()` + `generarCertificadoConCoincidencias()` ✅. `handleBuscar()` conectado a endpoint aún comentado |
+| `resources/js/pages/Admin/ListasPEP/History.tsx` | ✅ Completo | Filtros `q`/`dias`/`notaria_id`, Inertia nativo, scoping super-admin, bug Radix corregido |
+
+### 🧪 Tests
+| Archivo | Estado | Tests |
+|---------|--------|-------|
+| `tests/Feature/ListasPEP/QuotaTest.php` | ✅ Pasando | 7 tests (PepPaquetePld + PepCuotaNotaria) |
+| `tests/Feature/ListasPEP/HistorialPageTest.php` | ✅ Pasando | 10 tests (acceso, auth, filtros, scoping notaría, seguridad) |
+| `tests/Feature/ListasPEP/PepQuotaServiceTest.php` | ✅ Pasando | 11 tests (getPaqueteInfo, verificarDisponibilidad, consumir) |
+| `tests/Feature/ListasPEP/CertificadosTest.php` | ✅ Pasando | 13 tests (listados PDF, certificados PDF, auth, validación) |
+| `tests/Feature/ListasPEP/SearchPageTest.php` | ✅ Pasando | 4 tests (acceso super-admin/notaría, auth, ruta buscar bloqueada) |
+| `database/factories/ListaPepBusquedaFactory.php` | ✅ Creado | Fake data para todos los campos fillable |
 
 ### 📄 Plantillas PDF (Blade)
 | Archivo | Estado |
 |---------|--------|
 | `resources/views/pdf/listas-pep/certificado-sin-coincidencias.blade.php` | ✅ Completa |
 | `resources/views/pdf/listas-pep/certificado-con-coincidencia.blade.php` | ✅ Completa |
+| `resources/views/pdf/listas-pep/listado-refipre.blade.php` | ✅ Completa (92 territorios, 2 cols, DOF 01/04/2024) |
+| `resources/views/pdf/listas-pep/listado-ocde.blade.php` | ✅ Completa (173 miembros Foro Global + 38 paraísos no coop.) |
+| `resources/views/pdf/listas-pep/listado-gafi.blade.php` | ✅ Completa (3 subsecciones, 25 jurisdicciones, Feb 2026) |
+
+### 📦 Archivos Estáticos (fallback)
+| Archivo | Estado |
+|---------|--------|
+| `storage/app/listas-pep/REFIPRE.pdf` | ✅ Fallback (165 KB, no se usa — Blade activo) |
+| `storage/app/listas-pep/OCDE.pdf` | ✅ Fallback (339 KB, no se usa — Blade activo) |
+| `storage/app/listas-pep/GAFI.pdf` | ✅ Fallback (235 KB, no se usa — Blade activo) |
 
 ---
 
@@ -680,17 +983,15 @@ class PrevencionDeLavadoService
 ### **FASE 4: Backend - Controlador** 🎮
 
 **Prioridad:** ALTA  
-**Estado:** 🔄 **PARCIAL** (60%) — Certificados completos, `buscar()` e `historial()` pendientes.  
-**Tiempo estimado:** 2 horas (restante)
+**Estado:** ✅ **COMPLETA** (Junio 1, 2026) — Certificados + listados con DomPDF Atinet.
 
 #### Tareas:
 1. ✅ Crear `app/Http/Controllers/Admin/ListasPEPController.php`
 2. ✅ Método `certificadoSinCoincidencias()` — genera y descarga PDF "Sin Coincidencias"
 3. ✅ Método `certificadoConCoincidencia()` — genera y descarga PDF "Con Coincidencia"
-4. ❌ Método `buscar()` — requiere `PrevencionDeLavadoService` (FASE 3)
-5. ❌ Método `historial()` — lista paginada de `listas_pep_busquedas`
-6. ❌ Método `descargarListado($tipo)` — descarga REFIPRE / OCDE / GAFI (archivos estáticos)
-7. ❌ Persistir certificados en tabla `listas_pep_certificados` tras generarlos
+4. 🔒 Método `buscar()` — bloqueado por FASE 3 (quota API)
+5. ⏳ Método `historial()` — **SIGUIENTE** (FASE 6)
+6. ✅ Método `descargarListado($tipo)` — DomPDF Atinet para REFIPRE/OCDE/GAFI (con fallback estático)
 
 **Código:**
 ```php
@@ -799,16 +1100,15 @@ class ListasPEPController extends Controller
 ### **FASE 5: Rutas y Middleware** 🛣️
 
 **Prioridad:** ALTA  
-**Estado:** 🔄 **PARCIAL** (50%) — Rutas de certificados activas, resto comentado.  
-**Tiempo estimado:** 30 minutos (restante)
+**Estado:** ✅ **COMPLETA** (Junio 1, 2026) — Rutas de certificados y listados activas.
 
 #### Tareas:
 1. ✅ Rutas de certificados activas:
    - `POST /admin/listas-pep/certificado/sin-coincidencias`
    - `POST /admin/listas-pep/certificado/con-coincidencia`
-2. ❌ Descomentar `buscar` (requiere FASE 3)
-3. ❌ Descomentar `historial/data`
-4. ❌ Descomentar `listados/{tipo}`
+2. ✅ `GET /admin/listas-pep/listados/{refipre|ocde|gafi}` — activa con DomPDF
+3. 🔒 Descomentar `buscar` (requiere FASE 3 — quota API)
+4. ⏳ Activar `historial/data` — **SIGUIENTE** (FASE 6)
 
 **Código:**
 ```php
@@ -824,119 +1124,114 @@ Route::prefix('listas-pep')->name('listas-pep.')->middleware(['auth', 'verified'
 
 ---
 
-### **FASE 6: Testing y Ajustes** 🧪
+### ~~FASE 6: Historial de Búsquedas~~ ✅
+
+**Prioridad:** ALTA  
+**Estado:** ✅ **COMPLETADA** (Junio 1, 2026) — Ver detalle completo en sección "FASE 6 — Historial de Búsquedas" arriba.
+
+---
+
+### **FASE 9 (renombrada): Testing** 🧪
 
 **Prioridad:** MEDIA  
-**Tiempo estimado:** 2 horas
+**Estado:** ✅ **COMPLETADA** — 45 tests pasando en ListasPEP
 
-#### Tareas:
-1. ✅ Probar búsqueda con credenciales reales
-2. ✅ Verificar mapeo de datos API → React
-3. ✅ Probar generación de certificados
-4. ✅ Probar historial con filtros
-5. ✅ Ajustar estilos visuales
-6. ✅ Probar en diferentes notarías
-7. ✅ Verificar contador de paquete
+#### Completado:
+- ✅ `QuotaTest.php`: 7 tests (PepPaquetePld + PepCuotaNotaria)
+- ✅ `HistorialPageTest.php`: 10 tests (acceso, filtros, scoping notaría, seguridad)
+- ✅ `PepQuotaServiceTest.php`: 11 tests (getPaqueteInfo, verificarDisponibilidad, consumir)
+- ✅ `CertificadosTest.php`: 13 tests (listados PDF ×3, auth ×2, sin-coincidencias ×4, con-coincidencia ×4)
+- ✅ `SearchPageTest.php`: 4 tests (acceso super-admin, acceso notaría, auth, ruta buscar bloqueada=404)
+- ✅ Corrección controller: `'resultados' => ['present', 'array']` (arrays vacíos válidos)
 
----
-
-### **FASE 7: Generación de PDFs** 📄
-
-**Prioridad:** BAJA (Opcional)  
-**Tiempo estimado:** 3-4 horas
-
-#### Tareas:
-1. ⏳ Instalar `barryvdh/laravel-dompdf` o similar
-2. ⏳ Crear plantillas Blade para certificados
-3. ⏳ Implementar `certificadoConCoincidencias()`
-4. ⏳ Implementar `certificadoSinCoincidencias()`
-5. ⏳ Agregar logo de ATINET y marca de agua
-6. ⏳ Incluir código QR de verificación
+#### Pendiente (bloqueado por Fase 3):
+- ⏳ Test Feature: ruta `buscar` funciona correctamente (cuando API se reactive)
 
 ---
 
-### **FASE 8: Listados Complementarios** 📥
+### ~~FASE 7 (completada, renombrada): Generación de PDFs~~ ✅
 
-**Prioridad:** BAJA (Opcional)  
-**Tiempo estimado:** 1 hora
-
-#### Tareas:
-1. ⏳ Subir PDFs de REFIPRE, OCDE, GAFI a `storage/app/public/listados/`
-2. ⏳ Implementar `descargarListado(string $tipo)`
-3. ⏳ Agregar control de acceso
+**Completada:** Junio 1, 2026
+- ✅ `barryvdh/laravel-dompdf` v3.1.1 instalado
+- ✅ Plantillas Blade con marca Atinet: certificado-sin-coincidencias, certificado-con-coincidencia
+- ✅ Listados Atinet: listado-refipre (92 territorios), listado-ocde (173+38), listado-gafi (25 jurisdicciones)
+- ✅ `descargarListado()` con DomPDF + fallback a archivos estáticos
 
 ---
 
 ## 📊 Resumen de Prioridades
 
-| Fase | Descripción | Prioridad | Estado |
-|------|-------------|-----------|--------|
-| 1 | Mejorar Vista React | 🔴 ALTA | ⏳ Pendiente |
-| 2 | Migración y Modelo | 🔴 ALTA | ⏳ Pendiente |
-| 3 | Servicio API Externa | 🔴 ALTA | ⏳ Pendiente |
-| 4 | Controlador | 🔴 ALTA | ⏳ Pendiente |
-| 5 | Rutas y Middleware | 🔴 ALTA | ⏳ Pendiente |
-| 6 | Testing y Ajustes | 🟡 MEDIA | ⏳ Pendiente |
-| 7 | Generación de PDFs | 🟢 BAJA | ⏳ Pendiente |
-| 8 | Listados Complementarios | 🟢 BAJA | ⏳ Pendiente |
+> ⚠️ **Tabla del plan original — desactualizada.** Ver tabla actual en **"📈 Estado General del Proyecto"** al inicio del documento.
+
+| Fase | Descripción | Estado actual |
+|------|-------------|---------------|
+| 1 | Mejorar Vista React | ✅ Completada |
+| 2 | Migración y Modelo | ✅ Completada |
+| 3 | Servicio API Externa | 🔒 Bloqueada (quota) |
+| 4 | Controlador (PDFs + Historial) | ✅ Completada |
+| 5 | Rutas y Middleware | ✅ Completada |
+| 6 | Historial de Búsquedas | ✅ Completada |
+| 7 | Sistema de Cuotas PEP | ✅ Completada |
+| 8 | BD Interna (listas_pep_personas) | 🔄 En progreso (50%) |
+| 9 | Testing integral | ✅ Completada |
+| 10 | Deploy y Producción | ⏳ Pendiente |
 
 ---
 
-## 🚀 Orden de Ejecución Recomendado
+## 🚀 Orden de Ejecución (actualizado Junio 1, 2026)
 
-1. **Primero:** FASE 1 (Mejorar React) → Tener la UI completa
-2. **Segundo:** FASE 2 + 3 + 4 (Backend completo) → En un solo flujo
-3. **Tercero:** FASE 5 (Rutas) → Conectar todo
-4. **Cuarto:** FASE 6 (Testing) → Verificar funcionamiento
-5. **Opcional:** FASE 7 y 8 → Si el cliente lo requiere
+1. ✅ ~~FASE 1 — Mejorar Vista React~~
+2. ✅ ~~FASE 2 — Migraciones BD~~
+3. 🔒 FASE 3 — API Externa (bloqueada — renovar quota PLD)
+4. ✅ ~~FASE 4 — Controller (PDFs + Historial)~~
+5. ✅ ~~FASE 5 — Rutas~~
+6. ✅ ~~FASE 6 — Historial + Tests~~
+7. ✅ ~~FASE 7 — Cuotas PEP (PepQuotaService + PlanServicesSeeder + wire prop)~~
+8. 🔄 FASE 8 — BD Interna (parcial — bloqueada hasta tener búsquedas reales)
+9. ✅ ~~FASE 9 — Testing integral (45 tests pasando)~~
+10. ⏳ FASE 10 — Deploy y Producción
 
 ---
 
-## ✅ Checklist de Implementación
+## ✅ Checklist de Implementación (actualizado Junio 1, 2026)
 
-### Vista React (FASE 1)
-- [ ] Agregar checkboxes de opciones
-- [ ] Actualizar tipos TypeScript
-- [ ] Crear función de mapeo API
-- [ ] Crear componente de detalle
-- [ ] Mostrar código de certificado
-- [ ] Formatear fechas correctamente
-- [ ] Probar con datos de ejemplo
+### Vista React
+- ✅ `Search.tsx`: checkboxes de opciones, tipos TS, certificados PDF
+- ✅ `History.tsx`: Inertia nativo, filtros `q`/`dias`/`notaria_id`, scoping super-admin
+- ⏳ `Search.tsx`: conectar `handleBuscar()` al endpoint (espera FASE 3)
+- ⏳ `Search.tsx`: prop `paquete` dinámica (espera Fase 7)
 
-### Backend (FASES 2-5)
-- [ ] Migración ejecutada
-- [ ] Modelo creado con relaciones
-- [ ] Servicio de API externa funcional
-- [ ] Caché de token implementado
-- [ ] Controlador con todos los métodos
-- [ ] Rutas descomentadas y protegidas
-- [ ] Validación de requests
-- [ ] Logging de errores
+### Backend
+- ✅ Migraciones: 7 tablas ejecutadas (busquedas, resultados, certificados, paquetes_pld, cuotas_notaria, personas, ENUM update)
+- ✅ Modelos: `ListaPepBusqueda`, `PepPaquetePld`, `PepCuotaNotaria`, `ListaPepPersona`
+- ✅ Controller: `historialPage()`, `certificadoSinCoincidencias()`, `certificadoConCoincidencia()`, `descargarListado()`
+- ✅ Rutas activas: certificados, listados PDF, historial
+- ✅ `ServicesSeeder`: `LIST_PEP` activo
+- 🔒 `PrevencionDeLavadoService` (espera renovación quota)
+- ⏳ `PlanServicesSeeder`: agregar `LIST_PEP` a planes con `usage_limit`
+- ⏳ `PepQuotaService`: centralizar verificación/deducción de tokens
 
-### Testing (FASE 6)
-- [ ] Búsqueda exitosa con API real
-- [ ] Datos se guardan en BD correctamente
-- [ ] Historial funcional con filtros
-- [ ] Vista React muestra datos correctos
-- [ ] Contador de paquete actualizado
-- [ ] Manejo de errores funciona
+### Testing
+- ✅ `QuotaTest.php`: 7 tests (PepPaquetePld + PepCuotaNotaria)
+- ✅ `HistorialPageTest.php`: 10 tests (acceso, filtros, scoping, seguridad)
+- ⏳ Tests para PDFs (certificados + listados)
+- ⏳ Tests para `buscar()` (cuando se reactive)
 
 ---
 
 ## 📌 Notas Importantes
 
 1. **Credenciales de API:**  
-   - Usuario: `acostacl`
-   - Clave: `26F1D723`
-   - **IMPORTANTE:** Mover a `.env` antes de producción
+   - ✅ En `.env`: `PREVENCION_LAVADO_USER`, `PREVENCION_LAVADO_PASS`, `PREVENCION_LAVADO_URL`
+   - No exponer en código fuente
 
 2. **Caché de Token:**  
    - Duración: 55 minutos (token dura 1 hora, se renueva 5 min antes)
    - Clave: `pld_token`
 
 3. **Paquete Contratado:**  
-   - Total: 600 búsquedas
-   - TODO: Implementar contador real en base de datos
+   - Plan 50 activo: 50 búsquedas totales (~20 disponibles al 1/Jun/2026)
+   - Contador real en BD: tablas `pep_paquetes_pld` + `pep_cuotas_notaria` ✅ implementadas
 
 4. **Campos Críticos:**  
    - `apellido` es REQUERIDO por la API
@@ -965,5 +1260,5 @@ Al completar todas las fases ALTA:
 
 ---
 
-**Última actualización:** Mayo 27, 2026  
+**Última actualización:** Junio 1, 2026 (tarde)  
 **Autor:** Sistema de Análisis Técnico

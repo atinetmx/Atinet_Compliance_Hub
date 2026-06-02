@@ -28,10 +28,10 @@ class ControlNotarialApiService
 
     public function __construct()
     {
-        $this->internalUrl = rtrim(config('services.control_notarial.internal_url', 'http://192.168.1.1:5000/api'), '/');
-        $this->gwUser = config('services.control_notarial.gw_user', 'LARAVEL_GW');
-        $this->gwPassword = config('services.control_notarial.gw_password', '');
-        $this->tokenCacheTtl = config('services.control_notarial.token_cache_ttl', 3300);
+        $this->internalUrl = rtrim(config('services.control_notarial.internal_url') ?? 'http://192.168.1.1:5000/api', '/');
+        $this->gwUser = config('services.control_notarial.gw_user') ?? 'LARAVEL_GW';
+        $this->gwPassword = config('services.control_notarial.gw_password') ?? '';
+        $this->tokenCacheTtl = config('services.control_notarial.token_cache_ttl') ?? 3300;
     }
 
     /**

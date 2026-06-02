@@ -170,15 +170,27 @@ class ServicesSeeder extends Seeder
             [
                 'code' => 'LIST_PEP',
                 'name' => 'Lista PEP',
-                'description' => 'Consulta de Personas Expuestas Políticamente (ONU)',
+                'description' => 'Consulta de Personas Expuestas Políticamente vía prevenciondelavado.com. Incluye modo offline desde BD interna Atinet.',
                 'category' => ServiceCategory::CONSULTA,
                 'billing_model' => BillingModel::PER_USE,
                 'unit_price' => 10.00,
-                'is_active' => false,
-                'implementation_status' => 'planned',
+                'is_active' => true,
+                'implementation_status' => 'implemented',
                 'metadata' => [
-                    'planned_release' => 'Q3 2026',
-                    'api_source' => 'ONU / API internacional',
+                    'api_source' => 'prevenciondelavado.com',
+                    'api_url' => 'https://prevenciondelavado.com',
+                    'offline_bd' => 'listas_pep_personas',
+                    'quota_model' => 'pep_cuotas_notaria',
+                    'pool_model' => 'pep_paquetes_pld',
+                    'features' => [
+                        'busqueda_online',    // Consume token del pool PLD
+                        'busqueda_offline',   // BD interna Atinet (listas_pep_personas)
+                        'certificado_sin_coincidencias',
+                        'certificado_con_coincidencia',
+                        'listado_refipre',
+                        'listado_ocde',
+                        'listado_gafi',
+                    ],
                 ],
             ],
             [

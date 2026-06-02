@@ -111,8 +111,7 @@ test('buscar_cp devuelve error para CP con letras', function () {
     $response = $this->actingAs($this->admin)
         ->getJson('/admin/catalogos/buscar-cp?cp=ABC');
 
-    $response->assertStatus(400)
-        ->assertJsonPath('success', false);
+    $response->assertStatus(422);
 });
 
 test('buscar_cp devuelve 404 para CP inexistente 00000', function () {

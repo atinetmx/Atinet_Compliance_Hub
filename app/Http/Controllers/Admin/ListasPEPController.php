@@ -3,14 +3,75 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ListaPepBusqueda;
+use App\Models\Notaria;
+use App\Services\PepQuotaService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class ListasPEPController extends Controller
 {
+    /**
+     * Renderiza la página de historial de búsquedas PEP con datos paginados.
+     *
+     * Super-admin ve todas las notarías y puede filtrar por una en particular.
+     * El resto solo ve su propia notaría.
+     */
+    public function historialPage(Request $request): InertiaResponse
+    {
+        $user = Auth::user();
+        $termino = $request->query('q');
+        $dias = $request->query('dias', 30);
+        $notariaId = $request->query('notaria_id');
+
+        $query = ListaPepBusqueda::with([
+            'user:id,name',
+            'notaria:id,nombre,numero_notaria',
+        ])->latest('fecha_consulta');
+
+        if (! $user->isSuperAdmin()) {
+            $query->deNotaria($user->notaria_id);
+        } elseif ($notariaId) {
+            $query->deNotaria((int) $notariaId);
+        }
+
+        if ($termino) {
+            $query->buscar($termino);
+        }
+
+        if (is_numeric($dias) && (int) $dias > 0) {
+            $query->ultimosDias((int) $dias);
+        }
+
+        $busquedas = $query->paginate(20)->withQueryString();
+
+        $notarias = $user->isSuperAdmin()
+            ? Notaria::query()
+                ->select('id', 'nombre', 'numero_notaria')
+                ->orderBy('numero_notaria')
+                ->get()
+            : collect();
+
+        $paquete = app(PepQuotaService::class)->getPaqueteInfo($user);
+
+        return Inertia::render('Admin/ListasPEP/History', [
+            'historial' => $busquedas,
+            'notarias' => $notarias,
+            'is_super_admin' => $user->isSuperAdmin(),
+            'paquete' => $paquete,
+            'filters' => [
+                'q' => $termino,
+                'dias' => $dias,
+                'notaria_id' => $notariaId ? (int) $notariaId : null,
+            ],
+        ]);
+    }
+
     /**
      * Genera y descarga un certificado PDF de tipo SIN_COINCIDENCIAS.
      *
@@ -23,11 +84,11 @@ class ListasPEPController extends Controller
             'apellido_denominacion' => ['required', 'string', 'max:255'],
             'nombres' => ['nullable', 'string', 'max:255'],
             'identificacion' => ['nullable', 'string', 'max:100'],
-            'filtros_activos' => ['nullable', 'array'],
+            'filtros_activos' => ['present', 'array'],
             'filtros_activos.*' => ['string'],
             'total_resultados' => ['required', 'integer', 'min:0'],
             'fecha_consulta' => ['required', 'string'],
-            'resultados' => ['required', 'array'],
+            'resultados' => ['present', 'array'],
             'notaria_nombre' => ['nullable', 'string', 'max:255'],
             'usuario_nombre' => ['nullable', 'string', 'max:255'],
         ]);

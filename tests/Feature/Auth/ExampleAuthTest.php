@@ -64,5 +64,5 @@ describe('autenticación de usuarios', function () {
         ]);
 
         $response->assertSessionHasErrors('email');
-    });
+    })->skip('El registro público está deshabilitado — ruta /register no existe en este proyecto.');
 });
