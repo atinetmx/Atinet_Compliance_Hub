@@ -1,6 +1,7 @@
 # Análisis de Campos para BD Listas PEP
 
 **Fecha:** 28 de Mayo 2026  
+**Actualizado:** Junio 2, 2026  
 **Propósito:** Identificar campos necesarios antes de crear migraciones
 
 ---
@@ -320,3 +321,65 @@ Fecha_Creacion      DATETIME
 **Crear migraciones** con la estructura validada:
 1. `2026_05_28_create_listas_pep_busquedas_table.php`
 2. `2026_05_28_create_listas_pep_resultados_table.php`
+
+---
+
+## 🔭 Campos Adicionales Descubiertos vía Swagger (Junio 2, 2026)
+
+**Fuente:** `GET /swagger/v1/swagger.json` de `mbalistas.prevenciondelavado.com` — descubierto durante auditoría de seguridad.
+
+### Comparación Endpoint `/Listas` (actual) vs `/Listas/ListasApi/Listas` (enriquecido)
+
+Nuestro endpoint actual devuelve `ResultadoPersona`. El endpoint alternativo devuelve `PersonaDto`, que tiene campos adicionales:
+
+| Campo en API (`PersonaDto`) | Columna BD | Tabla | Prioridad | Motivo |
+|---|---|---|---|---|
+| `fechaBaja` | `fecha_baja` | resultados + personas | **ALTA** | Cuándo fue dado de baja de la lista — crítico para compliance (¿sigue activo?) |
+| `listaId` | `lista_id` | resultados + personas | **MEDIA** | ID de la lista (e.g. `"PEP-MEX-GOB"`) — útil para filtros y agrupación |
+| `paisListaId3` | `pais_lista_id3` | resultados + personas | **MEDIA** | Código ISO-3 del país (e.g. `"MEX"`) — banderas en UI, búsquedas estandarizadas |
+| `fuenteDescLarga` | `fuente_desc_larga` | resultados + personas | **MEDIA** | Nombre completo de la fuente — más descriptivo que `lista` |
+| `subTipoDescCorta` | `sub_tipo_desc_corta` | resultados | BAJA | Etiqueta corta del subtipo para badges compactos |
+| `paisCooperante` | `pais_cooperante` | resultados | BAJA | País cooperante — solo aplica a listas GAFI/OCDE |
+
+> **Restricción:** Los campos adicionales solo se obtienen con el endpoint `/Listas/ListasApi/Listas`, que requiere un objeto `UA` (Unidad de Acceso) que debe proveer el vendor. Nuestro endpoint actual (`/Listas`) no devuelve esos campos.
+> La migración creará las columnas ahora para estar preparados cuando tengamos el `UA`.
+
+### Esquema de `Consumo` — Plan contratado en tiempo real
+
+El endpoint `GET /Listas/Consumos` devuelve:
+
+```json
+{
+  "resultados": [{
+    "periodo":              "31/12/2025 - 31/12/2026",
+    "plan":                 "50",
+    "consultasDisponibles": 20,
+    "consultasContratadas": 50,
+    "importante":           "",
+    "tipoPlan":             "Demostración"
+  }]
+}
+```
+
+→ Implementado en `PrevencionDeLavadoService::getConsumos()` y expuesto en `GET /admin/listas-pep/consumos`.
+
+### Campos del objeto `UA` (plan contractual — disponible en `/Listas/ListasApi/Listas`)
+
+```
+cantidadBusquedas         → INT (total del plan)
+cantidadMesesPeriodo      → INT
+porcentajeAvisoExceso     → INT (aviso cuando se supere X%)
+fechaInicio               → string
+fechaExpiracionVenta      → string
+tipoPlan                  → string
+modulos[].id              → módulos contratados (SAT, etc.)
+modulos[].estadoComercial → ACTIVO / INACTIVO / DEMO
+modulos[].esDemo          → bool
+```
+
+→ Útil para un **dashboard de Atinet admin** mostrando qué APIs están contratadas y el tipo de plan. A implementar en FASE 10 (dashboard).
+
+### Migración pendiente
+
+`2026_06_02_add_swagger_fields_to_listas_pep_tables` — agregar `fecha_baja`, `lista_id`, `pais_lista_id3`, `fuente_desc_larga` a `listas_pep_resultados` y `listas_pep_personas`.
+

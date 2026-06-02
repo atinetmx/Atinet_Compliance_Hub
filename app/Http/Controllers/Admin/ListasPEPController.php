@@ -4,18 +4,292 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ListaPepBusqueda;
+use App\Models\ListaPepPersona;
+use App\Models\ListaPepResultado;
 use App\Models\Notaria;
 use App\Services\PepQuotaService;
+use App\Services\PrevencionDeLavadoService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
 class ListasPEPController extends Controller
 {
+    /**
+     * Retorna el consumo actual del plan PLD contratado (GET /Listas/Consumos).
+     * Usado por el frontend para mostrar consultas disponibles en tiempo real.
+     */
+    public function consumos(PrevencionDeLavadoService $pld): JsonResponse
+    {
+        $resultado = $pld->getConsumos();
+
+        if (! $resultado['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $resultado['message'],
+            ], 503);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $resultado['data'],
+        ]);
+    }
+
+    /**
+     * Realiza una búsqueda en listas PEP.
+     *
+     * Flujo:
+     *   1. Verifica cuota disponible (PepQuotaService).
+     *   2. Busca en BD interna (listas_pep_personas) — sin consumir token.
+     *   3. Si no hay resultados en BD interna → llama a API PrevencionDeLavado.com.
+     *   4. Guarda la búsqueda + resultados + UPSERT en listas_pep_personas.
+     *   5. Consume 1 token del pool (solo si se usó la API externa).
+     */
+    public function buscar(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'apellido_denominacion' => ['required', 'string', 'max:255'],
+            'nombres' => ['nullable', 'string', 'max:255'],
+            'identificacion' => ['nullable', 'string', 'max:50'],
+            'pepsOtrosPaises' => ['boolean'],
+            'satXDenominacion' => ['boolean'],
+            'documentosSimilares' => ['boolean'],
+            'forzarApellidos' => ['boolean'],
+            'generarCertificados' => ['boolean'],
+        ]);
+
+        $user = Auth::user();
+
+        // 1. Verificar cuota
+        try {
+            app(PepQuotaService::class)->verificarDisponibilidad($user);
+        } catch (\RuntimeException $e) {
+            // Sin cuota → intentar BD interna de todas formas
+        }
+
+        $termino = trim(($validated['apellido_denominacion'] ?? '').' '.($validated['nombres'] ?? ''));
+
+        // 2. Buscar en BD interna (offline, sin consumir token)
+        $resultadosBdInterna = ListaPepPersona::query()
+            ->buscar($validated['apellido_denominacion'])
+            ->limit(50)
+            ->get();
+
+        if ($resultadosBdInterna->isNotEmpty()) {
+            $busqueda = ListaPepBusqueda::create([
+                'user_id' => $user->id,
+                'notaria_id' => $user->notaria_id,
+                'apellido_denominacion' => $validated['apellido_denominacion'],
+                'nombres' => $validated['nombres'] ?? null,
+                'identificacion' => $validated['identificacion'] ?? null,
+                'opciones' => $this->extraerOpciones($validated),
+                'total_resultados' => $resultadosBdInterna->count(),
+                'fecha_consulta' => now(),
+                'ip_address' => $request->ip(),
+                'estado_busqueda' => 'BD_INTERNA',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'fuente' => 'BD_INTERNA',
+                'busqueda_id' => $busqueda->id,
+                'codigo_certificado' => null,
+                'fecha_consulta' => $busqueda->fecha_consulta->toISOString(),
+                'total_resultados' => $resultadosBdInterna->count(),
+                'resultados' => $resultadosBdInterna->map(fn (ListaPepPersona $p) => $this->personaToResultado($p)),
+            ]);
+        }
+
+        // 3. Verificar cuota antes de llamar a la API externa
+        try {
+            app(PepQuotaService::class)->verificarDisponibilidad($user);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sin cuota de búsquedas PEP disponible. Contacte a su administrador.',
+            ], 402);
+        }
+
+        // 4. Llamar a la API externa
+        $resultado = app(PrevencionDeLavadoService::class)->buscarEnListas($validated);
+
+        if (! $resultado['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $resultado['message'] ?? 'Error al consultar el servicio externo.',
+            ], 503);
+        }
+
+        $data = $resultado['data'];
+        $resultadosApi = $data['resultados'] ?? [];
+
+        // 5. Guardar en BD — envuelto en transacción
+        $busqueda = DB::transaction(function () use ($user, $validated, $data, $resultadosApi, $request): ListaPepBusqueda {
+            $busqueda = ListaPepBusqueda::create([
+                'user_id' => $user->id,
+                'notaria_id' => $user->notaria_id,
+                'apellido_denominacion' => $validated['apellido_denominacion'],
+                'nombres' => $validated['nombres'] ?? null,
+                'identificacion' => $validated['identificacion'] ?? null,
+                'opciones' => $this->extraerOpciones($validated),
+                'total_resultados' => count($resultadosApi),
+                'codigo_certificado' => $data['codigo_certificado'] ?? null,
+                'fecha_consulta' => now(),
+                'ip_address' => $request->ip(),
+                'estado_busqueda' => 'PROCESADA',
+            ]);
+
+            foreach ($resultadosApi as $orden => $item) {
+                $camposResultado = $this->mapearResultadoApi($item, $busqueda->id, $orden + 1);
+
+                // Guardar en listas_pep_resultados (log por búsqueda)
+                ListaPepResultado::create($camposResultado);
+
+                // UPSERT en listas_pep_personas (1 fila por individuo)
+                $camposPersona = $this->mapearPersonaDesdeApi($item);
+                ListaPepPersona::upsertDesdeApi($camposPersona, $busqueda->id);
+            }
+
+            return $busqueda;
+        });
+
+        // 6. Consumir 1 token
+        app(PepQuotaService::class)->consumir($user);
+
+        return response()->json([
+            'success' => true,
+            'fuente' => 'API_PLD',
+            'busqueda_id' => $busqueda->id,
+            'codigo_certificado' => $data['codigo_certificado'] ?? null,
+            'fecha_consulta' => $busqueda->fecha_consulta->toISOString(),
+            'total_resultados' => count($resultadosApi),
+            'resultados' => $resultadosApi,
+        ]);
+    }
+
+    /**
+     * Extrae solo los campos booleanos de opciones del request validado.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, bool>
+     */
+    private function extraerOpciones(array $validated): array
+    {
+        return [
+            'pepsOtrosPaises' => (bool) ($validated['pepsOtrosPaises'] ?? false),
+            'satXDenominacion' => (bool) ($validated['satXDenominacion'] ?? false),
+            'documentosSimilares' => (bool) ($validated['documentosSimilares'] ?? false),
+            'forzarApellidos' => (bool) ($validated['forzarApellidos'] ?? false),
+            'generarCertificados' => (bool) ($validated['generarCertificados'] ?? true),
+        ];
+    }
+
+    /**
+     * Mapea un ítem de la respuesta API a los campos de listas_pep_resultados.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function mapearResultadoApi(array $item, int $busquedaId, int $orden): array
+    {
+        return [
+            'busqueda_id' => $busquedaId,
+            'codigo_individuo' => $item['codigoIndividuo'] ?? $item['codigo_individuo'] ?? 0,
+            'denominacion' => $item['denominacion'] ?? '',
+            'identificacion' => $item['identificacion'] ?? null,
+            'id_tributaria' => $item['idTributaria'] ?? $item['id_tributaria'] ?? null,
+            'otra_identificacion' => $item['otraIdentificacion'] ?? $item['otra_identificacion'] ?? null,
+            'fecha_nacimiento' => $item['fechaNacimiento'] ?? $item['fecha_nacimiento'] ?? null,
+            'tipo' => $item['tipo'] ?? '',
+            'sub_tipo' => $item['subTipo'] ?? $item['sub_tipo'] ?? '',
+            'estado' => $item['estado'] ?? '',
+            'cargo' => $item['cargo'] ?? '',
+            'finalizacion_cargo' => $item['finalizacionCargo'] ?? $item['finalizacion_cargo'] ?? null,
+            'lugar_trabajo' => $item['lugarTrabajo'] ?? $item['lugar_trabajo'] ?? '',
+            'direccion' => $item['direccion'] ?? '',
+            'lista' => $item['lista'] ?? '',
+            'pais_lista' => $item['paisLista'] ?? $item['pais_lista'] ?? '',
+            'supuesto' => $item['supuesto'] ?? null,
+            'situacion' => $item['situacion'] ?? null,
+            'exactitud_denominacion' => $item['exactitudDenominacion'] ?? $item['exactitud_denominacion'] ?? 'N/D',
+            'exactitud_identificacion' => $item['exactitudIdentificacion'] ?? $item['exactitud_identificacion'] ?? 'N/D',
+            'enlace' => $item['enlace'] ?? null,
+            'orden_relevancia' => $orden,
+            'hash_registro' => ListaPepResultado::calcularHash($item),
+            'es_coincidencia_exacta' => false,
+        ];
+    }
+
+    /**
+     * Mapea un ítem de la respuesta API a los campos de listas_pep_personas.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function mapearPersonaDesdeApi(array $item): array
+    {
+        return [
+            'codigo_individuo' => $item['codigoIndividuo'] ?? $item['codigo_individuo'] ?? 0,
+            'denominacion' => $item['denominacion'] ?? '',
+            'identificacion' => $item['identificacion'] ?? null,
+            'id_tributaria' => $item['idTributaria'] ?? $item['id_tributaria'] ?? null,
+            'otra_identificacion' => $item['otraIdentificacion'] ?? $item['otra_identificacion'] ?? null,
+            'fecha_nacimiento' => $item['fechaNacimiento'] ?? $item['fecha_nacimiento'] ?? null,
+            'tipo' => $item['tipo'] ?? '',
+            'sub_tipo' => $item['subTipo'] ?? $item['sub_tipo'] ?? '',
+            'estado' => $item['estado'] ?? '',
+            'cargo' => $item['cargo'] ?? '',
+            'finalizacion_cargo' => $item['finalizacionCargo'] ?? $item['finalizacion_cargo'] ?? null,
+            'lugar_trabajo' => $item['lugarTrabajo'] ?? $item['lugar_trabajo'] ?? '',
+            'direccion' => $item['direccion'] ?? '',
+            'lista' => $item['lista'] ?? '',
+            'pais_lista' => $item['paisLista'] ?? $item['pais_lista'] ?? '',
+            'supuesto' => $item['supuesto'] ?? null,
+            'situacion' => $item['situacion'] ?? null,
+            'enlace' => $item['enlace'] ?? null,
+            'hash_registro' => ListaPepResultado::calcularHash($item),
+        ];
+    }
+
+    /**
+     * Convierte un modelo ListaPepPersona al formato de resultado esperado por el frontend.
+     *
+     * @return array<string, mixed>
+     */
+    private function personaToResultado(ListaPepPersona $persona): array
+    {
+        return [
+            'codigoIndividuo' => $persona->codigo_individuo,
+            'denominacion' => $persona->denominacion,
+            'identificacion' => $persona->identificacion,
+            'idTributaria' => $persona->id_tributaria,
+            'otraIdentificacion' => $persona->otra_identificacion,
+            'fechaNacimiento' => $persona->fecha_nacimiento,
+            'tipo' => $persona->tipo,
+            'subTipo' => $persona->sub_tipo,
+            'estado' => $persona->estado,
+            'cargo' => $persona->cargo,
+            'finalizacionCargo' => $persona->finalizacion_cargo,
+            'lugarTrabajo' => $persona->lugar_trabajo,
+            'direccion' => $persona->direccion,
+            'lista' => $persona->lista,
+            'paisLista' => $persona->pais_lista,
+            'supuesto' => $persona->supuesto,
+            'situacion' => $persona->situacion,
+            'exactitudDenominacion' => 'N/D',
+            'exactitudIdentificacion' => 'N/D',
+            'enlace' => $persona->enlace,
+            'relaciones' => null,
+        ];
+    }
+
     /**
      * Renderiza la página de historial de búsquedas PEP con datos paginados.
      *

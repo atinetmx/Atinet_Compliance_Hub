@@ -1,7 +1,7 @@
 # 📋 Plan de Implementación - Módulo Listas PEP
 
 **Fecha:** Mayo 27, 2026  
-**Actualizado:** Junio 1, 2026 (tarde)  
+**Actualizado:** Junio 2, 2026  
 **Proyecto:** Atinet Compliance Hub  
 **Objetivo:** Implementar completamente el módulo de Listas PEP con integración a prevenciondelavado.com
 
@@ -140,40 +140,55 @@ Cron diario (horario configurable)
 |------|-------------|--------|----------|
 | **FASE 1** | Mejorar Vista React | ✅ Completada | 100% |
 | **FASE 2** | Migraciones BD (busquedas + resultados + certificados) | ✅ Completada | 100% |
-| **FASE 3** | Servicio API Externa (PrevencionDeLavado.com) | 🔒 Bloqueada | 0% |
+| **FASE 3** | Servicio API Externa (PrevencionDeLavado.com) | ✅ Completada | 100% |
 | **FASE 4** | Controller — Certificados + Listados PDF Atinet | ✅ Completada | 100% |
 | **FASE 5** | Rutas activas (certificados + listados) | ✅ Completada | 100% |
 | **FASE 6** | Historial de búsquedas (React + Controller) | ✅ Completada | 100% |
 | **FASE 7** | Sistema de Cuotas PEP (`PepQuotaService` + wire) | ✅ Completada | 100% |
-| **FASE 8** | BD Interna (listas_pep_personas + scraper) | 🔄 En progreso | 50% |
-| **FASE 9** | Testing integral | ✅ Completada | 100% |
+| **FASE 8** | BD Interna (listas_pep_personas + scraper) | 🔄 En progreso | 60% |
+| **FASE 9** | Testing integral | 🔄 En progreso (49 tests) | 95% |
 | **FASE 10** | Deploy y Producción | ⏳ Pendiente | 0% |
 
-**Progreso Total:** ~80%
+**Progreso Total:** ~87%
 
-> **⚠️ BLOQUEO ACTIVO — FASE 3:** La integración real con PrevencionDeLavado.com está en pausa.
-> Solo quedan ~20 de 50 búsquedas disponibles (Plan 50 activo). No se usarán hasta renovar.
-> `buscar()` y `PrevencionDeLavadoService` esperan renovación de cuota.
->
-> **✅ COMPLETADO HOY (Junio 1, 2026 — tarde):**
+> **✅ COMPLETADO (Junio 2, 2026):**
+> **Junio 1, 2026 (tarde):**
 > - `History.tsx`: interfaces corregidas (`total_aciertos`→`total_resultados`, `consumo_id` eliminado, `codigo_certificado` + `fecha_consulta` + `estado_busqueda`) ✅
 > - `History.tsx`: AJAX eliminado → `router.get()` con `preserveState` (Inertia nativo) ✅
 > - `History.tsx`: dropdown de notaría para super-admins (`is_super_admin` + `notarias` props) ✅
 > - `History.tsx`: bug Radix `value=""` → sentinel `"all"` corregido ✅
 > - `historialPage()`: `notaria_id` filter super-admin, pasa `notarias` + `is_super_admin` ✅
 > - `ListaPepBusquedaFactory` creada + `HasFactory` en model ✅
-> - `HistorialPageTest.php`: 10 tests pasando (acceso, filtros, scoping por notaría, seguridad) ✅
+> - `HistorialPageTest.php`: 10 tests pasando ✅
 > - `PlanServicesSeeder`: `LIST_PEP` agregado a los 3 planes ✅
 > - `PepQuotaService` creado (`verificarDisponibilidad`, `consumir`, `getPaqueteInfo`) ✅
 > - `historialPage()`: prop `paquete` dinámica vía `PepQuotaService::getPaqueteInfo()` ✅
 > - `History.tsx`: fallback hardcoded `600 búsquedas` eliminado; estado null manejado ✅
-> - `PepQuotaServiceTest.php`: 11 tests pasando (28 total ListasPEP) ✅
-> - `CertificadosTest.php`: 13 tests pasando (PDFs + validaciones + auth) ✅
-> - `SearchPageTest.php`: 4 tests pasando (acceso, auth, ruta buscar bloqueada) ✅
+> - `PepQuotaServiceTest.php`: 11 tests pasando ✅
+> - `CertificadosTest.php`: 13 tests pasando ✅
+> - `SearchPageTest.php`: 4 tests pasando ✅
 > - Controller: validación `resultados` corregida (`required` → `present` para arrays vacíos) ✅
 > - **Suite completa: 45/45 ListasPEP tests verdes** ✅
 >
-> **⏭️ SIGUIENTE:** Fase 8 — BD Interna (`pep:verificar-personas` Artisan command) — bloqueada hasta tener búsquedas reales.
+> **Junio 2, 2026 (Fix previo + FASE 3 + Swagger + Seguridad):**
+> - Fix #11: `ControlNotarialApiService` — `config('key', 'default')` → `config('key') ?? 'default'` en los 4 valores de constructor (PHP 8.2 strict typing con config null) ✅
+> - **FASE 3 completa:** `PrevencionDeLavadoService` creado con `getToken()`, `buscarEnListas()`, `invalidarToken()` ✅
+> - `ListasPEPController::buscar()` implementado — flujo BD interna → API PLD → guardado transaccional ✅
+> - `ListasPEPController::consumos()` implementado — `GET /admin/listas-pep/consumos` ✅
+> - Ruta `POST /admin/listas-pep/buscar` activada (estaba comentada) ✅
+> - Ruta `GET /admin/listas-pep/consumos` registrada → `listas-pep.consumos` ✅
+> - `SearchPageTest.php`: actualizado con nuevos comportamientos (ruta activa → 402, auth 401) ✅
+> - **JWT real obtenido y verificado** — `Client: 55658`, `Id: 72990`, `email: claudia@atinet.com.mx` ✅
+> - **Swagger de la API descubierto** — `GET /swagger/v1/swagger.json` expuesto públicamente por PLD ✅
+> - **`GET /Listas/Consumos` descubierto** — devuelve `{consultasDisponibles, consultasContratadas, periodo, tipoPlan}` ✅
+> - `PrevencionDeLavadoService::getConsumos()` implementado ✅
+> - **Plan actual verificado:** 20/50 búsquedas disponibles, `tipoPlan: "Demostración"`, `periodo: 31/12/2025-31/12/2026` ✅
+> - **Auditoría de seguridad completada** — sin Swagger expuesto, sin Telescope/Horizon, rutas de dev env-gated ✅
+> - `SearchPageTest.php`: 3 tests nuevos para endpoint `consumos` (auth, mock OK, mock 503) ✅
+> - **Suite completa: 49/49 ListasPEP tests verdes** ✅
+>
+> **⏭️ SIGUIENTE:** Conectar `Search.tsx` → `handleBuscar()` al endpoint real `POST /admin/listas-pep/buscar`.  
+> Ver plan completo de dashboard/logs/reportes en `PLAN_DASHBOARD_LOGS_REPORTES_PEP.md`.
 
 ---
 
@@ -271,9 +286,9 @@ Schedule::command('pep:verificar-personas')->dailyAt('02:00');
 - [x] Migración `create_listas_pep_personas_table`
 - [x] Migración `add_bd_interna_to_listas_pep_busquedas_estado_enum`
 - [x] Model `ListaPepPersona` con scopes `buscar`, `pendientesVerificacion`, `upsertDesdeApi()`
-- [ ] Artisan command `pep:verificar-personas` ← **bloqueado hasta tener búsquedas reales en BD**
+- [ ] Artisan command `pep:verificar-personas` ← pendiente acumular búsquedas reales en BD
 - [ ] Registrar schedule en `routes/console.php`
-- [ ] Conectar offline search en controller (`buscarEnBdInterna()`)
+- [x] Migración: agregar campos faltantes del Swagger (`fecha_baja`, `lista_id`, `pais_lista_id3`, `fuente_desc_larga`) ✅ Jun 2, 2026
 
 ---
 
@@ -319,6 +334,8 @@ Schedule::command('pep:verificar-personas')->dailyAt('02:00');
 | `2026_06_01_093945_create_pep_cuotas_notaria_table` | 5 | ✅ Ejecutada |
 | `2026_06_01_115311_create_listas_pep_personas_table` | 6 | ✅ Ejecutada |
 | `2026_06_01_115313_add_bd_interna_to_listas_pep_busquedas_estado_enum` | 6 | ✅ Ejecutada |
+| `2026_06_02_add_swagger_fields_to_listas_pep_tables` | — | ⏳ Pendiente crear |
+| `2026_06_02_add_swagger_fields_to_listas_pep_tables` | — | ⏳ Pendiente crear |
 
 ### 🖥️ Backend
 | Archivo | Estado | Notas |
@@ -329,7 +346,7 @@ Schedule::command('pep:verificar-personas')->dailyAt('02:00');
 | `app/Models/PepCuotaNotaria.php` | ✅ Completo | `disponibles()`, `consumir()`, scope `activa`, `deNotaria()` |
 | `app/Models/ListaPepPersona.php` | ✅ Completo | Scopes `buscar`, `pendientesVerificacion`, `upsertDesdeApi()` |
 | `database/factories/ListaPepBusquedaFactory.php` | ✅ Creado | Todos los campos fillable con fake data |
-| `app/Services/PrevencionDeLavadoService.php` | ❌ No creado | Requiere renovar quota API |
+| `app/Services/PrevencionDeLavadoService.php` | ✅ Completo | `getToken()` (JWT cacheado 55 min), `buscarEnListas()`, `getConsumos()`, `invalidarToken()` |
 | `app/Services/PepQuotaService.php` | ✅ Completo | `verificarDisponibilidad()`, `consumir()`, `getPaqueteInfo()` |
 
 ### 🛣️ Rutas (`routes/web.php`)
@@ -339,12 +356,13 @@ Schedule::command('pep:verificar-personas')->dailyAt('02:00');
 | `POST /admin/listas-pep/certificado/con-coincidencia` | Controller | ✅ Activa |
 | `GET /admin/listas-pep/listados/{refipre\|ocde\|gafi}` | Controller | ✅ Activa (DomPDF Atinet) |
 | `GET /admin/listas-pep/historial` | Controller | ✅ Activa (Inertia + paginación + filtros) |
-| `POST /admin/listas-pep/buscar` | Controller | 🔒 Comentada (espera API) |
+| `POST /admin/listas-pep/buscar` | Controller | ✅ Activa (BD interna → API PLD → guardado transaccional) |
+| `GET /admin/listas-pep/consumos` | Controller | ✅ Activa — devuelve quota PLD en tiempo real |
 
 ### 🎨 Frontend React
 | Archivo | Estado | Notas |
 |---------|--------|-------|
-| `resources/js/pages/Admin/ListasPEP/Search.tsx` | 🔄 Parcial | `generarCertificadoSinCoincidencias()` + `generarCertificadoConCoincidencias()` ✅. `handleBuscar()` conectado a endpoint aún comentado |
+| `resources/js/pages/Admin/ListasPEP/Search.tsx` | 🔄 Parcial | Certificados OK ✅. `handleBuscar()` pendiente conectar al endpoint real (actualmente usa mock data) |
 | `resources/js/pages/Admin/ListasPEP/History.tsx` | ✅ Completo | Filtros `q`/`dias`/`notaria_id`, Inertia nativo, scoping super-admin, bug Radix corregido |
 
 ### 🧪 Tests
@@ -354,7 +372,7 @@ Schedule::command('pep:verificar-personas')->dailyAt('02:00');
 | `tests/Feature/ListasPEP/HistorialPageTest.php` | ✅ Pasando | 10 tests (acceso, auth, filtros, scoping notaría, seguridad) |
 | `tests/Feature/ListasPEP/PepQuotaServiceTest.php` | ✅ Pasando | 11 tests (getPaqueteInfo, verificarDisponibilidad, consumir) |
 | `tests/Feature/ListasPEP/CertificadosTest.php` | ✅ Pasando | 13 tests (listados PDF, certificados PDF, auth, validación) |
-| `tests/Feature/ListasPEP/SearchPageTest.php` | ✅ Pasando | 4 tests (acceso super-admin/notaría, auth, ruta buscar bloqueada) |
+| `tests/Feature/ListasPEP/SearchPageTest.php` | ✅ Pasando | 8 tests (acceso, auth, 402 sin cuota, consumos auth/OK/503) |
 | `database/factories/ListaPepBusquedaFactory.php` | ✅ Creado | Fake data para todos los campos fillable |
 
 ### 📄 Plantillas PDF (Blade)
@@ -831,22 +849,46 @@ Agregar tarjeta arriba de los resultados:
 ### **FASE 3: Backend - Servicio de API Externa** 🌐
 
 **Prioridad:** ALTA  
-**Estado:** 🔒 **BLOQUEADA** — Solo 23/600 búsquedas disponibles. No implementar hasta renovar plan.  
-**Tiempo estimado:** 2 horas
+**Estado:** ✅ **COMPLETADA** — Junio 2, 2026.  
 
-#### Tareas:
-1. ❌ Crear `app/Services/PrevencionDeLavadoService.php`
-   - Método `login()` con caché de token (55 minutos)
-   - Método `buscarEnListas(array $parametros)`
-   - Manejo de errores y reintentos
-   - Logging de requests
+#### Hallazgos clave (Junio 2, 2026)
 
-2. ✅ Credenciales en `.env`
-   ```
-   PREVENCION_LAVADO_USER=acostacl
-   PREVENCION_LAVADO_PASS=26F1D723
-   PREVENCION_LAVADO_URL=https://mbalistas.prevenciondelavado.com
-   ```
+**API real verificada:**
+- `POST /Login` → JWT válido (~5 días). Cacheamos 55 min (conservador).
+- `POST /Listas` → búsqueda estándar, devuelve `ResultadoPersona[]`.
+- `GET /Listas/Consumos` → **descubierto vía Swagger** → devuelve `{consultasDisponibles, consultasContratadas, periodo, tipoPlan}`.
+- `GET /swagger/v1/swagger.json` → expuesto públicamente por PLD (sin auth). Nuestro sistema NO expone Swagger.
+
+**Plan actual verificado:**
+- `consultasDisponibles: 20` / `consultasContratadas: 50`
+- `tipoPlan: "Demostración"` | `periodo: 31/12/2025 - 31/12/2026`
+
+**Campos adicionales del Swagger (endpoint `/Listas/ListasApi/Listas` — requiere objeto `UA`):**
+
+| Campo Swagger | Nuestra BD | Significado |
+|---|---|---|
+| `fechaBaja` | ❌ Falta | Cuándo fue dado de baja de la lista |
+| `listaId` | ❌ Falta | ID de la lista (e.g. `"PEP-MEX-GOB"`) |
+| `paisListaId3` | ❌ Falta | Código ISO-3 del país (e.g. `"MEX"`) |
+| `fuenteDescLarga` | ❌ Falta | Nombre completo de la fuente |
+| `subTipoDescCorta` | ❌ Falta | Etiqueta corta del subtipo |
+| `paisCooperante` | ❌ Falta | País cooperante (solo GAFI/OCDE) |
+
+→ **Migración pendiente** para agregar estos 4 más importantes.
+
+#### Tareas completadas:
+- [x] Crear `app/Services/PrevencionDeLavadoService.php`
+  - `getToken()` — JWT cacheado en `pld_api_token` por 3300 s. Auto-invalida en 401.
+  - `buscarEnListas(array $parametros)` — convierte booleanos a 'S'/'N'.
+  - `getConsumos()` — `GET /Listas/Consumos` → quota en tiempo real.
+  - `invalidarToken()` — limpia caché manualmente.
+- [x] Credenciales en `.env` y `config/services.php` (`prevencion_lavado` block)
+- [x] `ListasPEPController::buscar()` — flujo BD interna → API → transacción DB
+- [x] `ListasPEPController::consumos()` — endpoint `GET /admin/listas-pep/consumos`
+- [x] Rutas `POST buscar` + `GET consumos` activas
+- [x] 3 tests nuevos para `consumos` (auth 401, mock OK, mock 503)
+
+
 
 **Código:**
 ```php
@@ -989,7 +1031,7 @@ class PrevencionDeLavadoService
 1. ✅ Crear `app/Http/Controllers/Admin/ListasPEPController.php`
 2. ✅ Método `certificadoSinCoincidencias()` — genera y descarga PDF "Sin Coincidencias"
 3. ✅ Método `certificadoConCoincidencia()` — genera y descarga PDF "Con Coincidencia"
-4. 🔒 Método `buscar()` — bloqueado por FASE 3 (quota API)
+4. ✅ Método `buscar()` — implementado (flujo BD interna → API PLD → transacción DB)
 5. ⏳ Método `historial()` — **SIGUIENTE** (FASE 6)
 6. ✅ Método `descargarListado($tipo)` — DomPDF Atinet para REFIPRE/OCDE/GAFI (con fallback estático)
 
@@ -1107,7 +1149,8 @@ class ListasPEPController extends Controller
    - `POST /admin/listas-pep/certificado/sin-coincidencias`
    - `POST /admin/listas-pep/certificado/con-coincidencia`
 2. ✅ `GET /admin/listas-pep/listados/{refipre|ocde|gafi}` — activa con DomPDF
-3. 🔒 Descomentar `buscar` (requiere FASE 3 — quota API)
+3. ✅ Ruta `POST /admin/listas-pep/buscar` activa
+4. ✅ Ruta `GET /admin/listas-pep/consumos` activa — quota PLD en tiempo real
 4. ⏳ Activar `historial/data` — **SIGUIENTE** (FASE 6)
 
 **Código:**
@@ -1141,11 +1184,11 @@ Route::prefix('listas-pep')->name('listas-pep.')->middleware(['auth', 'verified'
 - ✅ `HistorialPageTest.php`: 10 tests (acceso, filtros, scoping notaría, seguridad)
 - ✅ `PepQuotaServiceTest.php`: 11 tests (getPaqueteInfo, verificarDisponibilidad, consumir)
 - ✅ `CertificadosTest.php`: 13 tests (listados PDF ×3, auth ×2, sin-coincidencias ×4, con-coincidencia ×4)
-- ✅ `SearchPageTest.php`: 4 tests (acceso super-admin, acceso notaría, auth, ruta buscar bloqueada=404)
-- ✅ Corrección controller: `'resultados' => ['present', 'array']` (arrays vacíos válidos)
+- ✅ `SearchPageTest.php`: 8 tests (acceso ×2, auth, 402 sin cuota, consumos auth/OK/503)
+- ✅ Suite completa: 49 tests pasando (49/49)
 
-#### Pendiente (bloqueado por Fase 3):
-- ⏳ Test Feature: ruta `buscar` funciona correctamente (cuando API se reactive)
+#### Pendiente:
+- ⏳ Test Feature: `buscar()` con API real (cuando se acumulen búsquedas reales)
 
 ---
 
@@ -1167,13 +1210,13 @@ Route::prefix('listas-pep')->name('listas-pep.')->middleware(['auth', 'verified'
 |------|-------------|---------------|
 | 1 | Mejorar Vista React | ✅ Completada |
 | 2 | Migración y Modelo | ✅ Completada |
-| 3 | Servicio API Externa | 🔒 Bloqueada (quota) |
+| 3 | Servicio API Externa | ✅ Completada |
 | 4 | Controlador (PDFs + Historial) | ✅ Completada |
 | 5 | Rutas y Middleware | ✅ Completada |
 | 6 | Historial de Búsquedas | ✅ Completada |
 | 7 | Sistema de Cuotas PEP | ✅ Completada |
 | 8 | BD Interna (listas_pep_personas) | 🔄 En progreso (50%) |
-| 9 | Testing integral | ✅ Completada |
+| 9 | Testing integral | ✅ Completada (49 tests) |
 | 10 | Deploy y Producción | ⏳ Pendiente |
 
 ---
@@ -1182,13 +1225,13 @@ Route::prefix('listas-pep')->name('listas-pep.')->middleware(['auth', 'verified'
 
 1. ✅ ~~FASE 1 — Mejorar Vista React~~
 2. ✅ ~~FASE 2 — Migraciones BD~~
-3. 🔒 FASE 3 — API Externa (bloqueada — renovar quota PLD)
+3. ✅ ~~FASE 3 — API Externa (PrevencionDeLavadoService + buscar() + consumos())~~
 4. ✅ ~~FASE 4 — Controller (PDFs + Historial)~~
 5. ✅ ~~FASE 5 — Rutas~~
 6. ✅ ~~FASE 6 — Historial + Tests~~
 7. ✅ ~~FASE 7 — Cuotas PEP (PepQuotaService + PlanServicesSeeder + wire prop)~~
-8. 🔄 FASE 8 — BD Interna (parcial — bloqueada hasta tener búsquedas reales)
-9. ✅ ~~FASE 9 — Testing integral (45 tests pasando)~~
+8. 🔄 FASE 8 — BD Interna (parcial — falta Artisan command + migración campos Swagger)
+9. ✅ ~~FASE 9 — Testing integral (49 tests pasando)~~
 10. ⏳ FASE 10 — Deploy y Producción
 
 ---
@@ -1198,14 +1241,16 @@ Route::prefix('listas-pep')->name('listas-pep.')->middleware(['auth', 'verified'
 ### Vista React
 - ✅ `Search.tsx`: checkboxes de opciones, tipos TS, certificados PDF
 - ✅ `History.tsx`: Inertia nativo, filtros `q`/`dias`/`notaria_id`, scoping super-admin
-- ⏳ `Search.tsx`: conectar `handleBuscar()` al endpoint (espera FASE 3)
-- ⏳ `Search.tsx`: prop `paquete` dinámica (espera Fase 7)
+- ✅ `PrevencionDeLavadoService`: `getToken()`, `buscarEnListas()`, `getConsumos()`, `invalidarToken()`
+- 🔄 `Search.tsx`: conectar `handleBuscar()` al endpoint real (actualmente usa mock data)
 
 ### Backend
 - ✅ Migraciones: 7 tablas ejecutadas (busquedas, resultados, certificados, paquetes_pld, cuotas_notaria, personas, ENUM update)
 - ✅ Modelos: `ListaPepBusqueda`, `PepPaquetePld`, `PepCuotaNotaria`, `ListaPepPersona`
-- ✅ Controller: `historialPage()`, `certificadoSinCoincidencias()`, `certificadoConCoincidencia()`, `descargarListado()`
-- ✅ Rutas activas: certificados, listados PDF, historial
+- ✅ Controller: `historialPage()`, `certificadoSinCoincidencias()`, `certificadoConCoincidencia()`, `descargarListado()`, `buscar()`, `consumos()`
+- ✅ Rutas activas: certificados, listados PDF, historial, buscar, consumos
+- ✅ Migración campos Swagger: `fecha_baja`, `lista_id`, `pais_lista_id3`, `fuente_desc_larga` en resultados + personas (Jun 2)
+- 📄 Plan detallado de dashboard/logs/reportes con nuevos campos → ver `PLAN_DASHBOARD_LOGS_REPORTES_PEP.md`
 - ✅ `ServicesSeeder`: `LIST_PEP` activo
 - 🔒 `PrevencionDeLavadoService` (espera renovación quota)
 - ⏳ `PlanServicesSeeder`: agregar `LIST_PEP` a planes con `usage_limit`

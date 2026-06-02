@@ -442,6 +442,9 @@ export default function ListasPEPSearch({ paquete }: Props) {
     // ---- Estado de filas expandidas ----
     const [filasExpandidas, setFilasExpandidas] = useState<Set<string>>(new Set());
 
+    // ---- Fuente de la última búsqueda ----
+    const [fuenteBusqueda, setFuenteBusqueda] = useState<'API_PLD' | 'BD_INTERNA' | null>(null);
+
     // ---- Datos de ejemplo para demostración ----
     const generarDatosEjemplo = (): BusquedaResponseAPI => {
         return {
@@ -614,16 +617,13 @@ export default function ListasPEPSearch({ paquete }: Props) {
         setError(null);
         setResultados([]);
         setTotalAciertos(null);
+        setFuenteBusqueda(null);
         setSeleccionados(new Set());
         setFiltroTipo('');
         setFiltroFuente('');
         setFiltroTexto('');
 
         try {
-            // TODO: Reemplazar con el endpoint real de la API del proveedor
-            // cuando se entreguen las credenciales y documentación de la API.
-            // Endpoint estimado: POST /admin/listas-pep/buscar
-            // Body: { apellido_denominacion, nombres, identificacion }
             const response = await fetch('/admin/listas-pep/buscar', {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -643,14 +643,14 @@ export default function ListasPEPSearch({ paquete }: Props) {
             const data = await response.json();
 
             if (data.success) {
-                // Mapear resultados de API a formato React
-                const resultadosAPI: PEPResultadoAPI[] = data.data?.resultados ?? [];
+                const resultadosAPI: PEPResultadoAPI[] = data.resultados ?? [];
                 const resultadosMapeados = resultadosAPI.map(mapearResultadoAPI);
 
                 setResultados(resultadosMapeados);
-                setTotalAciertos(data.data?.total_aciertos ?? 0);
-                setCodigoCertificado(data.data?.codigo_certificado ?? null);
-                setFechaConsulta(data.data?.fecha_consulta ?? null);
+                setTotalAciertos(data.total_resultados ?? 0);
+                setCodigoCertificado(data.codigo_certificado ?? null);
+                setFechaConsulta(data.fecha_consulta ?? null);
+                setFuenteBusqueda(data.fuente ?? null);
                 setUltimaBusqueda({ ...form });
             } else {
                 setError(data.message ?? 'Error en la búsqueda');
@@ -1227,27 +1227,41 @@ export default function ListasPEPSearch({ paquete }: Props) {
                             {/* Resumen de búsqueda */}
                             <div className="mb-4 flex items-start justify-between gap-4">
                                 <div className="space-y-1">
-                                    <p className="text-sm">
-                                        Se encontraron{' '}
-                                        <strong className="text-blue-700">{totalAciertos}</strong>{' '}
-                                        aciertos
-                                        {ultimaBusqueda?.apellido_denominacion && (
-                                            <>
-                                                {' '}para{' '}
-                                                <strong>
-                                                    Apellido/Denominación:{' '}
-                                                    {ultimaBusqueda.apellido_denominacion}
-                                                </strong>
-                                            </>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-sm">
+                                            Se encontraron{' '}
+                                            <strong className="text-blue-700">{totalAciertos}</strong>{' '}
+                                            aciertos
+                                            {ultimaBusqueda?.apellido_denominacion && (
+                                                <>
+                                                    {' '}para{' '}
+                                                    <strong>
+                                                        Apellido/Denominación:{' '}
+                                                        {ultimaBusqueda.apellido_denominacion}
+                                                    </strong>
+                                                </>
+                                            )}
+                                            {ultimaBusqueda?.nombres && (
+                                                <>
+                                                    .{' '}Nombre:{' '}
+                                                    <strong>{ultimaBusqueda.nombres}</strong>
+                                                </>
+                                            )}
+                                            .
+                                        </p>
+                                        {fuenteBusqueda === 'BD_INTERNA' && (
+                                            <span className="inline-flex items-center gap-1 rounded-md border border-green-300 bg-green-50 px-1.5 py-0.5 text-[11px] font-semibold text-green-700">
+                                                <Users className="h-3 w-3" />
+                                                BD Interna
+                                            </span>
                                         )}
-                                        {ultimaBusqueda?.nombres && (
-                                            <>
-                                                .{' '}Nombre:{' '}
-                                                <strong>{ultimaBusqueda.nombres}</strong>
-                                            </>
+                                        {fuenteBusqueda === 'API_PLD' && (
+                                            <span className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                                                <Globe className="h-3 w-3" />
+                                                API PLD
+                                            </span>
                                         )}
-                                        .
-                                    </p>
+                                    </div>
                                     {totalAciertos > 50 && (
                                         <p className="text-xs text-muted-foreground">
                                             Se despliegan los 50 aciertos más relevantes.

@@ -101,6 +101,26 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | PrevencionDeLavado.com — Listas PEP (MBA Systems)
+    |--------------------------------------------------------------------------
+    |
+    | Servicio externo para consulta de Personas Expuestas Políticamente.
+    | Autenticación: POST /Login → JWT cacheado 55 minutos.
+    | Búsqueda: POST /listas con Bearer token.
+    |
+    | Plan contratado: 600 búsquedas totales (no mensuales).
+    |
+    */
+
+    'prevencion_lavado' => [
+        'url' => env('PREVENCION_LAVADO_URL', 'https://mbalistas.prevenciondelavado.com'),
+        'user' => env('PREVENCION_LAVADO_USER'),
+        'password' => env('PREVENCION_LAVADO_PASS'),
+        'timeout' => (int) env('PREVENCION_LAVADO_TIMEOUT', 30),
+    ],
+
     'control_notarial' => [
         // URL pública (frontend → C# directo, con JWT del usuario)
         'api_url' => env('CONTROL_NOTARIAL_API_URL', 'https://srvatinet.atinet.com.mx:7443/api'),
@@ -111,8 +131,8 @@ return [
         'gw_password' => env('CONTROL_NOTARIAL_GW_PASSWORD'),
         'token_cache_ttl' => (int) env('CONTROL_NOTARIAL_TOKEN_CACHE', 3300),
         // JWT local — mismos valores que C# appsettings.json
-        'jwt_key'     => env('CONTROL_NOTARIAL_JWT_KEY', '74Av348euKnbnYi8cfbzPgiX7SjM3FPX'),
-        'jwt_issuer'  => env('CONTROL_NOTARIAL_JWT_ISSUER', 'https://miservidor.com'),
+        'jwt_key' => env('CONTROL_NOTARIAL_JWT_KEY', '74Av348euKnbnYi8cfbzPgiX7SjM3FPX'),
+        'jwt_issuer' => env('CONTROL_NOTARIAL_JWT_ISSUER', 'https://miservidor.com'),
         'jwt_minutes' => (int) env('CONTROL_NOTARIAL_JWT_MINUTES', 15),
     ],
 

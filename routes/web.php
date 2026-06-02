@@ -380,6 +380,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // Rutas activas — no requieren servicio externo ni API PLD
     Route::prefix('listas-pep')->name('listas-pep.')->group(function () {
+        // Búsqueda en listas PEP (API PrevencionDeLavado.com + BD interna)
+        Route::post('buscar', [\App\Http\Controllers\Admin\ListasPEPController::class, 'buscar'])
+            ->name('buscar');
+
+        // Consultas disponibles del plan PLD contratado
+        Route::get('consumos', [\App\Http\Controllers\Admin\ListasPEPController::class, 'consumos'])
+            ->name('consumos');
+
         // Descarga de listados complementarios estáticos (REFIPRE / OCDE / GAFI)
         Route::get('listados/{tipo}', [\App\Http\Controllers\Admin\ListasPEPController::class, 'descargarListado'])
             ->where('tipo', 'refipre|ocde|gafi')

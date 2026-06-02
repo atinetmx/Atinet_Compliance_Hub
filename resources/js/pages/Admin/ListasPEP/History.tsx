@@ -73,6 +73,26 @@ interface Props {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers UI
+// ---------------------------------------------------------------------------
+
+function EstadoBusquedaBadge({ estado }: { estado: string }) {
+    const variants: Record<string, { color: string; label: string }> = {
+        BD_INTERNA:  { color: 'border-green-300 bg-green-50 text-green-700',  label: 'BD Interna' },
+        PROCESADA:   { color: 'border-blue-300 bg-blue-50 text-blue-700',     label: 'Procesada'  },
+        APROBADA:    { color: 'border-emerald-300 bg-emerald-50 text-emerald-700', label: 'Aprobada' },
+        RECHAZADA:   { color: 'border-red-300 bg-red-50 text-red-700',        label: 'Rechazada'  },
+        PENDIENTE:   { color: 'border-yellow-300 bg-yellow-50 text-yellow-700', label: 'Pendiente' },
+    };
+    const v = variants[estado] ?? { color: 'border-gray-300 bg-gray-50 text-gray-600', label: estado };
+    return (
+        <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${v.color}`}>
+            {v.label}
+        </span>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
 
@@ -321,6 +341,7 @@ export default function ListasPEPHistory({ historial, paquete, notarias = [], is
                                         <TableHead>Nombres</TableHead>
                                         <TableHead>Identificación</TableHead>
                                         <TableHead className="w-24 text-center">Aciertos</TableHead>
+                                        <TableHead className="w-28 text-center">Estado</TableHead>
                                         <TableHead>Usuario</TableHead>
                                         <TableHead>Notaría</TableHead>
                                         <TableHead>Fecha</TableHead>
@@ -348,6 +369,9 @@ export default function ListasPEPHistory({ historial, paquete, notarias = [], is
                                                 >
                                                     {item.total_resultados}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <EstadoBusquedaBadge estado={item.estado_busqueda} />
                                             </TableCell>
                                             <TableCell className="text-sm">
                                                 {item.user.name}
