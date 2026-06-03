@@ -19,8 +19,6 @@ return new class extends Migration
                 $table->text('relaciones')->nullable()
                     ->after('otra_identificacion')
                     ->comment('Relaciones familiares o políticas con el PEP. Solo aplica para AFIN PEP y AFIN EX PEP');
-
-                $table->index('relaciones', 'idx_listas_pep_resultados_relaciones');
             });
         }
     }
@@ -32,7 +30,6 @@ return new class extends Migration
     {
         if (Schema::hasTable('listas_pep_resultados') && Schema::hasColumn('listas_pep_resultados', 'relaciones')) {
             Schema::table('listas_pep_resultados', function (Blueprint $table) {
-                $table->dropIndex('idx_listas_pep_resultados_relaciones');
                 $table->dropColumn('relaciones');
             });
         }
