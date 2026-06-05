@@ -1,9 +1,9 @@
-name: Deploy Web
+name: Deploy Production
 
 on:
- push:
-  branches:
-   - master
+  push:
+    branches:
+      - master
 
 jobs:
   deploy:
@@ -16,5 +16,19 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+
           script: |
-            sudo /usr/local/bin/deploy-atinet-web
+            cd /var/www/Atinet_Compliance_Hub
+
+            git fetch origin
+            git reset --hard origin/master
+
+            composer install --no-dev --optimize-autoloader
+
+            npm install
+
+            npm run build
+
+            php artisan optimize
+
+            sudo systemctl reload nginx
