@@ -9,7 +9,6 @@ jobs:
 deploy:
 runs-on: ubuntu-latest
 
-```
 steps:
   - name: Deploy to EC2
     uses: appleboy/ssh-action@v1.2.0
@@ -19,4 +18,3 @@ steps:
       key: ${{ secrets.EC2_SSH_KEY }}
       script: |
         sudo /usr/local/bin/deploy-atinet-web
-```
