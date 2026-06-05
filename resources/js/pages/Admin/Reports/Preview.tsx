@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, FileSpreadsheet, Printer, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import * as ReportsController from '@/actions/App/Http/Controllers/Admin/ReportsController';
+import ReportsController from '@/actions/App/Http/Controllers/Admin/ReportsController';
 import type { BreadcrumbItem } from '@/types';
 
 interface PreviewProps {
