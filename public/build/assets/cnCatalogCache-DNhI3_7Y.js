@@ -1,0 +1,1 @@
+const a=new Map;async function s(e,c){const n=Date.now(),t=a.get(e);if(t&&n<t.expiresAt)return t.data;const o=await c();return a.set(e,{data:o,expiresAt:n+36e5}),o}function r(){a.clear()}export{s as g,r as i};
