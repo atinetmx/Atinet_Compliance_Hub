@@ -20,12 +20,14 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
           script: |
-            echo "=== PRUEBA SSH ==="
+              cd /var/www/atinet-app
 
-            whoami
+              echo "=== VERIFICANDO REPOSITORIO ==="
 
-            hostname
+              pwd
 
-            pwd
+              git status
 
-            echo "Conexion exitosa"
+              git branch
+
+              echo "=== FIN ==="
