@@ -1,14 +1,8 @@
-name: Validate Laravel React!
+name: PR Validation - Feature To Dev
 
 on:
-  push:
-    branches:
-      - master
-      - dev
-
   pull_request:
     branches:
-      - master
       - dev
 
 jobs:
