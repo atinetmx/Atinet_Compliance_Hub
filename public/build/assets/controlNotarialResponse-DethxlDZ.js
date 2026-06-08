@@ -1,0 +1,1 @@
+import{i}from"./app-C6Bvh1k0.js";function t(r,o={}){const{onError:e,onUnauthorized:n}=o;return r?r.isUnauthorized?(i(),n?.(),null):r.success===!1?(e?.(r.message||"Error en la solicitud"),null):r.dataResponse??null:(e?.("Error: No se recibió respuesta del servidor"),null)}export{t as h};
