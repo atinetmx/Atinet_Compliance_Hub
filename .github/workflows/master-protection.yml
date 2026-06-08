@@ -1,0 +1,25 @@
+name: Master Protection - Dev To Master
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate-source:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Validate source branch
+        run: |
+          echo "Source: ${{ github.head_ref }}"
+          echo "Target: ${{ github.base_ref }}"
+
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "ERROR: Solo la rama dev puede hacer PR hacia master."
+            exit 1
+          fi
+
+          echo "Validación correcta."
