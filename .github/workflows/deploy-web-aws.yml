@@ -1,0 +1,44 @@
+name: Deploy AWS Production
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+            cd /var/www/atinet-app
+
+            echo "=== ACTUALIZANDO REPOSITORIO ==="
+            git pull origin master
+
+           echo "=== COMPOSER ==="
+           composer install --no-interaction --prefer-dist --optimize-autoloader
+
+           echo "=== NPM INSTALL ==="
+           npm install
+
+           echo "=== BUILD VITE ==="
+           NODE_OPTIONS="--max-old-space-size=2048" npm run build
+
+           echo "=== LARAVEL OPTIMIZE ==="
+           php artisan optimize
+
+           echo "=== REINICIANDO SERVICIOS ==="
+           sudo systemctl restart php8.2-fpm
+           sudo systemctl reload nginx
+
+           echo "=== DEPLOY FINALIZADO ==="
