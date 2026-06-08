@@ -1,6 +1,6 @@
 # 📚 Índice de Documentación - Atinet Compliance Hub PRUEBA GIT
 
-**Última actualización:** 8 de Abril, 2026
+**Última actualización:** 8 de Abril, 2026 PRUEBA
 
 Este documento sirve como índice central de toda la documentación del proyecto. Aquí encontrarás referencias organizadas a todos los documentos técnicos, guías y recursos disponibles.
 
