@@ -22,10 +22,10 @@ jobs:
           script: |
             echo "=== PRUEBA SSH ==="
 
-           whoami
+            whoami
 
-           hostname
+            hostname
 
-           pwd
+            pwd
 
-          echo "Conexion exitosa"
+            echo "Conexion exitosa"
