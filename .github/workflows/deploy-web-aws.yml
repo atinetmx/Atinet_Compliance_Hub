@@ -20,25 +20,12 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
           script: |
-            cd /var/www/atinet-app
+            echo "=== PRUEBA SSH ==="
 
-            echo "=== ACTUALIZANDO REPOSITORIO ==="
-            git pull origin master
+           whoami
 
-           echo "=== COMPOSER ==="
-           composer install --no-interaction --prefer-dist --optimize-autoloader
+           hostname
 
-           echo "=== NPM INSTALL ==="
-           npm install
+           pwd
 
-           echo "=== BUILD VITE ==="
-           NODE_OPTIONS="--max-old-space-size=2048" npm run build
-
-           echo "=== LARAVEL OPTIMIZE ==="
-           php artisan optimize
-
-           echo "=== REINICIANDO SERVICIOS ==="
-           sudo systemctl restart php8.2-fpm
-           sudo systemctl reload nginx
-
-           echo "=== DEPLOY FINALIZADO ==="
+          echo "Conexion exitosa"
