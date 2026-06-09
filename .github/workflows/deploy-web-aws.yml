@@ -40,7 +40,7 @@ jobs:
 
             echo "=== LARAVEL ==="
 
-            php artisan optimize
+            sudo -u www-data php artisan optimize
 
             echo "=== REINICIANDO SERVICIOS ==="
 
