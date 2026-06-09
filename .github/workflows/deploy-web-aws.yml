@@ -20,14 +20,31 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
 
           script: |
-              cd /var/www/atinet-app
+            echo "=== INICIANDO DEPLOY ==="
 
-              echo "=== VERIFICANDO REPOSITORIO ==="
+            sudo -u www-data git -C /var/www/atinet-app pull origin master
 
-              pwd
+            cd /var/www/atinet-app
 
-              git status
+            echo "=== COMPOSER ==="
 
-              git branch
+            sudo -u www-data composer install --no-interaction --prefer-dist --optimize-autoloader
 
-              echo "=== FIN ==="
+            echo "=== NPM INSTALL ==="
+
+            sudo -u www-data npm install
+
+            echo "=== BUILD ==="
+
+            sudo -u www-data env NODE_OPTIONS="--max-old-space-size=2048" npm run build
+
+            echo "=== LARAVEL ==="
+
+            sudo -u www-data php artisan optimize
+
+            echo "=== REINICIANDO SERVICIOS ==="
+
+            sudo systemctl restart php8.2-fpm
+            sudo systemctl reload nginx
+
+            echo "=== DEPLOY FINALIZADO ==="
