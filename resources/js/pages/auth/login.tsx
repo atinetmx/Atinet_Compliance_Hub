@@ -23,7 +23,7 @@ export default function Login({
 }: Props) {
     return (
         <AuthLayout
-            title="Iniciar Sesión"
+            title="Iniciar Sesión."
             description="Ingresa tu correo y contraseña para acceder"
         >
             <Head title="Iniciar Sesión" />
