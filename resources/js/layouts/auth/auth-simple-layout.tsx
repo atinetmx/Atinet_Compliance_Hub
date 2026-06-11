@@ -32,7 +32,7 @@ export default function AuthSimpleLayout({
                             className="flex flex-col items-center gap-3 hover:opacity-80 transition-opacity"
                         >
                             <img
-                                src="/images/LogoAtinetSinFondo.png"
+                                src="/images/atinet-logo.png"
                                 alt="Atinet Logo"
                                 className="h-16 w-auto"
                             />

@@ -3,7 +3,7 @@ export default function AppLogo() {
         <>
             <div className="flex aspect-square size-12 items-center justify-center">
                 <img
-                    src="/images/logo-atinet.png"
+                    src="/images/atinet-logo.png"
                     alt="Atinet"
                     className="h-12 w-auto object-contain"
                 />
