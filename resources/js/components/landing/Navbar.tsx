@@ -39,7 +39,7 @@ const Navbar = ({ isAuthenticated }: NavbarProps) => {
                         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                     >
                         <img
-                            src="/images/LogoAtinetSinFondo.png"
+                            src="/images/atinet-logo.png"
                             alt="Atinet Logo"
                             className="h-20 md:h-24 w-auto"
                         />
